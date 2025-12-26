@@ -18,6 +18,14 @@ export async function execute(interaction: any, { prisma }: any) {
   const sub = interaction.options.getSubcommand();
   const discordUserId = interaction.user.id;
   if (sub === 'register') {
+    if (interaction.guildId) {
+      await prisma.guild.upsert({
+        where: { id: interaction.guildId },
+        update: {},
+        create: { id: interaction.guildId },
+      });
+    }
+
     const name = interaction.options.getString('name', true);
     const clan = interaction.options.getString('clan') ?? null;
     const sheet = interaction.options.getString('sheet') ?? null;
