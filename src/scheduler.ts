@@ -4,15 +4,17 @@ import type { Client } from 'discord.js';
 import type { PrismaClient } from '@prisma/client';
 
 const DEFAULT_TIMEZONE = 'America/Chicago';
-const DEFAULT_WINDOW_LENGTH_HOURS = 7 * 24;
-const DEFAULT_ANCHOR_WEEKDAY = 7; // 1 = Monday, 7 = Sunday
-const DEFAULT_ANCHOR_HOUR = 12;
+const DEFAULT_NIGHT_START_WEEKDAY = 2; // 1 = Monday, 7 = Sunday (Tuesday)
+const DEFAULT_NIGHT_START_HOUR = 12;
+const DEFAULT_PLAY_END_WEEKDAY = 7; // Sunday
+const DEFAULT_PLAY_END_HOUR = 12;
 
-type GuildConfig = {
+export type GuildConfig = {
   timezone?: string;
-  windowLengthHours?: number;
-  anchorWeekday?: number;
-  anchorHour?: number;
+  nightStartWeekday?: number;
+  nightStartHour?: number;
+  playEndWeekday?: number;
+  playEndHour?: number;
 };
 
 function parseGuildConfig(config: unknown): GuildConfig {
@@ -20,60 +22,108 @@ function parseGuildConfig(config: unknown): GuildConfig {
   return config as GuildConfig;
 }
 
-function computeNextAnchor(now: DateTime, config: GuildConfig): DateTime {
-  const timezone = config.timezone ?? DEFAULT_TIMEZONE;
-  const anchorWeekday = config.anchorWeekday ?? DEFAULT_ANCHOR_WEEKDAY;
-  const anchorHour = config.anchorHour ?? DEFAULT_ANCHOR_HOUR;
+export type SubmissionWindowType = 'Night' | 'Daytime';
 
-  const localized = now.setZone(timezone);
-  const anchorThisWeek = localized
-    .set({ weekday: anchorWeekday, hour: anchorHour, minute: 0, second: 0, millisecond: 0 });
+export type WindowDefinition = {
+  type: SubmissionWindowType;
+  startAt: DateTime;
+  endAt: DateTime;
+  label: string;
+};
 
+function computeNextBoundary(localized: DateTime, weekday: number, hour: number): DateTime {
+  const anchorThisWeek = localized.set({ weekday, hour, minute: 0, second: 0, millisecond: 0 });
   if (localized <= anchorThisWeek) {
     return anchorThisWeek;
   }
-
   return anchorThisWeek.plus({ weeks: 1 });
 }
 
-function computeNextWindowStart(latestStart: DateTime | null, now: DateTime, config: GuildConfig): DateTime {
-  const lengthHours = config.windowLengthHours ?? DEFAULT_WINDOW_LENGTH_HOURS;
-  if (latestStart) {
-    return latestStart.plus({ hours: lengthHours });
+function computeMostRecentBoundary(localized: DateTime, weekday: number, hour: number): DateTime {
+  const anchorThisWeek = localized.set({ weekday, hour, minute: 0, second: 0, millisecond: 0 });
+  if (localized >= anchorThisWeek) {
+    return anchorThisWeek;
   }
-  return computeNextAnchor(now, config);
+  return anchorThisWeek.minus({ weeks: 1 });
+}
+
+export function computeWindowSchedule(now: DateTime, config: GuildConfig): { current: WindowDefinition; next: WindowDefinition } {
+  const timezone = config.timezone ?? DEFAULT_TIMEZONE;
+  const nightStartWeekday = config.nightStartWeekday ?? DEFAULT_NIGHT_START_WEEKDAY;
+  const nightStartHour = config.nightStartHour ?? DEFAULT_NIGHT_START_HOUR;
+  const playEndWeekday = config.playEndWeekday ?? DEFAULT_PLAY_END_WEEKDAY;
+  const playEndHour = config.playEndHour ?? DEFAULT_PLAY_END_HOUR;
+
+  const localized = now.setZone(timezone);
+
+  const nextNightStart = computeNextBoundary(localized, nightStartWeekday, nightStartHour);
+  const nextPlayEnd = computeNextBoundary(localized, playEndWeekday, playEndHour);
+  const lastNightStart = computeMostRecentBoundary(localized, nightStartWeekday, nightStartHour);
+  const lastPlayEnd = computeMostRecentBoundary(localized, playEndWeekday, playEndHour);
+
+  const isNight = lastNightStart > lastPlayEnd;
+  const current: WindowDefinition = isNight
+    ? {
+        type: 'Night',
+        startAt: lastNightStart,
+        endAt: nextPlayEnd,
+        label: 'Night',
+      }
+    : {
+        type: 'Daytime',
+        startAt: lastPlayEnd,
+        endAt: nextNightStart,
+        label: 'Daytime',
+      };
+
+  const next: WindowDefinition = current.type === 'Night'
+    ? {
+        type: 'Daytime',
+        startAt: current.endAt,
+        endAt: nextNightStart,
+        label: 'Daytime',
+      }
+    : {
+        type: 'Night',
+        startAt: current.endAt,
+        endAt: nextPlayEnd,
+        label: 'Night',
+      };
+
+  return { current, next };
 }
 
 async function ensureWindowForGuild(prisma: PrismaClient, guildId: string) {
   const guild = await prisma.guild.findUnique({ where: { id: guildId } });
   const config = parseGuildConfig(guild?.config);
   const timezone = config.timezone ?? DEFAULT_TIMEZONE;
-  const windowLengthHours = config.windowLengthHours ?? DEFAULT_WINDOW_LENGTH_HOURS;
   const now = DateTime.now().setZone(timezone);
+  const { current, next } = computeWindowSchedule(now, config);
 
-  const latestWindow = await prisma.submissionWindow.findFirst({
-    where: { guildId },
-    orderBy: { startAt: 'desc' },
-  });
+  const ensureWindow = async (window: WindowDefinition) => {
+    const existing = await prisma.submissionWindow.findFirst({
+      where: {
+        guildId,
+        startAt: window.startAt.toJSDate(),
+      },
+    });
 
-  const latestStart = latestWindow ? DateTime.fromJSDate(latestWindow.startAt).setZone(timezone) : null;
-  const nextStart = computeNextWindowStart(latestStart, now, config);
+    if (existing) {
+      return;
+    }
 
-  if (latestWindow && now < DateTime.fromJSDate(latestWindow.endAt).setZone(timezone)) {
-    return;
-  }
+    await prisma.submissionWindow.create({
+      data: {
+        guildId,
+        startAt: window.startAt.toJSDate(),
+        endAt: window.endAt.toJSDate(),
+        label: window.label,
+      },
+    });
+  };
 
-  const nextEnd = nextStart.plus({ hours: windowLengthHours });
-  const label = `${nextStart.toFormat('yyyy-LL-dd')} → ${nextEnd.toFormat('yyyy-LL-dd')}`;
-
-  await prisma.submissionWindow.create({
-    data: {
-      guildId,
-      startAt: nextStart.toJSDate(),
-      endAt: nextEnd.toJSDate(),
-      label,
-    },
-  });
+  await ensureWindow(current);
+  await ensureWindow(next);
 }
 
 export function scheduleWindowsJob(client: Client, prisma: PrismaClient) {

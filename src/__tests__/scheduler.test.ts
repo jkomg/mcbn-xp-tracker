@@ -1,26 +1,37 @@
+import { describe, expect, it } from 'vitest';
 import { DateTime } from 'luxon';
-import { computeNextAnchor, computeNextWindowStart, GuildConfig } from '../scheduler';
+import { computeWindowSchedule, GuildConfig } from '../scheduler';
 
 describe('scheduler helpers', () => {
-  it('returns the same week anchor when now is before the anchor', () => {
-    const config: GuildConfig = { timezone: 'UTC', anchorWeekday: 1, anchorHour: 12 };
-    const now = DateTime.fromISO('2024-04-01T10:00:00Z');
-    const anchor = computeNextAnchor(now, config);
-    expect(anchor.toISO()).toBe('2024-04-01T12:00:00.000Z');
+  it('keeps noon boundaries across DST transitions', () => {
+    const config: GuildConfig = { timezone: 'America/Chicago' };
+    const now = DateTime.fromISO('2024-03-10T10:00:00', { zone: 'America/Chicago' });
+    const { current, next } = computeWindowSchedule(now, config);
+
+    expect(current.type).toBe('Night');
+    expect(current.startAt.toISO()).toBe('2024-03-05T12:00:00.000-06:00');
+    expect(current.endAt.toISO()).toBe('2024-03-10T12:00:00.000-05:00');
+    expect(next.startAt.toISO()).toBe('2024-03-10T12:00:00.000-05:00');
+    expect(next.endAt.toISO()).toBe('2024-03-12T12:00:00.000-05:00');
   });
 
-  it('returns next week anchor when now is after the anchor', () => {
-    const config: GuildConfig = { timezone: 'UTC', anchorWeekday: 1, anchorHour: 12 };
-    const now = DateTime.fromISO('2024-04-01T13:00:00Z');
-    const anchor = computeNextAnchor(now, config);
-    expect(anchor.toISO()).toBe('2024-04-08T12:00:00.000Z');
+  it('uses the daytime buffer during Sunday-to-Tuesday gap', () => {
+    const config: GuildConfig = { timezone: 'America/Chicago' };
+    const now = DateTime.fromISO('2024-03-11T15:00:00', { zone: 'America/Chicago' });
+    const { current } = computeWindowSchedule(now, config);
+
+    expect(current.type).toBe('Daytime');
+    expect(current.startAt.toISO()).toBe('2024-03-10T12:00:00.000-05:00');
+    expect(current.endAt.toISO()).toBe('2024-03-12T12:00:00.000-05:00');
   });
 
-  it('advances window start by the configured length', () => {
-    const config: GuildConfig = { timezone: 'UTC', windowLengthHours: 24 };
-    const latestStart = DateTime.fromISO('2024-04-01T12:00:00Z');
-    const now = DateTime.fromISO('2024-04-02T12:00:00Z');
-    const nextStart = computeNextWindowStart(latestStart, now, config);
-    expect(nextStart.toISO()).toBe('2024-04-02T12:00:00.000Z');
+  it('flips to a new night window at Tuesday noon', () => {
+    const config: GuildConfig = { timezone: 'America/Chicago' };
+    const now = DateTime.fromISO('2024-03-12T12:00:00', { zone: 'America/Chicago' });
+    const { current } = computeWindowSchedule(now, config);
+
+    expect(current.type).toBe('Night');
+    expect(current.startAt.toISO()).toBe('2024-03-12T12:00:00.000-05:00');
+    expect(current.endAt.toISO()).toBe('2024-03-17T12:00:00.000-05:00');
   });
 });

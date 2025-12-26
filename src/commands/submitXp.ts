@@ -17,6 +17,8 @@ export const data = new SlashCommandBuilder()
 
 export const name = 'submit-xp';
 
+const ALLOWED_WINDOW_LABELS = ['Night'];
+
 export async function execute(interaction: any, { prisma, client }: any) {
   const guildId = interaction.guildId;
   const actorId = interaction.user.id;
@@ -101,7 +103,12 @@ export async function execute(interaction: any, { prisma, client }: any) {
 
   // Determine current window
   const currentWindow = await prisma.submissionWindow.findFirst({
-    where: { guildId, startAt: { lte: new Date() }, endAt: { gte: new Date() } },
+    where: {
+      guildId,
+      startAt: { lte: new Date() },
+      endAt: { gte: new Date() },
+      label: { in: ALLOWED_WINDOW_LABELS },
+    },
     orderBy: { startAt: 'desc' },
   });
 

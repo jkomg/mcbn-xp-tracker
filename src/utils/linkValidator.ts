@@ -8,13 +8,23 @@ type Expected = {
   expectedAuthorId?: string;
 };
 
-export async function fetchDiscordMessageFromLink(client: Client, link: string, expected: Expected) {
+export function parseMessageLink(link: string) {
   const match = link.trim().match(MESSAGE_LINK_RE);
   if (!match) {
-    throw new Error('Invalid Discord message link format.');
+    return null;
   }
 
   const [, guildId, channelId, messageId] = match;
+  return { guildId, channelId, messageId };
+}
+
+export async function fetchDiscordMessageFromLink(client: Client, link: string, expected: Expected) {
+  const parsed = parseMessageLink(link);
+  if (!parsed) {
+    throw new Error('Invalid Discord message link format.');
+  }
+
+  const { guildId, channelId, messageId } = parsed;
   if (expected.expectedGuildId && expected.expectedGuildId !== guildId) {
     throw new Error('Message is not from this server.');
   }
