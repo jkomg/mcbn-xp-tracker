@@ -8,7 +8,7 @@ const DEFAULT_WINDOW_LENGTH_HOURS = 7 * 24;
 const DEFAULT_ANCHOR_WEEKDAY = 7; // 1 = Monday, 7 = Sunday
 const DEFAULT_ANCHOR_HOUR = 12;
 
-export type GuildConfig = {
+type GuildConfig = {
   timezone?: string;
   windowLengthHours?: number;
   anchorWeekday?: number;
@@ -20,7 +20,7 @@ function parseGuildConfig(config: unknown): GuildConfig {
   return config as GuildConfig;
 }
 
-export function computeNextAnchor(now: DateTime, config: GuildConfig): DateTime {
+function computeNextAnchor(now: DateTime, config: GuildConfig): DateTime {
   const timezone = config.timezone ?? DEFAULT_TIMEZONE;
   const anchorWeekday = config.anchorWeekday ?? DEFAULT_ANCHOR_WEEKDAY;
   const anchorHour = config.anchorHour ?? DEFAULT_ANCHOR_HOUR;
@@ -36,7 +36,7 @@ export function computeNextAnchor(now: DateTime, config: GuildConfig): DateTime 
   return anchorThisWeek.plus({ weeks: 1 });
 }
 
-export function computeNextWindowStart(latestStart: DateTime | null, now: DateTime, config: GuildConfig): DateTime {
+function computeNextWindowStart(latestStart: DateTime | null, now: DateTime, config: GuildConfig): DateTime {
   const lengthHours = config.windowLengthHours ?? DEFAULT_WINDOW_LENGTH_HOURS;
   if (latestStart) {
     return latestStart.plus({ hours: lengthHours });

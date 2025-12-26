@@ -2,13 +2,6 @@ import type { Client } from 'discord.js';
 
 const MESSAGE_LINK_RE = /^https?:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)$/i;
 
-export function parseMessageLink(link: string) {
-  const match = link.trim().match(MESSAGE_LINK_RE);
-  if (!match) return null;
-  const [, guildId, channelId, messageId] = match;
-  return { guildId, channelId, messageId };
-}
-
 type Expected = {
   expectedGuildId?: string;
   expectedChannelId?: string;
@@ -16,12 +9,12 @@ type Expected = {
 };
 
 export async function fetchDiscordMessageFromLink(client: Client, link: string, expected: Expected) {
-  const parsed = parseMessageLink(link);
-  if (!parsed) {
+  const match = link.trim().match(MESSAGE_LINK_RE);
+  if (!match) {
     throw new Error('Invalid Discord message link format.');
   }
 
-  const { guildId, channelId, messageId } = parsed;
+  const [, guildId, channelId, messageId] = match;
   if (expected.expectedGuildId && expected.expectedGuildId !== guildId) {
     throw new Error('Message is not from this server.');
   }
