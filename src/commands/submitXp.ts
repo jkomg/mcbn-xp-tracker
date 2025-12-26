@@ -22,6 +22,20 @@ export async function execute(interaction: any, { prisma, client }: any) {
   const actorId = interaction.user.id;
   const charKey = interaction.options.getString('character', true);
 
+  if (guildId) {
+    await prisma.guild.upsert({
+      where: { id: guildId },
+      update: {},
+      create: { id: guildId },
+    });
+  }
+
+  await prisma.user.upsert({
+    where: { id: actorId },
+    update: { username: interaction.user.tag },
+    create: { id: actorId, username: interaction.user.tag },
+  });
+
   // Lookup character by id or name within this guild
   const character = await prisma.character.findFirst({
     where: { guildId, OR: [{ id: charKey }, { name: charKey }] },
