@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Guild {
+  id         String   @id // Discord guild id as string
+  config     Json?    @default("{}")
+  createdAt  DateTime @default(now())
+  characters Character[]
+  windows    SubmissionWindow[]
+}
+
+model User {
+  id        String    @id // Discord user id
+  username  String
+  createdAt DateTime  @default(now())
+  characters Character[]
+  submissions XpSubmission[]
+  transactions XpTransaction[]
+  spendRequests XpSpendRequest[]
+}
+
+model Character {
+  id         String    @id @default(uuid())
+  guildId    String
+  guild      Guild     @relation(fields: [guildId], references: [id])
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id])
+  name       String
+  clan       String?
+  sheetUrl   String?
+  channelId  String?   // the dedicated Discord channel id for this character "cubby"
+  createdAt  DateTime  @default(now())
+  submissions XpSubmission[]
+  transactions XpTransaction[]
+  spendRequests XpSpendRequest[]
+}
+
+model SubmissionWindow {
+  id        String   @id @default(uuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [id])
+  startAt   DateTime
+  endAt     DateTime
+  label     String?
+  createdAt DateTime @default(now())
+  submissions XpSubmission[]
+}
+
+model XpSubmission {
+  id           String   @id @default(uuid())
+  windowId     String
+  window       SubmissionWindow @relation(fields: [windowId], references: [id])
+  characterId  String
+  character    Character @relation(fields: [characterId], references: [id])
+  submitterId  String
+  submitter    User      @relation(fields: [submitterId], references: [id])
+  xpAmount     Int
+  criteria     Json      // e.g. { posted: true, hunting: true, ... } plus links
+  evidenceUrls String[]  @default([])
+  notes        String?
+  status       String    @default("pending") // pending | accepted | rejected
+  reviewerId   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model XpTransaction {
+  id          String   @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id])
+  amount      Int
+  type        String
+  reason      String?
+  performedBy String
+  user        User     @relation(fields: [performedBy], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model XpSpendRequest {
+  id           String   @id @default(uuid())
+  characterId  String
+  character    Character @relation(fields: [characterId], references: [id])
+  requesterId  String
+  requester    User      @relation(fields: [requesterId], references: [id])
+  type         String
+  value        Int       // new level or number of dots depending on type
+  cost         Int
+  reason       String?
+  status       String    @default("pending") // pending | accepted | rejected
+  reviewerId   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
