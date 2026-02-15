@@ -181,6 +181,113 @@ def edit(name):
     return redirect(url_for('roster.detail', name=name))
 
 
+@bp.route('/<name>/adjust-xp', methods=['GET'])
+@require_staff
+def adjust_xp_form(name):
+    """Show XP adjustment form."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    # Compute current XP totals for context
+    claims = sheets_client.get_claims_for_character(name)
+    spends = sheets_client.get_spends_for_character(name)
+    earned_xp = sum(
+        c.approved_xp for c in claims if c.status.lower() == 'approved'
+    )
+    total_spends = sum(
+        s.verified_cost for s in spends if s.status.lower() == 'approved'
+    )
+    total_xp = char.creation_xp + earned_xp
+    available_xp = total_xp - total_spends
+
+    return render_template(
+        'roster/adjust_xp.html',
+        char=char,
+        earned_xp=earned_xp,
+        total_xp=total_xp,
+        total_spends=total_spends,
+        available_xp=available_xp,
+    )
+
+
+@bp.route('/<name>/adjust-xp', methods=['POST'])
+@require_staff
+def adjust_xp(name):
+    """Apply a manual XP adjustment."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    adjustment_type = request.form.get('adjustment_type', '')
+    xp_amount = int(request.form.get('xp_amount', 0))
+    reason = request.form.get('reason', '').strip()
+
+    if not reason:
+        flash('A reason is required for all XP adjustments.', 'danger')
+        return redirect(url_for('roster.adjust_xp_form', name=name))
+
+    if xp_amount == 0:
+        flash('XP amount cannot be zero.', 'danger')
+        return redirect(url_for('roster.adjust_xp_form', name=name))
+
+    staff = get_staff_user()
+
+    if adjustment_type == 'grant_xp':
+        # Add earned XP (positive claim)
+        sheets_client.add_xp_adjustment(name, abs(xp_amount), reason, staff)
+        sheets_client.log_action(
+            staff_user=staff,
+            action_type='xp_adjustment',
+            target=name,
+            details=f'Granted {abs(xp_amount)} XP: {reason}',
+        )
+        flash(f'Granted {abs(xp_amount)} XP to {name}.', 'success')
+
+    elif adjustment_type == 'remove_xp':
+        # Remove earned XP (negative claim)
+        sheets_client.add_xp_adjustment(name, -abs(xp_amount), reason, staff)
+        sheets_client.log_action(
+            staff_user=staff,
+            action_type='xp_adjustment',
+            target=name,
+            details=f'Removed {abs(xp_amount)} XP: {reason}',
+        )
+        flash(f'Removed {abs(xp_amount)} XP from {name}.', 'warning')
+
+    elif adjustment_type == 'refund_spend':
+        # Refund a spend (negative spend)
+        sheets_client.add_spend_adjustment(
+            name, -abs(xp_amount), reason, staff
+        )
+        sheets_client.log_action(
+            staff_user=staff,
+            action_type='spend_adjustment',
+            target=name,
+            details=f'Refunded {abs(xp_amount)} XP spend: {reason}',
+        )
+        flash(f'Refunded {abs(xp_amount)} XP of spends for {name}.', 'success')
+
+    elif adjustment_type == 'add_spend':
+        # Record a spend retroactively (positive spend)
+        sheets_client.add_spend_adjustment(
+            name, abs(xp_amount), reason, staff
+        )
+        sheets_client.log_action(
+            staff_user=staff,
+            action_type='spend_adjustment',
+            target=name,
+            details=f'Added {abs(xp_amount)} XP spend: {reason}',
+        )
+        flash(f'Added {abs(xp_amount)} XP spend for {name}.', 'info')
+
+    else:
+        flash('Invalid adjustment type.', 'danger')
+        return redirect(url_for('roster.adjust_xp_form', name=name))
+
+    return redirect(url_for('roster.detail', name=name))
+
+
 @bp.route('/<name>/deactivate', methods=['POST'])
 @require_staff
 def deactivate(name):

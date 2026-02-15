@@ -485,6 +485,72 @@ class SheetsClient:
         result.sort(key=lambda r: (not r['active'], r['character_name']))
         return result
 
+    # ── XP Adjustments ────────────────────────────────────────────────────────
+
+    def add_xp_adjustment(self, character_name: str, xp_amount: int,
+                          reason: str, staff_user: str) -> None:
+        """Add a manual XP adjustment as a synthetic claim row.
+
+        Positive amounts grant XP; negative amounts remove XP.
+        The row is auto-approved so it takes effect immediately.
+        """
+        ws = self._ws(TAB_XP_RESPONSES)
+        now = _now_str()
+        # Build a row matching XP_RESPONSES_HEADERS:
+        # timestamp, character_name, play_period,
+        # posted_once, link, hunting, link, scene, link,
+        # conflict, link, combat, link, stain, link,
+        # xp_claimed, status, approved_xp, reviewed_by, review_date, st_notes
+        row = [
+            now,                          # timestamp
+            character_name,               # character_name
+            'Staff Adjustment',           # play_period
+            '', '', '', '', '', '',       # 6 category checkboxes + links (empty)
+            '', '', '', '', '', '',
+            xp_amount,                    # xp_claimed
+            'Approved',                   # status (auto-approved)
+            xp_amount,                    # approved_xp
+            staff_user,                   # reviewed_by
+            now,                          # review_date
+            f'STAFF ADJUSTMENT: {reason}',  # st_notes
+        ]
+        ws.append_row(row)
+        self._cache.invalidate(TAB_XP_RESPONSES)
+
+    def add_spend_adjustment(self, character_name: str, xp_amount: int,
+                             reason: str, staff_user: str) -> None:
+        """Add a manual spend adjustment as a synthetic spend row.
+
+        Positive amounts add to spends (reduce available XP);
+        negative amounts refund spends (increase available XP).
+        The row is auto-approved so it takes effect immediately.
+        """
+        ws = self._ws(TAB_SPEND_REQUESTS)
+        now = _now_str()
+        # Build a row matching SPEND_REQUESTS_HEADERS:
+        # timestamp, character_name, spend_category, trait_name,
+        # current_dots, new_dots, xp_cost, is_in_clan,
+        # justification, status, verified_cost,
+        # reviewed_by, review_date, st_notes
+        row = [
+            now,                          # timestamp
+            character_name,               # character_name
+            'Staff Adjustment',           # spend_category
+            'Manual Adjustment',          # trait_name
+            0,                            # current_dots
+            0,                            # new_dots
+            xp_amount,                    # xp_cost
+            '',                           # is_in_clan
+            reason,                       # justification
+            'Approved',                   # status (auto-approved)
+            xp_amount,                    # verified_cost
+            staff_user,                   # reviewed_by
+            now,                          # review_date
+            f'STAFF ADJUSTMENT: {reason}',  # st_notes
+        ]
+        ws.append_row(row)
+        self._cache.invalidate(TAB_SPEND_REQUESTS)
+
     # ── Audit Log ────────────────────────────────────────────────────────────
 
     def log_action(self, staff_user: str, action_type: str,

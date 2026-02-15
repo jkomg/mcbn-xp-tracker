@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust XP — {{ char.character_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-sliders"></i> XP Adjustment: {{ char.character_name }}</h2>
+    <a href="{{ url_for('roster.detail', name=char.character_name) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<!-- Current XP Summary -->
+<div class="row mb-4">
+    <div class="col-md">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Creation XP</h6>
+                <h3>{{ char.creation_xp }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Earned XP</h6>
+                <h3>{{ earned_xp }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Total XP</h6>
+                <h3>{{ total_xp }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Approved Spends</h6>
+                <h3>{{ total_spends }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card {% if available_xp > 0 %}border-success{% elif available_xp < 0 %}border-danger{% endif %}">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Available XP</h6>
+                <h3 class="{% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">
+                    {{ available_xp }}
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Staff-only tool.</strong> XP adjustments are auto-approved and take effect immediately.
+    All adjustments are logged to the Audit Trail with your name and reason.
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('roster.adjust_xp', name=char.character_name) }}">
+            <div class="row g-3">
+                <!-- Adjustment Type -->
+                <div class="col-md-6">
+                    <label for="adjustment_type" class="form-label">Adjustment Type</label>
+                    <select class="form-select" id="adjustment_type" name="adjustment_type" required>
+                        <option value="">— Select —</option>
+                        <optgroup label="Earned XP (Claims)">
+                            <option value="grant_xp">Grant XP — Add earned XP to character</option>
+                            <option value="remove_xp">Remove XP — Subtract earned XP from character</option>
+                        </optgroup>
+                        <optgroup label="Spends">
+                            <option value="refund_spend">Refund Spend — Return XP from a previous spend</option>
+                            <option value="add_spend">Add Spend — Record a retroactive spend</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- XP Amount -->
+                <div class="col-md-6">
+                    <label for="xp_amount" class="form-label">XP Amount</label>
+                    <input type="number" class="form-control" id="xp_amount" name="xp_amount"
+                           min="1" required placeholder="Enter positive number">
+                    <small class="text-muted">Always enter a positive number. The type above determines the direction.</small>
+                </div>
+
+                <!-- Reason -->
+                <div class="col-12">
+                    <label for="reason" class="form-label">Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="reason" name="reason" rows="3" required
+                              placeholder="Explain why this adjustment is being made. This is logged to the audit trail."></textarea>
+                </div>
+
+                <!-- Preview -->
+                <div class="col-12" id="preview-section" style="display: none;">
+                    <div class="alert alert-info mb-0" id="preview-text"></div>
+                </div>
+
+                <!-- Submit -->
+                <div class="col-12">
+                    <button type="submit" class="btn btn-danger"
+                            data-confirm="Are you sure you want to apply this XP adjustment to {{ char.character_name }}? This takes effect immediately.">
+                        <i class="bi bi-check-lg"></i> Apply Adjustment
+                    </button>
+                    <a href="{{ url_for('roster.detail', name=char.character_name) }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('adjustment_type');
+    const amountInput = document.getElementById('xp_amount');
+    const previewSection = document.getElementById('preview-section');
+    const previewText = document.getElementById('preview-text');
+
+    function updatePreview() {
+        const type = typeSelect.value;
+        const amount = parseInt(amountInput.value) || 0;
+        if (!type || amount === 0) {
+            previewSection.style.display = 'none';
+            return;
+        }
+
+        let earned = {{ earned_xp }};
+        let spends = {{ total_spends }};
+        let msg = '';
+
+        if (type === 'grant_xp') {
+            msg = `Earned XP: ${earned} → ${earned + amount} (+${amount}). Available XP: {{ available_xp }} → {{ available_xp }} + ${amount} = ${parseInt({{ available_xp }}) + amount}`;
+        } else if (type === 'remove_xp') {
+            msg = `Earned XP: ${earned} → ${earned - amount} (-${amount}). Available XP: {{ available_xp }} → {{ available_xp }} - ${amount} = ${parseInt({{ available_xp }}) - amount}`;
+        } else if (type === 'refund_spend') {
+            msg = `Approved Spends: ${spends} → ${spends - amount} (-${amount}). Available XP: {{ available_xp }} → {{ available_xp }} + ${amount} = ${parseInt({{ available_xp }}) + amount}`;
+        } else if (type === 'add_spend') {
+            msg = `Approved Spends: ${spends} → ${spends + amount} (+${amount}). Available XP: {{ available_xp }} → {{ available_xp }} - ${amount} = ${parseInt({{ available_xp }}) - amount}`;
+        }
+
+        previewText.textContent = 'Preview: ' + msg;
+        previewSection.style.display = 'block';
+    }
+
+    typeSelect.addEventListener('change', updatePreview);
+    amountInput.addEventListener('input', updatePreview);
+});
+</script>
+{% endblock %}

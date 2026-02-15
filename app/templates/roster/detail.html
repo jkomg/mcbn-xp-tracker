@@ -11,7 +11,12 @@
         <span class="badge bg-secondary ms-2">Inactive</span>
       {% endif %}
     </div>
-    <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-primary">Edit</a>
+    <div>
+      <a href="{{ url_for('roster.adjust_xp_form', name=char.character_name) }}" class="btn btn-warning me-2">
+        <i class="bi bi-sliders"></i> Adjust XP
+      </a>
+      <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-primary">Edit</a>
+    </div>
   </div>
 
   <!-- XP Summary Cards -->
