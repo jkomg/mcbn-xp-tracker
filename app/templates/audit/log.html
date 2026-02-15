@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log — MCbN XP Tracker{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-clock-history"></i> Audit Log</h2>
+
+<!-- Filters -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="action" class="form-label">Action Type</label>
+                <select class="form-select" id="action" name="action">
+                    <option value="">All Actions</option>
+                    {% for a in action_types %}
+                    <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="character" class="form-label">Character</label>
+                <input type="text" class="form-control" id="character" name="character"
+                       value="{{ character_filter }}" placeholder="Search character...">
+            </div>
+            <div class="col-md-3">
+                <label for="staff" class="form-label">Staff Member</label>
+                <select class="form-select" id="staff" name="staff">
+                    <option value="">All Staff</option>
+                    {% for s in staff_users %}
+                    <option value="{{ s }}" {% if staff_filter == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-light w-100">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Log entries -->
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th data-sort="text">Timestamp</th>
+                <th data-sort="text">Staff</th>
+                <th data-sort="text">Action</th>
+                <th data-sort="text">Character</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td class="text-nowrap">{{ entry.timestamp }}</td>
+                <td>{{ entry.staff_user }}</td>
+                <td>
+                    <span class="badge
+                        {% if 'approve' in entry.action_type %}bg-success
+                        {% elif 'deny' in entry.action_type %}bg-danger
+                        {% elif 'add' in entry.action_type or 'create' in entry.action_type or 'activate' in entry.action_type %}bg-info
+                        {% elif 'deactivate' in entry.action_type %}bg-warning text-dark
+                        {% else %}bg-secondary{% endif %}">
+                        {{ entry.action_type }}
+                    </span>
+                </td>
+                <td>
+                    {% if entry.target_character %}
+                    <a href="{{ url_for('roster.detail', name=entry.target_character) }}">
+                        {{ entry.target_character }}
+                    </a>
+                    {% endif %}
+                </td>
+                <td>{{ entry.details }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not entries %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-clock" style="font-size: 3rem;"></i>
+    <p class="mt-2">No audit log entries found.</p>
+</div>
+{% endif %}
+
+<p class="text-muted mt-3">Showing {{ entries|length }} entries</p>
+{% endblock %}

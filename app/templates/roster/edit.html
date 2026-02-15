@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ char.character_name }} — MCbN XP Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit: {{ char.character_name }}</h2>
+    <a href="{{ url_for('roster.detail', name=char.character_name) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="card bg-dark border-secondary">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('roster.edit', name=char.character_name) }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Character Name</label>
+                    <input type="text" class="form-control" value="{{ char.character_name }}" disabled>
+                    <small class="text-muted">Name cannot be changed.</small>
+                </div>
+                <div class="col-md-6">
+                    <label for="player_discord" class="form-label">Player Discord</label>
+                    <input type="text" class="form-control" id="player_discord" name="player_discord"
+                           value="{{ char.player_discord }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="clan" class="form-label">Clan</label>
+                    <select class="form-select" id="clan" name="clan">
+                        <option value="">—</option>
+                        {% for c in clans %}
+                        <option value="{{ c }}" {% if char.clan == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="age_category" class="form-label">Age Category</label>
+                    <select class="form-select" id="age_category" name="age_category">
+                        <option value="">—</option>
+                        {% for a in age_categories %}
+                        <option value="{{ a }}" {% if char.age_category == a %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="sect" class="form-label">Sect</label>
+                    <select class="form-select" id="sect" name="sect">
+                        <option value="">—</option>
+                        {% for s in sects %}
+                        <option value="{{ s }}" {% if char.sect == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="creation_xp" class="form-label">Creation / Audit XP</label>
+                    <input type="number" class="form-control" id="creation_xp" name="creation_xp"
+                           value="{{ char.creation_xp }}">
+                </div>
+                <div class="col-md-8">
+                    <label for="enemy" class="form-label">Enemy</label>
+                    <input type="text" class="form-control" id="enemy" name="enemy"
+                           value="{{ char.enemy }}">
+                </div>
+                <div class="col-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ char.notes }}</textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-lg"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('roster.detail', name=char.character_name) }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

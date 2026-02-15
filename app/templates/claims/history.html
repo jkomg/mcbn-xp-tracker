@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Claims History</h2>
+
+    <div class="mb-3 mt-3">
+        <input type="text" id="table-search" class="form-control" placeholder="Search claims...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover">
+            <thead>
+                <tr>
+                    <th data-sort="text">Character</th>
+                    <th>Period</th>
+                    <th data-sort="number">XP Claimed</th>
+                    <th data-sort="number">Approved XP</th>
+                    <th>Status</th>
+                    <th>Reviewed By</th>
+                    <th>Review Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in claims %}
+                <tr>
+                    <td>{{ claim.character_name }}</td>
+                    <td>{{ claim.play_period }}</td>
+                    <td>{{ claim.xp_claimed }}</td>
+                    <td>{{ claim.approved_xp if claim.approved_xp else '-' }}</td>
+                    <td>
+                        {% if claim.status == 'pending' %}
+                        <span class="badge badge-pending bg-warning text-dark">Pending</span>
+                        {% elif claim.status == 'approved' %}
+                        <span class="badge badge-approved bg-success">Approved</span>
+                        {% elif claim.status == 'denied' %}
+                        <span class="badge badge-denied bg-danger">Denied</span>
+                        {% elif claim.status == 'duplicate' %}
+                        <span class="badge badge-duplicate bg-secondary">Duplicate</span>
+                        {% else %}
+                        <span class="badge bg-info">{{ claim.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ claim.reviewed_by if claim.reviewed_by else '-' }}</td>
+                    <td>{{ claim.review_date if claim.review_date else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

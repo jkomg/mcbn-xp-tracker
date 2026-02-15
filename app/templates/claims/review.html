@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Review XP Claim</h2>
+
+    <div class="card bg-dark border-secondary mt-3">
+        <div class="card-body">
+            <h5 class="card-title">{{ claim.character_name }}</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Play Period:</strong> {{ claim.play_period }}</p>
+                    <p><strong>Submitted:</strong> {{ claim.timestamp }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>XP Claimed:</strong> {{ claim.xp_claimed }}</p>
+                    <p><strong>Status:</strong> {{ claim.status }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h4>XP Categories</h4>
+        <div class="row">
+            {% for category in claim.categories %}
+            <div class="col-md-6 mb-2">
+                <div class="claim-category {% if category.claimed %}claimed{% else %}not-claimed{% endif %} p-3 border rounded">
+                    {% if category.claimed %}
+                    <span class="text-success">✓</span>
+                    <strong>{{ category.name }}</strong>
+                    {% if category.link %}
+                    <br><a href="{{ category.link }}" target="_blank" class="text-info">{{ category.link }}</a>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-danger">✗</span>
+                    <strong>{{ category.name }}</strong>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-dark border-success">
+                <div class="card-body">
+                    <h5 class="card-title">Approve Claim</h5>
+                    <form method="POST" action="{{ url_for('claims.approve', row_id=claim.row_index) }}">
+                        <div class="mb-3">
+                            <label for="approved-xp-input" class="form-label">Approved XP</label>
+                            <input type="number" class="form-control" id="approved-xp-input" name="approved_xp" value="{{ claim.xp_claimed }}" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="approve-notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="approve-notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Approve</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card bg-dark border-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Deny Claim</h5>
+                    <form method="POST" action="{{ url_for('claims.deny', row_id=claim.row_index) }}">
+                        <div class="mb-3">
+                            <label for="deny-notes" class="form-label">Notes (Required)</label>
+                            <textarea class="form-control" id="deny-notes" name="notes" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger" data-confirm="Are you sure?">Deny</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a href="{{ url_for('claims.pending') }}" class="btn btn-outline-secondary">Back to Pending Claims</a>
+    </div>
+</div>
+{% endblock %}

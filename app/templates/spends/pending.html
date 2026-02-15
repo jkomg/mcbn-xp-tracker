@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Pending Spend Requests <span class="badge bg-secondary">{{ spends|length }}</span></h2>
+
+    {% if not spends %}
+    <div class="alert alert-info mt-3">
+        No pending spend requests at this time.
+    </div>
+    {% else %}
+    <div class="table-responsive mt-3">
+        <table class="table table-dark table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Character</th>
+                    <th>Category</th>
+                    <th>Trait</th>
+                    <th>Dots</th>
+                    <th>XP Cost</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for spend in spends %}
+                <tr>
+                    <td>{{ spend.character_name }}</td>
+                    <td>{{ spend.spend_category }}</td>
+                    <td>{{ spend.trait_name }}</td>
+                    <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
+                    <td>{{ spend.xp_cost }}</td>
+                    <td>{{ spend.timestamp }}</td>
+                    <td>
+                        <a href="{{ url_for('spends.review', row_id=spend.row_index) }}" class="btn btn-sm btn-outline-light">Review</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="mt-3">
+        <a href="{{ url_for('spends.history') }}" class="btn btn-outline-secondary">View Spend History</a>
+    </div>
+</div>
+{% endblock %}

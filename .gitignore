@@ -1,0 +1,25 @@
+# Environment
+.env
+venv/
+.venv/
+
+# Credentials
+credentials/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

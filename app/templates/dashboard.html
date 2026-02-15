@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row mb-4">
+  <div class="col-md-4 mb-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Active Characters</h5>
+        <p class="card-text display-6">{{ characters|selectattr('active')|list|length }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Pending Claims</h5>
+        <p class="card-text display-6">{{ pending_claims }}</p>
+        <a href="/claims/" class="btn btn-sm btn-primary">View Claims</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Pending Spends</h5>
+        <p class="card-text display-6">{{ pending_spends }}</p>
+        <a href="/spends/" class="btn btn-sm btn-primary">View Spends</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-3">
+  <input type="text" class="form-control" id="table-search" placeholder="Search characters...">
+</div>
+
+<div class="table-responsive">
+  <table class="table table-dark table-striped table-hover">
+    <thead>
+      <tr>
+        <th data-sort="text">Character Name</th>
+        <th data-sort="text">Clan</th>
+        <th data-sort="number">Creation XP</th>
+        <th data-sort="number">Earned XP</th>
+        <th data-sort="number">Total XP</th>
+        <th data-sort="number">Spends</th>
+        <th data-sort="number">Available XP</th>
+        <th data-sort="text">Last Submission</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in characters %}
+      <tr{% if not c.active %} class="opacity-50"{% endif %}>
+        <td><a href="/roster/{{ c.character_name }}">{{ c.character_name }}</a></td>
+        <td>{{ c.clan }}</td>
+        <td>{{ c.creation_xp }}</td>
+        <td>{{ c.earned_xp }}</td>
+        <td>{{ c.total_xp }}</td>
+        <td>{{ c.approved_spends }}</td>
+        <td class="{% if c.available_xp > 0 %}xp-positive{% elif c.available_xp < 0 %}xp-negative{% else %}xp-zero{% endif %}">{{ c.available_xp }}</td>
+        <td>{{ c.last_submission }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

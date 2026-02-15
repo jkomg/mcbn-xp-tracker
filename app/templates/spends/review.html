@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Review Spend Request</h2>
+
+  <!-- Spend Request Info Card -->
+  <div class="card mb-3">
+    <div class="card-header">
+      <h5>Spend Request Details</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>Character Name:</strong> {{ spend.character_name }}</p>
+          <p><strong>Category:</strong> {{ spend.category }}</p>
+          <p><strong>Trait Name:</strong> {{ spend.trait_name }}</p>
+        </div>
+        <div class="col-md-6">
+          <p><strong>Dots:</strong> {{ spend.current_dots }} → {{ spend.new_dots }}</p>
+          <p><strong>Player Cost:</strong> {{ spend.player_cost }}</p>
+          <p><strong>Justification:</strong> {{ spend.justification or 'None provided' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Validation Card -->
+  <div class="card mb-3">
+    <div class="card-header">
+      <h5>Cost Validation</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert {% if validation.matches %}cost-match alert-success{% else %}cost-mismatch alert-warning{% endif %}">
+        {{ validation.message }}
+      </div>
+      <p><strong>Calculation:</strong> {{ validation.description }}</p>
+      <p><strong>Available XP:</strong> {{ available_xp }}</p>
+      <p><strong>Can Afford:</strong>
+        {% if available_xp >= validation.correct_cost %}
+          <span class="badge bg-success">Yes</span>
+        {% else %}
+          <span class="badge bg-danger">No</span>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Approve Form -->
+  <div class="card mb-3">
+    <div class="card-header bg-success text-white">
+      <h5>Approve Spend</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}">
+        <div class="mb-3">
+          <label for="verified_cost" class="form-label">Verified Cost</label>
+          <input type="number" class="form-control" id="verified_cost" name="verified_cost" value="{{ validation.correct_cost }}" required>
+        </div>
+        <div class="mb-3">
+          <label for="notes" class="form-label">Notes</label>
+          <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Approve</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Deny Form -->
+  <div class="card mb-3">
+    <div class="card-header bg-danger text-white">
+      <h5>Deny Spend</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('spends.deny', row_id=spend.row_index) }}">
+        <div class="mb-3">
+          <label for="deny_notes" class="form-label">Notes (Required)</label>
+          <textarea class="form-control" id="deny_notes" name="notes" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-danger" data-confirm="Are you sure you want to deny this spend request?">Deny</button>
+      </form>
+    </div>
+  </div>
+
+  <a href="{{ url_for('spends.pending') }}" class="btn btn-secondary">Back to Pending</a>
+</div>
+{% endblock %}

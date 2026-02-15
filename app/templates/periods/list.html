@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Play Periods — MCbN XP Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-week"></i> Play Periods</h2>
+    <a href="{{ url_for('periods.add_form') }}" class="btn btn-danger">
+        <i class="bi bi-plus-lg"></i> New Period
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th data-sort="number">Night</th>
+                <th data-sort="text">Period</th>
+                <th data-sort="text">Start</th>
+                <th data-sort="text">End</th>
+                <th data-sort="number">Session</th>
+                <th>Submissions</th>
+                <th>In Dropdowns</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in periods %}
+            <tr>
+                <td>{{ p.night_number }}</td>
+                <td>{{ p.period_label }}</td>
+                <td>{{ p.start_date }}</td>
+                <td>{{ p.end_date }}</td>
+                <td>{{ p.session_number }}</td>
+                <td>
+                    {% if p.submissions_open %}
+                    <span class="badge bg-success">Open</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Closed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if p.active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('periods.toggle_submissions', label=p.period_label) }}"
+                          class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if p.submissions_open else 'success' }}">
+                            {{ 'Close' if p.submissions_open else 'Open' }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('periods.toggle_active', label=p.period_label) }}"
+                          class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-{{ 'secondary' if p.active else 'info' }}">
+                            {{ 'Hide' if p.active else 'Show' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not periods %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-calendar-x" style="font-size: 3rem;"></i>
+    <p class="mt-2">No play periods yet. Create your first one.</p>
+</div>
+{% endif %}
+{% endblock %}

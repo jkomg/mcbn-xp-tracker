@@ -1,0 +1,127 @@
+/* MCbN XP Tracker — Dark theme styling */
+
+:root {
+    --vtm-red: #8b0000;
+    --vtm-red-light: #b22222;
+    --vtm-gold: #c5a55a;
+    --sidebar-width: 220px;
+}
+
+body {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+    background-color: #16213e !important;
+}
+
+.sidebar .nav-link {
+    color: #a0a0b0;
+    border-radius: 6px;
+    margin: 2px 0;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.sidebar .nav-link:hover {
+    color: #fff;
+    background-color: rgba(139, 0, 0, 0.2);
+}
+
+.sidebar .nav-link.active {
+    color: #fff;
+    background-color: var(--vtm-red);
+}
+
+.sidebar .nav-link i {
+    width: 20px;
+    margin-right: 8px;
+}
+
+/* Tables */
+.table {
+    font-size: 0.9rem;
+}
+
+.table th {
+    color: var(--vtm-gold);
+    border-color: #333;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.table td {
+    border-color: #2a2a3e;
+    vertical-align: middle;
+}
+
+/* XP colors */
+.xp-positive { color: #4caf50; }
+.xp-negative { color: #f44336; font-weight: bold; }
+.xp-zero { color: #999; }
+
+/* Status badges */
+.badge-pending { background-color: #ff9800; color: #000; }
+.badge-approved { background-color: #4caf50; }
+.badge-denied { background-color: #f44336; }
+.badge-duplicate { background-color: #9e9e9e; }
+
+/* Claim category cards */
+.claim-category {
+    border-left: 3px solid #333;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background-color: #1e1e30;
+    border-radius: 0 4px 4px 0;
+}
+
+.claim-category.claimed {
+    border-left-color: #4caf50;
+}
+
+.claim-category.not-claimed {
+    border-left-color: #555;
+    opacity: 0.6;
+}
+
+/* Cost validation */
+.cost-match { color: #4caf50; font-weight: bold; }
+.cost-mismatch { color: #f44336; font-weight: bold; }
+
+/* Login page */
+.login-card {
+    max-width: 400px;
+    margin: 100px auto;
+    background-color: #16213e;
+    border: 1px solid var(--vtm-red);
+}
+
+.login-card .card-header {
+    background-color: var(--vtm-red);
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 60px;
+    }
+    .sidebar .nav-link span,
+    .sidebar h5,
+    .sidebar small,
+    .sidebar > .p-3:last-child {
+        display: none;
+    }
+    .sidebar .nav-link i {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+}

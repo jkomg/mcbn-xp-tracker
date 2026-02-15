@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Add Character</h2>
+
+  <form method="POST" action="{{ url_for('roster.add') }}">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="character_name" class="form-label">Character Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="character_name" name="character_name" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="player_discord" class="form-label">Player Discord</label>
+          <input type="text" class="form-control" id="player_discord" name="player_discord">
+        </div>
+
+        <div class="mb-3">
+          <label for="clan" class="form-label">Clan</label>
+          <select class="form-select" id="clan" name="clan">
+            <option value="">Select Clan</option>
+            {% for clan in clans %}
+            <option value="{{ clan }}">{{ clan }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="age_category" class="form-label">Age Category</label>
+          <select class="form-select" id="age_category" name="age_category">
+            <option value="">Select Age Category</option>
+            {% for age in age_categories %}
+            <option value="{{ age }}">{{ age }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="sect" class="form-label">Sect</label>
+          <select class="form-select" id="sect" name="sect">
+            <option value="">Select Sect</option>
+            {% for sect in sects %}
+            <option value="{{ sect }}">{{ sect }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="creation_xp" class="form-label">Creation XP</label>
+          <input type="number" class="form-control" id="creation_xp" name="creation_xp" value="0">
+        </div>
+
+        <div class="mb-3">
+          <label for="enemy" class="form-label">Enemy</label>
+          <input type="text" class="form-control" id="enemy" name="enemy">
+        </div>
+
+        <div class="mb-3">
+          <label for="notes" class="form-label">Notes</label>
+          <textarea class="form-control" id="notes" name="notes" rows="4"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <button type="submit" class="btn btn-success">Add Character</button>
+      <a href="{{ url_for('roster.list') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

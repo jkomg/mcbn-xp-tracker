@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="d-inline">{{ char.character_name }}</h2>
+      {% if char.active %}
+        <span class="badge bg-success ms-2">Active</span>
+      {% else %}
+        <span class="badge bg-secondary ms-2">Inactive</span>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('roster.edit', character_name=char.character_name) }}" class="btn btn-primary">Edit</a>
+  </div>
+
+  <!-- XP Summary Cards -->
+  <div class="row mb-4">
+    <div class="col-md">
+      <div class="card">
+        <div class="card-body text-center">
+          <h6 class="card-subtitle mb-2 text-muted">Creation XP</h6>
+          <h3 class="card-title">{{ char.creation_xp }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md">
+      <div class="card">
+        <div class="card-body text-center">
+          <h6 class="card-subtitle mb-2 text-muted">Earned XP</h6>
+          <h3 class="card-title">{{ earned_xp }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md">
+      <div class="card">
+        <div class="card-body text-center">
+          <h6 class="card-subtitle mb-2 text-muted">Total XP</h6>
+          <h3 class="card-title">{{ total_xp }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md">
+      <div class="card">
+        <div class="card-body text-center">
+          <h6 class="card-subtitle mb-2 text-muted">Approved Spends</h6>
+          <h3 class="card-title">{{ total_spends }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md">
+      <div class="card {% if available_xp > 0 %}border-success{% elif available_xp < 0 %}border-danger{% endif %}">
+        <div class="card-body text-center">
+          <h6 class="card-subtitle mb-2 text-muted">Available XP</h6>
+          <h3 class="card-title {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">
+            {{ available_xp }}
+          </h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Character Info -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Character Information</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>Clan:</strong> {{ char.clan or 'Not specified' }}</p>
+          <p><strong>Age Category:</strong> {{ char.age_category or 'Not specified' }}</p>
+          <p><strong>Sect:</strong> {{ char.sect or 'Not specified' }}</p>
+        </div>
+        <div class="col-md-6">
+          <p><strong>Player Discord:</strong> {{ char.player_discord or 'Not specified' }}</p>
+          <p><strong>Enemy:</strong> {{ char.enemy or 'None' }}</p>
+        </div>
+      </div>
+      {% if char.notes %}
+      <div class="mt-2">
+        <p><strong>Notes:</strong></p>
+        <p>{{ char.notes }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- XP Claims History -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>XP Claims History</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-dark table-striped">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>XP Claimed</th>
+              <th>Approved XP</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for claim in claims %}
+            <tr>
+              <td>{{ claim.period }}</td>
+              <td>{{ claim.xp_claimed }}</td>
+              <td>{{ claim.approved_xp or '-' }}</td>
+              <td>
+                {% if claim.status == 'approved' %}
+                  <span class="badge bg-success">Approved</span>
+                {% elif claim.status == 'denied' %}
+                  <span class="badge bg-danger">Denied</span>
+                {% elif claim.status == 'pending' %}
+                  <span class="badge bg-warning">Pending</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ claim.status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ claim.date or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spend History -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Spend History</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-dark table-striped">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Trait</th>
+              <th>Dots</th>
+              <th>Cost</th>
+              <th>Verified Cost</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for spend in spends %}
+            <tr>
+              <td>{{ spend.category }}</td>
+              <td>{{ spend.trait_name }}</td>
+              <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
+              <td>{{ spend.player_cost }}</td>
+              <td>{{ spend.verified_cost or '-' }}</td>
+              <td>
+                {% if spend.status == 'approved' %}
+                  <span class="badge bg-success">Approved</span>
+                {% elif spend.status == 'denied' %}
+                  <span class="badge bg-danger">Denied</span>
+                {% elif spend.status == 'pending' %}
+                  <span class="badge bg-warning">Pending</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ spend.status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ spend.date or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deactivate/Activate Button -->
+  <form method="POST" action="{{ url_for('roster.toggle_active', character_name=char.character_name) }}" class="mb-4">
+    {% if char.active %}
+      <button type="submit" class="btn btn-warning" data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
+        Deactivate Character
+      </button>
+    {% else %}
+      <button type="submit" class="btn btn-success" data-confirm="Are you sure you want to activate {{ char.character_name }}?">
+        Activate Character
+      </button>
+    {% endif %}
+  </form>
+
+  <a href="{{ url_for('roster.list') }}" class="btn btn-secondary">Back to Roster</a>
+</div>
+{% endblock %}

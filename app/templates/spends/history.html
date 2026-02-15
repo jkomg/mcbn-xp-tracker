@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Spend History</h2>
+
+  <div class="mb-3">
+    <input type="text" id="searchInput" class="form-control" placeholder="Search spends...">
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-dark table-striped table-hover">
+      <thead>
+        <tr>
+          <th>Character</th>
+          <th>Category</th>
+          <th>Trait</th>
+          <th>Dots</th>
+          <th>Player Cost</th>
+          <th>Verified Cost</th>
+          <th>Status</th>
+          <th>Reviewed By</th>
+        </tr>
+      </thead>
+      <tbody id="spendTableBody">
+        {% for spend in spends %}
+        <tr>
+          <td>{{ spend.character_name }}</td>
+          <td>{{ spend.category }}</td>
+          <td>{{ spend.trait_name }}</td>
+          <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
+          <td>{{ spend.player_cost }}</td>
+          <td>{{ spend.verified_cost or '-' }}</td>
+          <td>
+            {% if spend.status == 'approved' %}
+              <span class="badge bg-success">Approved</span>
+            {% elif spend.status == 'denied' %}
+              <span class="badge bg-danger">Denied</span>
+            {% elif spend.status == 'pending' %}
+              <span class="badge bg-warning">Pending</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ spend.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ spend.reviewed_by or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+  const searchValue = this.value.toLowerCase();
+  const rows = document.querySelectorAll('#spendTableBody tr');
+
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(searchValue) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

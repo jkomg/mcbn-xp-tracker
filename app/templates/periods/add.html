@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}New Play Period — MCbN XP Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-plus"></i> New Play Period</h2>
+    <a href="{{ url_for('periods.list_periods') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="card bg-dark border-secondary" style="max-width: 600px;">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('periods.add') }}">
+            <div class="mb-3">
+                <label for="night_number" class="form-label">Night Number</label>
+                <input type="number" class="form-control" id="night_number" name="night_number"
+                       value="{{ next_night }}" required>
+                <small class="text-muted">Auto-incremented from the last period.</small>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label for="start_date" class="form-label">Start Date (Tuesday noon CDT)</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" required>
+                </div>
+                <div class="col-6">
+                    <label for="end_date" class="form-label">End Date (Sunday noon CDT)</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" required>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="session_number" class="form-label">Session Number (8-week block)</label>
+                <input type="number" class="form-control" id="session_number" name="session_number"
+                       value="1" required>
+            </div>
+            <div class="mb-3 p-3 bg-black rounded">
+                <label class="form-label text-muted">Preview Label</label>
+                <p class="mb-0 fs-5" id="period-preview">Night {{ next_night }} - ?/? - ?/?</p>
+            </div>
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-lg"></i> Create Period
+            </button>
+            <a href="{{ url_for('periods.list_periods') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var nightInput = document.getElementById('night_number');
+    var startInput = document.getElementById('start_date');
+    var endInput = document.getElementById('end_date');
+    var preview = document.getElementById('period-preview');
+
+    function updatePreview() {
+        var night = nightInput.value || '?';
+        var start = '?/?';
+        var end = '?/?';
+        if (startInput.value) {
+            var d = new Date(startInput.value + 'T12:00:00');
+            start = (d.getMonth() + 1) + '/' + d.getDate();
+        }
+        if (endInput.value) {
+            var d = new Date(endInput.value + 'T12:00:00');
+            end = (d.getMonth() + 1) + '/' + d.getDate();
+        }
+        preview.textContent = 'Night ' + night + ' - ' + start + ' - ' + end;
+    }
+
+    nightInput.addEventListener('input', updatePreview);
+    startInput.addEventListener('change', updatePreview);
+    endInput.addEventListener('change', updatePreview);
+});
+</script>
+{% endblock %}

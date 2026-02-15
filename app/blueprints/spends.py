@@ -1,0 +1,117 @@
+"""XP spend request review and approval routes."""
+
+from flask import (
+    Blueprint, render_template, request, redirect, url_for, flash, abort
+)
+from app import sheets_client
+from app.auth import require_staff, get_staff_user
+from app.xp_rules import validate_spend_request
+
+bp = Blueprint('spends', __name__)
+
+
+@bp.route('/')
+@require_staff
+def pending():
+    """List all pending spend requests."""
+    spends = sheets_client.get_pending_spends()
+    return render_template('spends/pending.html', spends=spends)
+
+
+@bp.route('/<int:row_id>')
+@require_staff
+def review(row_id):
+    """Review a single spend request with cost validation."""
+    spend = sheets_client.get_spend_by_row(row_id)
+    if not spend:
+        abort(404)
+
+    # Validate the spend against V5 XP rules
+    validation = validate_spend_request(
+        category=spend.spend_category,
+        current_dots=spend.current_dots,
+        new_dots=spend.new_dots,
+        player_cost=spend.xp_cost,
+    )
+
+    # Get character's available XP for context
+    dashboard_data = sheets_client.get_dashboard_data()
+    char_data = next(
+        (c for c in dashboard_data
+         if c['character_name'].lower() == spend.character_name.lower()),
+        None,
+    )
+    available_xp = char_data['available_xp'] if char_data else 0
+
+    return render_template(
+        'spends/review.html',
+        spend=spend,
+        validation=validation,
+        available_xp=available_xp,
+    )
+
+
+@bp.route('/<int:row_id>/approve', methods=['POST'])
+@require_staff
+def approve(row_id):
+    """Approve a spend request."""
+    spend = sheets_client.get_spend_by_row(row_id)
+    if not spend:
+        abort(404)
+
+    verified_cost = int(request.form.get('verified_cost', 0))
+    notes = request.form.get('notes', '')
+    staff = get_staff_user()
+
+    sheets_client.approve_spend(row_id, verified_cost, staff, notes)
+    sheets_client.log_action(
+        staff_user=staff,
+        action_type='approve_spend',
+        target=spend.character_name,
+        details=(
+            f'Approved spend: {spend.trait_name} '
+            f'({spend.current_dots}→{spend.new_dots}) '
+            f'for {verified_cost} XP. {notes}'
+        ).strip(),
+    )
+
+    flash(
+        f'Approved {spend.trait_name} spend for {spend.character_name} '
+        f'({verified_cost} XP).',
+        'success',
+    )
+    return redirect(url_for('spends.pending'))
+
+
+@bp.route('/<int:row_id>/deny', methods=['POST'])
+@require_staff
+def deny(row_id):
+    """Deny a spend request."""
+    spend = sheets_client.get_spend_by_row(row_id)
+    if not spend:
+        abort(404)
+
+    notes = request.form.get('notes', '')
+    staff = get_staff_user()
+
+    sheets_client.deny_spend(row_id, staff, notes)
+    sheets_client.log_action(
+        staff_user=staff,
+        action_type='deny_spend',
+        target=spend.character_name,
+        details=(
+            f'Denied spend: {spend.trait_name} '
+            f'({spend.current_dots}→{spend.new_dots}). {notes}'
+        ).strip(),
+    )
+
+    flash(f'Denied spend for {spend.character_name}.', 'warning')
+    return redirect(url_for('spends.pending'))
+
+
+@bp.route('/history')
+@require_staff
+def history():
+    """View all spend requests (approved, denied, pending)."""
+    all_spends = sheets_client.get_all_spends()
+    return render_template('spends/history.html', spends=all_spends)

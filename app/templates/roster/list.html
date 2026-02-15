@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Character Roster</h2>
+    <a href="{{ url_for('roster.add') }}" class="btn btn-danger">Add Character</a>
+  </div>
+
+  <!-- Filter Row -->
+  <form method="GET" action="{{ url_for('roster.list') }}" class="mb-3">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label for="show" class="form-label">Show</label>
+        <select name="show" id="show" class="form-select" onchange="this.form.submit()">
+          <option value="active" {% if show == 'active' %}selected{% endif %}>Active</option>
+          <option value="inactive" {% if show == 'inactive' %}selected{% endif %}>Inactive</option>
+          <option value="all" {% if show == 'all' %}selected{% endif %}>All</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="clan_filter" class="form-label">Clan</label>
+        <select name="clan_filter" id="clan_filter" class="form-select" onchange="this.form.submit()">
+          <option value="">All Clans</option>
+          {% for clan in clans %}
+          <option value="{{ clan }}" {% if clan_filter == clan %}selected{% endif %}>{{ clan }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="sect_filter" class="form-label">Sect</label>
+        <select name="sect_filter" id="sect_filter" class="form-select" onchange="this.form.submit()">
+          <option value="">All Sects</option>
+          {% for sect in sects %}
+          <option value="{{ sect }}" {% if sect_filter == sect %}selected{% endif %}>{{ sect }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <!-- Character Table -->
+  <div class="table-responsive">
+    <table class="table table-dark table-striped table-hover">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Clan</th>
+          <th>Age</th>
+          <th>Sect</th>
+          <th>Active</th>
+          <th>Creation XP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for character in characters %}
+        <tr {% if not character.active %}class="opacity-50"{% endif %}>
+          <td>
+            <a href="{{ url_for('roster.detail', character_name=character.character_name) }}">
+              {{ character.character_name }}
+            </a>
+          </td>
+          <td>{{ character.clan }}</td>
+          <td>{{ character.age_category }}</td>
+          <td>{{ character.sect }}</td>
+          <td>
+            {% if character.active %}
+              <span class="badge bg-success">Yes</span>
+            {% else %}
+              <span class="badge bg-secondary">No</span>
+            {% endif %}
+          </td>
+          <td>{{ character.creation_xp }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
