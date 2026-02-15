@@ -114,6 +114,16 @@ def main():
     skipped = 0
     warnings = []
 
+    # Pre-load existing characters ONCE to avoid per-row API calls
+    print('Loading existing roster from sheet...')
+    existing_names = set()
+    try:
+        existing_chars = client.get_all_characters()
+        existing_names = {c.character_name.lower() for c in existing_chars}
+        print(f'  Found {len(existing_names)} existing characters.')
+    except Exception as e:
+        print(f'  No existing characters (or empty sheet): {e}')
+
     for row in rows:
         name = row.get('Name', '').strip()
         clan = row.get('Clan', '').strip()
@@ -141,9 +151,8 @@ def main():
 
         notes = '; '.join(notes_parts)
 
-        # Check for existing character to avoid duplicates
-        existing = client.get_character(name)
-        if existing:
+        # Check for existing character using pre-loaded set (no API call)
+        if name.lower() in existing_names:
             print(f'  SKIP (already exists): {name}')
             skipped += 1
             continue

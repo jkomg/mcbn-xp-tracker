@@ -14,8 +14,8 @@
 //   - Spend Requests (form responses land here)
 // ============================================================
 
-const XP_FORM_ID = 'PASTE_YOUR_XP_FORM_ID_HERE';
-const SPEND_FORM_ID = 'PASTE_YOUR_SPEND_FORM_ID_HERE';
+const XP_FORM_ID = '1fvz0dRJWgV9YJ5h0p5o-gPckC7AflDyoH5en8p89J2k';
+const SPEND_FORM_ID = '1MEIWknMSOMVxCIFCS_TVdCY5GHbILuXL7jxmQCSCYS4';
 
 // Form question positions (0-indexed).
 // Character Name = first question, Play Period = second question.
