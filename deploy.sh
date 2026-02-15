@@ -42,8 +42,8 @@ SERVICE_NAME="mcbn-xp-tracker"
 REPO="us-central1-docker.pkg.dev/${PROJECT_ID}/mcbn-repo"
 IMAGE="${REPO}/${SERVICE_NAME}:latest"
 
-echo "==> Building Docker image..."
-docker build -t "${IMAGE}" .
+echo "==> Building Docker image (linux/amd64 for Cloud Run)..."
+docker build --platform linux/amd64 -t "${IMAGE}" .
 
 echo "==> Pushing to Artifact Registry..."
 docker push "${IMAGE}"
@@ -60,10 +60,13 @@ gcloud run deploy "${SERVICE_NAME}" \
   --max-instances 2 \
   --set-env-vars "FLASK_DEBUG=false" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
+  --set-env-vars "DISCORD_REDIRECT_URI=https://xp.jkomg.us/auth/callback" \
   --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
   --update-secrets "SPREADSHEET_ID=mcbn-spreadsheet-id:latest" \
-  --update-secrets "STAFF_PASSWORD=mcbn-staff-password:latest" \
-  --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest"
+  --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
+  --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
+  --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
+  --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest"
 
 echo ""
 echo "==> Deployed! Your app URL:"

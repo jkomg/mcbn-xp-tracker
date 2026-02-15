@@ -1,10 +1,9 @@
-"""Simple password-based staff authentication for Phase 1.
+"""Staff authentication via Discord OAuth2.
 
-Staff members share a single password set in .env. This will be replaced
-with Discord OAuth in Phase 2.
+Only Discord users whose IDs are in the ALLOWED_DISCORD_IDS config
+are granted staff access.
 """
 
-import hmac
 from functools import wraps
 from flask import session, redirect, url_for, flash, current_app
 
@@ -20,10 +19,9 @@ def require_staff(f):
     return decorated_function
 
 
-def check_password(password: str) -> bool:
-    """Validate the staff password using constant-time comparison."""
-    correct = current_app.config['STAFF_PASSWORD']
-    return hmac.compare_digest(password.encode(), correct.encode())
+def is_allowed_discord_user(discord_id: str) -> bool:
+    """Check whether a Discord user ID is in the staff allowlist."""
+    return str(discord_id) in current_app.config['ALLOWED_DISCORD_IDS']
 
 
 def get_staff_user() -> str:

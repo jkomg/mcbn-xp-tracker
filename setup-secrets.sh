@@ -21,29 +21,23 @@ echo "==> Creating secrets..."
 echo "(If a secret already exists, it will add a new version.)"
 echo ""
 
+# Helper: create or update a secret
+upsert_secret() {
+  local name="$1"
+  local value="$2"
+  echo -n "${value}" | gcloud secrets create "${name}" \
+    --data-file=- --project="${PROJECT_ID}" 2>/dev/null || \
+  echo -n "${value}" | gcloud secrets versions add "${name}" \
+    --data-file=- --project="${PROJECT_ID}"
+  echo "  ✓ ${name}"
+}
+
 # Flask secret key — generate a strong random one for production
 FLASK_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-echo -n "${FLASK_SECRET}" | gcloud secrets create mcbn-flask-secret \
-  --data-file=- --project="${PROJECT_ID}" 2>/dev/null || \
-echo -n "${FLASK_SECRET}" | gcloud secrets versions add mcbn-flask-secret \
-  --data-file=- --project="${PROJECT_ID}"
-echo "  ✓ mcbn-flask-secret"
+upsert_secret "mcbn-flask-secret" "${FLASK_SECRET}"
 
 # Spreadsheet ID
-echo -n "1nCBYmXyUcrY-RhqTlH46M3C3HCFDBIfJXaurfTk55w0" | gcloud secrets create mcbn-spreadsheet-id \
-  --data-file=- --project="${PROJECT_ID}" 2>/dev/null || \
-echo -n "1nCBYmXyUcrY-RhqTlH46M3C3HCFDBIfJXaurfTk55w0" | gcloud secrets versions add mcbn-spreadsheet-id \
-  --data-file=- --project="${PROJECT_ID}"
-echo "  ✓ mcbn-spreadsheet-id"
-
-# Staff password
-read -sp "Enter your staff password: " STAFF_PW
-echo ""
-echo -n "${STAFF_PW}" | gcloud secrets create mcbn-staff-password \
-  --data-file=- --project="${PROJECT_ID}" 2>/dev/null || \
-echo -n "${STAFF_PW}" | gcloud secrets versions add mcbn-staff-password \
-  --data-file=- --project="${PROJECT_ID}"
-echo "  ✓ mcbn-staff-password"
+upsert_secret "mcbn-spreadsheet-id" "1nCBYmXyUcrY-RhqTlH46M3C3HCFDBIfJXaurfTk55w0"
 
 # Google service account credentials (the JSON file)
 SA_FILE="credentials/service-account.json"
@@ -57,13 +51,35 @@ gcloud secrets versions add mcbn-google-creds \
   --data-file="${SA_FILE}" --project="${PROJECT_ID}"
 echo "  ✓ mcbn-google-creds"
 
-# Grant Cloud Run access to the secrets
+# Discord OAuth2
+echo ""
+echo "--- Discord OAuth Setup ---"
+echo "Create an app at https://discord.com/developers/applications"
+echo "Under OAuth2, add redirect URL: https://xp.jkomg.us/auth/callback"
+echo ""
+
+read -p "Enter Discord Client ID: " DISCORD_CID
+upsert_secret "mcbn-discord-client-id" "${DISCORD_CID}"
+
+read -sp "Enter Discord Client Secret: " DISCORD_CSECRET
+echo ""
+upsert_secret "mcbn-discord-client-secret" "${DISCORD_CSECRET}"
+
+echo ""
+echo "Enter the Discord user IDs allowed staff access (comma-separated)."
+echo "Find your ID: Discord Settings → Advanced → Developer Mode ON, then"
+echo "right-click your name → Copy User ID."
+read -p "Allowed Discord IDs: " DISCORD_IDS
+upsert_secret "mcbn-discord-allowed-ids" "${DISCORD_IDS}"
+
+# Grant Cloud Run access to all secrets
 echo ""
 echo "==> Granting Cloud Run service account access to secrets..."
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
 SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-for SECRET in mcbn-flask-secret mcbn-spreadsheet-id mcbn-staff-password mcbn-google-creds; do
+for SECRET in mcbn-flask-secret mcbn-spreadsheet-id mcbn-google-creds \
+              mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids; do
   gcloud secrets add-iam-policy-binding "${SECRET}" \
     --member="serviceAccount:${SA_EMAIL}" \
     --role="roles/secretmanager.secretAccessor" \
