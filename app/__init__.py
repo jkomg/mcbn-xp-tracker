@@ -1,15 +1,27 @@
 """MCbN XP Tracker — Flask application factory."""
 
 from flask import Flask
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from .sheets import SheetsClient
 
-# Module-level singleton for the Sheets client
+# Module-level singletons
 sheets_client: SheetsClient = None
+limiter: Limiter = None
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+
+    # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
+    global limiter
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["120 per minute"],   # Global: 2 req/sec average
+        storage_uri="memory://",
+    )
 
     # Initialize Google Sheets client
     global sheets_client

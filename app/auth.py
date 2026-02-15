@@ -4,6 +4,7 @@ Staff members share a single password set in .env. This will be replaced
 with Discord OAuth in Phase 2.
 """
 
+import hmac
 from functools import wraps
 from flask import session, redirect, url_for, flash, current_app
 
@@ -20,8 +21,9 @@ def require_staff(f):
 
 
 def check_password(password: str) -> bool:
-    """Validate the staff password against the configured value."""
-    return password == current_app.config['STAFF_PASSWORD']
+    """Validate the staff password using constant-time comparison."""
+    correct = current_app.config['STAFF_PASSWORD']
+    return hmac.compare_digest(password.encode(), correct.encode())
 
 
 def get_staff_user() -> str:

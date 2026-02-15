@@ -3,7 +3,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session
 )
-from app import sheets_client
+from app import sheets_client, limiter
 from app.auth import require_staff, check_password
 
 bp = Blueprint('dashboard', __name__)
@@ -34,6 +34,7 @@ def login():
 
 
 @bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")   # Brute-force protection
 def login_post():
     """Process login."""
     password = request.form.get('password', '')
