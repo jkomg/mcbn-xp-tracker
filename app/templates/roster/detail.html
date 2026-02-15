@@ -11,7 +11,7 @@
         <span class="badge bg-secondary ms-2">Inactive</span>
       {% endif %}
     </div>
-    <a href="{{ url_for('roster.edit', character_name=char.character_name) }}" class="btn btn-primary">Edit</a>
+    <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-primary">Edit</a>
   </div>
 
   <!-- XP Summary Cards -->
@@ -177,18 +177,20 @@
   </div>
 
   <!-- Deactivate/Activate Button -->
-  <form method="POST" action="{{ url_for('roster.toggle_active', character_name=char.character_name) }}" class="mb-4">
-    {% if char.active %}
-      <button type="submit" class="btn btn-warning" data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
-        Deactivate Character
-      </button>
-    {% else %}
-      <button type="submit" class="btn btn-success" data-confirm="Are you sure you want to activate {{ char.character_name }}?">
-        Activate Character
-      </button>
-    {% endif %}
+  {% if char.active %}
+  <form method="POST" action="{{ url_for('roster.deactivate', name=char.character_name) }}" class="mb-4">
+    <button type="submit" class="btn btn-warning" data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
+      Deactivate Character
+    </button>
   </form>
+  {% else %}
+  <form method="POST" action="{{ url_for('roster.activate', name=char.character_name) }}" class="mb-4">
+    <button type="submit" class="btn btn-success" data-confirm="Are you sure you want to activate {{ char.character_name }}?">
+      Activate Character
+    </button>
+  </form>
+  {% endif %}
 
-  <a href="{{ url_for('roster.list') }}" class="btn btn-secondary">Back to Roster</a>
+  <a href="{{ url_for('roster.list_characters') }}" class="btn btn-secondary">Back to Roster</a>
 </div>
 {% endblock %}

@@ -8,7 +8,7 @@
   </div>
 
   <!-- Filter Row -->
-  <form method="GET" action="{{ url_for('roster.list') }}" class="mb-3">
+  <form method="GET" action="{{ url_for('roster.list_characters') }}" class="mb-3">
     <div class="row g-3">
       <div class="col-md-3">
         <label for="show" class="form-label">Show</label>
@@ -56,7 +56,7 @@
         {% for character in characters %}
         <tr {% if not character.active %}class="opacity-50"{% endif %}>
           <td>
-            <a href="{{ url_for('roster.detail', character_name=character.character_name) }}">
+            <a href="{{ url_for('roster.detail', name=character.character_name) }}">
               {{ character.character_name }}
             </a>
           </td>
