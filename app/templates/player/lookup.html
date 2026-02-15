@@ -1,0 +1,67 @@
+{% extends "player/base.html" %}
+
+{% block title %}MCbN — XP Lookup{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="text-center mb-4">
+            <h2 class="text-danger">XP Lookup</h2>
+            <p class="text-muted">Search for your character to view your XP balance, claims, and spends.</p>
+        </div>
+
+        <!-- Search box -->
+        <div class="mb-4">
+            <input type="text" class="form-control form-control-lg" id="char-search"
+                   placeholder="Type your character name..." autocomplete="off" autofocus>
+        </div>
+
+        <!-- Character list -->
+        <div class="list-group" id="char-list">
+            {% for char in characters %}
+            <a href="{{ url_for('player.character', name=char.character_name) }}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center char-item">
+                <div>
+                    <strong>{{ char.character_name }}</strong>
+                    {% if char.clan %}
+                    <small class="text-muted ms-2">{{ char.clan }}</small>
+                    {% endif %}
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-3 text-muted" id="no-results" style="display: none;">
+            <p>No characters found matching your search.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const search = document.getElementById('char-search');
+    const items = document.querySelectorAll('.char-item');
+    const noResults = document.getElementById('no-results');
+
+    search.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        let visible = 0;
+
+        items.forEach(function(item) {
+            const name = item.querySelector('strong').textContent.toLowerCase();
+            if (name.includes(query)) {
+                item.style.display = '';
+                visible++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        noResults.style.display = visible === 0 ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

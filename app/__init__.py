@@ -27,6 +27,7 @@ def create_app():
     from .blueprints.roster import bp as roster_bp
     from .blueprints.periods import bp as periods_bp
     from .blueprints.audit import bp as audit_bp
+    from .blueprints.player import bp as player_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -34,5 +35,6 @@ def create_app():
     app.register_blueprint(roster_bp, url_prefix='/roster')
     app.register_blueprint(periods_bp, url_prefix='/periods')
     app.register_blueprint(audit_bp, url_prefix='/audit')
+    app.register_blueprint(player_bp, url_prefix='/player')
 
     return app

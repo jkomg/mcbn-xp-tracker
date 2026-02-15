@@ -1,0 +1,190 @@
+{% extends "player/base.html" %}
+
+{% block title %}{{ char.character_name }} — XP{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('player.lookup') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Lookup
+    </a>
+</div>
+
+<div class="d-flex align-items-center mb-3">
+    <h2 class="mb-0">{{ char.character_name }}</h2>
+    {% if char.clan %}
+    <span class="badge bg-secondary ms-3">{{ char.clan }}</span>
+    {% endif %}
+</div>
+
+<!-- XP Summary Cards -->
+<div class="row mb-4">
+    <div class="col-sm-6 col-md mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Total XP</h6>
+                <h3 class="card-title mb-0">{{ total_xp }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Earned XP</h6>
+                <h3 class="card-title mb-0">{{ earned_xp }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Spent</h6>
+                <h3 class="card-title mb-0">{{ total_spends }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md mb-3">
+        <div class="card {% if available_xp > 0 %}border-success{% elif available_xp < 0 %}border-danger{% endif %} h-100">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Available XP</h6>
+                <h3 class="card-title mb-0 {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">
+                    {{ available_xp }}
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending notifications -->
+{% if pending_claims_count > 0 or pending_spends_count > 0 %}
+<div class="alert alert-info">
+    <i class="bi bi-hourglass-split"></i>
+    {% if pending_claims_count > 0 %}
+        <strong>{{ pending_claims_count }}</strong> XP claim{{ 's' if pending_claims_count != 1 }} pending review.
+    {% endif %}
+    {% if pending_spends_count > 0 %}
+        <strong>{{ pending_spends_count }}</strong> spend request{{ 's' if pending_spends_count != 1 }} pending review.
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Approved Claims History -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History</h5>
+    </div>
+    <div class="card-body">
+        {% if approved_claims %}
+        <div class="table-responsive">
+            <table class="table table-dark table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Period</th>
+                        <th>XP Awarded</th>
+                        <th>Date</th>
+                        {% if approved_claims[0].st_notes is defined %}
+                        <th>ST Notes</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for claim in approved_claims %}
+                    <tr>
+                        <td>{{ claim.play_period }}</td>
+                        <td>
+                            <span class="badge bg-success">+{{ claim.approved_xp }}</span>
+                        </td>
+                        <td>{{ claim.review_date or claim.timestamp }}</td>
+                        <td>{{ claim.st_notes if claim.st_notes and not claim.st_notes.startswith('STAFF ADJUSTMENT') else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No approved XP claims yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Approved Spends History -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Approved Spends</h5>
+    </div>
+    <div class="card-body">
+        {% if approved_spends %}
+        <div class="table-responsive">
+            <table class="table table-dark table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Trait</th>
+                        <th>Details</th>
+                        <th>XP Cost</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for spend in approved_spends %}
+                    <tr>
+                        <td>{{ spend.spend_category }}</td>
+                        <td>{{ spend.trait_name }}</td>
+                        <td>
+                            {% if spend.current_dots and spend.new_dots %}
+                            {{ spend.current_dots }} → {{ spend.new_dots }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">-{{ spend.verified_cost }}</span>
+                        </td>
+                        <td>{{ spend.review_date or spend.timestamp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No approved spends yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- XP Cost Reference (collapsed) -->
+<div class="card mb-4">
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#xp-reference" role="button" style="cursor: pointer;">
+        <h5 class="mb-0">
+            <i class="bi bi-book"></i> V5 XP Cost Reference
+            <i class="bi bi-chevron-down float-end"></i>
+        </h5>
+    </div>
+    <div class="collapse" id="xp-reference">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Cost Formula</th>
+                            <th>Example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Attribute</td><td>New rating × 5</td><td>2→3 = 15 XP</td></tr>
+                        <tr><td>Skill</td><td>New rating × 3</td><td>1→2 = 6 XP</td></tr>
+                        <tr><td>New Skill (0→1)</td><td>3 XP flat</td><td>0→1 = 3 XP</td></tr>
+                        <tr><td>Discipline (In-Clan)</td><td>New rating × 5</td><td>0→2 = 15 XP</td></tr>
+                        <tr><td>Discipline (Out-of-Clan)</td><td>New rating × 7</td><td>0→1 = 7 XP</td></tr>
+                        <tr><td>Caitiff Discipline</td><td>New rating × 6</td><td>1→2 = 12 XP</td></tr>
+                        <tr><td>Blood Sorcery Ritual</td><td>Level × 3</td><td>Level 3 = 9 XP</td></tr>
+                        <tr><td>Thin-Blood Alchemy</td><td>Level × 3</td><td>Level 2 = 6 XP</td></tr>
+                        <tr><td>Advantage</td><td>New rating × 3</td><td>2→3 = 9 XP</td></tr>
+                    </tbody>
+                </table>
+                <small class="text-muted mt-2 d-block">For multi-dot purchases, add each step. Example: In-Clan Discipline 1→3 = (2×5) + (3×5) = 25 XP.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
