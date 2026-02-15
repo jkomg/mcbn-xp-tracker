@@ -16,6 +16,7 @@ def create_app():
     if app.config['SPREADSHEET_ID']:
         sheets_client = SheetsClient(
             credentials_file=app.config['GOOGLE_CREDENTIALS_FILE'],
+            credentials_json=app.config.get('GOOGLE_CREDENTIALS_JSON', ''),
             spreadsheet_id=app.config['SPREADSHEET_ID'],
             cache_ttl=app.config.get('SHEETS_CACHE_TTL', 30),
         )

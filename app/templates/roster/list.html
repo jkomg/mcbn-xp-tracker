@@ -11,6 +11,11 @@
   <form method="GET" action="{{ url_for('roster.list_characters') }}" class="mb-3">
     <div class="row g-3">
       <div class="col-md-3">
+        <label for="search" class="form-label">Search</label>
+        <input type="text" id="search" class="form-control" placeholder="Type a name..."
+               autocomplete="off" autofocus>
+      </div>
+      <div class="col-md-3">
         <label for="show" class="form-label">Show</label>
         <select name="show" id="show" class="form-select" onchange="this.form.submit()">
           <option value="active" {% if show == 'active' %}selected{% endif %}>Active</option>
@@ -41,15 +46,15 @@
 
   <!-- Character Table -->
   <div class="table-responsive">
-    <table class="table table-dark table-striped table-hover">
+    <table class="table table-dark table-striped table-hover" id="roster-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Clan</th>
-          <th>Age</th>
-          <th>Sect</th>
+          <th class="sortable" data-col="0" role="button">Name <span class="sort-arrow">▲</span></th>
+          <th class="sortable" data-col="1" role="button">Clan <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="2" role="button">Age <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="3" role="button">Sect <span class="sort-arrow"></span></th>
           <th>Active</th>
-          <th>Creation XP</th>
+          <th class="sortable" data-col="5" role="button">Creation XP <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody>
@@ -77,4 +82,71 @@
     </table>
   </div>
 </div>
+
+<style>
+  .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  .sortable:hover { color: #dc3545; }
+  .sort-arrow { font-size: 0.75em; margin-left: 4px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const table = document.getElementById('roster-table');
+  const tbody = table.querySelector('tbody');
+  const headers = table.querySelectorAll('th.sortable');
+  const searchInput = document.getElementById('search');
+
+  // --- Search / filter ---
+  searchInput.addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    tbody.querySelectorAll('tr').forEach(function (row) {
+      const name = row.cells[0].textContent.toLowerCase();
+      row.style.display = name.includes(q) ? '' : 'none';
+    });
+  });
+
+  // --- Sortable columns ---
+  let currentCol = 0;
+  let ascending = true;
+
+  headers.forEach(function (th) {
+    th.addEventListener('click', function () {
+      const col = parseInt(this.dataset.col);
+      if (col === currentCol) {
+        ascending = !ascending;
+      } else {
+        currentCol = col;
+        ascending = true;
+      }
+
+      // Update arrows
+      headers.forEach(function (h) {
+        h.querySelector('.sort-arrow').textContent = '';
+      });
+      this.querySelector('.sort-arrow').textContent = ascending ? '▲' : '▼';
+
+      // Sort rows
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const isNumeric = col === 5; // Creation XP
+
+      rows.sort(function (a, b) {
+        let va = a.cells[col].textContent.trim();
+        let vb = b.cells[col].textContent.trim();
+        if (isNumeric) {
+          va = parseInt(va) || 0;
+          vb = parseInt(vb) || 0;
+          return ascending ? va - vb : vb - va;
+        }
+        va = va.toLowerCase();
+        vb = vb.toLowerCase();
+        if (va < vb) return ascending ? -1 : 1;
+        if (va > vb) return ascending ? 1 : -1;
+        return 0;
+      });
+
+      rows.forEach(function (row) { tbody.appendChild(row); });
+    });
+  });
+});
+</script>
 {% endblock %}

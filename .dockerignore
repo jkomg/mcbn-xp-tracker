@@ -1,0 +1,14 @@
+venv/
+.venv/
+.env
+.git/
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+credentials/
+.DS_Store
+.vscode/
+.idea/
+*.md
+google_apps_script/

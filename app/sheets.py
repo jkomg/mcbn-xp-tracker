@@ -12,6 +12,7 @@ Tabs:
     - Dashboard: Optional calculated summary (formulas)
 """
 
+import json
 import time
 from datetime import datetime
 from typing import Optional
@@ -125,10 +126,15 @@ class SheetsClient:
     """Primary data access layer for the MCbN XP Tracker."""
 
     def __init__(self, credentials_file: str, spreadsheet_id: str,
-                 cache_ttl: int = 30):
-        creds = Credentials.from_service_account_file(
-            credentials_file, scopes=SCOPES
-        )
+                 cache_ttl: int = 30, credentials_json: str = ''):
+        # Cloud Run: load credentials from JSON env var; local: from file
+        if credentials_json:
+            info = json.loads(credentials_json)
+            creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file(
+                credentials_file, scopes=SCOPES
+            )
         self.gc = gspread.authorize(creds)
         self.spreadsheet = self.gc.open_by_key(spreadsheet_id)
         self._cache = _Cache(ttl=cache_ttl)
