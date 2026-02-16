@@ -117,6 +117,8 @@ def detail(name):
     total_xp = char.creation_xp + earned_xp
     available_xp = total_xp - total_spends
 
+    ledger = sheets_client.get_ledger_for_character(name)
+
     return render_template(
         'roster/detail.html',
         char=char,
@@ -126,7 +128,61 @@ def detail(name):
         total_xp=total_xp,
         total_spends=total_spends,
         available_xp=available_xp,
+        ledger=ledger,
     )
+
+
+@bp.route('/<name>/ledger/add', methods=['POST'])
+@require_staff
+def add_ledger_entry(name):
+    """Add a new XP ledger entry for a character."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    date = request.form.get('date', '').strip()
+    awarded = int(request.form.get('awarded', 0) or 0)
+    spent = int(request.form.get('spent', 0) or 0)
+    reason = request.form.get('reason', '').strip()
+
+    if not date or not reason:
+        flash('Date and reason are required.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    if awarded == 0 and spent == 0:
+        flash('Enter either an awarded or spent amount.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    staff = get_staff_user()
+    sheets_client.add_ledger_entry(name, date, awarded, spent, reason, staff)
+    sheets_client.log_action(
+        staff_user=staff,
+        action_type='ledger_entry',
+        target=name,
+        details=f'Ledger: +{awarded}/-{spent} XP on {date}: {reason}',
+    )
+    flash(f'Ledger entry added for {name}.', 'success')
+    return redirect(url_for('roster.detail', name=name))
+
+
+@bp.route('/<name>/ledger/<int:row_index>/delete', methods=['POST'])
+@require_staff
+def delete_ledger_entry(name, row_index):
+    """Delete an XP ledger entry."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    staff = get_staff_user()
+    sheets_client.delete_ledger_entry(row_index)
+    sheets_client.log_action(
+        staff_user=staff,
+        action_type='delete_ledger_entry',
+        target=name,
+        details=f'Deleted ledger entry row {row_index}',
+    )
+    flash('Ledger entry deleted.', 'warning')
+    return redirect(url_for('roster.detail', name=name))
 
 
 @bp.route('/<name>/edit', methods=['GET'])

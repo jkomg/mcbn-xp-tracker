@@ -151,6 +151,61 @@
     </div>
 </div>
 
+<!-- XP Ledger (collapsible) -->
+{% if ledger %}
+<div class="card mb-4">
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#xp-ledger" role="button" style="cursor: pointer;">
+        <h5 class="mb-0">
+            <i class="bi bi-journal-text"></i> XP Ledger
+            <span class="badge bg-secondary ms-2">{{ ledger|length }} entries</span>
+            <i class="bi bi-chevron-down float-end"></i>
+        </h5>
+    </div>
+    <div class="collapse" id="xp-ledger">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Awarded</th>
+                            <th>Spent</th>
+                            <th>Balance</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set ns = namespace(balance=0) %}
+                        {% for entry in ledger|reverse %}
+                        {% set ns.balance = ns.balance + entry.awarded - entry.spent %}
+                        <tr>
+                            <td>{{ entry.date }}</td>
+                            <td>
+                                {% if entry.awarded %}
+                                <span class="text-success">+{{ entry.awarded }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if entry.spent %}
+                                <span class="text-danger">-{{ entry.spent }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="{% if ns.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ ns.balance }}
+                                </span>
+                            </td>
+                            <td>{{ entry.reason }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- XP Cost Reference (collapsed) -->
 <div class="card mb-4">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#xp-reference" role="button" style="cursor: pointer;">

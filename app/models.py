@@ -121,6 +121,19 @@ class SpendRequest:
 
 
 @dataclass
+class LedgerEntry:
+    """A single line in a character's XP ledger — award or spend."""
+    row_index: int = 0
+    character_name: str = ''
+    date: str = ''            # e.g., "2025-01-27"
+    awarded: int = 0          # XP earned (positive only)
+    spent: int = 0            # XP spent (positive only)
+    reason: str = ''
+    entered_by: str = ''      # Staff who entered it
+    timestamp: str = ''       # When it was entered (auto)
+
+
+@dataclass
 class AuditEntry:
     timestamp: str = ''
     staff_user: str = ''

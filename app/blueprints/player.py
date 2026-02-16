@@ -43,6 +43,8 @@ def character(name):
     total_xp = char.creation_xp + earned_xp
     available_xp = total_xp - total_spends
 
+    ledger = sheets_client.get_ledger_for_character(name)
+
     return render_template(
         'player/character.html',
         char=char,
@@ -54,4 +56,5 @@ def character(name):
         approved_spends=approved_spends,
         pending_claims_count=len(pending_claims),
         pending_spends_count=len(pending_spends),
+        ledger=ledger,
     )

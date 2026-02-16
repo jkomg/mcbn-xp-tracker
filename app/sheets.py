@@ -21,7 +21,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from .models import (
-    Character, PlayPeriod, XPClaim, SpendRequest, AuditEntry
+    Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 )
 
 
@@ -36,6 +36,7 @@ TAB_ROSTER = 'Roster'
 TAB_PERIODS = 'Play Periods'
 TAB_XP_RESPONSES = 'XP Responses'
 TAB_SPEND_REQUESTS = 'Spend Requests'
+TAB_XP_LEDGER = 'XP Ledger'
 TAB_AUDIT_LOG = 'Audit Log'
 
 # Header rows for each tab
@@ -66,6 +67,11 @@ SPEND_REQUESTS_HEADERS = [
     'current_dots', 'new_dots', 'xp_cost', 'is_in_clan',
     'justification', 'status', 'verified_cost',
     'reviewed_by', 'review_date', 'st_notes',
+]
+
+XP_LEDGER_HEADERS = [
+    'character_name', 'date', 'awarded', 'spent', 'reason',
+    'entered_by', 'timestamp',
 ]
 
 AUDIT_LOG_HEADERS = [
@@ -167,6 +173,7 @@ class SheetsClient:
             TAB_PERIODS: PERIODS_HEADERS,
             TAB_XP_RESPONSES: XP_RESPONSES_HEADERS,
             TAB_SPEND_REQUESTS: SPEND_REQUESTS_HEADERS,
+            TAB_XP_LEDGER: XP_LEDGER_HEADERS,
             TAB_AUDIT_LOG: AUDIT_LOG_HEADERS,
         }
 
@@ -556,6 +563,45 @@ class SheetsClient:
         ]
         ws.append_row(row)
         self._cache.invalidate(TAB_SPEND_REQUESTS)
+
+    # ── XP Ledger ──────────────────────────────────────────────────────────
+
+    def get_ledger_for_character(self, name: str) -> list[LedgerEntry]:
+        """Get all ledger entries for a character, sorted by date desc."""
+        rows = self._get_all_rows(TAB_XP_LEDGER)
+        entries = []
+        for i, r in enumerate(rows):
+            if str(r.get('character_name', '')).lower() == name.lower():
+                entries.append(LedgerEntry(
+                    row_index=i,
+                    character_name=str(r.get('character_name', '')),
+                    date=str(r.get('date', '')),
+                    awarded=_parse_int(r.get('awarded', 0)),
+                    spent=_parse_int(r.get('spent', 0)),
+                    reason=str(r.get('reason', '')),
+                    entered_by=str(r.get('entered_by', '')),
+                    timestamp=str(r.get('timestamp', '')),
+                ))
+        # Sort by date descending (newest first)
+        entries.sort(key=lambda e: e.date, reverse=True)
+        return entries
+
+    def add_ledger_entry(self, character_name: str, date: str,
+                         awarded: int, spent: int, reason: str,
+                         staff_user: str) -> None:
+        """Add a new entry to the XP Ledger tab."""
+        ws = self._ws(TAB_XP_LEDGER)
+        ws.append_row([
+            character_name, date, awarded, spent, reason,
+            staff_user, _now_str(),
+        ])
+        self._cache.invalidate(TAB_XP_LEDGER)
+
+    def delete_ledger_entry(self, row_index: int) -> None:
+        """Delete a ledger entry by row index."""
+        ws = self._ws(TAB_XP_LEDGER)
+        ws.delete_rows(row_index + 2)  # +1 header, +1 for 1-indexed
+        self._cache.invalidate(TAB_XP_LEDGER)
 
     # ── Audit Log ────────────────────────────────────────────────────────────
 

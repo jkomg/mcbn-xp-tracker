@@ -181,6 +181,93 @@
     </div>
   </div>
 
+  <!-- XP Ledger -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">XP Ledger</h5>
+      <button class="btn btn-sm btn-danger" data-bs-toggle="collapse" data-bs-target="#ledger-add-form">
+        <i class="bi bi-plus-lg"></i> Add Entry
+      </button>
+    </div>
+
+    <!-- Add Entry Form (collapsed) -->
+    <div class="collapse" id="ledger-add-form">
+      <div class="card-body border-bottom">
+        <form method="POST" action="{{ url_for('roster.add_ledger_entry', name=char.character_name) }}">
+          <div class="row g-3">
+            <div class="col-md-2">
+              <label for="ledger-date" class="form-label">Date</label>
+              <input type="date" class="form-control" id="ledger-date" name="date" required>
+            </div>
+            <div class="col-md-2">
+              <label for="ledger-awarded" class="form-label">Awarded XP</label>
+              <input type="number" class="form-control" id="ledger-awarded" name="awarded" min="0" value="0">
+            </div>
+            <div class="col-md-2">
+              <label for="ledger-spent" class="form-label">Spent XP</label>
+              <input type="number" class="form-control" id="ledger-spent" name="spent" min="0" value="0">
+            </div>
+            <div class="col-md-4">
+              <label for="ledger-reason" class="form-label">Reason</label>
+              <input type="text" class="form-control" id="ledger-reason" name="reason" placeholder="e.g., Night 53 XP or Strength 2→3" required>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="submit" class="btn btn-danger w-100">Add</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card-body">
+      {% if ledger %}
+      <div class="table-responsive">
+        <table class="table table-dark table-striped table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Awarded</th>
+              <th>Spent</th>
+              <th>Reason</th>
+              <th>Entered By</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in ledger %}
+            <tr>
+              <td>{{ entry.date }}</td>
+              <td>
+                {% if entry.awarded %}
+                <span class="text-success">+{{ entry.awarded }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if entry.spent %}
+                <span class="text-danger">-{{ entry.spent }}</span>
+                {% endif %}
+              </td>
+              <td>{{ entry.reason }}</td>
+              <td><small class="text-muted">{{ entry.entered_by }}</small></td>
+              <td>
+                <form method="POST" action="{{ url_for('roster.delete_ledger_entry', name=char.character_name, row_index=entry.row_index) }}"
+                      onsubmit="return confirm('Delete this ledger entry?');" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No ledger entries yet. Click "Add Entry" to start building this character's XP history.</p>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- Deactivate/Activate Button -->
   {% if char.active %}
   <form method="POST" action="{{ url_for('roster.deactivate', name=char.character_name) }}" class="mb-4">
