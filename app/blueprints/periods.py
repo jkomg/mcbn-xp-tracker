@@ -74,6 +74,62 @@ def add():
     return redirect(url_for('periods.list_periods'))
 
 
+@bp.route('/import', methods=['GET', 'POST'])
+@require_staff
+def import_periods():
+    """Import play periods from a master XP spreadsheet."""
+    if request.method == 'GET':
+        return render_template('periods/import.html', periods=None, sheet_url='')
+
+    action = request.form.get('action', 'preview')
+    sheet_url = request.form.get('sheet_url', '').strip()
+
+    if action == 'preview':
+        if not sheet_url:
+            flash('Please paste a Google Sheet URL.', 'danger')
+            return redirect(url_for('periods.import_periods'))
+        try:
+            periods = sheets_client.preview_period_import(sheet_url)
+        except Exception as e:
+            flash(f'Error reading spreadsheet: {e}', 'danger')
+            return redirect(url_for('periods.import_periods'))
+
+        if not periods:
+            flash('No play period tabs found.', 'warning')
+            return redirect(url_for('periods.import_periods'))
+
+        new_count = sum(1 for p in periods if not p['already_exists'])
+        return render_template(
+            'periods/import.html',
+            periods=periods,
+            sheet_url=sheet_url,
+            new_count=new_count,
+        )
+
+    elif action == 'confirm':
+        if not sheet_url:
+            flash('Missing spreadsheet URL.', 'danger')
+            return redirect(url_for('periods.import_periods'))
+
+        try:
+            periods = sheets_client.preview_period_import(sheet_url)
+            staff = get_staff_user()
+            count = sheets_client.bulk_add_periods(periods, staff)
+            sheets_client.log_action(
+                staff_user=staff,
+                action_type='period_import',
+                target='Play Periods',
+                details=f'Imported {count} play periods from master spreadsheet',
+            )
+            flash(f'Successfully imported {count} play periods.', 'success')
+        except Exception as e:
+            flash(f'Import failed: {e}', 'danger')
+
+        return redirect(url_for('periods.list_periods'))
+
+    return redirect(url_for('periods.import_periods'))
+
+
 @bp.route('/<path:label>/toggle-submissions', methods=['POST'])
 @require_staff
 def toggle_submissions(label):

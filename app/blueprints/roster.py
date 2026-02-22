@@ -32,9 +32,18 @@ def list_characters():
         characters = [c for c in characters
                       if c.sect.lower() == sect_filter.lower()]
 
+    # Compute available XP for each character
+    char_data = []
+    for c in characters:
+        xp = sheets_client.get_xp_totals(c.character_name)
+        char_data.append({
+            'char': c,
+            'available_xp': xp['available_xp'],
+        })
+
     return render_template(
         'roster/list.html',
-        characters=characters,
+        char_data=char_data,
         show=show,
         clan_filter=clan_filter,
         sect_filter=sect_filter,
@@ -106,28 +115,20 @@ def detail(name):
 
     claims = sheets_client.get_claims_for_character(name)
     spends = sheets_client.get_spends_for_character(name)
-
-    # Compute XP totals
-    earned_xp = sum(
-        c.approved_xp for c in claims if c.status.lower() == 'approved'
-    )
-    total_spends = sum(
-        s.verified_cost for s in spends if s.status.lower() == 'approved'
-    )
-    total_xp = char.creation_xp + earned_xp
-    available_xp = total_xp - total_spends
-
     ledger = sheets_client.get_ledger_for_character(name)
+
+    # Compute XP totals (includes ledger)
+    xp = sheets_client.get_xp_totals(name)
 
     return render_template(
         'roster/detail.html',
         char=char,
         claims=claims,
         spends=spends,
-        earned_xp=earned_xp,
-        total_xp=total_xp,
-        total_spends=total_spends,
-        available_xp=available_xp,
+        earned_xp=xp['earned_xp'] + xp['ledger_awarded'],
+        total_xp=xp['total_xp'],
+        total_spends=xp['total_spends'] + xp['ledger_spent'],
+        available_xp=xp['available_xp'],
         ledger=ledger,
     )
 
@@ -183,6 +184,73 @@ def delete_ledger_entry(name, row_index):
     )
     flash('Ledger entry deleted.', 'warning')
     return redirect(url_for('roster.detail', name=name))
+
+
+@bp.route('/<name>/ledger/import', methods=['GET', 'POST'])
+@require_staff
+def import_ledger(name):
+    """Import XP ledger entries from an external Google Sheet."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    if request.method == 'GET':
+        return render_template(
+            'roster/import_ledger.html',
+            char=char,
+            entries=None,
+            sheet_url='',
+        )
+
+    # ── POST: either preview or confirm ──────────────────────────────
+    action = request.form.get('action', 'preview')
+    sheet_url = request.form.get('sheet_url', '').strip()
+
+    if action == 'preview':
+        if not sheet_url:
+            flash('Please paste a Google Sheet URL.', 'danger')
+            return redirect(url_for('roster.import_ledger', name=name))
+        try:
+            entries = sheets_client.preview_ledger_import(sheet_url)
+        except Exception as e:
+            flash(f'Error reading spreadsheet: {e}', 'danger')
+            return redirect(url_for('roster.import_ledger', name=name))
+
+        if not entries:
+            flash('No importable rows found. Make sure the sheet has '
+                  'Date, Awarded, Spent, and Reason columns.', 'warning')
+            return redirect(url_for('roster.import_ledger', name=name))
+
+        return render_template(
+            'roster/import_ledger.html',
+            char=char,
+            entries=entries,
+            sheet_url=sheet_url,
+        )
+
+    elif action == 'confirm':
+        # Re-parse and import
+        if not sheet_url:
+            flash('Missing spreadsheet URL.', 'danger')
+            return redirect(url_for('roster.import_ledger', name=name))
+
+        try:
+            entries = sheets_client.preview_ledger_import(sheet_url)
+            staff = get_staff_user()
+            count = sheets_client.bulk_add_ledger_entries(name, entries, staff)
+            sheets_client.log_action(
+                staff_user=staff,
+                action_type='ledger_import',
+                target=name,
+                details=f'Imported {count} ledger entries from external sheet',
+            )
+            flash(f'Successfully imported {count} ledger entries for {name}.', 'success')
+        except Exception as e:
+            flash(f'Import failed: {e}', 'danger')
+
+        return redirect(url_for('roster.detail', name=name))
+
+    return redirect(url_for('roster.import_ledger', name=name))
 
 
 @bp.route('/<name>/edit', methods=['GET'])
@@ -245,25 +313,16 @@ def adjust_xp_form(name):
     if not char:
         abort(404)
 
-    # Compute current XP totals for context
-    claims = sheets_client.get_claims_for_character(name)
-    spends = sheets_client.get_spends_for_character(name)
-    earned_xp = sum(
-        c.approved_xp for c in claims if c.status.lower() == 'approved'
-    )
-    total_spends = sum(
-        s.verified_cost for s in spends if s.status.lower() == 'approved'
-    )
-    total_xp = char.creation_xp + earned_xp
-    available_xp = total_xp - total_spends
+    # Compute current XP totals for context (includes ledger)
+    xp = sheets_client.get_xp_totals(name)
 
     return render_template(
         'roster/adjust_xp.html',
         char=char,
-        earned_xp=earned_xp,
-        total_xp=total_xp,
-        total_spends=total_spends,
-        available_xp=available_xp,
+        earned_xp=xp['earned_xp'] + xp['ledger_awarded'],
+        total_xp=xp['total_xp'],
+        total_spends=xp['total_spends'] + xp['ledger_spent'],
+        available_xp=xp['available_xp'],
     )
 
 
@@ -288,10 +347,15 @@ def adjust_xp(name):
         return redirect(url_for('roster.adjust_xp_form', name=name))
 
     staff = get_staff_user()
+    from datetime import date
+    today = date.today().strftime('%Y-%m-%d')
 
     if adjustment_type == 'grant_xp':
-        # Add earned XP (positive claim)
-        sheets_client.add_xp_adjustment(name, abs(xp_amount), reason, staff)
+        # Add earned XP as a ledger award
+        sheets_client.add_ledger_entry(
+            name, today, abs(xp_amount), 0,
+            f'Staff Adjustment: {reason}', staff
+        )
         sheets_client.log_action(
             staff_user=staff,
             action_type='xp_adjustment',
@@ -301,8 +365,11 @@ def adjust_xp(name):
         flash(f'Granted {abs(xp_amount)} XP to {name}.', 'success')
 
     elif adjustment_type == 'remove_xp':
-        # Remove earned XP (negative claim)
-        sheets_client.add_xp_adjustment(name, -abs(xp_amount), reason, staff)
+        # Remove earned XP as a negative ledger award
+        sheets_client.add_ledger_entry(
+            name, today, -abs(xp_amount), 0,
+            f'Staff Adjustment (removal): {reason}', staff
+        )
         sheets_client.log_action(
             staff_user=staff,
             action_type='xp_adjustment',
@@ -312,9 +379,10 @@ def adjust_xp(name):
         flash(f'Removed {abs(xp_amount)} XP from {name}.', 'warning')
 
     elif adjustment_type == 'refund_spend':
-        # Refund a spend (negative spend)
-        sheets_client.add_spend_adjustment(
-            name, -abs(xp_amount), reason, staff
+        # Refund a spend as a negative ledger spend
+        sheets_client.add_ledger_entry(
+            name, today, 0, -abs(xp_amount),
+            f'Staff Refund: {reason}', staff
         )
         sheets_client.log_action(
             staff_user=staff,
@@ -325,9 +393,10 @@ def adjust_xp(name):
         flash(f'Refunded {abs(xp_amount)} XP of spends for {name}.', 'success')
 
     elif adjustment_type == 'add_spend':
-        # Record a spend retroactively (positive spend)
-        sheets_client.add_spend_adjustment(
-            name, abs(xp_amount), reason, staff
+        # Record a spend retroactively as a ledger spend
+        sheets_client.add_ledger_entry(
+            name, today, 0, abs(xp_amount),
+            f'Staff Adjustment: {reason}', staff
         )
         sheets_client.log_action(
             staff_user=staff,

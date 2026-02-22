@@ -10,67 +10,103 @@
 </head>
 <body>
     {% if session.get('authenticated') %}
+    <!-- Mobile top navbar (hidden on md+) -->
+    <nav class="navbar navbar-dark bg-dark border-bottom border-secondary d-md-none sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand text-danger" href="{{ url_for('dashboard.index') }}">
+                <i class="bi bi-droplet-fill"></i> MCbN
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                {% if pending_claims is defined and pending_claims > 0 %}
+                <a href="{{ url_for('claims.pending') }}" class="text-decoration-none">
+                    <span class="badge bg-danger"><i class="bi bi-journal-check"></i> {{ pending_claims }}</span>
+                </a>
+                {% endif %}
+                {% if pending_spends is defined and pending_spends > 0 %}
+                <a href="{{ url_for('spends.pending') }}" class="text-decoration-none">
+                    <span class="badge bg-danger"><i class="bi bi-cart-check"></i> {{ pending_spends }}</span>
+                </a>
+                {% endif %}
+                <button class="navbar-toggler border-secondary" type="button"
+                        data-bs-toggle="offcanvas" data-bs-target="#sidebar"
+                        aria-controls="sidebar" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
     <div class="d-flex">
-        <!-- Sidebar -->
-        <nav class="sidebar bg-dark border-end border-secondary" id="sidebar">
-            <div class="p-3">
-                <h5 class="text-danger mb-0">
+        <!-- Sidebar: offcanvas on mobile, permanent on md+ -->
+        <nav class="sidebar offcanvas-md offcanvas-start bg-dark border-end border-secondary" id="sidebar"
+             tabindex="-1" aria-labelledby="sidebarLabel">
+            <div class="offcanvas-header d-md-none border-bottom border-secondary">
+                <h5 class="offcanvas-title text-danger" id="sidebarLabel">
                     <i class="bi bi-droplet-fill"></i> MCbN
                 </h5>
-                <small class="text-muted">XP Tracker</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                        data-bs-target="#sidebar" aria-label="Close"></button>
             </div>
-            <hr class="mx-3 my-0 border-secondary">
-            <ul class="nav flex-column p-2">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
-                       href="{{ url_for('dashboard.index') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
+            <div class="offcanvas-body d-flex flex-column p-0">
+                <div class="p-3 d-none d-md-block">
+                    <h5 class="text-danger mb-0">
+                        <i class="bi bi-droplet-fill"></i> MCbN
+                    </h5>
+                    <small class="text-muted">XP Tracker</small>
+                </div>
+                <hr class="mx-3 my-0 border-secondary d-none d-md-block">
+                <ul class="nav flex-column p-2">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
+                           href="{{ url_for('dashboard.index') }}">
+                            <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('claims.') %}active{% endif %}"
+                           href="{{ url_for('claims.pending') }}">
+                            <i class="bi bi-journal-check"></i> <span>XP Claims</span>
+                            {% if pending_claims is defined and pending_claims > 0 %}
+                            <span class="badge bg-danger ms-1">{{ pending_claims }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('spends.') %}active{% endif %}"
+                           href="{{ url_for('spends.pending') }}">
+                            <i class="bi bi-cart-check"></i> <span>XP Spends</span>
+                            {% if pending_spends is defined and pending_spends > 0 %}
+                            <span class="badge bg-danger ms-1">{{ pending_spends }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('roster.') %}active{% endif %}"
+                           href="{{ url_for('roster.list_characters') }}">
+                            <i class="bi bi-people"></i> <span>Roster</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('periods.') %}active{% endif %}"
+                           href="{{ url_for('periods.list_periods') }}">
+                            <i class="bi bi-calendar-week"></i> <span>Play Periods</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('audit.') %}active{% endif %}"
+                           href="{{ url_for('audit.log') }}">
+                            <i class="bi bi-clock-history"></i> <span>Audit Log</span>
+                        </a>
+                    </li>
+                </ul>
+                <hr class="mx-3 border-secondary">
+                <div class="p-3 mt-auto">
+                    <small class="text-muted">Logged in as</small><br>
+                    <small class="text-light">{{ session.get('staff_user', 'Unknown') }}</small>
+                    <a href="{{ url_for('dashboard.logout') }}" class="btn btn-sm btn-outline-secondary mt-2 w-100">
+                        <i class="bi bi-box-arrow-left"></i> Logout
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('claims.') %}active{% endif %}"
-                       href="{{ url_for('claims.pending') }}">
-                        <i class="bi bi-journal-check"></i> XP Claims
-                        {% if pending_claims is defined and pending_claims > 0 %}
-                        <span class="badge bg-danger ms-1">{{ pending_claims }}</span>
-                        {% endif %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('spends.') %}active{% endif %}"
-                       href="{{ url_for('spends.pending') }}">
-                        <i class="bi bi-cart-check"></i> XP Spends
-                        {% if pending_spends is defined and pending_spends > 0 %}
-                        <span class="badge bg-danger ms-1">{{ pending_spends }}</span>
-                        {% endif %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('roster.') %}active{% endif %}"
-                       href="{{ url_for('roster.list_characters') }}">
-                        <i class="bi bi-people"></i> Roster
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('periods.') %}active{% endif %}"
-                       href="{{ url_for('periods.list_periods') }}">
-                        <i class="bi bi-calendar-week"></i> Play Periods
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('audit.') %}active{% endif %}"
-                       href="{{ url_for('audit.log') }}">
-                        <i class="bi bi-clock-history"></i> Audit Log
-                    </a>
-                </li>
-            </ul>
-            <hr class="mx-3 border-secondary">
-            <div class="p-3">
-                <small class="text-muted">Logged in as</small><br>
-                <small class="text-light">{{ session.get('staff_user', 'Unknown') }}</small>
-                <a href="{{ url_for('dashboard.logout') }}" class="btn btn-sm btn-outline-secondary mt-2 w-100">
-                    <i class="bi bi-box-arrow-left"></i> Logout
-                </a>
+                </div>
             </div>
         </nav>
 

@@ -17,35 +17,35 @@
 </div>
 
 <!-- XP Summary Cards -->
-<div class="row mb-4">
-    <div class="col-sm-6 col-md mb-3">
+<div class="row xp-summary mb-3 g-2">
+    <div class="col-6 col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <h6 class="card-subtitle mb-2 text-muted">Total XP</h6>
+                <h6 class="card-subtitle mb-1 text-muted">Total XP</h6>
                 <h3 class="card-title mb-0">{{ total_xp }}</h3>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-md mb-3">
+    <div class="col-6 col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <h6 class="card-subtitle mb-2 text-muted">Earned XP</h6>
+                <h6 class="card-subtitle mb-1 text-muted">Earned XP</h6>
                 <h3 class="card-title mb-0">{{ earned_xp }}</h3>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-md mb-3">
+    <div class="col-6 col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <h6 class="card-subtitle mb-2 text-muted">Spent</h6>
+                <h6 class="card-subtitle mb-1 text-muted">Spent</h6>
                 <h3 class="card-title mb-0">{{ total_spends }}</h3>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-md mb-3">
+    <div class="col-6 col-md-3">
         <div class="card {% if available_xp > 0 %}border-success{% elif available_xp < 0 %}border-danger{% endif %} h-100">
             <div class="card-body text-center">
-                <h6 class="card-subtitle mb-2 text-muted">Available XP</h6>
+                <h6 class="card-subtitle mb-1 text-muted">Available XP</h6>
                 <h3 class="card-title mb-0 {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">
                     {{ available_xp }}
                 </h3>
@@ -66,6 +66,192 @@
     {% endif %}
 </div>
 {% endif %}
+
+<!-- ═══ Submission Forms ═══ -->
+<div class="row mb-4">
+
+    <!-- XP Claim Form -->
+    <div class="col-lg-6 mb-3">
+        <div class="card border-success">
+            <div class="card-header bg-success bg-opacity-25" data-bs-toggle="collapse" data-bs-target="#claim-form" role="button" style="cursor: pointer;">
+                <h5 class="mb-0">
+                    <i class="bi bi-plus-circle"></i> Claim XP
+                    <i class="bi bi-chevron-down float-end"></i>
+                </h5>
+            </div>
+            <div class="collapse" id="claim-form">
+                <div class="card-body">
+                    {% if open_periods %}
+                    <form method="POST" action="{{ url_for('player.submit_claim', name=char.character_name) }}">
+                        <!-- Period Selector -->
+                        <div class="mb-3">
+                            <label for="play_period" class="form-label fw-bold">Play Period</label>
+                            <select class="form-select" name="play_period" id="play_period" required>
+                                <option value="">Select a period...</option>
+                                {% for p in open_periods %}
+                                <option value="{{ p.period_label }}"
+                                    {% if p.period_label in claimed_periods %}disabled{% endif %}>
+                                    {{ p.period_label }}
+                                    {% if p.period_label in claimed_periods %} (already claimed){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- XP Categories -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">XP Categories <small class="text-muted">(1 XP each, 7 max)</small></label>
+
+                            {% set cats = [
+                                ('posted_once', 'Posted at least once during this play period'),
+                                ('hunting_awakening', 'Posted a Hunting and/or Awakening scene'),
+                                ('scene_with_another', 'Participated in a scene with another character'),
+                                ('conflict', 'Engaged in conflict with another character'),
+                                ('combat', 'Engaged in combat with another character'),
+                                ('unmitigated_stain', 'Took an unmitigated Stain'),
+                            ] %}
+
+                            {% for key, label in cats %}
+                            <div class="card bg-dark mb-2">
+                                <div class="card-body py-2 px-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input claim-cat-check" type="checkbox"
+                                               name="{{ key }}" id="{{ key }}" value="1"
+                                               data-link-target="{{ key }}_link_group">
+                                        <label class="form-check-label" for="{{ key }}">{{ label }}</label>
+                                    </div>
+                                    <div class="mt-2 d-none" id="{{ key }}_link_group">
+                                        <input type="url" class="form-control form-control-sm claim-link-input"
+                                               name="{{ key }}_link" placeholder="Discord post link (required)"
+                                               pattern="https?://.*">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <!-- Wildcard / Bonus XP -->
+                            <div class="card bg-dark mb-2 border-warning border-opacity-50">
+                                <div class="card-body py-2 px-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input claim-cat-check" type="checkbox"
+                                               name="wildcard" id="wildcard" value="1"
+                                               data-link-target="wildcard_link_group">
+                                        <label class="form-check-label text-warning" for="wildcard">
+                                            <i class="bi bi-star-fill"></i> Wildcard / Bonus XP
+                                        </label>
+                                    </div>
+                                    <div class="mt-2 d-none" id="wildcard_link_group">
+                                        <input type="text" class="form-control form-control-sm mb-2 wildcard-reason-input"
+                                               name="wildcard_reason" placeholder="Reason for bonus XP (required)">
+                                        <input type="url" class="form-control form-control-sm claim-link-input"
+                                               name="wildcard_link" placeholder="Discord post link (required)"
+                                               pattern="https?://.*">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <span class="text-muted" id="claim-xp-count">0 XP selected</span>
+                            <button type="submit" class="btn btn-success" id="claim-submit-btn" disabled>
+                                <i class="bi bi-send"></i> Submit XP Claim
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <p class="text-muted mb-0">No play periods are currently open for XP claims.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spend Request Form -->
+    <div class="col-lg-6 mb-3">
+        <div class="card border-danger">
+            <div class="card-header bg-danger bg-opacity-25" data-bs-toggle="collapse" data-bs-target="#spend-form" role="button" style="cursor: pointer;">
+                <h5 class="mb-0">
+                    <i class="bi bi-cart-plus"></i> Request XP Spend
+                    <i class="bi bi-chevron-down float-end"></i>
+                </h5>
+            </div>
+            <div class="collapse" id="spend-form">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('player.submit_spend', name=char.character_name) }}">
+
+                        <!-- Category -->
+                        <div class="mb-3">
+                            <label for="spend_category" class="form-label fw-bold">Category</label>
+                            <select class="form-select" name="spend_category" id="spend_category" required>
+                                <option value="">Select a category...</option>
+                                {% for cat in spend_categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Trait Name -->
+                        <div class="mb-3">
+                            <label for="trait_name" class="form-label fw-bold">Trait Name</label>
+                            <input type="text" class="form-control" name="trait_name" id="trait_name"
+                                   placeholder="e.g., Strength, Dominate, Allies" required>
+                        </div>
+
+                        <!-- Dots Row -->
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label for="current_dots" class="form-label fw-bold">Current Dots</label>
+                                <input type="number" class="form-control" name="current_dots" id="current_dots"
+                                       min="0" max="5" value="0" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="new_dots" class="form-label fw-bold">New Dots</label>
+                                <input type="number" class="form-control" name="new_dots" id="new_dots"
+                                       min="1" max="5" value="1" required>
+                            </div>
+                        </div>
+
+                        <!-- In-Clan checkbox (hidden unless Discipline) -->
+                        <div class="mb-3 d-none" id="in-clan-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_in_clan" id="is_in_clan" value="1">
+                                <label class="form-check-label" for="is_in_clan">This is an In-Clan Discipline</label>
+                            </div>
+                        </div>
+
+                        <!-- Live Cost Preview -->
+                        <div class="alert alert-secondary py-2 mb-3" id="spend-cost-preview">
+                            <strong>Estimated Cost:</strong> <span id="spend-cost-value">—</span> XP
+                            <span class="ms-2 text-muted" id="spend-cost-formula"></span>
+                        </div>
+
+                        <!-- Available XP Warning -->
+                        {% if available_xp is defined %}
+                        <input type="hidden" id="available-xp" value="{{ available_xp }}">
+                        <div class="alert alert-warning py-2 mb-3 d-none" id="spend-xp-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span id="spend-xp-warning-text"></span>
+                        </div>
+                        {% endif %}
+
+                        <!-- Justification -->
+                        <div class="mb-3">
+                            <label for="justification" class="form-label fw-bold">Justification / RP Rationale</label>
+                            <textarea class="form-control" name="justification" id="justification" rows="3"
+                                      placeholder="Explain the in-character reason for this purchase..." required></textarea>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-send"></i> Submit Spend Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Approved Claims History -->
 <div class="card mb-4">
@@ -242,4 +428,169 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ═══ XP Claim Form Logic ═══
+
+    const claimChecks = document.querySelectorAll('.claim-cat-check');
+    const claimCount = document.getElementById('claim-xp-count');
+    const claimBtn = document.getElementById('claim-submit-btn');
+
+    if (claimChecks.length) {
+        claimChecks.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                // Toggle link input visibility and required state
+                const target = document.getElementById(this.dataset.linkTarget);
+                if (target) {
+                    const linkInput = target.querySelector('.claim-link-input');
+                    const reasonInput = target.querySelector('.wildcard-reason-input');
+                    if (this.checked) {
+                        target.classList.remove('d-none');
+                        if (linkInput) linkInput.required = true;
+                        if (reasonInput) reasonInput.required = true;
+                    } else {
+                        target.classList.add('d-none');
+                        if (linkInput) {
+                            linkInput.required = false;
+                            linkInput.value = '';
+                        }
+                        if (reasonInput) {
+                            reasonInput.required = false;
+                            reasonInput.value = '';
+                        }
+                    }
+                }
+                // Update count
+                const checked = document.querySelectorAll('.claim-cat-check:checked').length;
+                claimCount.textContent = checked + ' XP selected';
+                claimBtn.disabled = checked === 0;
+            });
+        });
+    }
+
+    // ═══ Spend Request Form Logic ═══
+
+    const spendCategory = document.getElementById('spend_category');
+    const currentDots = document.getElementById('current_dots');
+    const newDots = document.getElementById('new_dots');
+    const inClanGroup = document.getElementById('in-clan-group');
+    const costValue = document.getElementById('spend-cost-value');
+    const costFormula = document.getElementById('spend-cost-formula');
+    const xpWarning = document.getElementById('spend-xp-warning');
+    const xpWarningText = document.getElementById('spend-xp-warning-text');
+    const availableXpEl = document.getElementById('available-xp');
+
+    if (!spendCategory) return;
+
+    // V5 XP cost rules (mirrors xp_rules.py)
+    const XP_RULES = {
+        'Attribute':                   { multiplier: 5, min: 1, max: 5 },
+        'Skill':                       { multiplier: 3, min: 1, max: 5 },
+        'New Skill':                   { flat: 3, min: 0, max: 1 },
+        'Discipline (In-Clan)':        { multiplier: 5, min: 0, max: 5 },
+        'Discipline (Out-of-Clan)':    { multiplier: 7, min: 0, max: 5 },
+        'Caitiff Discipline':          { multiplier: 6, min: 0, max: 5 },
+        'Blood Sorcery Ritual':        { level_mult: 3, min: 0, max: 5 },
+        'Thin-Blood Alchemy Formula':  { level_mult: 3, min: 0, max: 5 },
+        'Advantage (Merit/Background)':{ multiplier: 3, min: 0, max: 5 },
+    };
+
+    function calcCost() {
+        const cat = spendCategory.value;
+        const cur = parseInt(currentDots.value) || 0;
+        const nw = parseInt(newDots.value) || 0;
+        const rules = XP_RULES[cat];
+
+        if (!rules || nw <= cur) {
+            costValue.textContent = '—';
+            costFormula.textContent = '';
+            updateWarning(0);
+            return;
+        }
+
+        let cost = 0;
+        let formula = '';
+
+        if (rules.flat !== undefined) {
+            cost = rules.flat;
+            formula = '3 XP flat';
+        } else if (rules.level_mult !== undefined) {
+            cost = nw * rules.level_mult;
+            formula = nw + ' × ' + rules.level_mult;
+        } else {
+            for (let d = cur + 1; d <= nw; d++) {
+                cost += d * rules.multiplier;
+            }
+            if (nw - cur === 1) {
+                formula = nw + ' × ' + rules.multiplier;
+            } else {
+                const steps = [];
+                for (let d = cur + 1; d <= nw; d++) {
+                    steps.push('(' + d + '×' + rules.multiplier + ')');
+                }
+                formula = steps.join(' + ');
+            }
+        }
+
+        costValue.textContent = cost;
+        costFormula.textContent = formula;
+        updateWarning(cost);
+    }
+
+    function updateWarning(cost) {
+        if (!availableXpEl || !xpWarning) return;
+        const available = parseInt(availableXpEl.value) || 0;
+        if (cost > 0 && cost > available) {
+            xpWarningText.textContent = 'This costs ' + cost + ' XP but you only have ' + available + ' XP available. Staff may still approve if circumstances warrant.';
+            xpWarning.classList.remove('d-none');
+        } else {
+            xpWarning.classList.add('d-none');
+        }
+    }
+
+    function updateDotConstraints() {
+        const cat = spendCategory.value;
+        const rules = XP_RULES[cat];
+        if (!rules) return;
+
+        currentDots.min = rules.min;
+        currentDots.max = rules.max - 1;
+        newDots.min = rules.min + 1;
+        newDots.max = rules.max;
+
+        // For "New Skill", force 0→1
+        if (rules.flat !== undefined) {
+            currentDots.value = 0;
+            currentDots.disabled = true;
+            newDots.value = 1;
+            newDots.disabled = true;
+        } else {
+            currentDots.disabled = false;
+            newDots.disabled = false;
+        }
+
+        // Show/hide In-Clan checkbox
+        const isDiscipline = cat.toLowerCase().includes('discipline');
+        if (inClanGroup) {
+            if (isDiscipline) {
+                inClanGroup.classList.remove('d-none');
+            } else {
+                inClanGroup.classList.add('d-none');
+            }
+        }
+    }
+
+    spendCategory.addEventListener('change', function() {
+        updateDotConstraints();
+        calcCost();
+    });
+    currentDots.addEventListener('input', calcCost);
+    newDots.addEventListener('input', calcCost);
+
+});
+</script>
 {% endblock %}

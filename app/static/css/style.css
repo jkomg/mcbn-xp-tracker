@@ -13,14 +13,19 @@ body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-/* Sidebar */
+/* Sidebar — permanent on md+, offcanvas on mobile */
 .sidebar {
     width: var(--sidebar-width);
-    min-height: 100vh;
-    position: sticky;
-    top: 0;
     flex-shrink: 0;
     background-color: #16213e !important;
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        min-height: 100vh;
+        position: sticky;
+        top: 0;
+    }
 }
 
 .sidebar .nav-link {
@@ -109,19 +114,34 @@ body {
     text-align: center;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .sidebar {
-        width: 60px;
+/* Responsive — mobile (<768px) */
+@media (max-width: 767.98px) {
+    /* Player: compact XP summary cards */
+    .xp-summary .card-body {
+        padding: 0.5rem;
     }
-    .sidebar .nav-link span,
-    .sidebar h5,
-    .sidebar small,
-    .sidebar > .p-3:last-child {
-        display: none;
+    .xp-summary .card-title {
+        font-size: 1.4rem;
     }
-    .sidebar .nav-link i {
-        margin: 0;
-        font-size: 1.2rem;
+    .xp-summary .card-subtitle {
+        font-size: 0.75rem;
+    }
+
+    /* Staff: tighter main content padding */
+    main.flex-grow-1 {
+        padding: 1rem !important;
+    }
+
+    /* Tables: more compact on mobile */
+    .table {
+        font-size: 0.82rem;
+    }
+    .table th, .table td {
+        padding: 0.4rem 0.5rem;
+    }
+
+    /* Staff sidebar: offcanvas overlay */
+    .sidebar.offcanvas-md {
+        width: var(--sidebar-width);
     }
 }

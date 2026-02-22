@@ -56,6 +56,9 @@ class XPClaim:
     combat_link: str = ''
     unmitigated_stain: bool = False
     unmitigated_stain_link: str = ''
+    wildcard: bool = False
+    wildcard_link: str = ''
+    wildcard_reason: str = ''
 
     xp_claimed: int = 0
     status: str = 'Pending'  # Pending, Approved, Denied, DUPLICATE
@@ -97,6 +100,11 @@ class XPClaim:
                 'name': 'Unmitigated stain',
                 'claimed': self.unmitigated_stain,
                 'link': self.unmitigated_stain_link,
+            },
+            {
+                'name': f'Wildcard: {self.wildcard_reason}' if self.wildcard_reason else 'Wildcard',
+                'claimed': self.wildcard,
+                'link': self.wildcard_link,
             },
         ]
 

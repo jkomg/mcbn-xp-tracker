@@ -54,28 +54,30 @@
           <th class="sortable" data-col="2" role="button">Age <span class="sort-arrow"></span></th>
           <th class="sortable" data-col="3" role="button">Sect <span class="sort-arrow"></span></th>
           <th>Active</th>
-          <th class="sortable" data-col="5" role="button">Creation XP <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="5" role="button">Available XP <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody>
-        {% for character in characters %}
-        <tr {% if not character.active %}class="opacity-50"{% endif %}>
+        {% for item in char_data %}
+        <tr {% if not item.char.active %}class="opacity-50"{% endif %}>
           <td>
-            <a href="{{ url_for('roster.detail', name=character.character_name) }}">
-              {{ character.character_name }}
+            <a href="{{ url_for('roster.detail', name=item.char.character_name) }}">
+              {{ item.char.character_name }}
             </a>
           </td>
-          <td>{{ character.clan }}</td>
-          <td>{{ character.age_category }}</td>
-          <td>{{ character.sect }}</td>
+          <td>{{ item.char.clan }}</td>
+          <td>{{ item.char.age_category }}</td>
+          <td>{{ item.char.sect }}</td>
           <td>
-            {% if character.active %}
+            {% if item.char.active %}
               <span class="badge bg-success">Yes</span>
             {% else %}
               <span class="badge bg-secondary">No</span>
             {% endif %}
           </td>
-          <td>{{ character.creation_xp }}</td>
+          <td class="{% if item.available_xp < 0 %}text-danger{% elif item.available_xp > 0 %}text-success{% endif %}">
+            {{ item.available_xp }}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -127,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Sort rows
       const rows = Array.from(tbody.querySelectorAll('tr'));
-      const isNumeric = col === 5; // Creation XP
+      const isNumeric = col === 5; // Available XP
 
       rows.sort(function (a, b) {
         let va = a.cells[col].textContent.trim();

@@ -53,10 +53,10 @@ document.addEventListener('DOMContentLoaded', function() {
         items.forEach(function(item) {
             const name = item.querySelector('strong').textContent.toLowerCase();
             if (name.includes(query)) {
-                item.style.display = '';
+                item.classList.remove('d-none');
                 visible++;
             } else {
-                item.style.display = 'none';
+                item.classList.add('d-none');
             }
         });
 

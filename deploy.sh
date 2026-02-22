@@ -36,6 +36,9 @@
 
 set -e
 
+# Ensure gcloud and docker are in PATH
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/usr/local/bin:$PATH"
+
 PROJECT_ID="mcbn-xp-tracker"
 REGION="us-central1"
 SERVICE_NAME="mcbn-xp-tracker"
@@ -60,7 +63,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --max-instances 2 \
   --set-env-vars "FLASK_DEBUG=false" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
-  --set-env-vars "DISCORD_REDIRECT_URI=https://xp.jkomg.us/auth/callback" \
+  --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
   --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
   --update-secrets "SPREADSHEET_ID=mcbn-spreadsheet-id:latest" \
   --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
