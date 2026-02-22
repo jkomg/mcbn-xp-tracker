@@ -1,339 +1,314 @@
 # MCbN XP Tracker
 
-XP tracking and management system for **Music City by Night**, a Vampire: The Masquerade V5 chronicle set in Nashville, TN.
+XP tracking and management for **Music City by Night**, a Vampire: The Masquerade V5 chronicle (Nashville, TN).
 
-## How It Works
+**Live:** [mcbn.jkomg.us](https://mcbn.jkomg.us) | **Dev:** `http://127.0.0.1:5001`
 
-The system has three user roles with different tools:
+---
 
-| Role | Tool | What They Do |
-|------|------|-------------|
-| **Players** | Google Forms | Submit XP claims and spend requests |
-| **Staff (STs)** | Flask Web App | Review, approve/deny, adjust XP, manage roster |
-| **Owner** | Google Sheet + Apps Script | Backend data, automation, form sync |
+## What It Does
 
-### Data Flow
+Players visit `/player/`, pick their character, and submit XP claims and spend requests through the web app. Staff log in with Discord and review everything from a dashboard. Google Sheets is the database — every character, claim, spend, and audit entry lives there.
+
+No Google Forms. No spreadsheet formulas. The app handles all the math, validation, and workflow.
+
+### Roles
+
+| Role | Access | Does What |
+|------|--------|-----------|
+| **Players** | `/player/` (public, no login) | Look up XP, claim XP, request spends |
+| **Staff** | `/` (Discord OAuth login) | Review claims/spends, manage roster, adjust XP |
+| **Owner** | Google Sheet + deploy scripts | Deployment, secrets, backend data |
+
+### XP Flow
 
 ```
-Players submit via Google Forms
-        ↓
-Responses land in Google Sheet tabs
-        ↓
-Staff reviews in Flask dashboard → Approve / Deny
-        ↓
-XP totals auto-calculated from approved claims & spends
-        ↓
-All actions logged to Audit Trail
+Player submits claim or spend request
+  -> Lands in Google Sheet as "Pending"
+  -> Staff reviews in dashboard -> Approve / Deny
+  -> XP totals update automatically
+  -> Everything logged to Audit Trail
+```
+
+### XP Math
+
+```
+Total XP     = Creation XP + Approved Claims + Ledger Awards
+Available XP = Total XP - Approved Spends - Ledger Spends
 ```
 
 ---
 
-## Architecture
+## Tech Stack
 
-- **Database:** Google Sheets (6 tabs)
-- **Staff Dashboard:** Flask + Bootstrap 5 (dark VtM theme)
-- **Player Input:** Two Google Forms (XP Claim + XP Spend)
-- **Automation:** Google Apps Script (dropdown sync, duplicate detection, triggers)
+| Layer | Tech | Notes |
+|-------|------|-------|
+| Backend | Flask 3.1 (Python 3.12) | Gunicorn in prod |
+| Frontend | Bootstrap 5 | Custom dark VtM theme, mobile-responsive |
+| Database | Google Sheets (6 tabs) | Free, no server needed |
+| Auth | Discord OAuth2 | Staff only; players don't need accounts |
+| Hosting | Google Cloud Run | Free tier, scales to zero |
+| Secrets | GCP Secret Manager | All credentials stored securely in prod |
+
+### Free Tier Design
+
+The app is specifically designed to run within Google Cloud's free tier:
+
+- **Cloud Run**: 2 million requests/month free. The app scales to **zero instances** when idle, so you only use resources when someone's on the site.
+- **Artifact Registry**: Stores the Docker image. Free tier covers small projects.
+- **Secret Manager**: 6 secrets, rarely accessed. Well within free limits.
+- **Google Sheets API**: 300 requests/minute free. The app caches reads for 30 seconds to stay well under this.
+
+In practice this costs **$0/month** for a chronicle our size.
 
 ---
 
-## Installation & Setup
+## Local Development
 
-### 1. Google Cloud Service Account
+### Prerequisites
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com)
-2. Create a new project (or use an existing one)
-3. Enable **Google Sheets API** and **Google Drive API**
-4. Go to IAM → Service Accounts → Create Service Account
-5. Download the JSON key file
-6. Save it as `credentials/service-account.json` in the project root
+- Python 3.12+
+- A Google Cloud service account with Sheets API access
+- A Discord OAuth2 application
 
-### 2. Google Sheet
-
-1. Create a new Google Sheet
-2. Share it with the service account email address (as **Editor**)
-3. Copy the Sheet ID from the URL: `docs.google.com/spreadsheets/d/SHEET_ID_HERE/edit`
-
-### 3. Environment Configuration
+### First-Time Setup
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` with your values:
-
-```env
-FLASK_SECRET_KEY=generate-a-random-string-here
-FLASK_DEBUG=true
-GOOGLE_CREDENTIALS_FILE=credentials/service-account.json
-SPREADSHEET_ID=your-google-sheet-id
-STAFF_PASSWORD=your-staff-password
-SHEETS_CACHE_TTL=30
-```
-
-### 4. Install & Run
-
-```bash
+# Clone and set up Python environment
+git clone <repo-url> && cd mcbn-xp-tracker
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Initialize sheet tabs (safe to run multiple times)
-python -c "from app import create_app; app = create_app(); from app import sheets_client; sheets_client.setup_sheets()"
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials (see below)
 
-# Optional: migrate existing character data from CSV
-python migrations/migrate_csv_to_sheets.py
+# Place your Google service account key
+# Save the JSON file as: credentials/service-account.json
 
-# Start the app
-python run.py
+# Initialize Google Sheet tabs (safe to re-run)
+python3 -c "from app import create_app; app = create_app(); from app import sheets_client; sheets_client.setup_sheets()"
 ```
 
-The app runs at **http://localhost:5000**.
+### Running the Dev Server
 
-### 5. Google Forms Setup
+```bash
+./dev.sh
+```
 
-Create two Google Forms and link their responses to the sheet:
+That's it. Opens at **http://127.0.0.1:5001** with debug mode and auto-reload. The script kills any existing process on port 5001 first, so it's safe to run repeatedly.
 
-#### XP Claim Form
+> **Why port 5001?** macOS AirPlay Receiver squats on port 5000.
 
-| Question | Type | Notes |
-|----------|------|-------|
-| Character Name | Dropdown | Auto-populated by Apps Script |
-| Play Period | Dropdown | Auto-populated by Apps Script |
-| Posted at least once | Checkbox | 1 XP category |
-| Posted once — Discord link | Short answer | Evidence link |
-| Hunting / Awakening scene | Checkbox | 1 XP category |
-| Hunting — Discord link | Short answer | Evidence link |
-| Scene with another character | Checkbox | 1 XP category |
-| Scene — Discord link | Short answer | Evidence link |
-| Conflict with another character | Checkbox | 1 XP category |
-| Conflict — Discord link | Short answer | Evidence link |
-| Combat with another character | Checkbox | 1 XP category |
-| Combat — Discord link | Short answer | Evidence link |
-| Unmitigated stain | Checkbox | 1 XP category |
-| Stain — Discord link | Short answer | Evidence link |
+### `.env` Configuration
 
-Each category is worth 1 XP. Players can earn up to **6 XP per play period**.
+```env
+FLASK_SECRET_KEY=any-random-string
+FLASK_DEBUG=true
 
-#### XP Spend Form
+GOOGLE_CREDENTIALS_FILE=credentials/service-account.json
+SPREADSHEET_ID=your-google-sheet-id
 
-| Question | Type | Notes |
-|----------|------|-------|
-| Character Name | Dropdown | Auto-populated by Apps Script |
-| Spend Category | Dropdown | Attribute, Skill, Discipline, etc. |
-| Trait Name | Short answer | e.g., "Strength", "Dominate" |
-| Current Dots | Number | Current rating (0-5) |
-| New Dots | Number | Desired rating |
-| XP Cost | Number | Player-calculated cost |
-| Is In-Clan? | Checkbox | For Discipline purchases |
-| Justification | Paragraph | Why they're buying this |
+DISCORD_CLIENT_ID=your-discord-app-client-id
+DISCORD_CLIENT_SECRET=your-discord-app-client-secret
+DISCORD_REDIRECT_URI=http://127.0.0.1:5001/auth/callback
+ALLOWED_DISCORD_IDS=discord-user-id-1,discord-user-id-2
+```
 
-### 6. Apps Script Setup
+### Discord OAuth2 Setup
 
-1. Open your Google Sheet → **Extensions → Apps Script**
-2. Paste the contents of `google_apps_script/form_sync_script.js`
-3. Update the two form ID constants at the top with your actual form IDs
-4. Run `setupAllTriggers()` once to create:
-   - Daily sync at 6 AM (refreshes form dropdowns)
-   - XP form submit handler (duplicate detection + auto-XP count)
-   - Spend form submit handler (auto-sets "Pending" status)
-5. Run `syncFormsWithSheet()` to do the initial dropdown population
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Create a new application
+3. Under OAuth2, grab the **Client ID** and **Client Secret**
+4. Add redirect URIs:
+   - Dev: `http://127.0.0.1:5001/auth/callback`
+   - Prod: `https://mcbn.jkomg.us/auth/callback`
+
+### How Dev Works
+
+Dev and prod share the **same Google Sheet**. Changes you make locally (approving claims, adding characters) show up on prod immediately. The only difference is:
+
+- **Dev** reads credentials from `.env` and `credentials/service-account.json`
+- **Prod** reads credentials from GCP Secret Manager
+
+This means you can test the full app locally with real data.
 
 ---
 
-## For Staff (STs): Using the Dashboard
+## Production Deployment
 
-### Logging In
+### One-Time GCP Setup
 
-Go to `http://localhost:5000` and enter your name and the shared staff password. Your name is used for the audit trail — use something identifiable.
+```bash
+# Install Google Cloud CLI
+brew install google-cloud-sdk
 
-### Dashboard (Home Page)
+# Authenticate
+gcloud auth login
+gcloud projects create mcbn-xp-tracker --name="MCbN XP Tracker"
+gcloud config set project mcbn-xp-tracker
 
-Shows at a glance:
-- **Active character count**
-- **Pending claims** and **pending spends** waiting for review
-- **Full character table** with XP breakdown (Creation XP, Earned, Total, Spends, Available)
-- Click any character name to see their full detail page
+# Enable APIs
+gcloud services enable run.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 
-### Reviewing XP Claims
+# Create Docker image repo
+gcloud artifacts repositories create mcbn-repo \
+  --repository-format=docker \
+  --location=us-central1
 
-1. Click **XP Claims** in the sidebar (badge shows pending count)
-2. You'll see all pending claims with character name, period, and XP amount
-3. Click a claim to review:
-   - See which 6 categories the player checked
-   - See their Discord evidence links
-   - **Approve** with the claimed amount, or enter a different amount
-   - **Deny** with an ST note explaining why
-4. Use **Claims History** to see all past claims (approved, denied, duplicates)
+# Configure Docker auth
+gcloud auth configure-docker us-central1-docker.pkg.dev
 
-### Reviewing XP Spends
+# Set up secrets (interactive — prompts for each value)
+./setup-secrets.sh
+```
+
+### Deploying
+
+```bash
+./deploy.sh
+```
+
+Builds a Docker image, pushes to Artifact Registry, deploys to Cloud Run. Takes about 2-3 minutes. The app runs with 256MB RAM, scales 0-2 instances, and auto-sleeps when idle.
+
+### Updating Staff Access
+
+When you need to add or remove staff Discord IDs:
+
+1. Edit `ALLOWED_DISCORD_IDS` in `.env`
+2. Run:
+   ```bash
+   ./update-staff-access.sh
+   ```
+
+This reads the IDs from your `.env`, pushes them to GCP Secret Manager, and updates Cloud Run in one step.
+
+---
+
+## Utility Scripts
+
+| Script | What It Does |
+|--------|-------------|
+| `./dev.sh` | Start local dev server on port 5001 |
+| `./deploy.sh` | Build and deploy to Cloud Run |
+| `./update-staff-access.sh` | Push Discord ID changes from `.env` to prod |
+| `./setup-secrets.sh` | One-time GCP Secret Manager setup (interactive) |
+
+---
+
+## Google Sheet Structure
+
+The app uses a single Google Sheet with 6 tabs:
+
+| Tab | What's In It |
+|-----|-------------|
+| **Roster** | Character list (name, clan, sect, age, creation XP, active status) |
+| **Play Periods** | Night schedule and whether submissions are open |
+| **XP Responses** | Player XP claims with category checkboxes, links, and staff review |
+| **Spend Requests** | Player spend requests with cost validation and staff review |
+| **XP Ledger** | Manual XP entries (imports, adjustments, historical data) |
+| **Audit Log** | Every staff action with timestamp, who, what, and why |
+
+The `setup_sheets()` function creates these tabs automatically if they don't exist.
+
+---
+
+## Player Guide
+
+### Claiming XP
+
+1. Go to `/player/` and select your character
+2. Expand **Claim XP**
+3. Pick the play period
+4. Check each category you earned (1 XP each, up to 7):
+   - Posted at least once during the play period
+   - Posted a hunting and/or awakening scene
+   - Participated in a scene with another character
+   - Engaged in conflict with another character
+   - Engaged in combat with another character
+   - Took an unmitigated stain
+   - **Wildcard / Bonus XP** (requires a reason)
+5. Paste a **Discord link** for each checked category (required)
+6. Submit — staff will review it
+
+### Requesting a Spend
+
+1. On your character page, expand **Request XP Spend**
+2. Pick a category (Attribute, Skill, Discipline, etc.)
+3. Enter the trait name and dots (current -> new)
+4. The XP cost calculates automatically using V5 rules
+5. Write a justification
+6. Submit — staff will review it
+
+### V5 XP Costs
+
+| Category | Formula | Example |
+|----------|---------|---------|
+| Attribute | New dots x 5 | Strength 2->3 = 15 XP |
+| Skill | New dots x 3 | Firearms 1->2 = 6 XP |
+| New Skill (0->1) | Flat 3 | Larceny 0->1 = 3 XP |
+| Discipline (In-Clan) | New dots x 5 | Dominate 1->2 = 10 XP |
+| Discipline (Out-of-Clan) | New dots x 7 | Auspex 0->1 = 7 XP |
+| Caitiff Discipline | New dots x 6 | Any 1->2 = 12 XP |
+| Blood Sorcery Ritual | Level x 3 | Level 3 = 9 XP |
+| Thin-Blood Alchemy | Level x 3 | Level 2 = 6 XP |
+| Advantage | New dots x 3 | Resources 2->3 = 9 XP |
+
+Multi-dot purchases sum each step. Discipline (In-Clan) 1->3 = (2x5) + (3x5) = 25 XP.
+
+---
+
+## Staff Guide
+
+### Reviewing Claims
+
+1. Log in with Discord at the site root
+2. Click **XP Claims** in the sidebar (badge shows pending count)
+3. Review each claim: see which categories were checked, verify Discord links
+4. **Approve** (can adjust the XP amount) or **Deny** (with a note)
+
+### Reviewing Spends
 
 1. Click **XP Spends** in the sidebar
-2. Review each spend request:
-   - The system **auto-validates** the XP cost against V5 rules
-   - A green checkmark means the player's cost matches; a red warning means mismatch
-   - You can see the **correct cost** and the player's submitted cost side-by-side
-   - You can see the character's **available XP** to check if they can afford it
-   - **Approve** with the verified cost (can override the player's amount)
-   - **Deny** with a note
-3. Use **Spends History** to see all past spend requests
+2. The system auto-validates XP cost against V5 rules
+3. Green check = cost matches, red warning = mismatch
+4. **Approve** (with verified cost) or **Deny** (with a note)
 
-### Managing the Roster
+### Managing Characters
 
-**Roster List** (`/roster/`):
-- View all characters with filters: Active / Inactive / All, by Clan, by Sect
-- Inactive characters appear faded
+- **Roster** -> Add, edit, activate/deactivate characters
+- **Character detail** -> Full XP history, all claims and spends
+- **Adjust XP** button -> Grant bonus XP, fix mistakes, refund spends
+- **Import from Sheet** -> Bulk import XP history from an external Google Sheet
 
-**Character Detail** (click a character name):
-- XP summary cards: Creation XP, Earned XP, Total XP, Approved Spends, Available XP
-- Character info (clan, sect, age, Discord, enemy, notes)
-- Full XP claims history table
-- Full spend history table
-- Activate/Deactivate button
+### XP Adjustments
 
-**Adding a Character** (`/roster/add`):
-- Required: Character name
-- Optional: Player Discord, clan, age category, sect, creation XP, enemy, notes
-
-**Editing a Character** (Edit button on detail page):
-- Can change any field except the character name
-- Can adjust **Creation / Audit XP** — this is the baseline XP the character started with
-
-### XP Adjustments (Corrections & Manual Edits)
-
-This is the tool for fixing XP problems, granting bonus XP, or correcting mistakes.
-
-**From any character detail page, click the yellow "Adjust XP" button.**
-
-Four adjustment types:
+From any character detail page, click **Adjust XP**:
 
 | Type | Effect | Use Case |
 |------|--------|----------|
-| **Grant XP** | Adds earned XP | Bonus XP, retroactive award, data correction |
-| **Remove XP** | Subtracts earned XP | Correct over-awarded XP, fix mistakes |
-| **Refund Spend** | Returns XP from spends | Undo a wrongly approved spend, retcon |
-| **Add Spend** | Records a retroactive spend | Spend that happened outside the form system |
+| Grant XP | Adds earned XP | Bonus, retroactive award, correction |
+| Remove XP | Subtracts earned XP | Fix over-awarded XP |
+| Refund Spend | Returns spent XP | Undo a bad approval |
+| Add Spend | Records a spend | Spend that happened outside the app |
 
-How it works:
-- Enter the XP amount (always positive — the type determines direction)
-- Write a reason (required — logged to audit trail)
-- A live preview shows what the character's XP will look like after
-- Adjustments take effect **immediately** (auto-approved)
-- Everything is logged: who made it, when, why, and the exact amounts
-
-### Play Periods
-
-1. Click **Play Periods** in the sidebar
-2. **Add Period**: Enter start/end dates; night number auto-increments
-3. **Toggle Submissions**: Open or close a period for player submissions
-4. **Toggle Active**: Show or hide a period in the Google Form dropdowns
-5. Active periods with open submissions appear in the XP Claim form's Play Period dropdown
-
-### Audit Log
-
-Shows every staff action with timestamp, who did it, what they did, and to which character. Filter by:
-- Action type (approve, deny, edit, adjust, etc.)
-- Character name
-- Staff member
+Adjustments take effect immediately and are logged to the audit trail.
 
 ---
 
-## For Players: Submitting XP Claims
+## Troubleshooting
 
-### Claiming XP for a Play Period
-
-1. Open the **XP Claim Form** (link provided by your ST)
-2. Select your **Character Name** from the dropdown
-3. Select the **Play Period** you're claiming for
-4. Check each category you qualify for (up to 6 XP):
-   - **Posted at least once** — You posted in the Discord RP channels
-   - **Hunting / Awakening scene** — Your character hunted or had an awakening scene
-   - **Scene with another character** — RP'd with another PC
-   - **Conflict with another character** — Had a conflict with another PC
-   - **Combat with another character** — Engaged in combat with another PC
-   - **Unmitigated stain** — Your character gained an unmitigated stain
-5. For each category checked, paste a **Discord link** to the relevant post as evidence
-6. Submit — your claim will be reviewed by staff
-
-**Important:**
-- You can only claim once per character per period (duplicates are auto-flagged)
-- Claims start as "Pending" until staff reviews them
-- Staff may approve a different amount than you claimed if evidence doesn't support it
-
-### Spending XP
-
-1. Open the **XP Spend Form** (link provided by your ST)
-2. Select your **Character Name**
-3. Select the **Spend Category** (Attribute, Skill, Discipline, etc.)
-4. Enter the **Trait Name** (e.g., "Strength", "Dominate", "Resources")
-5. Enter your **Current Dots** and desired **New Dots**
-6. Enter the **XP Cost** — calculate using the V5 rules below
-7. Check **Is In-Clan?** if buying an in-clan Discipline
-8. Write a **Justification** explaining why your character is learning this
-9. Submit — staff will review and verify the cost
-
-### V5 XP Cost Reference
-
-| Category | Cost Formula | Example |
-|----------|-------------|---------|
-| Attribute | New rating × 5 | Strength 2→3 = 15 XP |
-| Skill | New rating × 3 | Firearms 1→2 = 6 XP |
-| New Skill (0→1) | 3 XP flat | Larceny 0→1 = 3 XP |
-| Discipline (In-Clan) | New rating × 5 | Dominate 0→2 = 5+10 = 15 XP |
-| Discipline (Out-of-Clan) | New rating × 7 | Auspex 0→1 = 7 XP |
-| Caitiff Discipline | New rating × 6 | Any 1→2 = 12 XP |
-| Blood Sorcery Ritual | Ritual level × 3 | Level 3 ritual = 9 XP |
-| Thin-Blood Alchemy | Formula level × 3 | Level 2 formula = 6 XP |
-| Advantage (Merit/Background) | New rating × 3 | Resources 2→3 = 9 XP |
-
-For multi-dot purchases, add each step. Example: Discipline (In-Clan) 1→3 = (2×5) + (3×5) = 25 XP.
-
----
-
-## For the Owner: Backend Management
-
-### Google Sheet Structure
-
-| Tab | Purpose | Managed By |
-|-----|---------|------------|
-| **Roster** | Character master list | Flask app (add/edit/activate) |
-| **Play Periods** | Night schedule & submission windows | Flask app (create/toggle) |
-| **XP Responses** | XP claim form submissions + staff reviews | Google Form + Flask |
-| **Spend Requests** | Spend form submissions + staff reviews | Google Form + Flask |
-| **Audit Log** | Complete staff action history | Flask (auto-appended) |
-
-### XP Calculation
-
-```
-Total XP     = Creation XP + Sum(Approved Claims) + Sum(Staff Adjustments)
-Available XP = Total XP - Sum(Approved Spends)
-```
-
-- **Creation XP**: Set when adding a character; editable on the character edit page
-- **Earned XP**: Sum of all approved claims (including staff adjustments marked as "Staff Adjustment")
-- **Approved Spends**: Sum of all approved spend requests (including spend adjustments)
-
-### Apps Script Automation
-
-The bound Apps Script handles three things automatically:
-
-1. **Daily Dropdown Sync** (6 AM): Reads active characters from Roster and active periods from Play Periods, updates both Google Forms' dropdowns
-2. **XP Form Submission**: Auto-counts checked categories, sets `xp_claimed`, flags duplicates (same character + same period)
-3. **Spend Form Submission**: Sets initial status to "Pending"
-
-To manually trigger a dropdown sync: Open Apps Script editor → Select `syncFormsWithSheet` → Run.
-
-### Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Form dropdowns empty | Run `syncFormsWithSheet` in Apps Script; check that characters/periods are marked Active |
-| "No item with given ID" error | Form ID in the script doesn't match the actual form. Check the form URL and update the constant |
-| Stale data in Flask | The cache has a 30-second TTL. Wait 30 seconds or restart the app |
-| Character shows negative XP | Use the **Adjust XP** tool on the character detail page to correct |
-| Player submitted wrong claim | Deny the claim with a note; player resubmits |
-| Need to fix a past approval | Use **Adjust XP** → Remove XP or Refund Spend with a reason |
-| Form responses in wrong tab | Forms auto-create tabs. If tab names don't match, rename them to "XP Responses" and "Spend Requests" |
+| Problem | Fix |
+|---------|-----|
+| Data looks stale | Cache is 30 seconds. Wait or restart the app |
+| New staff can't log in (prod) | Edit `.env`, run `./update-staff-access.sh` |
+| New staff can't log in (dev) | Add their Discord ID to `ALLOWED_DISCORD_IDS` in `.env` |
+| Character has wrong XP | Use **Adjust XP** on their detail page |
+| Player claimed wrong period | Deny with a note, they resubmit |
+| Import fails on .xlsx file | The file must be a native Google Sheet, not an uploaded Excel file. Open it in Sheets, go to File -> Save as Google Sheets, then use the new URL |
+| Port 5000 in use (macOS) | Use port 5001 — macOS AirPlay Receiver uses 5000. `./dev.sh` already handles this |
 
 ---
 
@@ -341,60 +316,41 @@ To manually trigger a dropdown sync: Open Apps Script editor → Select `syncFor
 
 ```
 mcbn-xp-tracker/
-├── run.py                          # Flask entry point
-├── .env                            # Environment config (not committed)
-├── requirements.txt                # Python dependencies
-├── credentials/                    # Google service account key (not committed)
-│   └── service-account.json
+├── dev.sh                       # Start local dev server
+├── deploy.sh                    # Deploy to Cloud Run
+├── update-staff-access.sh       # Push Discord IDs to prod
+├── setup-secrets.sh             # One-time GCP secrets setup
+├── Dockerfile                   # Container definition
+├── requirements.txt             # Python dependencies
+├── .env                         # Local config (not committed)
+├── credentials/
+│   └── service-account.json     # Google API key (not committed)
 ├── app/
-│   ├── __init__.py                 # Flask app factory
-│   ├── auth.py                     # Staff authentication
-│   ├── models.py                   # Data classes (Character, XPClaim, etc.)
-│   ├── sheets.py                   # Google Sheets API client
-│   ├── xp_rules.py                 # V5 XP cost calculations
+│   ├── __init__.py              # App factory
+│   ├── auth.py                  # Discord OAuth2
+│   ├── config.py                # Configuration
+│   ├── models.py                # Data classes
+│   ├── sheets.py                # Google Sheets client (the "database")
+│   ├── xp_rules.py              # V5 XP cost calculations
 │   ├── blueprints/
-│   │   ├── dashboard.py            # Home + login/logout
-│   │   ├── claims.py               # XP claim review
-│   │   ├── spends.py               # Spend request review
-│   │   ├── roster.py               # Character management + XP adjustments
-│   │   ├── periods.py              # Play period management
-│   │   └── audit.py                # Audit log viewer
-│   ├── templates/                  # Jinja2 HTML templates
-│   │   ├── base.html               # Layout with sidebar nav
-│   │   ├── login.html
-│   │   ├── dashboard.html
-│   │   ├── claims/
-│   │   ├── spends/
-│   │   ├── roster/
-│   │   │   ├── list.html
-│   │   │   ├── detail.html
-│   │   │   ├── add.html
-│   │   │   ├── edit.html
-│   │   │   └── adjust_xp.html     # Manual XP correction tool
-│   │   ├── periods/
-│   │   └── audit/
+│   │   ├── dashboard.py         # Home + login/logout
+│   │   ├── claims.py            # Claim review (staff)
+│   │   ├── spends.py            # Spend review (staff)
+│   │   ├── roster.py            # Character management
+│   │   ├── periods.py           # Play period management
+│   │   ├── player.py            # Public player pages
+│   │   └── audit.py             # Audit log viewer
+│   ├── templates/               # Jinja2 HTML templates
+│   │   ├── base.html            # Staff layout (sidebar + offcanvas mobile nav)
+│   │   ├── player/              # Player-facing pages
+│   │   ├── claims/              # Claim review pages
+│   │   ├── spends/              # Spend review pages
+│   │   ├── roster/              # Character management pages
+│   │   ├── periods/             # Play period pages
+│   │   └── audit/               # Audit log page
 │   └── static/
-│       ├── css/style.css           # VtM dark theme overrides
-│       └── js/app.js               # Client-side search, sort, confirm dialogs
-├── google_apps_script/
-│   └── form_sync_script.js         # Apps Script for form automation
+│       ├── css/style.css        # VtM dark theme
+│       └── js/app.js            # Client-side utilities
 └── migrations/
-    └── migrate_csv_to_sheets.py    # One-time CSV data import
+    └── migrate_csv_to_sheets.py # One-time CSV import (historical)
 ```
-
----
-
-## Security Notes
-
-**Current (Phase 1):**
-- Single shared staff password (all STs use the same password)
-- Session-based authentication via Flask
-- All staff actions logged with the staff member's name
-- Google Sheets accessed via service account (not user credentials)
-
-**For production deployment:**
-- Change `FLASK_SECRET_KEY` to a random string (`python -c "import secrets; print(secrets.token_hex(32))"`)
-- Set a strong `STAFF_PASSWORD`
-- Set `FLASK_DEBUG=false`
-- Use HTTPS (reverse proxy with nginx/Caddy)
-- Consider adding Discord OAuth for per-user authentication (Phase 2)
