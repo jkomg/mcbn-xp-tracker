@@ -141,12 +141,12 @@ def add_ledger_entry(name):
     if not char:
         abort(404)
 
-    date = request.form.get('date', '').strip()
+    date_raw = request.form.get('date', '').strip()
     awarded = int(request.form.get('awarded', 0) or 0)
     spent = int(request.form.get('spent', 0) or 0)
     reason = request.form.get('reason', '').strip()
 
-    if not date or not reason:
+    if not date_raw or not reason:
         flash('Date and reason are required.', 'danger')
         return redirect(url_for('roster.detail', name=name))
 
@@ -154,6 +154,8 @@ def add_ledger_entry(name):
         flash('Enter either an awarded or spent amount.', 'danger')
         return redirect(url_for('roster.detail', name=name))
 
+    # Convert browser date (YYYY-MM-DD) to YYYYMMDD
+    date = date_raw.replace('-', '')
     staff = get_staff_user()
     sheets_client.add_ledger_entry(name, date, awarded, spent, reason, staff)
     sheets_client.log_action(
@@ -348,7 +350,7 @@ def adjust_xp(name):
 
     staff = get_staff_user()
     from datetime import date
-    today = date.today().strftime('%Y-%m-%d')
+    today = date.today().strftime('%Y%m%d')
 
     if adjustment_type == 'grant_xp':
         # Add earned XP as a ledger award

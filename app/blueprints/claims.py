@@ -46,7 +46,7 @@ def approve(row_id):
         from datetime import date as _date
         sheets_client.add_ledger_entry(
             character_name=claim.character_name,
-            date=_date.today().isoformat(),
+            date=_date.today().strftime('%Y%m%d'),
             awarded=approved_xp,
             spent=0,
             reason=f'{claim.play_period} (claim approved)',

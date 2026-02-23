@@ -53,8 +53,8 @@ def add():
     period = PlayPeriod(
         period_label=label,
         night_number=night_number,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=start_date.replace('-', ''),
+        end_date=end_date.replace('-', ''),
         session_number=session_number,
         submissions_open=True,
         active=True,

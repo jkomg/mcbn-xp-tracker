@@ -145,7 +145,7 @@ def _parse_int(value, default: int = 0) -> int:
 
 def _now_str() -> str:
     """Return current timestamp as a string for sheet cells."""
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.now().strftime('%Y%m%d %H:%M:%S')
 
 
 class _Cache:
@@ -1143,8 +1143,8 @@ class SheetsClient:
             already = n in existing_nights
             result.append({
                 'night': n,
-                'start': sd.strftime('%Y-%m-%d'),
-                'end': ed.strftime('%Y-%m-%d'),
+                'start': sd.strftime('%Y%m%d'),
+                'end': ed.strftime('%Y%m%d'),
                 'label': f'Night {n}',
                 'source': 'parsed' if n in raw else 'extrapolated',
                 'already_exists': already,
