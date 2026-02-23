@@ -59,6 +59,7 @@ class XPClaim:
     wildcard: bool = False
     wildcard_link: str = ''
     wildcard_reason: str = ''
+    wildcard_amount: int = 0
 
     xp_claimed: int = 0
     status: str = 'Pending'  # Pending, Approved, Denied, DUPLICATE
@@ -102,7 +103,7 @@ class XPClaim:
                 'link': self.unmitigated_stain_link,
             },
             {
-                'name': f'Wildcard: {self.wildcard_reason}' if self.wildcard_reason else 'Wildcard',
+                'name': f'Wildcard ({self.wildcard_amount} XP): {self.wildcard_reason}' if self.wildcard_reason else f'Wildcard ({self.wildcard_amount} XP)',
                 'claimed': self.wildcard,
                 'link': self.wildcard_link,
             },

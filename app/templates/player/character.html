@@ -141,8 +141,17 @@
                                         </label>
                                     </div>
                                     <div class="mt-2 d-none" id="wildcard_link_group">
-                                        <input type="text" class="form-control form-control-sm mb-2 wildcard-reason-input"
-                                               name="wildcard_reason" placeholder="Reason for bonus XP (required)">
+                                        <div class="row g-2 mb-2">
+                                          <div class="col">
+                                            <input type="text" class="form-control form-control-sm wildcard-reason-input"
+                                                   name="wildcard_reason" placeholder="Reason for bonus XP (required)">
+                                          </div>
+                                          <div class="col-auto" style="width: 90px;">
+                                            <input type="number" class="form-control form-control-sm wildcard-amount-input"
+                                                   name="wildcard_amount" min="1" max="20" value="1"
+                                                   placeholder="XP" title="Number of XP">
+                                          </div>
+                                        </div>
                                         <input type="url" class="form-control form-control-sm claim-link-input"
                                                name="wildcard_link" placeholder="Discord post link (required)"
                                                pattern="https?://.*">
@@ -440,6 +449,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const claimCount = document.getElementById('claim-xp-count');
     const claimBtn = document.getElementById('claim-submit-btn');
 
+    function updateXPCount() {
+        let total = 0;
+        claimChecks.forEach(function(cb) {
+            if (cb.checked) {
+                if (cb.name === 'wildcard') {
+                    const amtInput = document.querySelector('.wildcard-amount-input');
+                    total += amtInput ? Math.max(1, parseInt(amtInput.value) || 1) : 1;
+                } else {
+                    total += 1;
+                }
+            }
+        });
+        claimCount.textContent = total + ' XP selected';
+        claimBtn.disabled = total === 0;
+    }
+
     if (claimChecks.length) {
         claimChecks.forEach(function(cb) {
             cb.addEventListener('change', function() {
@@ -448,10 +473,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (target) {
                     const linkInput = target.querySelector('.claim-link-input');
                     const reasonInput = target.querySelector('.wildcard-reason-input');
+                    const amountInput = target.querySelector('.wildcard-amount-input');
                     if (this.checked) {
                         target.classList.remove('d-none');
                         if (linkInput) linkInput.required = true;
                         if (reasonInput) reasonInput.required = true;
+                        if (amountInput) amountInput.required = true;
                     } else {
                         target.classList.add('d-none');
                         if (linkInput) {
@@ -462,14 +489,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             reasonInput.required = false;
                             reasonInput.value = '';
                         }
+                        if (amountInput) {
+                            amountInput.required = false;
+                            amountInput.value = '1';
+                        }
                     }
                 }
-                // Update count
-                const checked = document.querySelectorAll('.claim-cat-check:checked').length;
-                claimCount.textContent = checked + ' XP selected';
-                claimBtn.disabled = checked === 0;
+                updateXPCount();
             });
         });
+        // Also update count when wildcard amount changes
+        const wcAmount = document.querySelector('.wildcard-amount-input');
+        if (wcAmount) {
+            wcAmount.addEventListener('input', updateXPCount);
+        }
     }
 
     // ═══ Spend Request Form Logic ═══

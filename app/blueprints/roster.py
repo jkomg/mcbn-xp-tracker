@@ -125,7 +125,7 @@ def detail(name):
         char=char,
         claims=claims,
         spends=spends,
-        earned_xp=xp['earned_xp'] + xp['ledger_awarded'],
+        earned_xp=xp['earned_xp'],
         total_xp=xp['total_xp'],
         total_spends=xp['total_spends'] + xp['ledger_spent'],
         available_xp=xp['available_xp'],
@@ -319,7 +319,7 @@ def adjust_xp_form(name):
     return render_template(
         'roster/adjust_xp.html',
         char=char,
-        earned_xp=xp['earned_xp'] + xp['ledger_awarded'],
+        earned_xp=xp['earned_xp'],
         total_xp=xp['total_xp'],
         total_spends=xp['total_spends'] + xp['ledger_spent'],
         available_xp=xp['available_xp'],

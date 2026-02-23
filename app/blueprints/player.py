@@ -58,7 +58,7 @@ def character(name):
     return render_template(
         'player/character.html',
         char=char,
-        earned_xp=xp['earned_xp'] + xp['ledger_awarded'],
+        earned_xp=xp['earned_xp'],
         total_xp=xp['total_xp'],
         total_spends=xp['total_spends'] + xp['ledger_spent'],
         available_xp=xp['available_xp'],
@@ -105,13 +105,19 @@ def submit_claim(name):
             if not link:
                 missing_links.append(key)
             categories[key] = link
-    # Capture wildcard reason if wildcard was checked
+    # Capture wildcard reason and amount if wildcard was checked
     if 'wildcard' in categories:
         wildcard_reason = request.form.get('wildcard_reason', '').strip()
         if not wildcard_reason:
             flash('Please provide a reason for the wildcard XP claim.', 'danger')
             return redirect(url_for('player.character', name=name))
         categories['wildcard_reason'] = wildcard_reason
+        wildcard_amount = request.form.get('wildcard_amount', '1').strip()
+        try:
+            wildcard_amount = max(1, int(wildcard_amount))
+        except (ValueError, TypeError):
+            wildcard_amount = 1
+        categories['wildcard_amount'] = str(wildcard_amount)
 
     if not categories:
         flash('Please select at least one XP category to claim.', 'danger')
@@ -122,8 +128,9 @@ def submit_claim(name):
         return redirect(url_for('player.character', name=name))
 
     try:
-        # Count actual XP categories (exclude wildcard_reason key)
-        xp_count = sum(1 for k in category_keys if k in categories)
+        # Count actual XP (standard cats = 1 each, wildcard = its amount)
+        wc_amt = int(categories.get('wildcard_amount', 1)) if 'wildcard' in categories else 0
+        xp_count = sum(1 for k in category_keys if k in categories and k != 'wildcard') + wc_amt
         sheets_client.submit_xp_claim(name, play_period, categories)
         sheets_client.log_action(
             staff_user=f'player ({request.remote_addr})',

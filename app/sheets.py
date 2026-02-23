@@ -104,7 +104,7 @@ XP_RESPONSES_HEADERS = [
     'conflict', 'conflict_link',
     'combat', 'combat_link',
     'unmitigated_stain', 'unmitigated_stain_link',
-    'wildcard', 'wildcard_link', 'wildcard_reason',
+    'wildcard', 'wildcard_link', 'wildcard_reason', 'wildcard_amount',
     'xp_claimed', 'status', 'approved_xp',
     'reviewed_by', 'review_date', 'st_notes',
 ]
@@ -436,7 +436,11 @@ class SheetsClient:
             'posted_once', 'hunting_awakening', 'scene_with_another',
             'conflict', 'combat', 'unmitigated_stain', 'wildcard',
         ]
-        xp_claimed = sum(1 for k in cat_keys if k in categories)
+        wildcard_amount = _parse_int(categories.get('wildcard_amount', 1))
+        # Standard categories count as 1 each; wildcard uses its amount
+        xp_claimed = sum(1 for k in cat_keys if k in categories and k != 'wildcard')
+        if 'wildcard' in categories:
+            xp_claimed += wildcard_amount
 
         row = [
             _now_str(),                                      # timestamp
@@ -450,6 +454,7 @@ class SheetsClient:
             row.append(link)                                 # category link
             if key == 'wildcard':
                 row.append(categories.get('wildcard_reason', ''))
+                row.append(wildcard_amount if claimed else 0)
         row.extend([
             xp_claimed,                                      # xp_claimed
             'Pending',                                       # status
@@ -490,6 +495,7 @@ class SheetsClient:
             wildcard=_parse_bool(row.get('wildcard', False)),
             wildcard_link=str(row.get('wildcard_link', '')),
             wildcard_reason=str(row.get('wildcard_reason', '')),
+            wildcard_amount=_parse_int(row.get('wildcard_amount', 0)),
             xp_claimed=_parse_int(row.get('xp_claimed', 0)),
             status=str(row.get('status', 'Pending')),
             approved_xp=_parse_int(row.get('approved_xp', 0)),
@@ -608,7 +614,10 @@ class SheetsClient:
     # ── XP Totals (computed) ─────────────────────────────────────────────────
 
     def get_xp_totals(self, name: str) -> dict:
-        """Compute XP totals for a character from claims, spends, AND ledger.
+        """Compute XP totals for a character from spends and ledger.
+
+        Approved claims are written to the ledger on approval, so the
+        ledger is the single source of truth for all awarded XP.
 
         Returns dict with: earned_xp, total_spends, ledger_awarded,
         ledger_spent, total_xp, available_xp
@@ -616,13 +625,9 @@ class SheetsClient:
         char = self.get_character(name)
         creation_xp = char.creation_xp if char else 0
 
-        claims = self.get_claims_for_character(name)
         spends = self.get_spends_for_character(name)
         ledger = self.get_ledger_for_character(name)
 
-        earned_xp = sum(
-            c.approved_xp for c in claims if c.status.lower() == 'approved'
-        )
         total_spends = sum(
             s.verified_cost for s in spends if s.status.lower() == 'approved'
         )
@@ -630,12 +635,12 @@ class SheetsClient:
         ledger_awarded = sum(e.awarded for e in ledger)
         ledger_spent = sum(e.spent for e in ledger)
 
-        total_xp = creation_xp + earned_xp + ledger_awarded
+        total_xp = creation_xp + ledger_awarded
         available_xp = total_xp - total_spends - ledger_spent
 
         return {
             'creation_xp': creation_xp,
-            'earned_xp': earned_xp,
+            'earned_xp': ledger_awarded,
             'total_spends': total_spends,
             'ledger_awarded': ledger_awarded,
             'ledger_spent': ledger_spent,
@@ -644,7 +649,12 @@ class SheetsClient:
         }
 
     def get_dashboard_data(self) -> list[dict]:
-        """Compute per-character XP summary by joining roster, claims, spends, ledger."""
+        """Compute per-character XP summary by joining roster, spends, and ledger.
+
+        The ledger is the single source of truth for all awarded XP
+        (including approved claims, which are written to the ledger on
+        approval).
+        """
         characters = self.get_all_characters()
         all_claims = self.get_all_claims()
         all_spends = self.get_all_spends()
@@ -654,13 +664,12 @@ class SheetsClient:
         for char in characters:
             name_lower = char.character_name.lower()
 
-            # Sum approved XP claims
+            # Claims are only used for last_submission date display
             char_claims = [
                 c for c in all_claims
                 if c.character_name.lower() == name_lower
                 and c.status.lower() == 'approved'
             ]
-            earned_xp = sum(c.approved_xp for c in char_claims)
 
             # Sum approved spends
             char_spends = [
@@ -670,7 +679,7 @@ class SheetsClient:
             ]
             total_spends = sum(s.verified_cost for s in char_spends)
 
-            # Sum ledger awards and spends
+            # Sum ledger awards and spends (single source of truth)
             char_ledger = [
                 r for r in all_ledger
                 if str(r.get('character_name', '')).lower() == name_lower
@@ -680,7 +689,7 @@ class SheetsClient:
             ledger_spent = sum(_parse_int(r.get('spent', 0))
                                for r in char_ledger)
 
-            total_xp = char.creation_xp + earned_xp + ledger_awarded
+            total_xp = char.creation_xp + ledger_awarded
             available_xp = total_xp - total_spends - ledger_spent
 
             # Find last submission date
@@ -694,7 +703,7 @@ class SheetsClient:
                 'clan': char.clan,
                 'active': char.active,
                 'creation_xp': char.creation_xp,
-                'earned_xp': earned_xp + ledger_awarded,
+                'earned_xp': ledger_awarded,
                 'total_xp': total_xp,
                 'approved_spends': total_spends + ledger_spent,
                 'available_xp': available_xp,
@@ -727,7 +736,7 @@ class SheetsClient:
             'Staff Adjustment',           # play_period
             '', '', '', '', '', '',       # posted_once thru scene_with_another (bool+link)
             '', '', '', '', '', '',       # conflict thru unmitigated_stain (bool+link)
-            '', '', '',                   # wildcard (bool+link+reason)
+            '', '', '', '',                # wildcard (bool+link+reason+amount)
             xp_amount,                    # xp_claimed
             'Approved',                   # status (auto-approved)
             xp_amount,                    # approved_xp

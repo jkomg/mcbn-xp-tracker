@@ -40,6 +40,19 @@ def approve(row_id):
     staff = get_staff_user()
 
     sheets_client.approve_claim(row_id, approved_xp, staff, notes)
+
+    # Write approved XP to the ledger so it's permanently recorded
+    if approved_xp > 0:
+        from datetime import date as _date
+        sheets_client.add_ledger_entry(
+            character_name=claim.character_name,
+            date=_date.today().isoformat(),
+            awarded=approved_xp,
+            spent=0,
+            reason=f'{claim.play_period} (claim approved)',
+            staff_user=staff,
+        )
+
     sheets_client.log_action(
         staff_user=staff,
         action_type='approve_claim',
