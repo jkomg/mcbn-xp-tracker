@@ -122,7 +122,15 @@ def submit_claim(name):
         return redirect(url_for('player.character', name=name))
 
     try:
+        # Count actual XP categories (exclude wildcard_reason key)
+        xp_count = sum(1 for k in category_keys if k in categories)
         sheets_client.submit_xp_claim(name, play_period, categories)
+        sheets_client.log_action(
+            staff_user=f'player ({request.remote_addr})',
+            action_type='player_claim_submitted',
+            target=name,
+            details=f'Claimed {xp_count} XP for {play_period}',
+        )
         flash(
             f'XP claim submitted for {play_period} — '
             f'{len(categories)} categor{"y" if len(categories) == 1 else "ies"} '
@@ -176,6 +184,12 @@ def submit_spend(name):
             new_dots=new_dots,
             is_in_clan=is_in_clan,
             justification=justification,
+        )
+        sheets_client.log_action(
+            staff_user=f'player ({request.remote_addr})',
+            action_type='player_spend_submitted',
+            target=name,
+            details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots}) for {xp_cost} XP',
         )
         flash(
             f'Spend request submitted: {trait_name} '
