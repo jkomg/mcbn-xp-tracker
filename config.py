@@ -29,3 +29,6 @@ class Config:
 
     # Cache TTL in seconds for Google Sheets reads
     SHEETS_CACHE_TTL = int(os.environ.get('SHEETS_CACHE_TTL', '30'))
+
+    # Shared bearer token for bot-facing API endpoints
+    WEB_APP_API_TOKEN = os.environ.get('WEB_APP_API_TOKEN', '')
