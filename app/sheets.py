@@ -255,6 +255,21 @@ class SheetsClient:
             self._worksheets[tab_name] = self.spreadsheet.worksheet(tab_name)
         return self._worksheets[tab_name]
 
+    def _safe_append_row(self, tab_name: str, row: list) -> None:
+        """Append a row by writing to an explicit row number.
+
+        gspread's append_row uses the Sheets API table-range auto-detection,
+        which can misidentify the last occupied row and *overwrite* data —
+        especially on sheets with few rows.  This helper reads the current
+        row count and writes to the next empty row, eliminating ambiguity.
+        """
+        ws = self._ws(tab_name)
+        all_vals = ws.get_all_values()
+        next_row = len(all_vals) + 1
+        # Write the whole row starting at column A
+        ws.update(f'A{next_row}', [row], value_input_option='RAW')
+        self._cache.invalidate(tab_name)
+
     def _get_all_rows(self, tab_name: str) -> list[dict]:
         """Read all rows from a tab as dicts, with caching.
 
@@ -321,15 +336,13 @@ class SheetsClient:
         return None
 
     def add_character(self, char: Character) -> None:
-        ws = self._ws(TAB_ROSTER)
-        ws.append_row([
+        self._safe_append_row(TAB_ROSTER, [
             char.character_name, char.player_discord,
             char.player_discord_name, char.clan,
             char.age_category, char.sect, str(char.active).upper(),
             char.creation_xp, char.enemy,
             char.date_added or _now_str(), char.notes,
         ])
-        self._cache.invalidate(TAB_ROSTER)
 
     def update_character(self, name: str, updates: dict) -> None:
         ws = self._ws(TAB_ROSTER)
@@ -395,15 +408,13 @@ class SheetsClient:
         return [p for p in self.get_all_periods() if p.active]
 
     def create_period(self, period: PlayPeriod) -> None:
-        ws = self._ws(TAB_PERIODS)
-        ws.append_row([
+        self._safe_append_row(TAB_PERIODS, [
             period.period_label, period.night_number,
             period.start_date, period.end_date,
             period.session_number,
             str(period.submissions_open).upper(),
             str(period.active).upper(),
         ])
-        self._cache.invalidate(TAB_PERIODS)
 
     def update_period(self, label: str, updates: dict) -> None:
         ws = self._ws(TAB_PERIODS)
@@ -544,9 +555,7 @@ class SheetsClient:
             '',                                              # st_notes
         ])
 
-        ws = self._ws(TAB_XP_RESPONSES)
-        ws.append_row(row)
-        self._cache.invalidate(TAB_XP_RESPONSES)
+        self._safe_append_row(TAB_XP_RESPONSES, row)
 
     def _row_to_claim(self, index: int, row: dict) -> XPClaim:
         return XPClaim(
@@ -667,9 +676,7 @@ class SheetsClient:
             '',                                              # st_notes
         ]
 
-        ws = self._ws(TAB_SPEND_REQUESTS)
-        ws.append_row(row)
-        self._cache.invalidate(TAB_SPEND_REQUESTS)
+        self._safe_append_row(TAB_SPEND_REQUESTS, row)
         return xp_cost
 
     def _row_to_spend(self, index: int, row: dict) -> SpendRequest:
@@ -824,8 +831,7 @@ class SheetsClient:
             now,                          # review_date
             f'STAFF ADJUSTMENT: {reason}',  # st_notes
         ]
-        ws.append_row(row)
-        self._cache.invalidate(TAB_XP_RESPONSES)
+        self._safe_append_row(TAB_XP_RESPONSES, row)
 
     def add_spend_adjustment(self, character_name: str, xp_amount: int,
                              reason: str, staff_user: str) -> None:
@@ -835,7 +841,6 @@ class SheetsClient:
         negative amounts refund spends (increase available XP).
         The row is auto-approved so it takes effect immediately.
         """
-        ws = self._ws(TAB_SPEND_REQUESTS)
         now = _now_str()
         # Build a row matching SPEND_REQUESTS_HEADERS:
         # timestamp, character_name, spend_category, trait_name,
@@ -858,8 +863,7 @@ class SheetsClient:
             now,                          # review_date
             f'STAFF ADJUSTMENT: {reason}',  # st_notes
         ]
-        ws.append_row(row)
-        self._cache.invalidate(TAB_SPEND_REQUESTS)
+        self._safe_append_row(TAB_SPEND_REQUESTS, row)
 
     # ── XP Ledger ──────────────────────────────────────────────────────────
 
@@ -887,12 +891,10 @@ class SheetsClient:
                          awarded: int, spent: int, reason: str,
                          staff_user: str) -> None:
         """Add a new entry to the XP Ledger tab."""
-        ws = self._ws(TAB_XP_LEDGER)
-        ws.append_row([
+        self._safe_append_row(TAB_XP_LEDGER, [
             character_name, date, awarded, spent, reason,
             staff_user, _now_str(),
         ])
-        self._cache.invalidate(TAB_XP_LEDGER)
 
     def delete_ledger_entry(self, row_index: int) -> None:
         """Delete a ledger entry by row index."""
@@ -1070,7 +1072,9 @@ class SheetsClient:
                 now,
             ])
         if rows:
-            ws.append_rows(rows)
+            all_vals = ws.get_all_values()
+            next_row = len(all_vals) + 1
+            ws.update(f'A{next_row}', rows, value_input_option='RAW')
             self._cache.invalidate(TAB_XP_LEDGER)
         return len(rows)
 
@@ -1254,7 +1258,9 @@ class SheetsClient:
                 'TRUE',           # active
             ])
         if rows:
-            ws.append_rows(rows)
+            all_vals = ws.get_all_values()
+            next_row = len(all_vals) + 1
+            ws.update(f'A{next_row}', rows, value_input_option='RAW')
             self._cache.invalidate(TAB_PERIODS)
         return len(rows)
 
@@ -1262,9 +1268,9 @@ class SheetsClient:
 
     def log_action(self, staff_user: str, action_type: str,
                    target: str, details: str) -> None:
-        ws = self._ws(TAB_AUDIT_LOG)
-        ws.append_row([_now_str(), staff_user, action_type, target, details])
-        self._cache.invalidate(TAB_AUDIT_LOG)
+        self._safe_append_row(TAB_AUDIT_LOG,
+                              [_now_str(), staff_user, action_type,
+                               target, details])
 
     def get_audit_log(self, limit: int = 100) -> list[AuditEntry]:
         rows = self._get_all_rows(TAB_AUDIT_LOG)
