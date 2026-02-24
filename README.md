@@ -10,15 +10,17 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 
 Players visit `/player/`, pick their character, and submit XP claims and spend requests through the web app. Staff log in with Discord and review everything from a dashboard. Google Sheets is the database — every character, claim, spend, and audit entry lives there.
 
-No Google Forms. No spreadsheet formulas. The app handles all the math, validation, and workflow.
+No spreadsheet formulas. The app handles all the math, validation, and workflow.
 
 ### Roles
 
 | Role | Access | Does What |
 |------|--------|-----------|
-| **Players** | `/player/` (public, no login) | Look up XP, claim XP, request spends |
+| **Players** | `/player/` (Discord OAuth login) | View own characters, claim XP, request spends |
 | **Staff** | `/` (Discord OAuth login) | Review claims/spends, manage roster, adjust XP |
 | **Owner** | Google Sheet + deploy scripts | Deployment, secrets, backend data |
+
+All users authenticate via Discord OAuth. Staff are identified by their Discord ID in the `ALLOWED_DISCORD_IDS` list; everyone else is a player. Players can only see characters linked to their Discord account.
 
 ### XP Flow
 
@@ -46,7 +48,7 @@ Available XP = Total XP - Approved Spends - Ledger Spends
 | Backend | Flask 3.1 (Python 3.12) | Gunicorn in prod |
 | Frontend | Bootstrap 5 | Custom dark VtM theme, mobile-responsive |
 | Database | Google Sheets (6 tabs) | Free, no server needed |
-| Auth | Discord OAuth2 | Staff only; players don't need accounts |
+| Auth | Discord OAuth2 | All users; staff vs player by Discord ID |
 | Hosting | Google Cloud Run | Free tier, scales to zero |
 | Secrets | GCP Secret Manager | All credentials stored securely in prod |
 
@@ -219,7 +221,7 @@ The `setup_sheets()` function creates these tabs automatically if they don't exi
 
 ### Claiming XP
 
-1. Go to `/player/` and select your character
+1. Sign in with Discord at `/login` — you'll land on your characters page
 2. Expand **Claim XP**
 3. Pick the play period
 4. Check each category you earned (1 XP each, up to 7):
@@ -338,7 +340,8 @@ mcbn-xp-tracker/
 │   │   ├── spends.py            # Spend review (staff)
 │   │   ├── roster.py            # Character management
 │   │   ├── periods.py           # Play period management
-│   │   ├── player.py            # Public player pages
+│   │   ├── player.py            # Player portal (Discord auth)
+│   │   ├── api.py               # JSON API endpoints
 │   │   └── audit.py             # Audit log viewer
 │   ├── templates/               # Jinja2 HTML templates
 │   │   ├── base.html            # Staff layout (sidebar + offcanvas mobile nav)

@@ -6,10 +6,10 @@ that serves as the application's database.
 Tabs:
     - Roster: Character master list
     - Play Periods: Night schedule and status
-    - XP Responses: Form submissions for XP claims
-    - Spend Requests: Form submissions for XP spends
+    - XP Responses: XP claim submissions
+    - Spend Requests: XP spend submissions
+    - XP Ledger: Authoritative record of all XP awarded/spent
     - Audit Log: Staff action history
-    - Dashboard: Optional calculated summary (formulas)
 """
 
 import json
@@ -29,10 +29,10 @@ from .models import (
 def _normalize_header(header: str) -> str:
     """Convert any header to snake_case, then apply alias mapping.
 
-    Google Forms uses long descriptive headers like
+    Legacy headers used long descriptive names like
     'Is this an in-clan Discipline?' while our code expects 'is_in_clan'.
-    This function first converts to snake_case, then maps known Form
-    header variants to the canonical key name our code uses.
+    This function converts to snake_case, then maps known header
+    variants to the canonical key name our code uses.
     """
     s = header.strip().lower()
     # Replace hyphens, slashes, dots with spaces first
@@ -43,11 +43,11 @@ def _normalize_header(header: str) -> str:
     s = re.sub(r'\s+', '_', s.strip())
     # Collapse multiple underscores
     s = re.sub(r'_+', '_', s)
-    # Map known Google Form header variants to canonical keys
+    # Map known header variants to canonical keys
     return _HEADER_ALIASES.get(s, s)
 
 
-# Maps normalized Google-Form headers → canonical keys used in code.
+# Maps legacy header variants → canonical keys used in code.
 # Only entries that don't already match need to be listed.
 _HEADER_ALIASES = {
     # ── Spend Requests tab ──────────────────────────────────────────
@@ -55,7 +55,7 @@ _HEADER_ALIASES = {
     'is_this_an_in_clan_discipline': 'is_in_clan',
     'justification_rp_rationale': 'justification',
     # ── XP Responses tab ────────────────────────────────────────────
-    'al': 'character_name',  # Form header lost most characters
+    'al': 'character_name',  # Legacy truncated header
     'posted_at_least_once_during_this_play_period': 'posted_once',
     'post_link_posted_at_least_once': 'posted_once_link',
     'posted_a_hunting_and_or_awakening_scene': 'hunting_awakening',
@@ -258,9 +258,9 @@ class SheetsClient:
     def _get_all_rows(self, tab_name: str) -> list[dict]:
         """Read all rows from a tab as dicts, with caching.
 
-        Headers are normalized to snake_case so that Google-Form-created
-        headers like 'Character Name' map to the 'character_name' keys
-        our code expects.
+        Headers are normalized to snake_case so that legacy headers
+        like 'Character Name' map to the 'character_name' keys our
+        code expects.
         """
         cached = self._cache.get(tab_name)
         if cached is not None:
@@ -488,7 +488,7 @@ class SheetsClient:
 
     def submit_xp_claim(self, character_name: str, play_period: str,
                          categories: dict[str, str]) -> None:
-        """Submit a new XP claim from the player web form.
+        """Submit a new XP claim from the player portal.
 
         Args:
             character_name: Exact character name.
@@ -636,7 +636,7 @@ class SheetsClient:
                               trait_name: str, current_dots: int,
                               new_dots: int, is_in_clan: bool,
                               justification: str) -> int:
-        """Submit a new spend request from the player web form.
+        """Submit a new spend request from the player portal.
 
         Auto-calculates XP cost using V5 rules.
 
