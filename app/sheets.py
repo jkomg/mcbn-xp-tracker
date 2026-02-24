@@ -194,6 +194,61 @@ class SheetsClient:
         self._cache = _Cache(ttl=cache_ttl)
         self._worksheets: dict[str, gspread.Worksheet] = {}
 
+        # Validate sheet headers on startup
+        self._validate_headers()
+
+    def _validate_headers(self):
+        """Check all sheet headers on startup. Log warnings for mismatches.
+
+        Each raw header is run through _normalize_header (which applies
+        snake_case conversion + alias mapping) and compared to the
+        expected header list.  A mismatch means queries against that
+        column will silently return empty data.
+        """
+        tabs = {
+            TAB_ROSTER: ROSTER_HEADERS,
+            TAB_PERIODS: PERIODS_HEADERS,
+            TAB_XP_RESPONSES: XP_RESPONSES_HEADERS,
+            TAB_SPEND_REQUESTS: SPEND_REQUESTS_HEADERS,
+            TAB_XP_LEDGER: XP_LEDGER_HEADERS,
+            TAB_AUDIT_LOG: AUDIT_LOG_HEADERS,
+        }
+        import logging
+        log = logging.getLogger(__name__)
+
+        for tab_name, expected in tabs.items():
+            try:
+                ws = self._ws(tab_name)
+                raw = ws.row_values(1)
+            except Exception as exc:
+                log.error('HEADER CHECK: tab %r not found: %s', tab_name, exc)
+                continue
+
+            normalized = [_normalize_header(h) for h in raw]
+
+            if len(normalized) < len(expected):
+                log.warning(
+                    'HEADER CHECK: %s has %d columns, expected %d. '
+                    'Raw: %s',
+                    tab_name, len(normalized), len(expected), raw,
+                )
+
+            for i, exp_key in enumerate(expected):
+                if i >= len(normalized):
+                    log.warning(
+                        'HEADER CHECK: %s column %d missing — '
+                        'expected %r',
+                        tab_name, i + 1, exp_key,
+                    )
+                elif normalized[i] != exp_key:
+                    log.warning(
+                        'HEADER CHECK: %s column %d mismatch — '
+                        'got %r (raw: %r), expected %r',
+                        tab_name, i + 1, normalized[i], raw[i], exp_key,
+                    )
+
+        log.info('Sheet header validation complete.')
+
     def _ws(self, tab_name: str) -> gspread.Worksheet:
         """Get or cache a worksheet handle."""
         if tab_name not in self._worksheets:
