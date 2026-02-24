@@ -36,11 +36,7 @@ def my_characters():
         # No linked characters — show linking flow
         return redirect(url_for('player.link_character'))
 
-    if len(my_chars) == 1:
-        # Single character — go directly to their page
-        return redirect(url_for('player.character', name=my_chars[0].character_name))
-
-    # Multiple characters — show selection
+    # Show character list with option to link more
     return render_template(
         'player/my_characters.html',
         my_characters=my_chars,
