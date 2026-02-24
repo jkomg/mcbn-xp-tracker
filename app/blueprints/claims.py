@@ -35,6 +35,12 @@ def approve(row_id):
     if not claim:
         abort(404)
 
+    # Guard: prevent double-approve
+    if claim.status.lower() == 'approved':
+        flash(f'Claim for {claim.character_name} ({claim.play_period}) '
+              f'is already approved.', 'warning')
+        return redirect(url_for('claims.pending'))
+
     approved_xp = int(request.form.get('approved_xp', 0))
     notes = request.form.get('notes', '')
     staff = get_staff_user()
@@ -71,6 +77,12 @@ def deny(row_id):
     claim = sheets_client.get_claim_by_row(row_id)
     if not claim:
         abort(404)
+
+    # Guard: prevent double-deny
+    if claim.status.lower() == 'denied':
+        flash(f'Claim for {claim.character_name} ({claim.play_period}) '
+              f'is already denied.', 'warning')
+        return redirect(url_for('claims.pending'))
 
     notes = request.form.get('notes', '')
     staff = get_staff_user()
