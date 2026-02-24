@@ -11,7 +11,7 @@ class Character:
     player_discord: str = ''          # Numeric Discord user ID
     player_discord_name: str = ''     # Human-readable Discord display name
     clan: str = ''
-    age_category: str = ''  # Fledgling, Neonate, Ancilla, Elder
+    age_category: str = ''  # Fledgling, Neonate, Ancilla, Elder, Mortal
     sect: str = ''           # Camarilla, Anarch, Hecata, Autarkis
     active: bool = True
     creation_xp: int = 0    # Audit baseline XP
@@ -158,9 +158,10 @@ CLANS = [
     'Nosferatu', 'Ravnos', 'Salubri', 'Toreador', 'Tremere',
     'Tzimisce', 'Ventrue', 'Banu Haqim', 'The Ministry',
     'Thin-Blood', 'Caitiff',
+    'Mortal', 'Ghoul',
 ]
 
-AGE_CATEGORIES = ['Fledgling', 'Neonate', 'Ancilla', 'Elder']
+AGE_CATEGORIES = ['Fledgling', 'Neonate', 'Ancilla', 'Elder', 'Mortal']
 
 SECTS = ['Camarilla', 'Anarch', 'Hecata', 'Autarkis', 'NA']
 
