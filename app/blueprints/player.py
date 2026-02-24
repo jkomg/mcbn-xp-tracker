@@ -1,23 +1,103 @@
-"""Public player-facing routes. No authentication required."""
+"""Player-facing routes. Requires Discord authentication."""
 
-from flask import Blueprint, render_template, request, abort, flash, redirect, url_for
+from flask import (
+    Blueprint, render_template, request, abort, flash, redirect, url_for,
+    session,
+)
 from app import sheets_client
+from app.auth import (
+    require_login, require_character_owner, is_staff as check_is_staff,
+    get_player_discord_id,
+)
 from app.models import SPEND_CATEGORIES
 
 bp = Blueprint('player', __name__)
 
 
 @bp.route('/')
-def lookup():
-    """Player landing page with character search/select."""
-    characters = sheets_client.get_active_characters()
-    characters.sort(key=lambda c: c.character_name.lower())
-    return render_template('player/lookup.html', characters=characters)
+@require_login
+def my_characters():
+    """Player landing page showing their linked characters."""
+    discord_id = get_player_discord_id()
+    my_chars = sheets_client.get_characters_by_discord_id(discord_id)
+
+    # Staff also see a full character search
+    if check_is_staff():
+        all_characters = sheets_client.get_active_characters()
+        all_characters.sort(key=lambda c: c.character_name.lower())
+        return render_template(
+            'player/my_characters.html',
+            my_characters=my_chars,
+            all_characters=all_characters,
+            show_all=True,
+        )
+
+    if not my_chars:
+        # No linked characters — show linking flow
+        return redirect(url_for('player.link_character'))
+
+    if len(my_chars) == 1:
+        # Single character — go directly to their page
+        return redirect(url_for('player.character', name=my_chars[0].character_name))
+
+    # Multiple characters — show selection
+    return render_template(
+        'player/my_characters.html',
+        my_characters=my_chars,
+        all_characters=None,
+        show_all=False,
+    )
+
+
+@bp.route('/link', methods=['GET', 'POST'])
+@require_login
+def link_character():
+    """Let a player link their Discord account to a character."""
+    discord_id = get_player_discord_id()
+    discord_name = session.get('discord_name', '')
+
+    # Check if they already have characters
+    existing = sheets_client.get_characters_by_discord_id(discord_id)
+
+    if request.method == 'GET':
+        unlinked = sheets_client.get_unlinked_characters()
+        unlinked.sort(key=lambda c: c.character_name.lower())
+        return render_template(
+            'player/link_character.html',
+            unlinked_characters=unlinked,
+            existing_characters=existing,
+        )
+
+    # POST: process linking
+    character_name = request.form.get('character_name', '').strip()
+    if not character_name:
+        flash('Please select a character.', 'danger')
+        return redirect(url_for('player.link_character'))
+
+    char = sheets_client.get_character(character_name)
+    if not char:
+        flash('Character not found.', 'danger')
+        return redirect(url_for('player.link_character'))
+
+    if char.player_discord and char.player_discord != discord_id:
+        flash('This character is already linked to another player.', 'danger')
+        return redirect(url_for('player.link_character'))
+
+    sheets_client.link_character_to_discord(character_name, discord_id, discord_name)
+    sheets_client.log_action(
+        staff_user=f'player:{discord_name}',
+        action_type='player_link_character',
+        target=character_name,
+        details=f'Player self-linked Discord ID {discord_id} ({discord_name})',
+    )
+    flash(f'Successfully linked {character_name} to your Discord account.', 'success')
+    return redirect(url_for('player.character', name=character_name))
 
 
 @bp.route('/<name>')
+@require_character_owner
 def character(name):
-    """Public character XP summary with submission forms."""
+    """Character XP summary with submission forms."""
     char = sheets_client.get_character(name)
     if not char:
         abort(404)
@@ -74,6 +154,7 @@ def character(name):
 
 
 @bp.route('/<name>/claim', methods=['POST'])
+@require_character_owner
 def submit_claim(name):
     """Submit an XP claim for a play period."""
     char = sheets_client.get_character(name)
@@ -131,9 +212,10 @@ def submit_claim(name):
         # Count actual XP (standard cats = 1 each, wildcard = its amount)
         wc_amt = int(categories.get('wildcard_amount', 1)) if 'wildcard' in categories else 0
         xp_count = sum(1 for k in category_keys if k in categories and k != 'wildcard') + wc_amt
+        discord_name = session.get('discord_name', 'unknown')
         sheets_client.submit_xp_claim(name, play_period, categories)
         sheets_client.log_action(
-            staff_user=f'player ({request.remote_addr})',
+            staff_user=f'player:{discord_name}',
             action_type='player_claim_submitted',
             target=name,
             details=f'Claimed {xp_count} XP for {play_period}',
@@ -151,6 +233,7 @@ def submit_claim(name):
 
 
 @bp.route('/<name>/spend', methods=['POST'])
+@require_character_owner
 def submit_spend(name):
     """Submit a spend request."""
     char = sheets_client.get_character(name)
@@ -183,6 +266,7 @@ def submit_spend(name):
         return redirect(url_for('player.character', name=name))
 
     try:
+        discord_name = session.get('discord_name', 'unknown')
         xp_cost = sheets_client.submit_spend_request(
             character_name=name,
             spend_category=spend_category,
@@ -193,7 +277,7 @@ def submit_spend(name):
             justification=justification,
         )
         sheets_client.log_action(
-            staff_user=f'player ({request.remote_addr})',
+            staff_user=f'player:{discord_name}',
             action_type='player_spend_submitted',
             target=name,
             details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots}) for {xp_cost} XP',

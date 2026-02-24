@@ -11,10 +11,22 @@
 <body>
     <nav class="navbar navbar-dark bg-dark border-bottom border-secondary">
         <div class="container">
-            <a class="navbar-brand text-danger" href="{{ url_for('player.lookup') }}">
+            <a class="navbar-brand text-danger" href="{{ url_for('player.my_characters') }}">
                 <i class="bi bi-droplet-fill"></i> Music City by Night
             </a>
-            <span class="navbar-text text-muted">XP Lookup</span>
+            {% if is_logged_in %}
+            <div class="d-flex align-items-center gap-2">
+                <span class="navbar-text text-muted d-none d-sm-inline">{{ current_discord_name }}</span>
+                {% if is_staff %}
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-sm btn-outline-secondary" title="Staff Dashboard">
+                    <i class="bi bi-speedometer2"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('dashboard.logout') }}" class="btn btn-sm btn-outline-secondary" title="Sign out">
+                    <i class="bi bi-box-arrow-left"></i>
+                </a>
+            </div>
+            {% endif %}
         </div>
     </nav>
 

@@ -1,6 +1,6 @@
 """MCbN XP Tracker — Flask application factory."""
 
-from flask import Flask
+from flask import Flask, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from .sheets import SheetsClient
@@ -51,5 +51,17 @@ def create_app():
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(player_bp, url_prefix='/player')
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    # Inject auth helpers into all templates
+    from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in
+
+    @app.context_processor
+    def inject_auth():
+        return {
+            'is_staff': _is_staff(),
+            'is_logged_in': _is_logged_in(),
+            'current_discord_name': session.get('discord_name', ''),
+            'current_discord_id': session.get('discord_id', ''),
+        }
 
     return app

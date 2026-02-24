@@ -87,8 +87,9 @@ TAB_AUDIT_LOG = 'Audit Log'
 
 # Header rows for each tab
 ROSTER_HEADERS = [
-    'character_name', 'player_discord', 'clan', 'age_category', 'sect',
-    'active', 'creation_xp', 'enemy', 'date_added', 'notes',
+    'character_name', 'player_discord', 'player_discord_name', 'clan',
+    'age_category', 'sect', 'active', 'creation_xp', 'enemy',
+    'date_added', 'notes',
 ]
 
 PERIODS_HEADERS = [
@@ -267,7 +268,8 @@ class SheetsClient:
     def add_character(self, char: Character) -> None:
         ws = self._ws(TAB_ROSTER)
         ws.append_row([
-            char.character_name, char.player_discord, char.clan,
+            char.character_name, char.player_discord,
+            char.player_discord_name, char.clan,
             char.age_category, char.sect, str(char.active).upper(),
             char.creation_xp, char.enemy,
             char.date_added or _now_str(), char.notes,
@@ -288,6 +290,28 @@ class SheetsClient:
                 return
         raise ValueError(f'Character not found: {name}')
 
+    def get_characters_by_discord_id(self, discord_id: str) -> list[Character]:
+        """Return all characters linked to the given numeric Discord user ID."""
+        return [
+            c for c in self.get_all_characters()
+            if c.player_discord == str(discord_id)
+        ]
+
+    def get_unlinked_characters(self) -> list[Character]:
+        """Return active characters with no Discord ID linked."""
+        return [
+            c for c in self.get_active_characters()
+            if not c.player_discord.strip()
+        ]
+
+    def link_character_to_discord(self, character_name: str, discord_id: str,
+                                  discord_name: str) -> None:
+        """Set the Discord ID and display name on a character's roster entry."""
+        self.update_character(character_name, {
+            'player_discord': discord_id,
+            'player_discord_name': discord_name,
+        })
+
     def deactivate_character(self, name: str) -> None:
         self.update_character(name, {'active': 'FALSE'})
 
@@ -295,6 +319,7 @@ class SheetsClient:
         return Character(
             character_name=str(row.get('character_name', '')),
             player_discord=str(row.get('player_discord', '')),
+            player_discord_name=str(row.get('player_discord_name', '')),
             clan=str(row.get('clan', '')),
             age_category=str(row.get('age_category', '')),
             sect=str(row.get('sect', '')),

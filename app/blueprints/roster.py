@@ -82,6 +82,7 @@ def add():
     char = Character(
         character_name=name,
         player_discord=request.form.get('player_discord', '').strip(),
+        player_discord_name=request.form.get('player_discord_name', '').strip(),
         clan=request.form.get('clan', ''),
         age_category=request.form.get('age_category', ''),
         sect=request.form.get('sect', ''),
@@ -281,8 +282,8 @@ def edit(name):
         abort(404)
 
     updates = {}
-    for field in ['player_discord', 'clan', 'age_category', 'sect',
-                  'enemy', 'notes']:
+    for field in ['player_discord', 'player_discord_name', 'clan',
+                  'age_category', 'sect', 'enemy', 'notes']:
         val = request.form.get(field, '').strip()
         if val != getattr(char, field, ''):
             updates[field] = val

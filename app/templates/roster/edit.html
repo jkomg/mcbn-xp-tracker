@@ -19,10 +19,16 @@
                     <input type="text" class="form-control" value="{{ char.character_name }}" disabled>
                     <small class="text-muted">Name cannot be changed.</small>
                 </div>
-                <div class="col-md-6">
-                    <label for="player_discord" class="form-label">Player Discord</label>
+                <div class="col-md-3">
+                    <label for="player_discord" class="form-label">Discord ID</label>
                     <input type="text" class="form-control" id="player_discord" name="player_discord"
-                           value="{{ char.player_discord }}">
+                           value="{{ char.player_discord }}" placeholder="Numeric ID">
+                    <small class="text-muted">Right-click &rarr; Copy User ID</small>
+                </div>
+                <div class="col-md-3">
+                    <label for="player_discord_name" class="form-label">Discord Name</label>
+                    <input type="text" class="form-control" id="player_discord_name" name="player_discord_name"
+                           value="{{ char.player_discord_name }}" placeholder="Display name">
                 </div>
                 <div class="col-md-4">
                     <label for="clan" class="form-label">Clan</label>

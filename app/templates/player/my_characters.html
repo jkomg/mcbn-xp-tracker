@@ -1,0 +1,98 @@
+{% extends "player/base.html" %}
+
+{% block title %}MCbN — My Characters{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="text-center mb-4">
+            <h2 class="text-danger">My Characters</h2>
+            <p class="text-muted">Select a character to view XP, submit claims, or request spends.</p>
+        </div>
+
+        {% if my_characters %}
+        <h6 class="text-muted mb-2">Your Characters</h6>
+        <div class="list-group mb-4">
+            {% for char in my_characters %}
+            <a href="{{ url_for('player.character', name=char.character_name) }}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ char.character_name }}</strong>
+                    {% if char.clan %}
+                    <small class="text-muted ms-2">{{ char.clan }}</small>
+                    {% endif %}
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="text-center mb-4">
+            <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-link-45deg"></i> Link another character
+            </a>
+        </div>
+        {% else %}
+        <div class="text-center text-muted mb-4">
+            <p>No characters linked to your Discord account yet.</p>
+            <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-danger">
+                <i class="bi bi-link-45deg"></i> Link a Character
+            </a>
+        </div>
+        {% endif %}
+
+        {% if show_all and all_characters %}
+        <hr class="border-secondary">
+        <h6 class="text-muted mb-2">All Characters (Staff View)</h6>
+        <div class="mb-3">
+            <input type="text" class="form-control form-control-sm" id="char-search"
+                   placeholder="Search characters..." autocomplete="off">
+        </div>
+        <div class="list-group" id="char-list">
+            {% for char in all_characters %}
+            <a href="{{ url_for('player.character', name=char.character_name) }}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center char-item">
+                <div>
+                    <strong>{{ char.character_name }}</strong>
+                    {% if char.clan %}
+                    <small class="text-muted ms-2">{{ char.clan }}</small>
+                    {% endif %}
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-3 text-muted" id="no-results" style="display: none;">
+            <p>No characters found matching your search.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const search = document.getElementById('char-search');
+    if (!search) return;
+    const items = document.querySelectorAll('.char-item');
+    const noResults = document.getElementById('no-results');
+
+    search.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        let visible = 0;
+
+        items.forEach(function(item) {
+            const name = item.querySelector('strong').textContent.toLowerCase();
+            if (name.includes(query)) {
+                item.classList.remove('d-none');
+                visible++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        noResults.style.display = visible === 0 ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

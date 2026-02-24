@@ -38,6 +38,9 @@ def login():
     """Show login page with Discord sign-in button."""
     if session.get('authenticated'):
         return redirect(url_for('dashboard.index'))
+    if session.get('discord_id'):
+        # Logged in as player, not staff — send to player portal
+        return redirect(url_for('player.my_characters'))
     return render_template('login.html')
 
 
@@ -120,17 +123,22 @@ def discord_callback():
     discord_id = str(user_data.get('id', ''))
     discord_name = user_data.get('global_name') or user_data.get('username', 'Unknown')
 
-    # Check allowlist
-    if not is_allowed_discord_user(discord_id):
-        flash('Access denied. Your Discord account is not authorized for staff access.', 'danger')
-        return redirect(url_for('dashboard.login'))
-
-    # Success — create session
-    session['authenticated'] = True
-    session['staff_user'] = discord_name
+    # Store Discord identity for ALL authenticated users
     session['discord_id'] = discord_id
-    flash(f'Welcome, {discord_name}.', 'success')
-    return redirect(url_for('dashboard.index'))
+    session['discord_name'] = discord_name
+
+    next_url = session.pop('login_next', None)
+
+    if is_allowed_discord_user(discord_id):
+        # Staff user — full dashboard access
+        session['authenticated'] = True
+        session['staff_user'] = discord_name
+        flash(f'Welcome, {discord_name}.', 'success')
+        return redirect(next_url or url_for('dashboard.index'))
+    else:
+        # Player user — redirect to player portal
+        flash(f'Welcome, {discord_name}.', 'success')
+        return redirect(next_url or url_for('player.my_characters'))
 
 
 @bp.route('/logout')

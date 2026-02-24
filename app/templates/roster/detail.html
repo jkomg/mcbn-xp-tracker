@@ -78,7 +78,7 @@
           <p><strong>Sect:</strong> {{ char.sect or 'Not specified' }}</p>
         </div>
         <div class="col-md-6">
-          <p><strong>Player Discord:</strong> {{ char.player_discord or 'Not specified' }}</p>
+          <p><strong>Player:</strong> {{ char.player_discord_name or char.player_discord or 'Not linked' }}{% if char.player_discord %} <small class="text-muted">({{ char.player_discord }})</small>{% endif %}</p>
           <p><strong>Enemy:</strong> {{ char.enemy or 'None' }}</p>
         </div>
       </div>

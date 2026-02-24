@@ -8,7 +8,8 @@ from typing import Optional
 @dataclass
 class Character:
     character_name: str
-    player_discord: str = ''
+    player_discord: str = ''          # Numeric Discord user ID
+    player_discord_name: str = ''     # Human-readable Discord display name
     clan: str = ''
     age_category: str = ''  # Fledgling, Neonate, Ancilla, Elder
     sect: str = ''           # Camarilla, Anarch, Hecata, Autarkis

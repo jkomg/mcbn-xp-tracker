@@ -1,0 +1,64 @@
+{% extends "player/base.html" %}
+
+{% block title %}MCbN — Link Character{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="text-center mb-4">
+            <h2 class="text-danger">Link Your Character</h2>
+            <p class="text-muted">
+                Select your character from the list below to link it to your Discord account.
+                This is a one-time setup.
+            </p>
+        </div>
+
+        {% if existing_characters %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            You already have {{ existing_characters|length }} linked character{{ 's' if existing_characters|length != 1 }}.
+            You can link additional characters below.
+        </div>
+        {% endif %}
+
+        {% if unlinked_characters %}
+        <form method="POST" action="{{ url_for('player.link_character') }}">
+            <div class="mb-3">
+                <label for="character_name" class="form-label">Select Your Character</label>
+                <select class="form-select" id="character_name" name="character_name" required>
+                    <option value="">Choose a character...</option>
+                    {% for char in unlinked_characters %}
+                    <option value="{{ char.character_name }}">
+                        {{ char.character_name }}{% if char.clan %} ({{ char.clan }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-link-45deg"></i> Link This Character
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="text-center text-muted">
+            <p>No unlinked characters are available.</p>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <small class="text-muted">
+                Don't see your character? Contact an ST to have it added to the roster.
+            </small>
+        </div>
+
+        {% if existing_characters %}
+        <div class="text-center mt-3">
+            <a href="{{ url_for('player.my_characters') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to My Characters
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
