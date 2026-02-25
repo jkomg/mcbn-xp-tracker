@@ -21,14 +21,14 @@ def require_staff(f):
 
 
 def require_login(f):
-    """Decorator requiring any Discord authentication (staff or player).
+    """Decorator requiring any authentication (staff or player).
 
-    Checks for session['discord_id']. If absent, redirects to the
-    unified login page. Stores the requested URL for post-login redirect.
+    Accepts either session['discord_id'] (Discord OAuth) or
+    session['authenticated'] (legacy staff). Redirects to login if neither.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('discord_id'):
+        if not session.get('discord_id') and not session.get('authenticated'):
             flash('Please sign in with Discord to continue.', 'warning')
             session['login_next'] = request.url
             return redirect(url_for('dashboard.login'))
@@ -45,13 +45,13 @@ def require_character_owner(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('discord_id'):
+        if not session.get('discord_id') and not session.get('authenticated'):
             flash('Please sign in with Discord to continue.', 'warning')
             session['login_next'] = request.url
             return redirect(url_for('dashboard.login'))
 
         # Staff bypass — they can access any character
-        if is_allowed_discord_user(session['discord_id']):
+        if is_staff():
             return f(*args, **kwargs)
 
         # Player access — verify character ownership
@@ -73,6 +73,8 @@ def is_allowed_discord_user(discord_id: str) -> bool:
 
 def is_staff() -> bool:
     """Check if the current session user is staff."""
+    if session.get('authenticated'):
+        return True
     discord_id = session.get('discord_id', '')
     return bool(discord_id) and is_allowed_discord_user(discord_id)
 
