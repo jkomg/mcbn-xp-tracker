@@ -100,6 +100,13 @@
                     </li>
                 </ul>
                 <hr class="mx-3 border-secondary">
+                <ul class="nav flex-column p-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('player.my_characters') }}">
+                            <i class="bi bi-person-circle"></i> <span>Player Portal</span>
+                        </a>
+                    </li>
+                </ul>
                 <div class="p-3 mt-auto">
                     <small class="text-muted">Logged in as</small><br>
                     <small class="text-light">{{ session.get('staff_user', 'Unknown') }}</small>
