@@ -59,7 +59,18 @@ def approve(row_id):
     if not spend:
         abort(404)
 
-    verified_cost = int(request.form.get('verified_cost', 0))
+    if spend.status.lower() == 'approved':
+        flash('This spend request has already been approved.', 'warning')
+        return redirect(url_for('spends.pending'))
+
+    try:
+        verified_cost = int(request.form.get('verified_cost', 0))
+    except (TypeError, ValueError):
+        flash('Verified cost must be a whole number.', 'danger')
+        return redirect(url_for('spends.review', row_id=row_id))
+    if verified_cost < 0 or verified_cost > 200:
+        flash('Verified cost must be between 0 and 200.', 'danger')
+        return redirect(url_for('spends.review', row_id=row_id))
     notes = request.form.get('notes', '')
     staff = get_staff_user()
 
@@ -90,6 +101,10 @@ def deny(row_id):
     spend = sheets_client.get_spend_by_row(row_id)
     if not spend:
         abort(404)
+
+    if spend.status.lower() == 'denied':
+        flash('This spend request has already been denied.', 'warning')
+        return redirect(url_for('spends.pending'))
 
     notes = request.form.get('notes', '')
     staff = get_staff_user()

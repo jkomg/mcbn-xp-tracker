@@ -63,6 +63,17 @@ The app is specifically designed to run within Google Cloud's free tier:
 
 In practice this costs **$0/month** for a chronicle our size.
 
+### 2026-02 Security + Performance Update
+
+This release adds CSRF protection, session/cookie hardening, API token comparison hardening, API rate limits, safer login redirects, and lower-chattiness Google Sheets write paths.
+
+Expected GCP impact:
+
+- **No new paid GCP products** were introduced.
+- **Cloud Run resource settings are unchanged** (same CPU/memory/min/max instances).
+- **Request volume is effectively unchanged** for normal use.
+- **Google Sheets API usage is lower or unchanged** due to batching and append optimizations.
+
 ---
 
 ## Local Development
@@ -256,7 +267,7 @@ The `setup_sheets()` function creates these tabs automatically if they don't exi
 | Caitiff Discipline | New dots x 6 | Any 1->2 = 12 XP |
 | Blood Sorcery Ritual | Level x 3 | Level 3 = 9 XP |
 | Thin-Blood Alchemy | Level x 3 | Level 2 = 6 XP |
-| Advantage | New dots x 3 | Resources 2->3 = 9 XP |
+| Advantage | 3 XP per dot purchased | Status 0->2 = 6 XP |
 
 Multi-dot purchases sum each step. Discipline (In-Clan) 1->3 = (2x5) + (3x5) = 25 XP.
 

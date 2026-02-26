@@ -41,7 +41,14 @@ def approve(row_id):
               f'is already approved.', 'warning')
         return redirect(url_for('claims.pending'))
 
-    approved_xp = int(request.form.get('approved_xp', 0))
+    try:
+        approved_xp = int(request.form.get('approved_xp', 0))
+    except (TypeError, ValueError):
+        flash('Approved XP must be a whole number.', 'danger')
+        return redirect(url_for('claims.review', row_id=row_id))
+    if approved_xp < 0 or approved_xp > 50:
+        flash('Approved XP must be between 0 and 50.', 'danger')
+        return redirect(url_for('claims.review', row_id=row_id))
     notes = request.form.get('notes', '')
     staff = get_staff_user()
 

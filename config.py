@@ -1,12 +1,23 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class Config:
-    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
     DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() in ('true', '1', 'yes')
+    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
+    SESSION_COOKIE_SECURE = os.environ.get(
+        'SESSION_COOKIE_SECURE', 'false' if DEBUG else 'true'
+    ).lower() in ('true', '1', 'yes')
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
+    PERMANENT_SESSION_LIFETIME = timedelta(
+        seconds=int(os.environ.get('SESSION_LIFETIME_SECONDS', '43200'))
+    )
+    WTF_CSRF_TIME_LIMIT = None
     GOOGLE_CREDENTIALS_FILE = os.environ.get(
         'GOOGLE_CREDENTIALS_FILE', 'credentials/service-account.json'
     )

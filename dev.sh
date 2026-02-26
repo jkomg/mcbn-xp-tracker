@@ -11,4 +11,8 @@ export FLASK_APP=app:create_app
 export FLASK_DEBUG=true
 
 echo "Starting MCbN dev server on http://127.0.0.1:5001 ..."
-python3 -m flask run --port 5001
+if [ -x "./venv/bin/python" ]; then
+  ./venv/bin/python -m flask run --port 5001
+else
+  python3 -m flask run --port 5001
+fi

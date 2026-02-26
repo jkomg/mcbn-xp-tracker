@@ -3,16 +3,19 @@
 from flask import Flask, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from .sheets import SheetsClient
 
 # Module-level singletons
 sheets_client: SheetsClient = None
 limiter: Limiter = None
+csrf: CSRFProtect = CSRFProtect()
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+    csrf.init_app(app)
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
     global limiter
@@ -51,6 +54,7 @@ def create_app():
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(player_bp, url_prefix='/player')
     app.register_blueprint(api_bp, url_prefix='/api')
+    csrf.exempt(api_bp)
 
     # Inject auth helpers into all templates
     from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in

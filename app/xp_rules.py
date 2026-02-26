@@ -6,7 +6,7 @@ Chicago by Night, etc.). All spend requests are validated against these rules.
 
 
 # XP cost functions: takes (current_dots, new_dots) and returns total XP cost.
-# For multi-dot purchases (e.g., 1 -> 3), cost is the sum of each individual step.
+# Most categories are progressive (sum per dot step). Some are flat-per-dot.
 
 def _cost_per_dot(multiplier: int, current: int, new: int) -> int:
     """Calculate total XP for buying from current to new dots at a given multiplier."""
@@ -15,6 +15,15 @@ def _cost_per_dot(multiplier: int, current: int, new: int) -> int:
     if current < 0 or new > 10:
         raise ValueError(f'Dot values must be between 0 and 10')
     return sum(dot * multiplier for dot in range(current + 1, new + 1))
+
+
+def _cost_flat_per_dot(per_dot: int, current: int, new: int) -> int:
+    """Calculate total XP for buying dot increases at a fixed per-dot cost."""
+    if new <= current:
+        raise ValueError(f'New dots ({new}) must be greater than current ({current})')
+    if current < 0 or new > 10:
+        raise ValueError(f'Dot values must be between 0 and 10')
+    return (new - current) * per_dot
 
 
 # ── Cost Tables ──────────────────────────────────────────────────────────────
@@ -69,8 +78,8 @@ XP_COSTS = {
         'max_dots': 5,
     },
     'Advantage (Merit/Background)': {
-        'multiplier': 3,
-        'description': 'New rating × 3 per dot',
+        'flat_per_dot': 3,
+        'description': '3 XP per dot purchased',
         'min_dots': 0,
         'max_dots': 5,
     },
@@ -121,6 +130,10 @@ def calculate_xp_cost(category: str, current_dots: int, new_dots: int) -> int:
     if 'level_multiplier' in rules:
         # For rituals: "new_dots" represents the ritual level being learned
         return new_dots * rules['level_multiplier']
+
+    # Flat-per-dot costs (e.g., Advantage/Backgrounds)
+    if 'flat_per_dot' in rules:
+        return _cost_flat_per_dot(rules['flat_per_dot'], current_dots, new_dots)
 
     # Standard progressive costs
     return _cost_per_dot(rules['multiplier'], current_dots, new_dots)

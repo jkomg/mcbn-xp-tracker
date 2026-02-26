@@ -62,6 +62,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    document.querySelectorAll('button[data-confirm], input[type="submit"][data-confirm]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            if (!confirm(el.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
 
     // ── Auto-calculate XP claimed (for claim review) ─────────────────
     var checkboxes = document.querySelectorAll('.xp-category-check');

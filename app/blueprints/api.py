@@ -6,13 +6,20 @@ bearer token (`WEB_APP_API_TOKEN`) separate from staff Discord OAuth.
 
 from __future__ import annotations
 
+import hmac
 from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app import sheets_client
+from app import sheets_client, limiter
 
 bp = Blueprint('api', __name__)
+
+
+def _limit(rule: str):
+    if limiter is None:
+        return lambda f: f
+    return limiter.limit(rule)
 
 
 def _auth_failed():
@@ -31,7 +38,7 @@ def require_bot_token(f):
             return _auth_failed()
 
         provided = header.split(' ', 1)[1].strip()
-        if provided != expected:
+        if not hmac.compare_digest(provided, expected):
             return _auth_failed()
 
         return f(*args, **kwargs)
@@ -58,6 +65,7 @@ def health():
 
 @bp.route('/meta/claim-context', methods=['GET'])
 @require_bot_token
+@_limit("60 per minute")
 def claim_context():
     backend = _require_sheets()
     if backend:
@@ -78,6 +86,7 @@ def claim_context():
 
 @bp.route('/characters/<string:name>/summary', methods=['GET'])
 @require_bot_token
+@_limit("60 per minute")
 def character_summary(name: str):
     backend = _require_sheets()
     if backend:
@@ -101,6 +110,7 @@ def character_summary(name: str):
 
 @bp.route('/claims', methods=['POST'])
 @require_bot_token
+@_limit("20 per minute")
 def submit_claim():
     backend = _require_sheets()
     if backend:
@@ -130,6 +140,8 @@ def submit_claim():
         if not isinstance(key, str):
             continue
         normalized[key.strip()] = str(value).strip() if value is not None else ''
+    if len(normalized) > 20:
+        return jsonify({'error': 'Too many claim categories in payload'}), 400
 
     try:
         sheets_client.submit_xp_claim(character_name, play_period, normalized)
@@ -147,6 +159,7 @@ def submit_claim():
 
 @bp.route('/spends', methods=['POST'])
 @require_bot_token
+@_limit("20 per minute")
 def submit_spend():
     backend = _require_sheets()
     if backend:
@@ -167,6 +180,8 @@ def submit_spend():
         new_dots = int(payload.get('newDots', 0))
     except (TypeError, ValueError):
         return jsonify({'error': 'currentDots and newDots must be integers'}), 400
+    if current_dots < 0 or new_dots < 0 or new_dots > 10:
+        return jsonify({'error': 'Dot ratings must be between 0 and 10'}), 400
 
     is_in_clan = bool(payload.get('isInClan', False))
 

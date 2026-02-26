@@ -13,12 +13,12 @@
       <div class="row">
         <div class="col-md-6">
           <p><strong>Character Name:</strong> {{ spend.character_name }}</p>
-          <p><strong>Category:</strong> {{ spend.category }}</p>
+          <p><strong>Category:</strong> {{ spend.spend_category }}</p>
           <p><strong>Trait Name:</strong> {{ spend.trait_name }}</p>
         </div>
         <div class="col-md-6">
           <p><strong>Dots:</strong> {{ spend.current_dots }} → {{ spend.new_dots }}</p>
-          <p><strong>Player Cost:</strong> {{ spend.player_cost }}</p>
+          <p><strong>Player Cost:</strong> {{ spend.xp_cost }}</p>
           <p><strong>Justification:</strong> {{ spend.justification or 'None provided' }}</p>
         </div>
       </div>

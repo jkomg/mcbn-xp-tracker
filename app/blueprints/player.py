@@ -194,6 +194,7 @@ def submit_claim(name):
             wildcard_amount = max(1, int(wildcard_amount))
         except (ValueError, TypeError):
             wildcard_amount = 1
+        wildcard_amount = min(wildcard_amount, 10)
         categories['wildcard_amount'] = str(wildcard_amount)
 
     if not categories:
@@ -259,6 +260,9 @@ def submit_spend(name):
 
     if not justification:
         flash('Please provide a justification for your spend request.', 'danger')
+        return redirect(url_for('player.character', name=name))
+    if current_dots < 0 or new_dots < 0 or new_dots > 10:
+        flash('Dot ratings must be between 0 and 10.', 'danger')
         return redirect(url_for('player.character', name=name))
 
     try:

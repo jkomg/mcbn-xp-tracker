@@ -4,7 +4,7 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Character Roster</h2>
-    <a href="{{ url_for('roster.add') }}" class="btn btn-danger">Add Character</a>
+    <a href="{{ url_for('roster.add_form') }}" class="btn btn-danger">Add Character</a>
   </div>
 
   <!-- Filter Row -->
@@ -25,7 +25,7 @@
       </div>
       <div class="col-md-3">
         <label for="clan_filter" class="form-label">Clan</label>
-        <select name="clan_filter" id="clan_filter" class="form-select" onchange="this.form.submit()">
+        <select name="clan" id="clan_filter" class="form-select" onchange="this.form.submit()">
           <option value="">All Clans</option>
           {% for clan in clans %}
           <option value="{{ clan }}" {% if clan_filter == clan %}selected{% endif %}>{{ clan }}</option>
@@ -34,7 +34,7 @@
       </div>
       <div class="col-md-3">
         <label for="sect_filter" class="form-label">Sect</label>
-        <select name="sect_filter" id="sect_filter" class="form-select" onchange="this.form.submit()">
+        <select name="sect" id="sect_filter" class="form-select" onchange="this.form.submit()">
           <option value="">All Sects</option>
           {% for sect in sects %}
           <option value="{{ sect }}" {% if sect_filter == sect %}selected{% endif %}>{{ sect }}</option>
@@ -49,12 +49,12 @@
     <table class="table table-dark table-striped table-hover" id="roster-table">
       <thead>
         <tr>
-          <th class="sortable" data-col="0" role="button">Name <span class="sort-arrow">▲</span></th>
-          <th class="sortable" data-col="1" role="button">Clan <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="2" role="button">Age <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="3" role="button">Sect <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="0" role="button" tabindex="0" aria-sort="ascending">Name <span class="sort-arrow">▲</span></th>
+          <th class="sortable" data-col="1" role="button" tabindex="0" aria-sort="none">Clan <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="2" role="button" tabindex="0" aria-sort="none">Age <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="3" role="button" tabindex="0" aria-sort="none">Sect <span class="sort-arrow"></span></th>
           <th>Active</th>
-          <th class="sortable" data-col="5" role="button">Available XP <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="5" role="button" tabindex="0" aria-sort="none">Available XP <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody>
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let ascending = true;
 
   headers.forEach(function (th) {
-    th.addEventListener('click', function () {
+    function sortByHeader() {
       const col = parseInt(this.dataset.col);
       if (col === currentCol) {
         ascending = !ascending;
@@ -124,8 +124,10 @@ document.addEventListener('DOMContentLoaded', function () {
       // Update arrows
       headers.forEach(function (h) {
         h.querySelector('.sort-arrow').textContent = '';
+        h.setAttribute('aria-sort', 'none');
       });
       this.querySelector('.sort-arrow').textContent = ascending ? '▲' : '▼';
+      this.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
 
       // Sort rows
       const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -147,6 +149,14 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       rows.forEach(function (row) { tbody.appendChild(row); });
+    }
+
+    th.addEventListener('click', sortByHeader);
+    th.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        sortByHeader.call(this);
+      }
     });
   });
 });

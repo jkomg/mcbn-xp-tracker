@@ -7,7 +7,7 @@ from flask import (
     current_app,
 )
 from app import sheets_client, limiter
-from app.auth import require_staff, is_allowed_discord_user
+from app.auth import require_staff, is_allowed_discord_user, pop_login_next
 
 bp = Blueprint('dashboard', __name__)
 
@@ -123,22 +123,27 @@ def discord_callback():
     discord_id = str(user_data.get('id', ''))
     discord_name = user_data.get('global_name') or user_data.get('username', 'Unknown')
 
+    next_url = pop_login_next(url_for('player.my_characters'))
+
+    # Rotate session after successful OAuth callback.
+    session.clear()
+
     # Store Discord identity for ALL authenticated users
     session['discord_id'] = discord_id
     session['discord_name'] = discord_name
-
-    next_url = session.pop('login_next', None)
+    session.permanent = True
 
     if is_allowed_discord_user(discord_id):
         # Staff user — full dashboard access
         session['authenticated'] = True
         session['staff_user'] = discord_name
         flash(f'Welcome, {discord_name}.', 'success')
-        return redirect(next_url or url_for('dashboard.index'))
+        return redirect(next_url if next_url != url_for('player.my_characters')
+                        else url_for('dashboard.index'))
     else:
         # Player user — redirect to player portal
         flash(f'Welcome, {discord_name}.', 'success')
-        return redirect(next_url or url_for('player.my_characters'))
+        return redirect(next_url)
 
 
 @bp.route('/logout')

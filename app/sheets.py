@@ -15,6 +15,7 @@ Tabs:
 import json
 import re
 import time
+from collections import defaultdict
 from datetime import datetime
 from typing import Optional
 
@@ -193,6 +194,7 @@ class SheetsClient:
         self.spreadsheet = self.gc.open_by_key(spreadsheet_id)
         self._cache = _Cache(ttl=cache_ttl)
         self._worksheets: dict[str, gspread.Worksheet] = {}
+        self._next_row_cache: dict[str, int] = {}
 
         # Validate sheet headers on startup
         self._validate_headers()
@@ -264,11 +266,23 @@ class SheetsClient:
         row count and writes to the next empty row, eliminating ambiguity.
         """
         ws = self._ws(tab_name)
-        all_vals = ws.get_all_values()
-        next_row = len(all_vals) + 1
+        next_row = self._get_next_row(tab_name)
         # Write the whole row starting at column A
         ws.update(f'A{next_row}', [row], value_input_option='RAW')
+        self._next_row_cache[tab_name] = next_row + 1
         self._cache.invalidate(tab_name)
+
+    def _get_next_row(self, tab_name: str) -> int:
+        """Return the next write row for a tab, with lightweight caching."""
+        cached = self._next_row_cache.get(tab_name)
+        if cached:
+            return cached
+        ws = self._ws(tab_name)
+        # Column A is required for every tab in this app.
+        col_a = ws.col_values(1)
+        next_row = len(col_a) + 1
+        self._next_row_cache[tab_name] = next_row
+        return next_row
 
     def _get_all_rows(self, tab_name: str) -> list[dict]:
         """Read all rows from a tab as dicts, with caching.
@@ -350,10 +364,16 @@ class SheetsClient:
         for i, row in enumerate(rows):
             if row.get('character_name', '').lower() == name.lower():
                 row_num = i + 2  # +1 for header, +1 for 1-indexed
+                requests = []
                 for key, value in updates.items():
                     if key in ROSTER_HEADERS:
                         col = ROSTER_HEADERS.index(key) + 1
-                        ws.update_cell(row_num, col, value)
+                        requests.append({
+                            'range': gspread.utils.rowcol_to_a1(row_num, col),
+                            'values': [[value]],
+                        })
+                if requests:
+                    ws.batch_update(requests, value_input_option='RAW')
                 self._cache.invalidate(TAB_ROSTER)
                 return
         raise ValueError(f'Character not found: {name}')
@@ -422,10 +442,16 @@ class SheetsClient:
         for i, row in enumerate(rows):
             if row.get('period_label') == label:
                 row_num = i + 2
+                requests = []
                 for key, value in updates.items():
                     if key in PERIODS_HEADERS:
                         col = PERIODS_HEADERS.index(key) + 1
-                        ws.update_cell(row_num, col, value)
+                        requests.append({
+                            'range': gspread.utils.rowcol_to_a1(row_num, col),
+                            'values': [[value]],
+                        })
+                if requests:
+                    ws.batch_update(requests, value_input_option='RAW')
                 self._cache.invalidate(TAB_PERIODS)
                 return
         raise ValueError(f'Period not found: {label}')
@@ -477,11 +503,13 @@ class SheetsClient:
         # Columns: status=17, approved_xp=18, reviewed_by=19,
         #          review_date=20, st_notes=21
         status_col = XP_RESPONSES_HEADERS.index('status') + 1
-        ws.update_cell(row_num, status_col, 'Approved')
-        ws.update_cell(row_num, status_col + 1, approved_xp)
-        ws.update_cell(row_num, status_col + 2, reviewer)
-        ws.update_cell(row_num, status_col + 3, _now_str())
-        ws.update_cell(row_num, status_col + 4, notes)
+        end_col = status_col + 4
+        ws.update(
+            f'{gspread.utils.rowcol_to_a1(row_num, status_col)}:'
+            f'{gspread.utils.rowcol_to_a1(row_num, end_col)}',
+            [['Approved', approved_xp, reviewer, _now_str(), notes]],
+            value_input_option='RAW',
+        )
         self._cache.invalidate(TAB_XP_RESPONSES)
 
     def deny_claim(self, row_index: int, reviewer: str,
@@ -490,11 +518,13 @@ class SheetsClient:
         row_num = row_index + 2
 
         status_col = XP_RESPONSES_HEADERS.index('status') + 1
-        ws.update_cell(row_num, status_col, 'Denied')
-        ws.update_cell(row_num, status_col + 1, 0)
-        ws.update_cell(row_num, status_col + 2, reviewer)
-        ws.update_cell(row_num, status_col + 3, _now_str())
-        ws.update_cell(row_num, status_col + 4, notes)
+        end_col = status_col + 4
+        ws.update(
+            f'{gspread.utils.rowcol_to_a1(row_num, status_col)}:'
+            f'{gspread.utils.rowcol_to_a1(row_num, end_col)}',
+            [['Denied', 0, reviewer, _now_str(), notes]],
+            value_input_option='RAW',
+        )
         self._cache.invalidate(TAB_XP_RESPONSES)
 
     def submit_xp_claim(self, character_name: str, play_period: str,
@@ -621,11 +651,13 @@ class SheetsClient:
         row_num = row_index + 2
 
         status_col = SPEND_REQUESTS_HEADERS.index('status') + 1
-        ws.update_cell(row_num, status_col, 'Approved')
-        ws.update_cell(row_num, status_col + 1, verified_cost)
-        ws.update_cell(row_num, status_col + 2, reviewer)
-        ws.update_cell(row_num, status_col + 3, _now_str())
-        ws.update_cell(row_num, status_col + 4, notes)
+        end_col = status_col + 4
+        ws.update(
+            f'{gspread.utils.rowcol_to_a1(row_num, status_col)}:'
+            f'{gspread.utils.rowcol_to_a1(row_num, end_col)}',
+            [['Approved', verified_cost, reviewer, _now_str(), notes]],
+            value_input_option='RAW',
+        )
         self._cache.invalidate(TAB_SPEND_REQUESTS)
 
     def deny_spend(self, row_index: int, reviewer: str,
@@ -634,11 +666,13 @@ class SheetsClient:
         row_num = row_index + 2
 
         status_col = SPEND_REQUESTS_HEADERS.index('status') + 1
-        ws.update_cell(row_num, status_col, 'Denied')
-        ws.update_cell(row_num, status_col + 1, 0)
-        ws.update_cell(row_num, status_col + 2, reviewer)
-        ws.update_cell(row_num, status_col + 3, _now_str())
-        ws.update_cell(row_num, status_col + 4, notes)
+        end_col = status_col + 4
+        ws.update(
+            f'{gspread.utils.rowcol_to_a1(row_num, status_col)}:'
+            f'{gspread.utils.rowcol_to_a1(row_num, end_col)}',
+            [['Denied', 0, reviewer, _now_str(), notes]],
+            value_input_option='RAW',
+        )
         self._cache.invalidate(TAB_SPEND_REQUESTS)
 
     def submit_spend_request(self, character_name: str, spend_category: str,
@@ -747,42 +781,42 @@ class SheetsClient:
         all_spends = self.get_all_spends()
         all_ledger = self._get_all_rows(TAB_XP_LEDGER)
 
+        approved_claim_last_ts: dict[str, str] = {}
+        for claim in all_claims:
+            if claim.status.lower() != 'approved':
+                continue
+            key = claim.character_name.lower()
+            last_ts = approved_claim_last_ts.get(key)
+            if last_ts is None or claim.timestamp > last_ts:
+                approved_claim_last_ts[key] = claim.timestamp
+
+        approved_spend_totals: dict[str, int] = defaultdict(int)
+        for spend in all_spends:
+            if spend.status.lower() == 'approved':
+                approved_spend_totals[spend.character_name.lower()] += spend.verified_cost
+
+        ledger_totals: dict[str, dict[str, int]] = defaultdict(
+            lambda: {'awarded': 0, 'spent': 0}
+        )
+        for row in all_ledger:
+            key = str(row.get('character_name', '')).lower()
+            if not key:
+                continue
+            ledger_totals[key]['awarded'] += _parse_int(row.get('awarded', 0))
+            ledger_totals[key]['spent'] += _parse_int(row.get('spent', 0))
+
         result = []
         for char in characters:
             name_lower = char.character_name.lower()
-
-            # Claims are only used for last_submission date display
-            char_claims = [
-                c for c in all_claims
-                if c.character_name.lower() == name_lower
-                and c.status.lower() == 'approved'
-            ]
-
-            # Sum approved spends
-            char_spends = [
-                s for s in all_spends
-                if s.character_name.lower() == name_lower
-                and s.status.lower() == 'approved'
-            ]
-            total_spends = sum(s.verified_cost for s in char_spends)
-
-            # Sum ledger awards and spends (single source of truth)
-            char_ledger = [
-                r for r in all_ledger
-                if str(r.get('character_name', '')).lower() == name_lower
-            ]
-            ledger_awarded = sum(_parse_int(r.get('awarded', 0))
-                                 for r in char_ledger)
-            ledger_spent = sum(_parse_int(r.get('spent', 0))
-                               for r in char_ledger)
+            total_spends = approved_spend_totals[name_lower]
+            ledger_awarded = ledger_totals[name_lower]['awarded']
+            ledger_spent = ledger_totals[name_lower]['spent']
 
             total_xp = char.creation_xp + ledger_awarded
             available_xp = total_xp - total_spends - ledger_spent
 
-            # Find last submission date
-            last_sub = ''
-            if char_claims:
-                last_sub = max(c.timestamp for c in char_claims)
+            # Find last approved claim submission date
+            last_sub = approved_claim_last_ts.get(name_lower, '')
 
             result.append({
                 'character_name': char.character_name,
@@ -901,6 +935,7 @@ class SheetsClient:
         ws = self._ws(TAB_XP_LEDGER)
         ws.delete_rows(row_index + 2)  # +1 header, +1 for 1-indexed
         self._cache.invalidate(TAB_XP_LEDGER)
+        self._next_row_cache.pop(TAB_XP_LEDGER, None)
 
     # ── Ledger Import ─────────────────────────────────────────────────────
 
@@ -1072,9 +1107,9 @@ class SheetsClient:
                 now,
             ])
         if rows:
-            all_vals = ws.get_all_values()
-            next_row = len(all_vals) + 1
+            next_row = self._get_next_row(TAB_XP_LEDGER)
             ws.update(f'A{next_row}', rows, value_input_option='RAW')
+            self._next_row_cache[TAB_XP_LEDGER] = next_row + len(rows)
             self._cache.invalidate(TAB_XP_LEDGER)
         return len(rows)
 
@@ -1258,9 +1293,9 @@ class SheetsClient:
                 'TRUE',           # active
             ])
         if rows:
-            all_vals = ws.get_all_values()
-            next_row = len(all_vals) + 1
+            next_row = self._get_next_row(TAB_PERIODS)
             ws.update(f'A{next_row}', rows, value_input_option='RAW')
+            self._next_row_cache[TAB_PERIODS] = next_row + len(rows)
             self._cache.invalidate(TAB_PERIODS)
         return len(rows)
 

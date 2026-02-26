@@ -15,7 +15,8 @@ def log():
     character_filter = request.args.get('character', '')
     staff_filter = request.args.get('staff', '')
 
-    entries = sheets_client.get_audit_log(limit=500)
+    all_entries = sheets_client.get_audit_log(limit=500)
+    entries = list(all_entries)
 
     if action_filter:
         entries = [e for e in entries
@@ -28,7 +29,6 @@ def log():
                    if staff_filter.lower() in e.staff_user.lower()]
 
     # Collect unique values for filter dropdowns
-    all_entries = sheets_client.get_audit_log(limit=500)
     action_types = sorted(set(e.action_type for e in all_entries
                               if e.action_type))
     staff_users = sorted(set(e.staff_user for e in all_entries

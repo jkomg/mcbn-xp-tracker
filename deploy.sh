@@ -69,7 +69,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
   --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
   --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
-  --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest"
+  --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
+  --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest"
 
 echo ""
 echo "==> Deployed! Your app URL:"

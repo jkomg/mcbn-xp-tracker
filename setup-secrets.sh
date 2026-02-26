@@ -55,7 +55,7 @@ echo "  ✓ mcbn-google-creds"
 echo ""
 echo "--- Discord OAuth Setup ---"
 echo "Create an app at https://discord.com/developers/applications"
-echo "Under OAuth2, add redirect URL: https://xp.jkomg.us/auth/callback"
+echo "Under OAuth2, add redirect URL: https://mcbn.jkomg.us/auth/callback"
 echo ""
 
 read -p "Enter Discord Client ID: " DISCORD_CID
@@ -72,6 +72,11 @@ echo "right-click your name → Copy User ID."
 read -p "Allowed Discord IDs: " DISCORD_IDS
 upsert_secret "mcbn-discord-allowed-ids" "${DISCORD_IDS}"
 
+echo ""
+echo "Set a long random shared token for bot API access (/api/*)."
+read -p "WEB_APP_API_TOKEN: " WEB_APP_API_TOKEN
+upsert_secret "mcbn-web-app-api-token" "${WEB_APP_API_TOKEN}"
+
 # Grant Cloud Run access to all secrets
 echo ""
 echo "==> Granting Cloud Run service account access to secrets..."
@@ -79,7 +84,8 @@ PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projec
 SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 for SECRET in mcbn-flask-secret mcbn-spreadsheet-id mcbn-google-creds \
-              mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids; do
+              mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids \
+              mcbn-web-app-api-token; do
   gcloud secrets add-iam-policy-binding "${SECRET}" \
     --member="serviceAccount:${SA_EMAIL}" \
     --role="roles/secretmanager.secretAccessor" \

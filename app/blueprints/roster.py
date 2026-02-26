@@ -15,10 +15,14 @@ bp = Blueprint('roster', __name__)
 def list_characters():
     """List all characters with filtering."""
     show = request.args.get('show', 'active')  # active, inactive, all
-    clan_filter = request.args.get('clan', '')
-    sect_filter = request.args.get('sect', '')
+    clan_filter = request.args.get('clan', request.args.get('clan_filter', ''))
+    sect_filter = request.args.get('sect', request.args.get('sect_filter', ''))
 
     characters = sheets_client.get_all_characters()
+    xp_by_character = {
+        row['character_name'].lower(): row['available_xp']
+        for row in sheets_client.get_dashboard_data()
+    }
 
     if show == 'active':
         characters = [c for c in characters if c.active]
@@ -35,10 +39,9 @@ def list_characters():
     # Compute available XP for each character
     char_data = []
     for c in characters:
-        xp = sheets_client.get_xp_totals(c.character_name)
         char_data.append({
             'char': c,
-            'available_xp': xp['available_xp'],
+            'available_xp': xp_by_character.get(c.character_name.lower(), 0),
         })
 
     return render_template(
