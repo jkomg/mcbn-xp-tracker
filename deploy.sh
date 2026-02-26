@@ -44,6 +44,13 @@ REGION="us-central1"
 SERVICE_NAME="mcbn-xp-tracker"
 REPO="us-central1-docker.pkg.dev/${PROJECT_ID}/mcbn-repo"
 IMAGE="${REPO}/${SERVICE_NAME}:latest"
+SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' .env 2>/dev/null | cut -d'=' -f2-)}"
+
+if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
+  echo "ERROR: SPREADSHEET_ID is required."
+  echo "Set it in your environment or in .env before running deploy.sh."
+  exit 1
+fi
 
 echo "==> Building Docker image (linux/amd64 for Cloud Run)..."
 docker build --platform linux/amd64 -t "${IMAGE}" .
@@ -62,10 +69,10 @@ gcloud run deploy "${SERVICE_NAME}" \
   --min-instances 0 \
   --max-instances 2 \
   --set-env-vars "FLASK_DEBUG=false" \
+  --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
   --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
   --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
-  --update-secrets "SPREADSHEET_ID=mcbn-spreadsheet-id:latest" \
   --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
   --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
   --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \

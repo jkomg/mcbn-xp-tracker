@@ -36,9 +36,6 @@ upsert_secret() {
 FLASK_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 upsert_secret "mcbn-flask-secret" "${FLASK_SECRET}"
 
-# Spreadsheet ID
-upsert_secret "mcbn-spreadsheet-id" "1nCBYmXyUcrY-RhqTlH46M3C3HCFDBIfJXaurfTk55w0"
-
 # Google service account credentials (the JSON file)
 SA_FILE="credentials/service-account.json"
 if [ ! -f "${SA_FILE}" ]; then
@@ -83,7 +80,7 @@ echo "==> Granting Cloud Run service account access to secrets..."
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
 SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-for SECRET in mcbn-flask-secret mcbn-spreadsheet-id mcbn-google-creds \
+for SECRET in mcbn-flask-secret mcbn-google-creds \
               mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids \
               mcbn-web-app-api-token; do
   gcloud secrets add-iam-policy-binding "${SECRET}" \
