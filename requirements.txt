@@ -6,4 +6,4 @@ gspread==6.*
 google-auth==2.*
 python-dotenv==1.*
 gunicorn==23.*
-pytest==8.*
+pytest==9.*
