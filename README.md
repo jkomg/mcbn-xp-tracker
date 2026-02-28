@@ -31,6 +31,29 @@ Players visit `/player/`, pick their character, and submit XP claims and spend r
 
 No spreadsheet formulas. The app handles all the math, validation, and workflow.
 
+## Tracker Bot Project (New)
+
+This repository now also includes a fresh **Discord bot project starter** based on:
+
+- https://github.com/jkomg/mcbn-tracker-bot
+
+You can find it in [`tracker-bot/`](tracker-bot/), including:
+
+- TypeScript source in `tracker-bot/src/`
+- Bot command registration scripts
+- `.env.example` and npm scripts for local setup
+
+Quick start:
+
+```bash
+cd tracker-bot
+npm install
+cp .env.example .env
+# fill in your Discord + Sheets values in .env
+npm run register
+npm run dev
+```
+
 ### Roles
 
 | Role | Access | Does What |
