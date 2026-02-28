@@ -37,3 +37,9 @@
   - bot token auth checks
   - dashboard aggregation behavior
   - Advantage XP cost behavior
+
+### Open Source Readiness
+
+- Added `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+  `SUPPORT.md`, and `NOTICE.md`.
+- Added GitHub issue templates and pull request template under `.github/`.

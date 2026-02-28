@@ -6,6 +6,25 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 
 ---
 
+## Open Source
+
+- License: [MIT](LICENSE)
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Support expectations: [SUPPORT.md](SUPPORT.md)
+- Notices/disclosures: [NOTICE.md](NOTICE.md)
+
+### Data and Privacy Disclosure
+
+- This app stores character and gameplay metadata in a Google Sheet that the
+  operators control.
+- Discord OAuth identity (user ID/display name) is used for authentication and
+  authorization.
+- Do not commit production secrets or personal data to this repository.
+
+---
+
 ## What It Does
 
 Players visit `/player/`, pick their character, and submit XP claims and spend requests through the web app. Staff log in with Discord and review everything from a dashboard. Google Sheets is the database — every character, claim, spend, and audit entry lives there.
@@ -208,6 +227,13 @@ This reads the IDs from your `.env`, pushes them to GCP Secret Manager, and upda
 | `./deploy.sh` | Build and deploy to Cloud Run |
 | `./update-staff-access.sh` | Push Discord ID changes from `.env` to prod |
 | `./setup-secrets.sh` | One-time GCP Secret Manager setup (interactive) |
+
+---
+
+## Responsible Disclosure
+
+If you find a security issue, do not open a public issue. Follow
+[SECURITY.md](SECURITY.md).
 
 ---
 
