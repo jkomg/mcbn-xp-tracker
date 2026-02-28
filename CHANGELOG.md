@@ -44,3 +44,7 @@
   `SUPPORT.md`, and `NOTICE.md`.
 - Added GitHub issue templates and pull request template under `.github/`.
 - Added GitHub Actions CI (`pytest` + `ruff`) and Dependabot updates.
+
+### Toolchain Hygiene
+
+- Standardized project guidance to Python `3.12+` (non-EOL baseline).

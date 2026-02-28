@@ -11,6 +11,7 @@ Thanks for your interest in contributing.
 ## Local Setup
 
 ```bash
+python3 --version  # requires 3.12+
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt

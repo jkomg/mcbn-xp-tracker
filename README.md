@@ -64,7 +64,7 @@ Available XP = Total XP - Approved Spends - Ledger Spends
 
 | Layer | Tech | Notes |
 |-------|------|-------|
-| Backend | Flask 3.1 (Python 3.9+) | Gunicorn in prod (Docker uses Python 3.12) |
+| Backend | Flask 3.1 (Python 3.12+) | Gunicorn in prod |
 | Frontend | Bootstrap 5 | Custom dark VtM theme, mobile-responsive |
 | Database | Google Sheets (6 tabs) | Free, no server needed |
 | Auth | Discord OAuth2 | All users; staff vs player by Discord ID |
@@ -106,7 +106,7 @@ Expected GCP impact:
 
 ### Prerequisites
 
-- Python 3.9+ (3.12 recommended)
+- Python 3.12+
 - A Google Cloud service account with Sheets API access
 - A Discord OAuth2 application
 
@@ -128,6 +128,18 @@ cp .env.example .env
 
 # Initialize Google Sheet tabs (safe to re-run)
 python3 -c "from app import create_app; app = create_app(); from app import sheets_client; sheets_client.setup_sheets()"
+```
+
+### Upgrading from an older local Python venv
+
+If your local `venv` was created with Python 3.9/3.10/3.11, recreate it with
+Python 3.12+:
+
+```bash
+mv venv venv-old-backup
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Running the Dev Server
