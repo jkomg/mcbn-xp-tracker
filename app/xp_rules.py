@@ -13,7 +13,7 @@ def _cost_per_dot(multiplier: int, current: int, new: int) -> int:
     if new <= current:
         raise ValueError(f'New dots ({new}) must be greater than current ({current})')
     if current < 0 or new > 10:
-        raise ValueError(f'Dot values must be between 0 and 10')
+        raise ValueError('Dot values must be between 0 and 10')
     return sum(dot * multiplier for dot in range(current + 1, new + 1))
 
 
@@ -22,7 +22,7 @@ def _cost_flat_per_dot(per_dot: int, current: int, new: int) -> int:
     if new <= current:
         raise ValueError(f'New dots ({new}) must be greater than current ({current})')
     if current < 0 or new > 10:
-        raise ValueError(f'Dot values must be between 0 and 10')
+        raise ValueError('Dot values must be between 0 and 10')
     return (new - current) * per_dot
 
 

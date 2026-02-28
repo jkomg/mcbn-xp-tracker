@@ -30,7 +30,7 @@ class Config:
     DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID', '')
     DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET', '')
     DISCORD_REDIRECT_URI = os.environ.get(
-        'DISCORD_REDIRECT_URI', 'http://127.0.0.1:5000/auth/callback'
+        'DISCORD_REDIRECT_URI', 'http://127.0.0.1:5001/auth/callback'
     )
     # Comma-separated list of Discord user IDs allowed staff access
     _allowed_ids = os.environ.get('ALLOWED_DISCORD_IDS', '')

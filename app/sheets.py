@@ -844,7 +844,6 @@ class SheetsClient:
         Positive amounts grant XP; negative amounts remove XP.
         The row is auto-approved so it takes effect immediately.
         """
-        ws = self._ws(TAB_XP_RESPONSES)
         now = _now_str()
         # Build a row matching XP_RESPONSES_HEADERS:
         # timestamp, character_name, play_period,
@@ -1175,12 +1174,10 @@ class SheetsClient:
             return candidate
 
         # Find the earliest tab that HAS a year to anchor from
-        anchor_night = None
         anchor_start = None
         for n in sorted(raw.keys()):
             s, e = raw[n]
             if '/' in s and s.count('/') == 2:
-                anchor_night = n
                 anchor_start = _parse_date(s, 2024)
                 break
 
@@ -1243,7 +1240,6 @@ class SheetsClient:
                     continue
                 # Find nearest known before and after
                 before = max((k for k in resolved if k < n), default=None)
-                after_n = min((k for k in resolved if k > n), default=None)
                 if before is not None:
                     ref_end = resolved[before][1]
                     offset = n - before

@@ -38,6 +38,13 @@ Run tests before opening a PR:
 ./venv/bin/pytest -q
 ```
 
+Run lint:
+
+```bash
+./venv/bin/python -m pip install ruff
+./venv/bin/ruff check app tests
+```
+
 ## Coding Guidelines
 
 - Prefer clear, explicit logic over clever shortcuts.

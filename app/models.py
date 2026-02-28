@@ -1,8 +1,6 @@
 """Data classes for MCbN XP Tracker entities."""
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass

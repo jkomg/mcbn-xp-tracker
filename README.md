@@ -64,23 +64,30 @@ Available XP = Total XP - Approved Spends - Ledger Spends
 
 | Layer | Tech | Notes |
 |-------|------|-------|
-| Backend | Flask 3.1 (Python 3.12) | Gunicorn in prod |
+| Backend | Flask 3.1 (Python 3.9+) | Gunicorn in prod (Docker uses Python 3.12) |
 | Frontend | Bootstrap 5 | Custom dark VtM theme, mobile-responsive |
 | Database | Google Sheets (6 tabs) | Free, no server needed |
 | Auth | Discord OAuth2 | All users; staff vs player by Discord ID |
 | Hosting | Google Cloud Run | Free tier, scales to zero |
 | Secrets | GCP Secret Manager | All credentials stored securely in prod |
 
-### Free Tier Design
+### Free Tier Design (Target)
 
 The app is specifically designed to run within Google Cloud's free tier:
 
 - **Cloud Run**: 2 million requests/month free. The app scales to **zero instances** when idle, so you only use resources when someone's on the site.
 - **Artifact Registry**: Stores the Docker image. Free tier covers small projects.
-- **Secret Manager**: 6 secrets, rarely accessed. Well within free limits.
+- **Secret Manager**: 6 active secret versions free. Keep one enabled version per secret.
 - **Google Sheets API**: 300 requests/minute free. The app caches reads for 30 seconds to stay well under this.
 
-In practice this costs **$0/month** for a chronicle our size.
+For this workload, operating costs are typically near zero when you stay within the
+quotas above.
+
+### CI and Automation Cost
+
+- GitHub Actions CI (tests/lint on PR) does **not** add GCP cost.
+- For public repositories, GitHub-hosted Actions are generally available at no charge.
+- CI here runs in GitHub infrastructure, not Cloud Run.
 
 ### 2026-02 Security + Performance Update
 
@@ -99,7 +106,7 @@ Expected GCP impact:
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.9+ (3.12 recommended)
 - A Google Cloud service account with Sheets API access
 - A Discord OAuth2 application
 
@@ -200,6 +207,8 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 ### Deploying
 
 ```bash
+# Required: set SPREADSHEET_ID in your shell or .env
+# export SPREADSHEET_ID=your-google-sheet-id
 ./deploy.sh
 ```
 
@@ -216,6 +225,14 @@ When you need to add or remove staff Discord IDs:
    ```
 
 This reads the IDs from your `.env`, pushes them to GCP Secret Manager, and updates Cloud Run in one step.
+
+### Secret Manager Hygiene
+
+To stay in free-tier range:
+
+- Keep only one **enabled** version per secret.
+- Remove unused secrets from Cloud Run env mappings.
+- `SPREADSHEET_ID` is intentionally a plain env var (not a secret).
 
 ---
 

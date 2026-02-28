@@ -43,3 +43,4 @@
 - Added `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
   `SUPPORT.md`, and `NOTICE.md`.
 - Added GitHub issue templates and pull request template under `.github/`.
+- Added GitHub Actions CI (`pytest` + `ruff`) and Dependabot updates.
