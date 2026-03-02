@@ -173,4 +173,5 @@ SPEND_CATEGORIES = [
     'Blood Sorcery Ritual',
     'Thin-Blood Alchemy Formula',
     'Advantage (Merit/Background)',
+    'Loresheet',
 ]

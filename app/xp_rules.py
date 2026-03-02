@@ -83,6 +83,12 @@ XP_COSTS = {
         'min_dots': 0,
         'max_dots': 5,
     },
+    'Loresheet': {
+        'level_multiplier': 3,
+        'description': 'Purchased dot × 3 (non-sequential allowed)',
+        'min_dots': 0,
+        'max_dots': 5,
+    },
 }
 
 
@@ -128,6 +134,8 @@ def calculate_xp_cost(category: str, current_dots: int, new_dots: int) -> int:
     # These represent learning a single ritual/formula at a specific level,
     # not a progressive dot purchase.
     if 'level_multiplier' in rules:
+        if new_dots < 1:
+            raise ValueError(f'{category}: new dots must be at least 1')
         # For rituals: "new_dots" represents the ritual level being learned
         return new_dots * rules['level_multiplier']
 
