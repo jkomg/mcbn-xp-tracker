@@ -430,6 +430,7 @@
                         <tr><td>Blood Sorcery Ritual</td><td>Level × 3</td><td>Level 3 = 9 XP</td></tr>
                         <tr><td>Thin-Blood Alchemy</td><td>Level × 3</td><td>Level 2 = 6 XP</td></tr>
                         <tr><td>Advantage</td><td>3 XP per dot purchased</td><td>0→2 = 6 XP</td></tr>
+                        <tr><td>Loresheet</td><td>Purchased dot × 3</td><td>Buy dot 3 = 9 XP</td></tr>
                     </tbody>
                 </table>
                 <small class="text-muted mt-2 d-block">For multi-dot purchases, add each step. Example: In-Clan Discipline 1→3 = (2×5) + (3×5) = 25 XP.</small>
@@ -530,6 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Blood Sorcery Ritual':        { level_mult: 3, min: 0, max: 5 },
         'Thin-Blood Alchemy Formula':  { level_mult: 3, min: 0, max: 5 },
         'Advantage (Merit/Background)':{ per_dot: 3, min: 0, max: 5 },
+        'Loresheet':                   { level_mult: 3, min: 0, max: 5 },
     };
 
     function calcCost() {
@@ -538,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nw = parseInt(newDots.value) || 0;
         const rules = XP_RULES[cat];
 
-        if (!rules || nw <= cur) {
+        if (!rules || nw < 1 || (rules.level_mult === undefined && nw <= cur)) {
             costValue.textContent = '—';
             costFormula.textContent = '';
             updateWarning(0);
@@ -604,6 +606,11 @@ document.addEventListener('DOMContentLoaded', function() {
             currentDots.disabled = true;
             newDots.value = 1;
             newDots.disabled = true;
+        } else if (rules.level_mult !== undefined) {
+            // Ritual/Formula/Loresheet purchases are priced by chosen dot only.
+            currentDots.value = 0;
+            currentDots.disabled = true;
+            newDots.disabled = false;
         } else {
             currentDots.disabled = false;
             newDots.disabled = false;
