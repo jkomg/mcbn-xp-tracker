@@ -226,6 +226,15 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 
 Builds a Docker image, pushes to Artifact Registry, deploys to Cloud Run. Takes about 2-3 minutes. The app runs with 256MB RAM, scales 0-2 instances, and auto-sleeps when idle.
 
+### Custom Domain (Squarespace + Cloud Run)
+
+This project is served at `mcbn.jkomg.us` using Cloud Run custom domain mapping
+and DNS hosted in Squarespace.
+
+See the full runbook:
+
+- [docs/CUSTOM_DOMAIN_SQUARESPACE.md](docs/CUSTOM_DOMAIN_SQUARESPACE.md)
+
 ### Updating Staff Access
 
 When you need to add or remove staff Discord IDs:
