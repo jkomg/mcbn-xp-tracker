@@ -68,6 +68,10 @@ Acceptance:
 - Bot remains online after reboot/crash.
 - Web deploy process unchanged from current cost profile.
 
+Status:
+
+- Executed (see `docs/MONOREPO_PHASE4_OPERATIONS.md`).
+
 ## Phase 5: Hardening
 
 1. Add API token scope enforcement for bot endpoints.

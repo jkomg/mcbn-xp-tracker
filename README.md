@@ -17,6 +17,7 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Monorepo architecture draft: [docs/MONOREPO_ARCHITECTURE.md](docs/MONOREPO_ARCHITECTURE.md)
 - Monorepo migration plan: [docs/MONOREPO_MIGRATION_PLAN.md](docs/MONOREPO_MIGRATION_PLAN.md)
 - Monorepo phase 0 inventory: [docs/MONOREPO_PHASE0_INVENTORY.md](docs/MONOREPO_PHASE0_INVENTORY.md)
+- Monorepo phase 4 operations: [docs/MONOREPO_PHASE4_OPERATIONS.md](docs/MONOREPO_PHASE4_OPERATIONS.md)
 - Local bot hosting runbook: [docs/RUN_BOT_LOCAL.md](docs/RUN_BOT_LOCAL.md)
 - Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
 
