@@ -253,7 +253,10 @@ export async function startClaimWizard(
 ) {
   cleanupExpiredDrafts();
 
-  const context = await adapter.getClaimContext();
+  const context = await adapter.getClaimContext({
+    requesterDiscordId: interaction.user.id,
+    requesterDiscordName: interaction.user.username,
+  });
 
   const characterName = initialCharacter && context.activeCharacters.includes(initialCharacter)
     ? initialCharacter
@@ -458,6 +461,8 @@ export async function handleClaimWizardButton(interaction: ButtonInteraction, ad
     const result = await adapter.submitClaim({
       characterName: draft.characterName,
       playPeriod: draft.playPeriod,
+      requesterDiscordId: interaction.user.id,
+      requesterDiscordName: interaction.user.username,
       categories: payloadCategories,
     });
 

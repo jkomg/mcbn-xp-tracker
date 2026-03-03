@@ -7,6 +7,7 @@ bearer token (`WEB_APP_API_TOKEN`) separate from staff Discord OAuth.
 from __future__ import annotations
 
 import hmac
+import re
 import threading
 import time
 from functools import wraps
@@ -14,10 +15,12 @@ from functools import wraps
 from flask import Blueprint, current_app, jsonify, request
 
 from app import sheets_client, limiter
+from app.auth import is_allowed_discord_user
 
 bp = Blueprint('api', __name__)
 _seen_nonces: dict[str, int] = {}
 _seen_nonces_lock = threading.Lock()
+DISCORD_ID_RE = re.compile(r'^\d{17,20}$')
 
 
 def _limit(rule: str):
@@ -157,6 +160,36 @@ def _open_periods_desc():
     return periods
 
 
+def _requester_from_query():
+    requester_discord_id = str(request.args.get('requesterDiscordId', '')).strip()
+    requester_discord_name = str(request.args.get('requesterDiscordName', '')).strip()
+    if not requester_discord_id:
+        return None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
+    if not DISCORD_ID_RE.fullmatch(requester_discord_id):
+        return None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
+    return requester_discord_id, requester_discord_name, None
+
+
+def _requester_from_payload(payload: dict):
+    requester_discord_id = str(payload.get('requesterDiscordId', '')).strip()
+    requester_discord_name = str(payload.get('requesterDiscordName', '')).strip()
+    if not requester_discord_id:
+        return None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
+    if not DISCORD_ID_RE.fullmatch(requester_discord_id):
+        return None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
+    return requester_discord_id, requester_discord_name, None
+
+
+def _is_requester_staff(requester_discord_id: str) -> bool:
+    return is_allowed_discord_user(requester_discord_id)
+
+
+def _requester_can_access_character(char, requester_discord_id: str) -> bool:
+    if _is_requester_staff(requester_discord_id):
+        return True
+    return str(char.player_discord or '').strip() == requester_discord_id
+
+
 @bp.route('/health', methods=['GET'])
 def health():
     return jsonify({'ok': True})
@@ -169,8 +202,14 @@ def claim_context():
     backend = _require_sheets()
     if backend:
         return backend
+    requester_discord_id, _, error = _requester_from_query()
+    if error:
+        return error
 
-    characters = sheets_client.get_active_characters()
+    if _is_requester_staff(requester_discord_id):
+        characters = sheets_client.get_active_characters()
+    else:
+        characters = [c for c in sheets_client.get_characters_by_discord_id(requester_discord_id) if c.active]
     characters.sort(key=lambda c: c.character_name.lower())
     open_periods = _open_periods_desc()
 
@@ -190,9 +229,14 @@ def character_summary(name: str):
     backend = _require_sheets()
     if backend:
         return backend
+    requester_discord_id, _, error = _requester_from_query()
+    if error:
+        return error
 
     char = sheets_client.get_character(name)
     if not char:
+        return jsonify({'error': 'Character not found'}), 404
+    if not _requester_can_access_character(char, requester_discord_id):
         return jsonify({'error': 'Character not found'}), 404
 
     totals = sheets_client.get_xp_totals(name)
@@ -217,6 +261,9 @@ def submit_claim():
         return backend
 
     payload = request.get_json(silent=True) or {}
+    requester_discord_id, requester_discord_name, error = _requester_from_payload(payload)
+    if error:
+        return error
     character_name = str(payload.get('characterName', '')).strip()
     play_period = str(payload.get('playPeriod', '')).strip()
     categories = payload.get('categories')
@@ -226,6 +273,8 @@ def submit_claim():
 
     char = sheets_client.get_character(character_name)
     if not char:
+        return jsonify({'error': 'Character not found'}), 404
+    if not _requester_can_access_character(char, requester_discord_id):
         return jsonify({'error': 'Character not found'}), 404
 
     if not char.active:
@@ -246,10 +295,13 @@ def submit_claim():
     try:
         sheets_client.submit_xp_claim(character_name, play_period, normalized)
         sheets_client.log_action(
-            staff_user='bot-api',
+            staff_user=f'bot-api:{requester_discord_id}',
             action_type='bot_claim_submitted',
             target=character_name,
-            details=f'Claim submitted for {play_period}',
+            details=(
+                f'Claim submitted for {play_period} by '
+                f'{requester_discord_name or requester_discord_id}'
+            ),
         )
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
@@ -267,6 +319,9 @@ def submit_spend():
         return backend
 
     payload = request.get_json(silent=True) or {}
+    requester_discord_id, requester_discord_name, error = _requester_from_payload(payload)
+    if error:
+        return error
 
     character_name = str(payload.get('characterName', '')).strip()
     spend_category = str(payload.get('spendCategory', '')).strip()
@@ -289,6 +344,8 @@ def submit_spend():
     char = sheets_client.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
+    if not _requester_can_access_character(char, requester_discord_id):
+        return jsonify({'error': 'Character not found'}), 404
 
     try:
         xp_cost = sheets_client.submit_spend_request(
@@ -301,12 +358,12 @@ def submit_spend():
             justification=justification,
         )
         sheets_client.log_action(
-            staff_user='bot-api',
+            staff_user=f'bot-api:{requester_discord_id}',
             action_type='bot_spend_submitted',
             target=character_name,
             details=(
                 f'{spend_category}: {trait_name} ({current_dots}->{new_dots}) '
-                f'for {xp_cost} XP'
+                f'for {xp_cost} XP by {requester_discord_name or requester_discord_id}'
             ),
         )
     except ValueError as exc:

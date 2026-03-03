@@ -1,14 +1,21 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { errorToMessage, logEvent } from '../logger';
-import type { AdapterHealthReport, ClaimContext, ClaimPayload, SpendPayload, XpSummary } from '../types';
+import type {
+  AdapterHealthReport,
+  ClaimContext,
+  ClaimPayload,
+  RequesterContext,
+  SpendPayload,
+  XpSummary,
+} from '../types';
 
 export interface TrackerAdapter {
-  getSummary(characterName: string): Promise<XpSummary | null>;
-  getClaimContext(opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
+  getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
+  getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
-  getHealthReport(): Promise<AdapterHealthReport>;
+  getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
 }
 
 const summarySchema = z.object({
@@ -42,8 +49,8 @@ type ClaimContextResult = {
 };
 
 export class WebAppAdapter implements TrackerAdapter {
-  private claimContextCache?: { value: ClaimContext; fetchedAt: number };
-  private claimContextInFlight?: Promise<ClaimContextResult>;
+  private claimContextCache = new Map<string, { value: ClaimContext; fetchedAt: number }>();
+  private claimContextInFlight = new Map<string, Promise<ClaimContextResult>>();
   private readonly baseUrl: string;
   private readonly apiToken?: string;
   private readonly requestTimeoutMs: number;
@@ -62,8 +69,12 @@ export class WebAppAdapter implements TrackerAdapter {
     this.claimContextRetryBaseMs = opts.claimContextRetryBaseMs ?? 250;
   }
 
-  async getSummary(characterName: string): Promise<XpSummary | null> {
-    const url = `${this.baseUrl}/api/characters/${encodeURIComponent(characterName)}/summary`;
+  async getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null> {
+    const params = new URLSearchParams({ requesterDiscordId: requester.requesterDiscordId });
+    if (requester.requesterDiscordName) {
+      params.set('requesterDiscordName', requester.requesterDiscordName);
+    }
+    const url = `${this.baseUrl}/api/characters/${encodeURIComponent(characterName)}/summary?${params.toString()}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.authHeaders(),
     }).catch(() => null);
@@ -80,8 +91,8 @@ export class WebAppAdapter implements TrackerAdapter {
     return summarySchema.parse(raw);
   }
 
-  async getClaimContext(opts: { forceRefresh?: boolean } = {}): Promise<ClaimContext> {
-    const result = await this.getClaimContextResult(opts.forceRefresh === true);
+  async getClaimContext(requester: RequesterContext, opts: { forceRefresh?: boolean } = {}): Promise<ClaimContext> {
+    const result = await this.getClaimContextResult(requester, opts.forceRefresh === true);
     return result.context;
   }
 
@@ -93,7 +104,7 @@ export class WebAppAdapter implements TrackerAdapter {
     return this.post('/api/spends', payload, 'Spend request submitted to web app API.');
   }
 
-  async getHealthReport(): Promise<AdapterHealthReport> {
+  async getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport> {
     const now = new Date().toISOString();
     const healthStart = Date.now();
     let webApi: AdapterHealthReport['webApi'];
@@ -117,7 +128,7 @@ export class WebAppAdapter implements TrackerAdapter {
 
     let claimContext: AdapterHealthReport['claimContext'];
     try {
-      const result = await this.getClaimContextResult(true);
+      const result = await this.getClaimContextResult(requester, true);
       claimContext = {
         ok: true,
         status: 200,
@@ -175,66 +186,74 @@ export class WebAppAdapter implements TrackerAdapter {
     return { ok: true, message: successMessage };
   }
 
-  private getCacheAgeMs(): number {
-    if (!this.claimContextCache) {
+  private getCacheAgeMs(requesterDiscordId: string): number {
+    const cacheEntry = this.claimContextCache.get(requesterDiscordId);
+    if (!cacheEntry) {
       return 0;
     }
-    return Date.now() - this.claimContextCache.fetchedAt;
+    return Date.now() - cacheEntry.fetchedAt;
   }
 
-  private async getClaimContextResult(forceRefresh = false): Promise<ClaimContextResult> {
-    const cached = this.claimContextCache;
-    if (!forceRefresh && cached && this.getCacheAgeMs() <= this.claimContextCacheTtlMs) {
+  private async getClaimContextResult(requester: RequesterContext, forceRefresh = false): Promise<ClaimContextResult> {
+    const cacheKey = requester.requesterDiscordId;
+    const cached = this.claimContextCache.get(cacheKey);
+    if (!forceRefresh && cached && this.getCacheAgeMs(cacheKey) <= this.claimContextCacheTtlMs) {
       return {
         context: cached.value,
         source: 'cache',
         retries: 0,
         latencyMs: 0,
-        cacheAgeMs: this.getCacheAgeMs(),
+        cacheAgeMs: this.getCacheAgeMs(cacheKey),
       };
     }
 
-    if (this.claimContextInFlight) {
-      return this.claimContextInFlight;
+    const inFlight = this.claimContextInFlight.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
     }
 
-    this.claimContextInFlight = this.fetchClaimContextWithRetry()
+    const request = this.fetchClaimContextWithRetry(requester)
       .then((fresh) => {
-        this.claimContextCache = { value: fresh.context, fetchedAt: Date.now() };
+        this.claimContextCache.set(cacheKey, { value: fresh.context, fetchedAt: Date.now() });
         return fresh;
       })
       .catch((error) => {
-        const stale = this.claimContextCache;
-        if (stale && this.getCacheAgeMs() <= this.claimContextStaleIfErrorMs) {
+        const stale = this.claimContextCache.get(cacheKey);
+        if (stale && this.getCacheAgeMs(cacheKey) <= this.claimContextStaleIfErrorMs) {
           logEvent('warn', 'claim_context_stale_cache_fallback', {
             error: errorToMessage(error),
-            cacheAgeMs: this.getCacheAgeMs(),
+            cacheAgeMs: this.getCacheAgeMs(cacheKey),
           });
           return {
             context: stale.value,
             source: 'stale-cache' as const,
             retries: this.claimContextMaxRetries,
             latencyMs: 0,
-            cacheAgeMs: this.getCacheAgeMs(),
+            cacheAgeMs: this.getCacheAgeMs(cacheKey),
           };
         }
         throw error;
       })
       .finally(() => {
-        this.claimContextInFlight = undefined;
+        this.claimContextInFlight.delete(cacheKey);
       });
 
-    return this.claimContextInFlight;
+    this.claimContextInFlight.set(cacheKey, request);
+    return request;
   }
 
-  private async fetchClaimContextWithRetry(): Promise<ClaimContextResult> {
+  private async fetchClaimContextWithRetry(requester: RequesterContext): Promise<ClaimContextResult> {
     const startedAt = Date.now();
     let retries = 0;
     let lastError = 'Unknown error';
 
     for (let attempt = 0; attempt <= this.claimContextMaxRetries; attempt += 1) {
       try {
-        const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-context`, {
+        const params = new URLSearchParams({ requesterDiscordId: requester.requesterDiscordId });
+        if (requester.requesterDiscordName) {
+          params.set('requesterDiscordName', requester.requesterDiscordName);
+        }
+        const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-context?${params.toString()}`, {
           headers: this.authHeaders(),
         });
 
