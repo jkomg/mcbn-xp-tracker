@@ -3,11 +3,12 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install dependencies
-COPY requirements.txt .
+COPY apps/web/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY apps/web/ ./
+COPY packages/ ./packages/
 
 # Cloud Run sets PORT env var (default 8080)
 ENV PORT=8080

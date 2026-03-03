@@ -3,13 +3,28 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 
 def _repo_root() -> Path:
-    # .../apps/web/app/shared_contract.py -> repo root
-    return Path(__file__).resolve().parents[3]
+    configured = os.environ.get('MONOREPO_ROOT', '').strip()
+    if configured:
+        candidate = Path(configured).expanduser().resolve()
+        if candidate.exists():
+            return candidate
+
+    here = Path(__file__).resolve()
+    for candidate in [here.parent, *here.parents]:
+        marker = candidate / 'packages' / 'api-contract' / 'spend_categories.json'
+        if marker.exists():
+            return candidate
+
+    raise RuntimeError(
+        'Unable to determine monorepo root for shared contracts. '
+        'Set MONOREPO_ROOT or ensure packages/api-contract exists in parent path.'
+    )
 
 
 def load_json(relative_path: str) -> Any:
