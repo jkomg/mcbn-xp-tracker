@@ -7,6 +7,8 @@ bearer token (`WEB_APP_API_TOKEN`) separate from staff Discord OAuth.
 from __future__ import annotations
 
 import hmac
+import threading
+import time
 from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
@@ -14,6 +16,8 @@ from flask import Blueprint, current_app, jsonify, request
 from app import sheets_client, limiter
 
 bp = Blueprint('api', __name__)
+_seen_nonces: dict[str, int] = {}
+_seen_nonces_lock = threading.Lock()
 
 
 def _limit(rule: str):
@@ -26,20 +30,115 @@ def _auth_failed():
     return jsonify({'error': 'Unauthorized'}), 401
 
 
-def require_bot_token(f):
+def _forbidden(message: str = 'Forbidden'):
+    return jsonify({'error': message}), 403
+
+
+def _configured_tokens() -> dict[str, str]:
+    return {
+        'legacy': current_app.config.get('WEB_APP_API_TOKEN', ''),
+        'read': current_app.config.get('WEB_APP_API_READ_TOKEN', ''),
+        'write': current_app.config.get('WEB_APP_API_WRITE_TOKEN', ''),
+    }
+
+
+def _provided_bearer_token() -> str:
+    header = request.headers.get('Authorization', '')
+    if not header.startswith('Bearer '):
+        return ''
+    return header.split(' ', 1)[1].strip()
+
+
+def _token_scopes(provided: str) -> set[str]:
+    tokens = _configured_tokens()
+    scopes: set[str] = set()
+    if tokens['legacy'] and hmac.compare_digest(provided, tokens['legacy']):
+        scopes.update({'read', 'write'})
+    if tokens['read'] and hmac.compare_digest(provided, tokens['read']):
+        scopes.add('read')
+    if tokens['write'] and hmac.compare_digest(provided, tokens['write']):
+        scopes.update({'read', 'write'})
+    return scopes
+
+
+def require_bot_scope(required_scope: str):
+    if required_scope not in ('read', 'write'):
+        raise ValueError(f'Invalid bot scope: {required_scope}')
+
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            tokens = _configured_tokens()
+            if not any(tokens.values()):
+                return jsonify({'error': 'Bot API token not configured on server'}), 503
+
+            provided = _provided_bearer_token()
+            if not provided:
+                return _auth_failed()
+
+            scopes = _token_scopes(provided)
+            if not scopes:
+                return _auth_failed()
+            if required_scope not in scopes:
+                return _forbidden('Insufficient token scope')
+
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return decorator
+
+
+def _enforce_replay_protection():
+    if not current_app.config.get('BOT_API_REPLAY_PROTECTION_ENABLED', False):
+        return None
+
+    ts_header = request.headers.get('X-Request-Timestamp', '').strip()
+    nonce = request.headers.get('X-Request-Nonce', '').strip()
+
+    if not ts_header or not nonce:
+        return jsonify({'error': 'Missing replay protection headers'}), 400
+
+    try:
+        req_ts = int(ts_header)
+    except ValueError:
+        return jsonify({'error': 'Invalid X-Request-Timestamp'}), 400
+
+    now = int(time.time())
+    window = int(current_app.config.get('BOT_API_REPLAY_WINDOW_SECONDS', 300))
+    if abs(now - req_ts) > window:
+        return jsonify({'error': 'Request timestamp outside allowed window'}), 400
+
+    if len(nonce) > 128:
+        return jsonify({'error': 'Invalid X-Request-Nonce'}), 400
+
+    ttl = int(current_app.config.get('BOT_API_NONCE_TTL_SECONDS', 600))
+    max_cache = int(current_app.config.get('BOT_API_NONCE_CACHE_SIZE', 10000))
+    expiry = now + ttl
+
+    with _seen_nonces_lock:
+        expired = [key for key, exp in _seen_nonces.items() if exp <= now]
+        for key in expired:
+            _seen_nonces.pop(key, None)
+
+        if nonce in _seen_nonces:
+            return jsonify({'error': 'Replay detected'}), 409
+
+        if len(_seen_nonces) >= max_cache:
+            oldest = min(_seen_nonces, key=_seen_nonces.get)
+            _seen_nonces.pop(oldest, None)
+
+        _seen_nonces[nonce] = expiry
+
+    return None
+
+
+def require_replay_protection(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        expected = current_app.config.get('WEB_APP_API_TOKEN', '')
-        if not expected:
-            return jsonify({'error': 'Bot API token not configured on server'}), 503
-
-        header = request.headers.get('Authorization', '')
-        if not header.startswith('Bearer '):
-            return _auth_failed()
-
-        provided = header.split(' ', 1)[1].strip()
-        if not hmac.compare_digest(provided, expected):
-            return _auth_failed()
+        error_response = _enforce_replay_protection()
+        if error_response:
+            return error_response
 
         return f(*args, **kwargs)
 
@@ -64,7 +163,7 @@ def health():
 
 
 @bp.route('/meta/claim-context', methods=['GET'])
-@require_bot_token
+@require_bot_scope('read')
 @_limit("60 per minute")
 def claim_context():
     backend = _require_sheets()
@@ -85,7 +184,7 @@ def claim_context():
 
 
 @bp.route('/characters/<string:name>/summary', methods=['GET'])
-@require_bot_token
+@require_bot_scope('read')
 @_limit("60 per minute")
 def character_summary(name: str):
     backend = _require_sheets()
@@ -109,7 +208,8 @@ def character_summary(name: str):
 
 
 @bp.route('/claims', methods=['POST'])
-@require_bot_token
+@require_bot_scope('write')
+@require_replay_protection
 @_limit("20 per minute")
 def submit_claim():
     backend = _require_sheets()
@@ -158,7 +258,8 @@ def submit_claim():
 
 
 @bp.route('/spends', methods=['POST'])
-@require_bot_token
+@require_bot_scope('write')
+@require_replay_protection
 @_limit("20 per minute")
 def submit_spend():
     backend = _require_sheets()

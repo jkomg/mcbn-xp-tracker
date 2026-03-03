@@ -83,6 +83,10 @@ Acceptance:
 - Breaking contract changes are blocked by tests.
 - Security checklist is part of PR template/release notes.
 
+Status:
+
+- Executed (see `docs/MONOREPO_PHASE5_HARDENING.md`).
+
 ## Rollback strategy
 
 - Keep old repos tagged at migration start.
