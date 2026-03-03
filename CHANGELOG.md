@@ -20,6 +20,14 @@
   - `apps/bot/.env` is the authoritative bot env file.
   - `CLIENT_ID` must be numeric Discord application ID (snowflake).
 
+### Documentation
+
+- Added explicit installation paths:
+  - `docs/INSTALL_LITE.md` (web-only)
+  - `docs/INSTALL_REGULAR.md` (web + bot)
+- Updated README to direct users to Lite vs Regular setup paths.
+- Updated `docs/RUN_BOT_LOCAL.md` env variable guidance to match bot runtime (`BOT_TOKEN`, `CLIENT_ID`, `TEST_GUILD_ID`).
+
 ## [2026-02-26] Security, Performance, and XP Rule Update
 
 ### Security
