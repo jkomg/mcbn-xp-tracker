@@ -13,12 +13,17 @@ A Discord bot relies on a persistent gateway connection. Running it locally avoi
 
 ## Required bot environment variables
 
+Primary bot env file: `apps/bot/.env`
+
 ```env
-DISCORD_BOT_TOKEN=...
+BOT_TOKEN=...
+CLIENT_ID=your-discord-application-id-numeric-snowflake
+TEST_GUILD_ID=your-discord-server-id
 WEB_APP_BASE_URL=https://mcbn.jkomg.us
 WEB_APP_API_TOKEN=...
-LOG_LEVEL=info
 ```
+
+For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 
 ## Local run (manual)
 

@@ -22,6 +22,8 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Go-live checklist: [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)
 - Local bot hosting runbook: [docs/RUN_BOT_LOCAL.md](docs/RUN_BOT_LOCAL.md)
 - Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
+- Install guide (Lite, web-only): [docs/INSTALL_LITE.md](docs/INSTALL_LITE.md)
+- Install guide (Regular, web + bot): [docs/INSTALL_REGULAR.md](docs/INSTALL_REGULAR.md)
 
 ### Data and Privacy Disclosure
 
@@ -109,6 +111,13 @@ Expected GCP impact:
 - **Google Sheets API usage is lower or unchanged** due to batching and append optimizations.
 
 ---
+
+## Installation Paths (Choose One)
+
+- **Lite (recommended to start):** web app only. Use [docs/INSTALL_LITE.md](docs/INSTALL_LITE.md).
+- **Regular:** web app + local Discord bot. Use [docs/INSTALL_REGULAR.md](docs/INSTALL_REGULAR.md).
+
+If you are unsure, start with Lite and add the bot later.
 
 ## Local Development
 
