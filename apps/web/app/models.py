@@ -1,6 +1,7 @@
 """Data classes for MCbN XP Tracker entities."""
 
 from dataclasses import dataclass
+from .shared_contract import load_json
 
 
 @dataclass
@@ -163,15 +164,4 @@ AGE_CATEGORIES = ['Fledgling', 'Neonate', 'Ancilla', 'Elder', 'Mortal']
 
 SECTS = ['Camarilla', 'Anarch', 'Hecata', 'Autarkis', 'NA']
 
-SPEND_CATEGORIES = [
-    'Attribute',
-    'Skill',
-    'New Skill',
-    'Discipline (In-Clan)',
-    'Discipline (Out-of-Clan)',
-    'Caitiff Discipline',
-    'Blood Sorcery Ritual',
-    'Thin-Blood Alchemy Formula',
-    'Advantage (Merit/Background)',
-    'Loresheet',
-]
+SPEND_CATEGORIES = load_json('packages/api-contract/spend_categories.json')

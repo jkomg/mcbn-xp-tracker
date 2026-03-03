@@ -1,0 +1,62 @@
+{
+  "Attribute": {
+    "multiplier": 5,
+    "description": "New rating × 5 per dot",
+    "min_dots": 1,
+    "max_dots": 5
+  },
+  "Skill": {
+    "multiplier": 3,
+    "description": "New rating × 3 per dot",
+    "min_dots": 1,
+    "max_dots": 5
+  },
+  "New Skill": {
+    "flat_cost": 3,
+    "description": "3 XP (0 → 1)",
+    "min_dots": 0,
+    "max_dots": 1
+  },
+  "Discipline (In-Clan)": {
+    "multiplier": 5,
+    "description": "New rating × 5 per dot",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Discipline (Out-of-Clan)": {
+    "multiplier": 7,
+    "description": "New rating × 7 per dot",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Caitiff Discipline": {
+    "multiplier": 6,
+    "description": "New rating × 6 per dot",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Blood Sorcery Ritual": {
+    "level_multiplier": 3,
+    "description": "Ritual level × 3",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Thin-Blood Alchemy Formula": {
+    "level_multiplier": 3,
+    "description": "Formula level × 3",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Advantage (Merit/Background)": {
+    "flat_per_dot": 3,
+    "description": "3 XP per dot purchased",
+    "min_dots": 0,
+    "max_dots": 5
+  },
+  "Loresheet": {
+    "level_multiplier": 3,
+    "description": "Purchased dot × 3 (non-sequential allowed)",
+    "min_dots": 0,
+    "max_dots": 5
+  }
+}

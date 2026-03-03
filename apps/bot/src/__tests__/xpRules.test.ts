@@ -4,10 +4,13 @@ import { calculateXpCost, validateSpendRequest } from '../xpRules';
 describe('xpRules', () => {
   it('calculates multi-dot progressive costs', () => {
     expect(calculateXpCost('Skill', 1, 3)).toBe(15);
+    expect(calculateXpCost('Attribute', 3, 4)).toBe(20);
   });
 
   it('supports flat cost categories', () => {
     expect(calculateXpCost('New Skill', 0, 1)).toBe(3);
+    expect(calculateXpCost('Advantage (Merit/Background)', 3, 4)).toBe(3);
+    expect(calculateXpCost('Loresheet', 0, 3)).toBe(9);
   });
 
   it('validates player submitted costs', () => {

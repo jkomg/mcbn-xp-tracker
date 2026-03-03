@@ -2,6 +2,7 @@ import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuild
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
 import { errorToMessage, logEvent } from '../logger';
+import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -62,17 +63,7 @@ export const data = new SlashCommandBuilder()
           .setName('category')
           .setDescription('Spend category')
           .setRequired(true)
-          .addChoices(
-            { name: 'Attribute', value: 'Attribute' },
-            { name: 'Skill', value: 'Skill' },
-            { name: 'New Skill', value: 'New Skill' },
-            { name: 'Discipline (In-Clan)', value: 'Discipline (In-Clan)' },
-            { name: 'Discipline (Out-of-Clan)', value: 'Discipline (Out-of-Clan)' },
-            { name: 'Caitiff Discipline', value: 'Caitiff Discipline' },
-            { name: 'Blood Sorcery Ritual', value: 'Blood Sorcery Ritual' },
-            { name: 'Thin-Blood Alchemy Formula', value: 'Thin-Blood Alchemy Formula' },
-            { name: 'Advantage (Merit/Background)', value: 'Advantage (Merit/Background)' },
-          ),
+          .addChoices(...SPEND_CATEGORY_CHOICES),
       )
       .addStringOption((o) => o.setName('trait').setDescription('Trait name').setRequired(true))
       .addIntegerOption((o) =>
@@ -93,17 +84,7 @@ export const data = new SlashCommandBuilder()
           .setName('category')
           .setDescription('Spend category')
           .setRequired(true)
-          .addChoices(
-            { name: 'Attribute', value: 'Attribute' },
-            { name: 'Skill', value: 'Skill' },
-            { name: 'New Skill', value: 'New Skill' },
-            { name: 'Discipline (In-Clan)', value: 'Discipline (In-Clan)' },
-            { name: 'Discipline (Out-of-Clan)', value: 'Discipline (Out-of-Clan)' },
-            { name: 'Caitiff Discipline', value: 'Caitiff Discipline' },
-            { name: 'Blood Sorcery Ritual', value: 'Blood Sorcery Ritual' },
-            { name: 'Thin-Blood Alchemy Formula', value: 'Thin-Blood Alchemy Formula' },
-            { name: 'Advantage (Merit/Background)', value: 'Advantage (Merit/Background)' },
-          ),
+          .addChoices(...SPEND_CATEGORY_CHOICES),
       )
       .addIntegerOption((o) =>
         o.setName('current_dots').setDescription('Current dots').setRequired(true).setMinValue(0).setMaxValue(10),
