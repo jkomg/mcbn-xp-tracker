@@ -39,12 +39,15 @@ set -e
 # Ensure gcloud and docker are in PATH
 export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/usr/local/bin:$PATH"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 PROJECT_ID="mcbn-xp-tracker"
 REGION="us-central1"
 SERVICE_NAME="mcbn-xp-tracker"
 REPO="us-central1-docker.pkg.dev/${PROJECT_ID}/mcbn-repo"
 IMAGE="${REPO}/${SERVICE_NAME}:latest"
-SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' .env 2>/dev/null | cut -d'=' -f2-)}"
+SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 
 if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
   echo "ERROR: SPREADSHEET_ID is required."
@@ -53,7 +56,11 @@ if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
 fi
 
 echo "==> Building Docker image (linux/amd64 for Cloud Run)..."
-docker build --platform linux/amd64 -t "${IMAGE}" .
+docker build \
+  --platform linux/amd64 \
+  -f "${SCRIPT_DIR}/Dockerfile" \
+  -t "${IMAGE}" \
+  "${REPO_ROOT}"
 
 echo "==> Pushing to Artifact Registry..."
 docker push "${IMAGE}"

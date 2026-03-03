@@ -1,4 +1,5 @@
 import type { XpSpendCategory } from './types';
+import { XP_COSTS } from './sharedContract';
 
 type CostRule = {
   description: string;
@@ -6,65 +7,24 @@ type CostRule = {
   maxDots: number;
   multiplier?: number;
   flatCost?: number;
+  flatPerDot?: number;
   levelMultiplier?: number;
 };
 
-export const XP_COSTS: Record<XpSpendCategory, CostRule> = {
-  Attribute: {
-    multiplier: 5,
-    description: 'New rating × 5 per dot',
-    minDots: 1,
-    maxDots: 5,
-  },
-  Skill: {
-    multiplier: 3,
-    description: 'New rating × 3 per dot',
-    minDots: 1,
-    maxDots: 5,
-  },
-  'New Skill': {
-    flatCost: 3,
-    description: '3 XP (0 -> 1)',
-    minDots: 0,
-    maxDots: 1,
-  },
-  'Discipline (In-Clan)': {
-    multiplier: 5,
-    description: 'New rating × 5 per dot',
-    minDots: 0,
-    maxDots: 5,
-  },
-  'Discipline (Out-of-Clan)': {
-    multiplier: 7,
-    description: 'New rating × 7 per dot',
-    minDots: 0,
-    maxDots: 5,
-  },
-  'Caitiff Discipline': {
-    multiplier: 6,
-    description: 'New rating × 6 per dot',
-    minDots: 0,
-    maxDots: 5,
-  },
-  'Blood Sorcery Ritual': {
-    levelMultiplier: 3,
-    description: 'Ritual level × 3',
-    minDots: 0,
-    maxDots: 5,
-  },
-  'Thin-Blood Alchemy Formula': {
-    levelMultiplier: 3,
-    description: 'Formula level × 3',
-    minDots: 0,
-    maxDots: 5,
-  },
-  'Advantage (Merit/Background)': {
-    multiplier: 3,
-    description: 'New rating × 3 per dot',
-    minDots: 0,
-    maxDots: 5,
-  },
-};
+const XP_COSTS_BY_CATEGORY: Record<string, CostRule> = Object.fromEntries(
+  Object.entries(XP_COSTS).map(([category, rules]) => [
+    category,
+    {
+      description: rules.description,
+      minDots: rules.min_dots,
+      maxDots: rules.max_dots,
+      multiplier: rules.multiplier,
+      flatCost: rules.flat_cost,
+      flatPerDot: rules.flat_per_dot,
+      levelMultiplier: rules.level_multiplier,
+    },
+  ]),
+);
 
 function costPerDot(multiplier: number, current: number, next: number): number {
   if (next <= current) {
@@ -81,8 +41,21 @@ function costPerDot(multiplier: number, current: number, next: number): number {
   return total;
 }
 
+function costFlatPerDot(perDot: number, current: number, next: number): number {
+  if (next <= current) {
+    throw new Error(`New dots (${next}) must be greater than current (${current})`);
+  }
+  if (current < 0 || next > 10) {
+    throw new Error('Dot values must be between 0 and 10');
+  }
+  return (next - current) * perDot;
+}
+
 export function calculateXpCost(category: XpSpendCategory, currentDots: number, newDots: number): number {
-  const rules = XP_COSTS[category];
+  const rules = XP_COSTS_BY_CATEGORY[category];
+  if (!rules) {
+    throw new Error(`Unknown spend category: ${category}`);
+  }
 
   if (currentDots < rules.minDots) {
     throw new Error(`${category}: current dots (${currentDots}) below minimum (${rules.minDots})`);
@@ -99,7 +72,14 @@ export function calculateXpCost(category: XpSpendCategory, currentDots: number, 
   }
 
   if (rules.levelMultiplier !== undefined) {
+    if (newDots < 1) {
+      throw new Error(`${category}: new dots must be at least 1`);
+    }
     return newDots * rules.levelMultiplier;
+  }
+
+  if (rules.flatPerDot !== undefined) {
+    return costFlatPerDot(rules.flatPerDot, currentDots, newDots);
   }
 
   return costPerDot(rules.multiplier as number, currentDots, newDots);
@@ -127,7 +107,7 @@ export function validateSpendRequest(
       message: matches
         ? `Cost verified: ${correctCost} XP`
         : `Cost mismatch: player submitted ${playerCost} XP, correct cost is ${correctCost} XP`,
-      description: XP_COSTS[category].description,
+      description: XP_COSTS_BY_CATEGORY[category].description,
     };
   } catch (error) {
     return {

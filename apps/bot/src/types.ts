@@ -1,13 +1,4 @@
-export type XpSpendCategory =
-  | 'Attribute'
-  | 'Skill'
-  | 'New Skill'
-  | 'Discipline (In-Clan)'
-  | 'Discipline (Out-of-Clan)'
-  | 'Caitiff Discipline'
-  | 'Blood Sorcery Ritual'
-  | 'Thin-Blood Alchemy Formula'
-  | 'Advantage (Merit/Background)';
+export type XpSpendCategory = string;
 
 export type XpClaimCategory =
   | 'posted_once'

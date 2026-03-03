@@ -9,6 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node scripts/lint.mjs",
     "format:check": "node scripts/format-check.mjs",
+    "ops:check-adapter": "bash scripts/check-adapter.sh",
+    "ops:deploy-local": "bash scripts/deploy-local.sh",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { errorToMessage, logEvent } from '../logger';
 import type { AdapterHealthReport, ClaimContext, ClaimPayload, SpendPayload, XpSummary } from '../types';
 
@@ -144,10 +145,14 @@ export class WebAppAdapter implements TrackerAdapter {
   }
 
   private async post(path: string, body: unknown, successMessage: string) {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
     const resp = await this.fetchWithTimeout(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
         ...this.authHeaders(),
       },
       body: JSON.stringify(body),

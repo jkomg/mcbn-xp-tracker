@@ -1,0 +1,15 @@
+[Unit]
+Description=MCbN Tracker Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mcbn/apps/bot
+EnvironmentFile=/opt/mcbn/apps/bot/.env
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+User=bot
+
+[Install]
+WantedBy=multi-user.target

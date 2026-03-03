@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>us.mcbn.tracker-bot</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/zsh</string>
+      <string>-lc</string>
+      <string>cd /ABSOLUTE/PATH/TO/mcbn-xp-tracker/apps/bot && npm start</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/mcbn-xp-tracker/apps/bot</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>BOT_TOKEN</key>
+      <string>REPLACE_ME</string>
+      <key>CLIENT_ID</key>
+      <string>REPLACE_ME</string>
+      <key>WEB_APP_BASE_URL</key>
+      <string>https://mcbn.jkomg.us</string>
+      <key>WEB_APP_API_TOKEN</key>
+      <string>REPLACE_ME</string>
+      <key>REQUEST_TIMEOUT_MS</key>
+      <string>10000</string>
+      <key>CLAIM_CONTEXT_CACHE_TTL_MS</key>
+      <string>30000</string>
+      <key>CLAIM_CONTEXT_STALE_IF_ERROR_MS</key>
+      <string>300000</string>
+      <key>CLAIM_CONTEXT_MAX_RETRIES</key>
+      <string>2</string>
+      <key>CLAIM_CONTEXT_RETRY_BASE_MS</key>
+      <string>250</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/mcbn-tracker-bot.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/mcbn-tracker-bot.err.log</string>
+  </dict>
+</plist>

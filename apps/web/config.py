@@ -43,3 +43,19 @@ class Config:
 
     # Shared bearer token for bot-facing API endpoints
     WEB_APP_API_TOKEN = os.environ.get('WEB_APP_API_TOKEN', '')
+    WEB_APP_API_READ_TOKEN = os.environ.get('WEB_APP_API_READ_TOKEN', '')
+    WEB_APP_API_WRITE_TOKEN = os.environ.get('WEB_APP_API_WRITE_TOKEN', '')
+
+    # Optional replay protection for bot write endpoints (/api/claims, /api/spends)
+    BOT_API_REPLAY_PROTECTION_ENABLED = os.environ.get(
+        'BOT_API_REPLAY_PROTECTION_ENABLED', 'false'
+    ).lower() in ('true', '1', 'yes')
+    BOT_API_REPLAY_WINDOW_SECONDS = int(
+        os.environ.get('BOT_API_REPLAY_WINDOW_SECONDS', '300')
+    )
+    BOT_API_NONCE_TTL_SECONDS = int(
+        os.environ.get('BOT_API_NONCE_TTL_SECONDS', '600')
+    )
+    BOT_API_NONCE_CACHE_SIZE = int(
+        os.environ.get('BOT_API_NONCE_CACHE_SIZE', '10000')
+    )

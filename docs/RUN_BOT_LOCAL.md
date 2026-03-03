@@ -29,14 +29,21 @@ npm run build
 npm start
 ```
 
+Quick health check against web adapter:
+
+```bash
+npm run ops:check-adapter
+```
+
 ## Launchd (macOS) managed run
 
 Use launchd so the bot restarts automatically.
 
-1. Create plist at `~/Library/LaunchAgents/us.mcbn.tracker-bot.plist`
-2. Point to Node entrypoint in `apps/bot`
-3. Set env vars in plist or sourced file
-4. Load agent:
+1. Start from template: `infra/bot-hosting/launchd/us.mcbn.tracker-bot.plist.template`
+2. Create plist at `~/Library/LaunchAgents/us.mcbn.tracker-bot.plist`
+3. Point to Node entrypoint in `apps/bot`
+4. Set env vars in plist or sourced file
+5. Load agent:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/us.mcbn.tracker-bot.plist
@@ -46,6 +53,8 @@ launchctl start us.mcbn.tracker-bot
 ## systemd (Linux) managed run
 
 Create `/etc/systemd/system/mcbn-tracker-bot.service`:
+
+Start from template: `infra/bot-hosting/systemd/mcbn-tracker-bot.service`
 
 ```ini
 [Unit]
@@ -80,6 +89,8 @@ sudo systemctl status mcbn-tracker-bot
 - Confirm command round-trip to web API succeeds.
 - Verify logs show successful gateway READY event.
 - After reboot, confirm auto-start works.
+- Use scripted deploy/restart path after updates:
+  - `npm run ops:deploy-local`
 
 ## Security checklist
 

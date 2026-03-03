@@ -61,6 +61,8 @@ npm run typecheck
 npm run build
 npm run test
 npm run check
+npm run ops:check-adapter
+npm run ops:deploy-local
 ```
 
 ## CI and Automation Hygiene

@@ -3,6 +3,7 @@
 Covers core book + all supplements (Players Guide, Cults of the Blood Gods,
 Chicago by Night, etc.). All spend requests are validated against these rules.
 """
+from .shared_contract import load_json
 
 
 # XP cost functions: takes (current_dots, new_dots) and returns total XP cost.
@@ -27,69 +28,7 @@ def _cost_flat_per_dot(per_dot: int, current: int, new: int) -> int:
 
 
 # ── Cost Tables ──────────────────────────────────────────────────────────────
-
-XP_COSTS = {
-    'Attribute': {
-        'multiplier': 5,
-        'description': 'New rating × 5 per dot',
-        'min_dots': 1,
-        'max_dots': 5,
-    },
-    'Skill': {
-        'multiplier': 3,
-        'description': 'New rating × 3 per dot',
-        'min_dots': 1,
-        'max_dots': 5,
-    },
-    'New Skill': {
-        'flat_cost': 3,
-        'description': '3 XP (0 → 1)',
-        'min_dots': 0,
-        'max_dots': 1,
-    },
-    'Discipline (In-Clan)': {
-        'multiplier': 5,
-        'description': 'New rating × 5 per dot',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Discipline (Out-of-Clan)': {
-        'multiplier': 7,
-        'description': 'New rating × 7 per dot',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Caitiff Discipline': {
-        'multiplier': 6,
-        'description': 'New rating × 6 per dot',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Blood Sorcery Ritual': {
-        'level_multiplier': 3,
-        'description': 'Ritual level × 3',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Thin-Blood Alchemy Formula': {
-        'level_multiplier': 3,
-        'description': 'Formula level × 3',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Advantage (Merit/Background)': {
-        'flat_per_dot': 3,
-        'description': '3 XP per dot purchased',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-    'Loresheet': {
-        'level_multiplier': 3,
-        'description': 'Purchased dot × 3 (non-sequential allowed)',
-        'min_dots': 0,
-        'max_dots': 5,
-    },
-}
+XP_COSTS = load_json('packages/rules/xp_costs.json')
 
 
 def calculate_xp_cost(category: str, current_dots: int, new_dots: int) -> int:
