@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-03-03] Monorepo Migration Completion
+
+### Ops and Reliability
+
+- Standardized single canonical local workspace to `/Users/jasonkennedy/Projects/mcbn-xp-tracker`.
+- Added go-live runbook checklist at `docs/GO_LIVE_CHECKLIST.md`.
+- Added release note document for migration completion at `docs/RELEASE_2026-03-03_MONOREPO_MIGRATION.md`.
+
+### Validation
+
+- Bot quality gate passed (`lint`, `format:check`, `typecheck`, `test`, `build`).
+- Backend pytest suite passed (`12 passed`).
+- Bot startup validated with successful guild command registration.
+
+### Configuration Fixes
+
+- Corrected bot runtime configuration expectations:
+  - `apps/bot/.env` is the authoritative bot env file.
+  - `CLIENT_ID` must be numeric Discord application ID (snowflake).
+
 ## [2026-02-26] Security, Performance, and XP Rule Update
 
 ### Security
