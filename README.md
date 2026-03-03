@@ -19,6 +19,7 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Monorepo phase 0 inventory: [docs/MONOREPO_PHASE0_INVENTORY.md](docs/MONOREPO_PHASE0_INVENTORY.md)
 - Monorepo phase 4 operations: [docs/MONOREPO_PHASE4_OPERATIONS.md](docs/MONOREPO_PHASE4_OPERATIONS.md)
 - Monorepo phase 5 hardening: [docs/MONOREPO_PHASE5_HARDENING.md](docs/MONOREPO_PHASE5_HARDENING.md)
+- Go-live checklist: [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)
 - Local bot hosting runbook: [docs/RUN_BOT_LOCAL.md](docs/RUN_BOT_LOCAL.md)
 - Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
 
