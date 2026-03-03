@@ -14,6 +14,10 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Security reporting: [SECURITY.md](SECURITY.md)
 - Support expectations: [SUPPORT.md](SUPPORT.md)
 - Notices/disclosures: [NOTICE.md](NOTICE.md)
+- Monorepo architecture draft: [docs/MONOREPO_ARCHITECTURE.md](docs/MONOREPO_ARCHITECTURE.md)
+- Monorepo migration plan: [docs/MONOREPO_MIGRATION_PLAN.md](docs/MONOREPO_MIGRATION_PLAN.md)
+- Local bot hosting runbook: [docs/RUN_BOT_LOCAL.md](docs/RUN_BOT_LOCAL.md)
+- Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
 
 ### Data and Privacy Disclosure
 
