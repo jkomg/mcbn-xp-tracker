@@ -111,7 +111,10 @@ export async function autocomplete(interaction: AutocompleteInteraction, { adapt
 
   try {
     const query = String(option.value ?? '').trim().toLowerCase();
-    const context = await adapter.getClaimContext();
+    const context = await adapter.getClaimContext({
+      requesterDiscordId: interaction.user.id,
+      requesterDiscordName: interaction.user.username,
+    });
     const values = context.activeCharacters;
 
     const startsWith = values.filter((v: string) => v.toLowerCase().startsWith(query));
@@ -134,6 +137,10 @@ export async function autocomplete(interaction: AutocompleteInteraction, { adapt
 
 export async function execute(interaction: ChatInputCommandInteraction, { adapter }: CommandContext) {
   const sub = interaction.options.getSubcommand();
+  const requester = {
+    requesterDiscordId: interaction.user.id,
+    requesterDiscordName: interaction.user.username,
+  };
   const meta = {
     interactionId: interaction.id,
     userId: interaction.user?.id,
@@ -161,7 +168,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   if (sub === 'summary') {
     const character = interaction.options.getString('character', true);
     logEvent('info', 'xp_summary_start', { ...meta, character });
-    const summary = await adapter.getSummary(character);
+    const summary = await adapter.getSummary(character, requester);
     if (!summary) {
       await interaction.reply({ content: `No summary found for ${character}.`, ephemeral: true });
       return;
@@ -198,6 +205,8 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const result = await adapter.submitClaim({
       characterName: character,
       playPeriod,
+      requesterDiscordId: requester.requesterDiscordId,
+      requesterDiscordName: requester.requesterDiscordName,
       categories: {
         [category]: link,
       },
@@ -219,6 +228,8 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
 
     const result = await adapter.submitSpend({
       characterName: character,
+      requesterDiscordId: requester.requesterDiscordId,
+      requesterDiscordName: requester.requesterDiscordName,
       spendCategory: spendCategory as XpSpendCategory,
       traitName,
       currentDots,
@@ -261,7 +272,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const startedAt = Date.now();
     await interaction.deferReply({ ephemeral: true });
     try {
-      const report = await adapter.getHealthReport();
+      const report = await adapter.getHealthReport(requester);
       const totalMs = Date.now() - startedAt;
       const claim = report.claimContext;
       const web = report.webApi;

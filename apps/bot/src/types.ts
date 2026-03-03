@@ -22,11 +22,16 @@ export type ClaimContext = {
   currentNight: string | null;
 };
 
+export type RequesterContext = {
+  requesterDiscordId: string;
+  requesterDiscordName?: string;
+};
+
 export type ClaimPayload = {
   characterName: string;
   playPeriod: string;
   categories: Partial<Record<XpClaimCategory, string>>;
-};
+} & RequesterContext;
 
 export type SpendPayload = {
   characterName: string;
@@ -36,7 +41,7 @@ export type SpendPayload = {
   newDots: number;
   isInClan: boolean;
   justification: string;
-};
+} & RequesterContext;
 
 export type ApiProbe = {
   ok: boolean;
