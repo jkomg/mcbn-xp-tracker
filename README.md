@@ -109,6 +109,12 @@ Expected GCP impact:
 
 ## Local Development
 
+Phase 1 note: repository layout is now monorepo-style.
+
+- Web app code is under `apps/web`.
+- Bot code is under `apps/bot`.
+- Root scripts (`./dev.sh`, `./deploy.sh`, etc.) are compatibility wrappers for web operations.
+
 ### Prerequisites
 
 - Python 3.12+
@@ -120,18 +126,19 @@ Expected GCP impact:
 ```bash
 # Clone and set up Python environment
 git clone <repo-url> && cd mcbn-xp-tracker
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv apps/web/venv
+source apps/web/venv/bin/activate
+pip install -r apps/web/requirements.txt
 
 # Configure environment
-cp .env.example .env
+cp apps/web/.env.example apps/web/.env
 # Edit .env with your credentials (see below)
 
 # Place your Google service account key
-# Save the JSON file as: credentials/service-account.json
+# Save the JSON file as: apps/web/credentials/service-account.json
 
 # Initialize Google Sheet tabs (safe to re-run)
+cd apps/web
 python3 -c "from app import create_app; app = create_app(); from app import sheets_client; sheets_client.setup_sheets()"
 ```
 
@@ -141,10 +148,10 @@ If your local `venv` was created with Python 3.9/3.10/3.11, recreate it with
 Python 3.12+:
 
 ```bash
-mv venv venv-old-backup
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+mv apps/web/venv apps/web/venv-old-backup
+python3 -m venv apps/web/venv
+source apps/web/venv/bin/activate
+pip install -r apps/web/requirements.txt
 ```
 
 ### Running the Dev Server
@@ -185,7 +192,7 @@ ALLOWED_DISCORD_IDS=discord-user-id-1,discord-user-id-2
 
 Dev and prod share the **same Google Sheet**. Changes you make locally (approving claims, adding characters) show up on prod immediately. The only difference is:
 
-- **Dev** reads credentials from `.env` and `credentials/service-account.json`
+- **Dev** reads credentials from `apps/web/.env` and `apps/web/credentials/service-account.json`
 - **Prod** reads credentials from GCP Secret Manager
 
 This means you can test the full app locally with real data.
@@ -385,8 +392,8 @@ Adjustments take effect immediately and are logged to the audit trail.
 | Problem | Fix |
 |---------|-----|
 | Data looks stale | Cache is 30 seconds. Wait or restart the app |
-| New staff can't log in (prod) | Edit `.env`, run `./update-staff-access.sh` |
-| New staff can't log in (dev) | Add their Discord ID to `ALLOWED_DISCORD_IDS` in `.env` |
+| New staff can't log in (prod) | Edit `apps/web/.env`, run `./update-staff-access.sh` |
+| New staff can't log in (dev) | Add their Discord ID to `ALLOWED_DISCORD_IDS` in `apps/web/.env` |
 | Character has wrong XP | Use **Adjust XP** on their detail page |
 | Player claimed wrong period | Deny with a note, they resubmit |
 | Import fails on .xlsx file | The file must be a native Google Sheet, not an uploaded Excel file. Open it in Sheets, go to File -> Save as Google Sheets, then use the new URL |
@@ -396,44 +403,26 @@ Adjustments take effect immediately and are logged to the audit trail.
 
 ## Project Structure
 
-```
+```text
 mcbn-xp-tracker/
-├── dev.sh                       # Start local dev server
-├── deploy.sh                    # Deploy to Cloud Run
-├── update-staff-access.sh       # Push Discord IDs to prod
-├── setup-secrets.sh             # One-time GCP secrets setup
-├── Dockerfile                   # Container definition
-├── requirements.txt             # Python dependencies
-├── .env                         # Local config (not committed)
-├── credentials/
-│   └── service-account.json     # Google API key (not committed)
-├── app/
-│   ├── __init__.py              # App factory
-│   ├── auth.py                  # Discord OAuth2
-│   ├── config.py                # Configuration
-│   ├── models.py                # Data classes
-│   ├── sheets.py                # Google Sheets client (the "database")
-│   ├── xp_rules.py              # V5 XP cost calculations
-│   ├── blueprints/
-│   │   ├── dashboard.py         # Home + login/logout
-│   │   ├── claims.py            # Claim review (staff)
-│   │   ├── spends.py            # Spend review (staff)
-│   │   ├── roster.py            # Character management
-│   │   ├── periods.py           # Play period management
-│   │   ├── player.py            # Player portal (Discord auth)
-│   │   ├── api.py               # JSON API endpoints
-│   │   └── audit.py             # Audit log viewer
-│   ├── templates/               # Jinja2 HTML templates
-│   │   ├── base.html            # Staff layout (sidebar + offcanvas mobile nav)
-│   │   ├── player/              # Player-facing pages
-│   │   ├── claims/              # Claim review pages
-│   │   ├── spends/              # Spend review pages
-│   │   ├── roster/              # Character management pages
-│   │   ├── periods/             # Play period pages
-│   │   └── audit/               # Audit log page
-│   └── static/
-│       ├── css/style.css        # VtM dark theme
-│       └── js/app.js            # Client-side utilities
-└── migrations/
-    └── migrate_csv_to_sheets.py # One-time CSV import (historical)
+├── apps/
+│   ├── web/                     # Flask app (Cloud Run deploy target)
+│   │   ├── app/
+│   │   ├── tests/
+│   │   ├── migrations/
+│   │   ├── credentials/
+│   │   ├── dev.sh
+│   │   ├── deploy.sh
+│   │   ├── setup-secrets.sh
+│   │   └── update-staff-access.sh
+│   └── bot/                     # Discord bot (local-host target)
+│       ├── src/
+│       ├── scripts/
+│       └── package.json
+├── docs/                        # Architecture/migration/runbooks
+├── .github/workflows/ci.yml     # Monorepo CI (web + bot checks)
+├── dev.sh                       # Wrapper -> apps/web/dev.sh
+├── deploy.sh                    # Wrapper -> apps/web/deploy.sh
+├── setup-secrets.sh             # Wrapper -> apps/web/setup-secrets.sh
+└── update-staff-access.sh       # Wrapper -> apps/web/update-staff-access.sh
 ```

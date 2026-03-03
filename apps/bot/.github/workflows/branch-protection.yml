@@ -1,0 +1,54 @@
+name: Branch Protection
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/branch-protection.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  protect-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure branch protection for main
+        uses: actions/github-script@v8
+        env:
+          REPO_ADMIN_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        with:
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          script: |
+            if (!process.env.REPO_ADMIN_TOKEN) {
+              core.setFailed('Missing REPO_ADMIN_TOKEN secret. Create a fine-grained token with administration:write for this repo.');
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'main';
+
+            await github.rest.repos.updateBranchProtection({
+              owner,
+              repo,
+              branch,
+              required_status_checks: {
+                strict: true,
+                contexts: ['quality', 'test-build'],
+              },
+              enforce_admins: true,
+              required_pull_request_reviews: {
+                dismiss_stale_reviews: true,
+                require_code_owner_reviews: false,
+                required_approving_review_count: 1,
+                require_last_push_approval: true,
+              },
+              restrictions: null,
+              allow_force_pushes: false,
+              allow_deletions: false,
+              required_conversation_resolution: true,
+              lock_branch: false,
+              allow_fork_syncing: true,
+            });

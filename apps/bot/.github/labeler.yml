@@ -1,0 +1,28 @@
+area:commands:
+  - changed-files:
+      - any-glob-to-any-file: "src/commands/**"
+
+area:adapter:
+  - changed-files:
+      - any-glob-to-any-file: "src/services/**"
+
+area:tests:
+  - changed-files:
+      - any-glob-to-any-file: "src/__tests__/**"
+
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/workflows/**"
+      - any-glob-to-any-file: ".github/dependabot.yml"
+      - any-glob-to-any-file: ".github/labeler.yml"
+
+area:docs:
+  - changed-files:
+      - any-glob-to-any-file: "*.md"
+      - any-glob-to-any-file: ".github/ISSUE_TEMPLATE/**"
+
+area:config:
+  - changed-files:
+      - any-glob-to-any-file: ".env.example"
+      - any-glob-to-any-file: "package.json"
+      - any-glob-to-any-file: "tsconfig.json"

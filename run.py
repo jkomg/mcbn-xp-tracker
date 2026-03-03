@@ -1,6 +1,5 @@
-from app import create_app
+from pathlib import Path
+import runpy
 
-app = create_app()
-
-if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=app.config['DEBUG'])
+ROOT = Path(__file__).resolve().parent
+runpy.run_path(str(ROOT / "apps" / "web" / "run.py"), run_name="__main__")

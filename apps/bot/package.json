@@ -1,0 +1,39 @@
+{
+  "name": "mcbn-tracker-bot",
+  "version": "1.0.0",
+  "description": "Discord bot front-end for MCbN XP workflows",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "vitest run src/__tests__",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node scripts/lint.mjs",
+    "format:check": "node scripts/format-check.mjs",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "typescript",
+    "xp-tracker"
+  ],
+  "author": "MCbN",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

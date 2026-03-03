@@ -15,23 +15,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Python
+      - name: Setup Python (web)
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
+          cache-dependency-path: apps/web/requirements.txt
 
-      - name: Install dependencies
+      - name: Install web dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r apps/web/requirements.txt
           pip install ruff
 
-      - name: Lint (ruff)
-        run: ruff check app tests
+      - name: Lint web (ruff)
+        run: ruff check apps/web/app apps/web/tests
 
-      - name: Run tests
-        run: pytest -q
+      - name: Run web tests
+        run: cd apps/web && pytest -q
 
-      - name: Compile sanity check
-        run: python -m compileall app tests
+      - name: Compile web sanity check
+        run: python -m compileall apps/web/app apps/web/tests
+
+      - name: Setup Node (bot)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/bot/package-lock.json
+
+      - name: Install bot dependencies
+        run: cd apps/bot && npm ci
+
+      - name: Run bot checks
+        run: cd apps/bot && npm run check
