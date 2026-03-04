@@ -15,6 +15,7 @@ describe('xp claim command validation', () => {
       guildId: 'guild-1',
       options: {
         getSubcommand: vi.fn(() => 'claim'),
+        getBoolean: vi.fn(() => null),
         getString: vi.fn((name: string) => {
           const values: Record<string, string> = {
             character: 'Alice',

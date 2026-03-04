@@ -13,7 +13,7 @@ import {
   type StringSelectMenuInteraction,
 } from 'discord.js';
 import type { TrackerAdapter } from './services/adapter';
-import type { XpClaimCategory } from './types';
+import type { RequesterContext, XpClaimCategory } from './types';
 import { parseMessageLink } from './utils/linkValidator';
 
 const CATEGORY_OPTIONS = [
@@ -51,6 +51,7 @@ type ClaimDraft = {
   periodPage: number;
   categories: XpClaimCategory[];
   links: Partial<Record<XpClaimCategory, string>>;
+  requester: RequesterContext;
   createdAt: number;
 };
 
@@ -250,13 +251,17 @@ export async function startClaimWizard(
   adapter: TrackerAdapter,
   initialCharacter?: string,
   initialPlayPeriod?: string,
+  requester?: RequesterContext,
 ) {
   cleanupExpiredDrafts();
 
-  const context = await adapter.getClaimContext({
-    requesterDiscordId: interaction.user.id,
-    requesterDiscordName: interaction.user.username,
-  });
+  const resolvedRequester: RequesterContext =
+    requester ?? {
+      requesterDiscordId: interaction.user.id,
+      requesterDiscordName: interaction.user.username,
+    };
+
+  const context = await adapter.getClaimContext(resolvedRequester);
 
   const characterName = initialCharacter && context.activeCharacters.includes(initialCharacter)
     ? initialCharacter
@@ -276,6 +281,7 @@ export async function startClaimWizard(
     periodPage: pageForValue(context.openPeriods, playPeriod),
     categories: [],
     links: {},
+    requester: resolvedRequester,
     createdAt: Date.now(),
   };
   drafts.set(interaction.user.id, draft);
@@ -461,8 +467,7 @@ export async function handleClaimWizardButton(interaction: ButtonInteraction, ad
     const result = await adapter.submitClaim({
       characterName: draft.characterName,
       playPeriod: draft.playPeriod,
-      requesterDiscordId: interaction.user.id,
-      requesterDiscordName: interaction.user.username,
+      ...draft.requester,
       categories: payloadCategories,
     });
 

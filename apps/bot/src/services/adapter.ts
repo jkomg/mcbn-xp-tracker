@@ -74,6 +74,12 @@ export class WebAppAdapter implements TrackerAdapter {
     if (requester.requesterDiscordName) {
       params.set('requesterDiscordName', requester.requesterDiscordName);
     }
+    if (requester.testMode) {
+      params.set('testMode', 'true');
+    }
+    if (requester.testAsDiscordId) {
+      params.set('testAsDiscordId', requester.testAsDiscordId);
+    }
     const url = `${this.baseUrl}/api/characters/${encodeURIComponent(characterName)}/summary?${params.toString()}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.authHeaders(),
@@ -252,6 +258,12 @@ export class WebAppAdapter implements TrackerAdapter {
         const params = new URLSearchParams({ requesterDiscordId: requester.requesterDiscordId });
         if (requester.requesterDiscordName) {
           params.set('requesterDiscordName', requester.requesterDiscordName);
+        }
+        if (requester.testMode) {
+          params.set('testMode', 'true');
+        }
+        if (requester.testAsDiscordId) {
+          params.set('testAsDiscordId', requester.testAsDiscordId);
         }
         const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-context?${params.toString()}`, {
           headers: this.authHeaders(),
