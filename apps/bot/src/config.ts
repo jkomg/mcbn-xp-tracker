@@ -55,6 +55,8 @@ const envSchema = z.object({
   REVIEW_NOTIFIER_GUILD_ID: z.string().min(1).optional(),
   REVIEW_NOTIFIER_INTERVAL_MS: z.string().optional(),
   REVIEW_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
+  AUTO_PERIOD_CREATOR_ENABLED: z.string().optional(),
+  AUTO_PERIOD_CREATOR_INTERVAL_MS: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -97,5 +99,11 @@ export const config = {
     env.REVIEW_NOTIFIER_LOOKBACK_SECONDS,
     86_400,
     'REVIEW_NOTIFIER_LOOKBACK_SECONDS',
+  ),
+  autoPeriodCreatorEnabled: (env.AUTO_PERIOD_CREATOR_ENABLED ?? 'false').toLowerCase() === 'true',
+  autoPeriodCreatorIntervalMs: parsePositiveInt(
+    env.AUTO_PERIOD_CREATOR_INTERVAL_MS,
+    3_600_000,
+    'AUTO_PERIOD_CREATOR_INTERVAL_MS',
   ),
 };

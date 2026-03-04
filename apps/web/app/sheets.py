@@ -16,7 +16,7 @@ import json
 import re
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import gspread
@@ -148,6 +148,20 @@ def _parse_int(value, default: int = 0) -> int:
 def _now_str() -> str:
     """Return current timestamp as a string for sheet cells."""
     return datetime.now().strftime('%Y%m%d %H:%M:%S')
+
+
+def _parse_yyyymmdd(value: str) -> Optional[datetime]:
+    raw = str(value or '').strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, '%Y%m%d')
+    except ValueError:
+        return None
+
+
+def _short_md(value: datetime) -> str:
+    return f'{value.month}/{value.day}'
 
 
 class _Cache:
@@ -472,6 +486,70 @@ class SheetsClient:
             submissions_open=_parse_bool(row.get('submissions_open', 'TRUE')),
             active=_parse_bool(row.get('active', 'TRUE')),
         )
+
+    def auto_create_next_period_if_due(
+        self,
+        *,
+        open_lead_days: int = 1,
+        default_length_days: int = 14,
+        default_gap_days: int = 0,
+        now: Optional[datetime] = None,
+    ) -> dict:
+        """Create the next play period when the latest period is near end-date.
+
+        Returns a dict:
+            {
+              'created': bool,
+              'reason': str,
+              'period': PlayPeriod | None,
+            }
+        """
+        periods = self.get_all_periods()
+        if not periods:
+            return {'created': False, 'reason': 'no_periods', 'period': None}
+
+        periods.sort(key=lambda p: p.night_number)
+        latest = periods[-1]
+        next_night = latest.night_number + 1
+        if any(p.night_number == next_night for p in periods):
+            return {'created': False, 'reason': 'next_already_exists', 'period': None}
+
+        latest_start = _parse_yyyymmdd(latest.start_date)
+        latest_end = _parse_yyyymmdd(latest.end_date)
+        if not latest_start or not latest_end:
+            return {'created': False, 'reason': 'invalid_latest_dates', 'period': None}
+
+        now_dt = now or datetime.now()
+        trigger_dt = latest_end - timedelta(days=max(0, int(open_lead_days)))
+        if now_dt < trigger_dt:
+            return {'created': False, 'reason': 'not_due_yet', 'period': None}
+
+        length_days = max(1, int(default_length_days))
+        gap_days = max(0, int(default_gap_days))
+        if len(periods) >= 2:
+            prev = periods[-2]
+            prev_end = _parse_yyyymmdd(prev.end_date)
+            inferred_len = (latest_end - latest_start).days
+            if inferred_len > 0:
+                length_days = inferred_len
+            if prev_end:
+                inferred_gap = (latest_start - prev_end).days
+                if inferred_gap >= 0:
+                    gap_days = inferred_gap
+
+        next_start = latest_end + timedelta(days=gap_days)
+        next_end = next_start + timedelta(days=length_days)
+        next_period = PlayPeriod(
+            period_label=f'Night {next_night} - {_short_md(next_start)} - {_short_md(next_end)}',
+            night_number=next_night,
+            start_date=next_start.strftime('%Y%m%d'),
+            end_date=next_end.strftime('%Y%m%d'),
+            session_number=next_night,
+            submissions_open=True,
+            active=True,
+        )
+        self.create_period(next_period)
+        return {'created': True, 'reason': 'created', 'period': next_period}
 
     # ── XP Claims ────────────────────────────────────────────────────────────
 

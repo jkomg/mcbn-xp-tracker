@@ -5,6 +5,7 @@ import type { BotClient } from './discord';
 import { initClientCommandCollection, registerCommands } from './registerCommands';
 import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
+import { AutoPeriodCreator } from './services/autoPeriodCreator';
 import { errorToMessage, logEvent } from './logger';
 import {
   handleClaimWizardButton,
@@ -33,10 +34,16 @@ const reviewNotifier = new ReviewNotifier(client, adapter, {
   lookbackSeconds: config.reviewNotifierLookbackSeconds,
 });
 
+const autoPeriodCreator = new AutoPeriodCreator(adapter, {
+  enabled: config.autoPeriodCreatorEnabled,
+  intervalMs: config.autoPeriodCreatorIntervalMs,
+});
+
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
   reviewNotifier.start();
+  autoPeriodCreator.start();
 });
 
 client.on('interactionCreate', async (interaction) => {

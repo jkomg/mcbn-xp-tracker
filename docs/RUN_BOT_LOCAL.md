@@ -27,6 +27,10 @@ REVIEW_NOTIFIER_ENABLED=true
 REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
 REVIEW_NOTIFIER_INTERVAL_MS=60000
 REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
+
+# Optional issue #22: auto-create next night when due
+AUTO_PERIOD_CREATOR_ENABLED=true
+AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
@@ -37,6 +41,12 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - It finds destination cubbies by matching normalized channel/thread names to character names.
 - Example: character `Cecelia` matches channel/thread name `cecelia`.
 - If no matching cubby exists, the bot logs `review_notifier_channel_missing`.
+
+### Auto-night creator behavior
+
+- When enabled, the bot periodically calls `/api/periods/auto-create`.
+- The web app creates the next night only when due, based on latest period dates/cadence.
+- This is idempotent: if not due or already created, the API returns a skip reason.
 
 ## Local run (manual)
 

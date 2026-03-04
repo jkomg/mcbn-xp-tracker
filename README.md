@@ -58,6 +58,7 @@ Player submits claim or spend request
   -> Lands in Google Sheet as "Pending"
   -> Staff reviews in dashboard -> Approve / Deny
   -> Optional bot notifier posts approve/deny update to character cubby
+  -> Optional bot-triggered auto-creation of the next night when due
   -> XP totals update automatically
   -> Everything logged to Audit Trail
 ```

@@ -388,6 +388,48 @@ def review_events():
     return jsonify({'events': events})
 
 
+@bp.route('/periods/auto-create', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("10 per minute")
+def auto_create_period():
+    backend = _require_sheets()
+    if backend:
+        return backend
+
+    if not current_app.config.get('AUTO_CREATE_PERIODS_ENABLED', False):
+        return jsonify({'created': False, 'reason': 'disabled'}), 200
+
+    result = sheets_client.auto_create_next_period_if_due(
+        open_lead_days=current_app.config.get('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', 1),
+        default_length_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', 14),
+        default_gap_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', 0),
+    )
+    period = result.get('period')
+    if result.get('created') and period:
+        sheets_client.log_action(
+            staff_user='bot-api:auto-period',
+            action_type='auto_create_period',
+            target=period.period_label,
+            details=f'Automatically created {period.period_label}',
+        )
+        return jsonify(
+            {
+                'created': True,
+                'reason': 'created',
+                'periodLabel': period.period_label,
+                'nightNumber': period.night_number,
+            }
+        ), 201
+
+    return jsonify(
+        {
+            'created': False,
+            'reason': result.get('reason', 'skipped'),
+        }
+    ), 200
+
+
 @bp.route('/claims', methods=['POST'])
 @require_bot_scope('write')
 @require_replay_protection

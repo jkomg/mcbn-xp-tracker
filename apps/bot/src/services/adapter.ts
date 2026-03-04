@@ -15,6 +15,7 @@ export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getReviewEvents(opts?: { sinceEpoch?: number; limit?: number }): Promise<ReviewEvent[]>;
+  autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -70,6 +71,12 @@ const reviewEventSchema = z.discriminatedUnion('kind', [
 
 const reviewEventsSchema = z.object({
   events: z.array(reviewEventSchema),
+});
+
+const autoCreatePeriodSchema = z.object({
+  created: z.boolean(),
+  reason: z.string().optional(),
+  periodLabel: z.string().optional(),
 });
 
 type AdapterOptions = {
@@ -166,6 +173,36 @@ export class WebAppAdapter implements TrackerAdapter {
 
     const raw = await resp.json();
     return reviewEventsSchema.parse(raw).events;
+  }
+
+  async autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/periods/auto-create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.authHeaders(),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+
+    if (!resp) {
+      return { ok: false, created: false, reason: 'unreachable' };
+    }
+    if (!resp.ok) {
+      return { ok: false, created: false, reason: `http_${resp.status}` };
+    }
+    const raw = await resp.json();
+    const parsed = autoCreatePeriodSchema.parse(raw);
+    return {
+      ok: true,
+      created: parsed.created,
+      reason: parsed.reason,
+      periodLabel: parsed.periodLabel,
+    };
   }
 
   async submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }> {
