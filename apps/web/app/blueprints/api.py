@@ -164,30 +164,73 @@ def _requester_from_query():
     requester_discord_id = str(request.args.get('requesterDiscordId', '')).strip()
     requester_discord_name = str(request.args.get('requesterDiscordName', '')).strip()
     if not requester_discord_id:
-        return None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
+        return None, None, None, None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
     if not DISCORD_ID_RE.fullmatch(requester_discord_id):
-        return None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
-    return requester_discord_id, requester_discord_name, None
+        return None, None, None, None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
+    test_mode = str(request.args.get('testMode', '')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    test_as_discord_id = str(request.args.get('testAsDiscordId', '')).strip()
+    effective_discord_id, effective_name, error = _resolve_effective_requester(
+        requester_discord_id=requester_discord_id,
+        requester_discord_name=requester_discord_name,
+        test_mode=test_mode,
+        test_as_discord_id=test_as_discord_id,
+    )
+    if error:
+        return None, None, None, None, None, error
+    return requester_discord_id, requester_discord_name, effective_discord_id, effective_name, test_mode, None
 
 
 def _requester_from_payload(payload: dict):
     requester_discord_id = str(payload.get('requesterDiscordId', '')).strip()
     requester_discord_name = str(payload.get('requesterDiscordName', '')).strip()
     if not requester_discord_id:
-        return None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
+        return None, None, None, None, None, (jsonify({'error': 'requesterDiscordId is required'}), 400)
     if not DISCORD_ID_RE.fullmatch(requester_discord_id):
-        return None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
-    return requester_discord_id, requester_discord_name, None
+        return None, None, None, None, None, (jsonify({'error': 'requesterDiscordId must be a Discord snowflake'}), 400)
+    test_mode = str(payload.get('testMode', '')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    test_as_discord_id = str(payload.get('testAsDiscordId', '')).strip()
+    effective_discord_id, effective_name, error = _resolve_effective_requester(
+        requester_discord_id=requester_discord_id,
+        requester_discord_name=requester_discord_name,
+        test_mode=test_mode,
+        test_as_discord_id=test_as_discord_id,
+    )
+    if error:
+        return None, None, None, None, None, error
+    return requester_discord_id, requester_discord_name, effective_discord_id, effective_name, test_mode, None
 
 
 def _is_requester_staff(requester_discord_id: str) -> bool:
     return is_allowed_discord_user(requester_discord_id)
 
 
-def _requester_can_access_character(char, requester_discord_id: str) -> bool:
-    if _is_requester_staff(requester_discord_id):
+def _requester_can_access_character(char, requester_discord_id: str, allow_staff_bypass: bool = True) -> bool:
+    if allow_staff_bypass and _is_requester_staff(requester_discord_id):
         return True
     return str(char.player_discord or '').strip() == requester_discord_id
+
+
+def _resolve_effective_requester(
+    requester_discord_id: str,
+    requester_discord_name: str,
+    test_mode: bool,
+    test_as_discord_id: str,
+):
+    if not test_mode:
+        return requester_discord_id, requester_discord_name, None
+
+    if not _is_requester_staff(requester_discord_id):
+        return None, None, _forbidden('Test mode is staff-only')
+
+    effective_discord_id = test_as_discord_id or requester_discord_id
+    if not DISCORD_ID_RE.fullmatch(effective_discord_id):
+        return None, None, (jsonify({'error': 'testAsDiscordId must be a Discord snowflake'}), 400)
+
+    if test_as_discord_id and test_as_discord_id != requester_discord_id:
+        effective_name = f'test-as:{test_as_discord_id}'
+    else:
+        effective_name = requester_discord_name
+    return effective_discord_id, effective_name, None
 
 
 @bp.route('/health', methods=['GET'])
@@ -202,14 +245,14 @@ def claim_context():
     backend = _require_sheets()
     if backend:
         return backend
-    requester_discord_id, _, error = _requester_from_query()
+    requester_discord_id, _, effective_discord_id, _, test_mode, error = _requester_from_query()
     if error:
         return error
 
-    if _is_requester_staff(requester_discord_id):
+    if (not test_mode) and effective_discord_id == requester_discord_id and _is_requester_staff(requester_discord_id):
         characters = sheets_client.get_active_characters()
     else:
-        characters = [c for c in sheets_client.get_characters_by_discord_id(requester_discord_id) if c.active]
+        characters = [c for c in sheets_client.get_characters_by_discord_id(effective_discord_id) if c.active]
     characters.sort(key=lambda c: c.character_name.lower())
     open_periods = _open_periods_desc()
 
@@ -229,14 +272,14 @@ def character_summary(name: str):
     backend = _require_sheets()
     if backend:
         return backend
-    requester_discord_id, _, error = _requester_from_query()
+    _, _, effective_discord_id, _, test_mode, error = _requester_from_query()
     if error:
         return error
 
     char = sheets_client.get_character(name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
-    if not _requester_can_access_character(char, requester_discord_id):
+    if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
         return jsonify({'error': 'Character not found'}), 404
 
     totals = sheets_client.get_xp_totals(name)
@@ -261,7 +304,7 @@ def submit_claim():
         return backend
 
     payload = request.get_json(silent=True) or {}
-    requester_discord_id, requester_discord_name, error = _requester_from_payload(payload)
+    requester_discord_id, requester_discord_name, effective_discord_id, effective_name, test_mode, error = _requester_from_payload(payload)
     if error:
         return error
     character_name = str(payload.get('characterName', '')).strip()
@@ -274,7 +317,7 @@ def submit_claim():
     char = sheets_client.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
-    if not _requester_can_access_character(char, requester_discord_id):
+    if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
         return jsonify({'error': 'Character not found'}), 404
 
     if not char.active:
@@ -300,7 +343,7 @@ def submit_claim():
             target=character_name,
             details=(
                 f'Claim submitted for {play_period} by '
-                f'{requester_discord_name or requester_discord_id}'
+                f'{effective_name or requester_discord_name or requester_discord_id}'
             ),
         )
     except ValueError as exc:
@@ -319,7 +362,7 @@ def submit_spend():
         return backend
 
     payload = request.get_json(silent=True) or {}
-    requester_discord_id, requester_discord_name, error = _requester_from_payload(payload)
+    requester_discord_id, requester_discord_name, effective_discord_id, effective_name, test_mode, error = _requester_from_payload(payload)
     if error:
         return error
 
@@ -344,7 +387,7 @@ def submit_spend():
     char = sheets_client.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
-    if not _requester_can_access_character(char, requester_discord_id):
+    if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
         return jsonify({'error': 'Character not found'}), 404
 
     try:
@@ -363,7 +406,7 @@ def submit_spend():
             target=character_name,
             details=(
                 f'{spend_category}: {trait_name} ({current_dots}->{new_dots}) '
-                f'for {xp_cost} XP by {requester_discord_name or requester_discord_id}'
+                f'for {xp_cost} XP by {effective_name or requester_discord_name or requester_discord_id}'
             ),
         )
     except ValueError as exc:

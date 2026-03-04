@@ -79,6 +79,28 @@ def test_claim_context_requires_requester_and_filters_to_owner():
         assert body['openPeriods'] == ['Night 77']
 
 
+def test_staff_test_mode_can_emulate_player_scope():
+    app = _app(FakeSheets())
+    with app.test_client() as client:
+        res = client.get(
+            '/api/meta/claim-context?requesterDiscordId=999999999999999999&testMode=true&testAsDiscordId=222222222222222222',
+            headers=_auth(),
+        )
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body['activeCharacters'] == ['Bob']
+
+
+def test_non_staff_cannot_use_test_mode():
+    app = _app(FakeSheets())
+    with app.test_client() as client:
+        res = client.get(
+            '/api/meta/claim-context?requesterDiscordId=111111111111111111&testMode=true',
+            headers=_auth(),
+        )
+        assert res.status_code == 403
+
+
 def test_summary_requires_character_ownership_for_non_staff():
     app = _app(FakeSheets())
     with app.test_client() as client:

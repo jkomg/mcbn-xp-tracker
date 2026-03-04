@@ -25,6 +25,8 @@ export type ClaimContext = {
 export type RequesterContext = {
   requesterDiscordId: string;
   requesterDiscordName?: string;
+  testMode?: boolean;
+  testAsDiscordId?: string;
 };
 
 export type ClaimPayload = {

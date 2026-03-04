@@ -30,19 +30,49 @@ export const data = new SlashCommandBuilder()
           .setAutocomplete(true)
           .setRequired(false),
       )
-      .addStringOption((o) => o.setName('play_period').setDescription('Optional preselected period label').setRequired(false)),
+      .addStringOption((o) => o.setName('play_period').setDescription('Optional preselected period label').setRequired(false))
+      .addBooleanOption((o) =>
+        o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('test_as_discord_id')
+          .setDescription('Staff only: player Discord ID to emulate (snowflake)')
+          .setRequired(false),
+      ),
   )
   .addSubcommand((s) =>
     s
       .setName('summary')
       .setDescription('Get XP summary for a character from the web-app adapter')
-      .addStringOption((o) => o.setName('character').setDescription('Character name').setRequired(true)),
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
+      .addBooleanOption((o) =>
+        o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('test_as_discord_id')
+          .setDescription('Staff only: player Discord ID to emulate (snowflake)')
+          .setRequired(false),
+      ),
   )
   .addSubcommand((s) =>
     s
       .setName('claim')
       .setDescription('Submit a simple XP claim via adapter')
-      .addStringOption((o) => o.setName('character').setDescription('Character name').setRequired(true))
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
       .addStringOption((o) => o.setName('play_period').setDescription('Period label').setRequired(true))
       .addStringOption((o) =>
         o
@@ -51,13 +81,28 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .addChoices(...CLAIM_CATEGORY_CHOICES),
       )
-      .addStringOption((o) => o.setName('link').setDescription('Discord post link').setRequired(true)),
+      .addStringOption((o) => o.setName('link').setDescription('Discord post link').setRequired(true))
+      .addBooleanOption((o) =>
+        o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('test_as_discord_id')
+          .setDescription('Staff only: player Discord ID to emulate (snowflake)')
+          .setRequired(false),
+      ),
   )
   .addSubcommand((s) =>
     s
       .setName('spend')
       .setDescription('Submit an XP spend request via adapter')
-      .addStringOption((o) => o.setName('character').setDescription('Character name').setRequired(true))
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
       .addStringOption((o) =>
         o
           .setName('category')
@@ -73,7 +118,16 @@ export const data = new SlashCommandBuilder()
         o.setName('new_dots').setDescription('New dots').setRequired(true).setMinValue(0).setMaxValue(10),
       )
       .addStringOption((o) => o.setName('justification').setDescription('RP rationale').setRequired(true))
-      .addBooleanOption((o) => o.setName('is_in_clan').setDescription('In-clan discipline?').setRequired(false)),
+      .addBooleanOption((o) => o.setName('is_in_clan').setDescription('In-clan discipline?').setRequired(false))
+      .addBooleanOption((o) =>
+        o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('test_as_discord_id')
+          .setDescription('Staff only: player Discord ID to emulate (snowflake)')
+          .setRequired(false),
+      ),
   )
   .addSubcommand((s) =>
     s
@@ -103,18 +157,22 @@ export const name = 'xp';
 
 export async function autocomplete(interaction: AutocompleteInteraction, { adapter }: CommandContext) {
   const option = interaction.options.getFocused(true);
-  const sub = interaction.options.getSubcommand(false);
-  if (sub !== 'submit' || option.name !== 'character') {
+  const sub = interaction.options.getSubcommand(false) ?? '';
+  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend']);
+  if (!supportsCharacterAutocomplete.has(sub) || option.name !== 'character') {
     await interaction.respond([]);
     return;
   }
 
   try {
-    const query = String(option.value ?? '').trim().toLowerCase();
-    const context = await adapter.getClaimContext({
+    const requester = {
       requesterDiscordId: interaction.user.id,
       requesterDiscordName: interaction.user.username,
-    });
+      testMode: interaction.options.getBoolean('test') ?? false,
+      testAsDiscordId: interaction.options.getString('test_as_discord_id') ?? undefined,
+    };
+    const query = String(option.value ?? '').trim().toLowerCase();
+    const context = await adapter.getClaimContext(requester);
     const values = context.activeCharacters;
 
     const startsWith = values.filter((v: string) => v.toLowerCase().startsWith(query));
@@ -140,6 +198,8 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   const requester = {
     requesterDiscordId: interaction.user.id,
     requesterDiscordName: interaction.user.username,
+    testMode: interaction.options.getBoolean('test') ?? false,
+    testAsDiscordId: interaction.options.getString('test_as_discord_id') ?? undefined,
   };
   const meta = {
     interactionId: interaction.id,
@@ -154,7 +214,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const playPeriod = interaction.options.getString('play_period') ?? undefined;
     await interaction.deferReply({ ephemeral: true });
     try {
-      await startClaimWizard(interaction, adapter, character, playPeriod);
+      await startClaimWizard(interaction, adapter, character, playPeriod, requester);
       logEvent('info', 'xp_submit_ready', meta);
     } catch (error) {
       logEvent('error', 'xp_submit_failed', { ...meta, error: errorToMessage(error) });
@@ -205,8 +265,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const result = await adapter.submitClaim({
       characterName: character,
       playPeriod,
-      requesterDiscordId: requester.requesterDiscordId,
-      requesterDiscordName: requester.requesterDiscordName,
+      ...requester,
       categories: {
         [category]: link,
       },
@@ -228,8 +287,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
 
     const result = await adapter.submitSpend({
       characterName: character,
-      requesterDiscordId: requester.requesterDiscordId,
-      requesterDiscordName: requester.requesterDiscordName,
+      ...requester,
       spendCategory: spendCategory as XpSpendCategory,
       traitName,
       currentDots,
