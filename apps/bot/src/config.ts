@@ -51,6 +51,10 @@ const envSchema = z.object({
   CLAIM_CONTEXT_STALE_IF_ERROR_MS: z.string().optional(),
   CLAIM_CONTEXT_MAX_RETRIES: z.string().optional(),
   CLAIM_CONTEXT_RETRY_BASE_MS: z.string().optional(),
+  REVIEW_NOTIFIER_ENABLED: z.string().optional(),
+  REVIEW_NOTIFIER_GUILD_ID: z.string().min(1).optional(),
+  REVIEW_NOTIFIER_INTERVAL_MS: z.string().optional(),
+  REVIEW_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -81,5 +85,17 @@ export const config = {
     env.CLAIM_CONTEXT_RETRY_BASE_MS,
     250,
     'CLAIM_CONTEXT_RETRY_BASE_MS',
+  ),
+  reviewNotifierEnabled: (env.REVIEW_NOTIFIER_ENABLED ?? 'false').toLowerCase() === 'true',
+  reviewNotifierGuildId: env.REVIEW_NOTIFIER_GUILD_ID,
+  reviewNotifierIntervalMs: parsePositiveInt(
+    env.REVIEW_NOTIFIER_INTERVAL_MS,
+    60_000,
+    'REVIEW_NOTIFIER_INTERVAL_MS',
+  ),
+  reviewNotifierLookbackSeconds: parsePositiveInt(
+    env.REVIEW_NOTIFIER_LOOKBACK_SECONDS,
+    86_400,
+    'REVIEW_NOTIFIER_LOOKBACK_SECONDS',
   ),
 };

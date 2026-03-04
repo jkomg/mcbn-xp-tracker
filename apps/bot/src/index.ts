@@ -4,6 +4,7 @@ import { config } from './config';
 import type { BotClient } from './discord';
 import { initClientCommandCollection, registerCommands } from './registerCommands';
 import { WebAppAdapter } from './services/adapter';
+import { ReviewNotifier } from './services/reviewNotifier';
 import { errorToMessage, logEvent } from './logger';
 import {
   handleClaimWizardButton,
@@ -25,9 +26,17 @@ const client = new Client({
 
 initClientCommandCollection(client);
 
+const reviewNotifier = new ReviewNotifier(client, adapter, {
+  enabled: config.reviewNotifierEnabled,
+  guildId: config.reviewNotifierGuildId,
+  intervalMs: config.reviewNotifierIntervalMs,
+  lookbackSeconds: config.reviewNotifierLookbackSeconds,
+});
+
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
+  reviewNotifier.start();
 });
 
 client.on('interactionCreate', async (interaction) => {

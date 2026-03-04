@@ -57,6 +57,7 @@ All users authenticate via Discord OAuth. Staff are identified by their Discord 
 Player submits claim or spend request
   -> Lands in Google Sheet as "Pending"
   -> Staff reviews in dashboard -> Approve / Deny
+  -> Optional bot notifier posts approve/deny update to character cubby
   -> XP totals update automatically
   -> Everything logged to Audit Trail
 ```

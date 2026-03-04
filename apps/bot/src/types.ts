@@ -66,3 +66,34 @@ export type AdapterHealthReport = {
   webApi: ApiProbe;
   claimContext: ClaimContextProbe;
 };
+
+export type ReviewEventBase = {
+  eventKey: string;
+  kind: 'claim' | 'spend';
+  rowIndex: number;
+  characterName: string;
+  status: 'approved' | 'denied';
+  reviewedBy: string;
+  reviewDate: string;
+  reviewedAtEpoch: number;
+  staffNotes: string;
+};
+
+export type ClaimReviewEvent = ReviewEventBase & {
+  kind: 'claim';
+  playPeriod: string;
+  requestedXp: number;
+  approvedXp: number;
+};
+
+export type SpendReviewEvent = ReviewEventBase & {
+  kind: 'spend';
+  spendCategory: string;
+  traitName: string;
+  currentDots: number;
+  newDots: number;
+  requestedCost: number;
+  verifiedCost: number;
+};
+
+export type ReviewEvent = ClaimReviewEvent | SpendReviewEvent;

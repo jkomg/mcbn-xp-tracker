@@ -5,6 +5,7 @@ import type {
   AdapterHealthReport,
   ClaimContext,
   ClaimPayload,
+  ReviewEvent,
   RequesterContext,
   SpendPayload,
   XpSummary,
@@ -13,6 +14,7 @@ import type {
 export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
+  getReviewEvents(opts?: { sinceEpoch?: number; limit?: number }): Promise<ReviewEvent[]>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -30,6 +32,44 @@ const claimContextSchema = z.object({
   activeCharacters: z.array(z.string()),
   openPeriods: z.array(z.string()),
   currentNight: z.string().nullable(),
+});
+
+const reviewEventSchema = z.discriminatedUnion('kind', [
+  z.object({
+    eventKey: z.string(),
+    kind: z.literal('claim'),
+    rowIndex: z.number(),
+    characterName: z.string(),
+    status: z.enum(['approved', 'denied']),
+    reviewedBy: z.string(),
+    reviewDate: z.string(),
+    reviewedAtEpoch: z.number(),
+    staffNotes: z.string(),
+    playPeriod: z.string(),
+    requestedXp: z.number(),
+    approvedXp: z.number(),
+  }),
+  z.object({
+    eventKey: z.string(),
+    kind: z.literal('spend'),
+    rowIndex: z.number(),
+    characterName: z.string(),
+    status: z.enum(['approved', 'denied']),
+    reviewedBy: z.string(),
+    reviewDate: z.string(),
+    reviewedAtEpoch: z.number(),
+    staffNotes: z.string(),
+    spendCategory: z.string(),
+    traitName: z.string(),
+    currentDots: z.number(),
+    newDots: z.number(),
+    requestedCost: z.number(),
+    verifiedCost: z.number(),
+  }),
+]);
+
+const reviewEventsSchema = z.object({
+  events: z.array(reviewEventSchema),
 });
 
 type AdapterOptions = {
@@ -100,6 +140,32 @@ export class WebAppAdapter implements TrackerAdapter {
   async getClaimContext(requester: RequesterContext, opts: { forceRefresh?: boolean } = {}): Promise<ClaimContext> {
     const result = await this.getClaimContextResult(requester, opts.forceRefresh === true);
     return result.context;
+  }
+
+  async getReviewEvents(opts: { sinceEpoch?: number; limit?: number } = {}): Promise<ReviewEvent[]> {
+    const params = new URLSearchParams();
+    if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
+      params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
+    }
+    if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
+      params.set('limit', String(Math.floor(opts.limit)));
+    }
+
+    const query = params.toString();
+    const url = `${this.baseUrl}/api/review-events${query ? `?${query}` : ''}`;
+    const resp = await this.fetchWithTimeout(url, {
+      headers: this.authHeaders(),
+    }).catch(() => null);
+
+    if (!resp) {
+      throw new Error('Unable to reach web app review-events API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app review-events API failed (${resp.status})`);
+    }
+
+    const raw = await resp.json();
+    return reviewEventsSchema.parse(raw).events;
   }
 
   async submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }> {

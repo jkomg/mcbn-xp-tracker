@@ -21,9 +21,22 @@ CLIENT_ID=your-discord-application-id-numeric-snowflake
 TEST_GUILD_ID=your-discord-server-id
 WEB_APP_BASE_URL=https://mcbn.jkomg.us
 WEB_APP_API_TOKEN=...
+
+# Optional reviewed-claim/spend notifier (issue #23)
+REVIEW_NOTIFIER_ENABLED=true
+REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
+REVIEW_NOTIFIER_INTERVAL_MS=60000
+REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
+
+### Cubby notifier behavior
+
+- When enabled, the bot polls reviewed claim/spend events and posts approve/deny updates.
+- It finds destination cubbies by matching normalized channel/thread names to character names.
+- Example: character `Cecelia` matches channel/thread name `cecelia`.
+- If no matching cubby exists, the bot logs `review_notifier_channel_missing`.
 
 ## Local run (manual)
 
