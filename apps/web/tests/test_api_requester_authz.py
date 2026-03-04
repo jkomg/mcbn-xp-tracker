@@ -2,7 +2,7 @@ from flask import Flask
 
 from app.blueprints import api as api_module
 from app.blueprints.api import bp as api_bp
-from app.models import Character, PlayPeriod
+from app.models import Character, PlayPeriod, XPClaim, SpendRequest
 
 
 def _app(fake_sheets):
@@ -57,6 +57,64 @@ class FakeSheets:
 
     def log_action(self, **kwargs):
         self.audit.append(kwargs)
+
+    def get_all_claims(self):
+        return [
+            XPClaim(
+                row_index=10,
+                character_name='Alice',
+                play_period='Night 77',
+                status='Approved',
+                xp_claimed=3,
+                approved_xp=2,
+                reviewed_by='Storyteller',
+                review_date='20260303 10:00:00',
+                st_notes='Nice RP.',
+            ),
+            XPClaim(
+                row_index=11,
+                character_name='Bob',
+                play_period='Night 77',
+                status='Pending',
+                xp_claimed=2,
+                approved_xp=0,
+                reviewed_by='',
+                review_date='',
+                st_notes='',
+            ),
+        ]
+
+    def get_all_spends(self):
+        return [
+            SpendRequest(
+                row_index=22,
+                character_name='Alice',
+                spend_category='Merit/Background',
+                trait_name='Status',
+                current_dots=2,
+                new_dots=3,
+                xp_cost=3,
+                verified_cost=3,
+                status='Approved',
+                reviewed_by='Storyteller',
+                review_date='20260303 11:00:00',
+                st_notes='Approved in full.',
+            ),
+            SpendRequest(
+                row_index=23,
+                character_name='Alice',
+                spend_category='Skill',
+                trait_name='Firearms',
+                current_dots=3,
+                new_dots=4,
+                xp_cost=12,
+                verified_cost=0,
+                status='Denied',
+                reviewed_by='Storyteller',
+                review_date='20260303 12:00:00',
+                st_notes='Need more RP support.',
+            ),
+        ]
 
 
 def _auth(token='legacy-token'):
@@ -165,3 +223,20 @@ def test_claim_and_spend_include_requester_and_enforce_ownership():
         assert ok_spend.status_code == 201
         assert fake.audit
         assert fake.audit[-1]['staff_user'] == 'bot-api:111111111111111111'
+
+
+def test_review_events_returns_only_reviewed_claims_and_spends():
+    app = _app(FakeSheets())
+    with app.test_client() as client:
+        res = client.get('/api/review-events?sinceEpoch=0&limit=10', headers=_auth())
+        assert res.status_code == 200
+        body = res.get_json()
+        assert 'events' in body
+        events = body['events']
+        assert len(events) == 3
+        assert {e['kind'] for e in events} == {'claim', 'spend'}
+        assert all(e['status'] in {'approved', 'denied'} for e in events)
+
+        denied_spend = next(e for e in events if e['kind'] == 'spend' and e['status'] == 'denied')
+        assert denied_spend['traitName'] == 'Firearms'
+        assert denied_spend['staffNotes'] == 'Need more RP support.'

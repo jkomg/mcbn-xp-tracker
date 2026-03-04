@@ -10,6 +10,7 @@ import hmac
 import re
 import threading
 import time
+from datetime import datetime, timezone
 from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
@@ -21,6 +22,17 @@ bp = Blueprint('api', __name__)
 _seen_nonces: dict[str, int] = {}
 _seen_nonces_lock = threading.Lock()
 DISCORD_ID_RE = re.compile(r'^\d{17,20}$')
+
+
+def _parse_review_date_epoch(value: str) -> int:
+    raw = str(value or '').strip()
+    if not raw:
+        return 0
+    try:
+        dt = datetime.strptime(raw, '%Y%m%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        return int(dt.timestamp())
+    except ValueError:
+        return 0
 
 
 def _limit(rule: str):
@@ -292,6 +304,88 @@ def character_summary(name: str):
             'availableXp': totals['available_xp'],
         }
     )
+
+
+@bp.route('/review-events', methods=['GET'])
+@require_bot_scope('read')
+@_limit("30 per minute")
+def review_events():
+    backend = _require_sheets()
+    if backend:
+        return backend
+
+    try:
+        limit = int(request.args.get('limit', '100'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be an integer'}), 400
+    if limit < 1 or limit > 500:
+        return jsonify({'error': 'limit must be between 1 and 500'}), 400
+
+    try:
+        since_epoch = int(request.args.get('sinceEpoch', '0'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'sinceEpoch must be an integer'}), 400
+    if since_epoch < 0:
+        return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+
+    events = []
+
+    for claim in sheets_client.get_all_claims():
+        status = str(claim.status or '').strip().lower()
+        if status not in {'approved', 'denied'}:
+            continue
+        reviewed_epoch = _parse_review_date_epoch(claim.review_date)
+        if reviewed_epoch <= since_epoch:
+            continue
+        events.append(
+            {
+                'eventKey': f'claim:{claim.row_index}:{status}:{reviewed_epoch}',
+                'kind': 'claim',
+                'rowIndex': claim.row_index,
+                'characterName': claim.character_name,
+                'status': status,
+                'reviewedBy': claim.reviewed_by,
+                'reviewDate': claim.review_date,
+                'reviewedAtEpoch': reviewed_epoch,
+                'staffNotes': claim.st_notes,
+                'playPeriod': claim.play_period,
+                'requestedXp': claim.xp_claimed,
+                'approvedXp': claim.approved_xp,
+            }
+        )
+
+    for spend in sheets_client.get_all_spends():
+        status = str(spend.status or '').strip().lower()
+        if status not in {'approved', 'denied'}:
+            continue
+        reviewed_epoch = _parse_review_date_epoch(spend.review_date)
+        if reviewed_epoch <= since_epoch:
+            continue
+        events.append(
+            {
+                'eventKey': f'spend:{spend.row_index}:{status}:{reviewed_epoch}',
+                'kind': 'spend',
+                'rowIndex': spend.row_index,
+                'characterName': spend.character_name,
+                'status': status,
+                'reviewedBy': spend.reviewed_by,
+                'reviewDate': spend.review_date,
+                'reviewedAtEpoch': reviewed_epoch,
+                'staffNotes': spend.st_notes,
+                'spendCategory': spend.spend_category,
+                'traitName': spend.trait_name,
+                'currentDots': spend.current_dots,
+                'newDots': spend.new_dots,
+                'requestedCost': spend.xp_cost,
+                'verifiedCost': spend.verified_cost,
+            }
+        )
+
+    events.sort(key=lambda e: (e['reviewedAtEpoch'], e['eventKey']))
+    if len(events) > limit:
+        events = events[-limit:]
+
+    return jsonify({'events': events})
 
 
 @bp.route('/claims', methods=['POST'])

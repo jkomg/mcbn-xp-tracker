@@ -43,11 +43,18 @@ TEST_GUILD_ID=your-discord-server-id
 
 WEB_APP_BASE_URL=http://127.0.0.1:5001
 WEB_APP_API_TOKEN=optional-if-web-api-token-enabled
+
+# Optional: issue #23 cubby notifications for approved/denied claim/spend
+REVIEW_NOTIFIER_ENABLED=true
+REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
+REVIEW_NOTIFIER_INTERVAL_MS=60000
+REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 ```
 
 Notes:
 - `CLIENT_ID` must be numeric (Discord snowflake), not OAuth secret-like text.
 - Keep this file local; never commit it.
+- Cubby notifications match channel/thread names to `character_name` (normalized).
 
 ## 4) Install Bot Dependencies
 
