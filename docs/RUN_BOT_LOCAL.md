@@ -38,6 +38,7 @@ CLAIM_REMINDER_INTERVAL_MS=900000
 CLAIM_REMINDER_HOUR_LOCAL=8
 CLAIM_REMINDER_TIMEZONE=America/Chicago
 CLAIM_REMINDER_SNOOZE_HOURS=24
+BOT_TESTER_IDS=101109440702353408
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
@@ -62,6 +63,19 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
   - `Start Claim` (use `/xp submit` or `/xp claim`)
   - `Not Now` (snoozes reminders)
   - `Stop Reminders` (opt-out)
+
+### Robust Discord test harness
+
+- Add your Discord ID to `BOT_TESTER_IDS` in `apps/bot/.env`.
+- Use `/xp test-reminder` to send a dummy DM without touching Google Sheets.
+- Recommended command for full UI/button test:
+  - `/xp test-reminder target_user:@you current_night:"Night TEST" dummy_characters:"Dummy One, Dummy Two"`
+- Then click:
+  - `Start Claim`: confirms manual claim path.
+  - `Not Now`: writes a snooze preference.
+  - `Stop Reminders`: writes opt-out preference.
+- Preference state file (local bot host):
+  - `apps/bot/data/claim-reminder-preferences.json`
 
 ## Local run (manual)
 

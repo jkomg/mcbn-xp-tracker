@@ -25,6 +25,26 @@ type ClaimReminderServiceConfig = {
 
 const PREFS_PATH = path.resolve(process.cwd(), 'data', 'claim-reminder-preferences.json');
 
+export function buildClaimReminderText(currentNight: string, characterNames: string[]): string {
+  const characterList = characterNames.map((c) => `- ${c}`).join('\n');
+  return [
+    `Sunrise reminder for **${currentNight}**.`,
+    '',
+    'Characters with no submitted claim yet:',
+    characterList || '- none',
+    '',
+    'Use `/xp submit` (wizard) or `/xp claim` when ready.',
+  ].join('\n');
+}
+
+export function buildClaimReminderActionRow() {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_START).setStyle(ButtonStyle.Success).setLabel('Start Claim'),
+    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_NOT_NOW).setStyle(ButtonStyle.Secondary).setLabel('Not Now'),
+    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_OPT_OUT).setStyle(ButtonStyle.Danger).setLabel('Stop Reminders'),
+  );
+}
+
 function ensurePrefsDir() {
   fs.mkdirSync(path.dirname(PREFS_PATH), { recursive: true });
 }
@@ -161,23 +181,10 @@ export class ClaimReminderService {
           continue;
         }
 
-        const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_START).setStyle(ButtonStyle.Success).setLabel('Start Claim'),
-          new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_NOT_NOW).setStyle(ButtonStyle.Secondary).setLabel('Not Now'),
-          new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_OPT_OUT).setStyle(ButtonStyle.Danger).setLabel('Stop Reminders'),
-        );
-
-        const characterList = target.characterNames.map((c) => `- ${c}`).join('\n');
+        const actionRow = buildClaimReminderActionRow();
         await user
           .send({
-            content: [
-              `Sunrise reminder for **${snapshot.currentNight}**.`,
-              '',
-              'Characters with no submitted claim yet:',
-              characterList || '- none',
-              '',
-              'Use `/xp submit` (wizard) or `/xp claim` when ready.',
-            ].join('\n'),
+            content: buildClaimReminderText(snapshot.currentNight, target.characterNames),
             components: [actionRow],
           })
           .catch(() => null);

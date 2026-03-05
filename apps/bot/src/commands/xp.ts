@@ -1,8 +1,10 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
+import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
+import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -151,6 +153,23 @@ export const data = new SlashCommandBuilder()
     s
       .setName('health')
       .setDescription('Check bot-to-web API health, latency, and claim-context freshness'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('test-reminder')
+      .setDescription('Staff test: send a dummy sunrise reminder DM')
+      .addUserOption((o) =>
+        o.setName('target_user').setDescription('User to receive test DM (default: you)').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o.setName('current_night').setDescription('Override current night label').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('dummy_characters')
+          .setDescription('Comma-separated dummy character names')
+          .setRequired(false),
+      ),
   );
 
 export const name = 'xp';
@@ -323,6 +342,42 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       logEvent('warn', 'xp_spend_cost_invalid', { ...meta, category, currentDots, newDots, message });
       await interaction.reply({ content: message, ephemeral: true });
     }
+    return;
+  }
+
+  if (sub === 'test-reminder') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({
+        content: 'This test command is restricted. Add your Discord ID to BOT_TESTER_IDS.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const targetUser = interaction.options.getUser('target_user') ?? interaction.user;
+    const currentNight = interaction.options.getString('current_night') ?? 'Night TEST';
+    const dummyRaw = interaction.options.getString('dummy_characters') ?? 'Dummy Character';
+    const characters = dummyRaw
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0)
+      .slice(0, 20);
+
+    const row = buildClaimReminderActionRow();
+    const sent = await targetUser
+      .send({
+        content: buildClaimReminderText(currentNight, characters),
+        components: [row],
+      })
+      .then(() => true)
+      .catch(() => false);
+
+    await interaction.reply({
+      content: sent
+        ? `Sent test reminder DM to <@${targetUser.id}> for ${characters.length} character(s).`
+        : `Could not DM <@${targetUser.id}>. Check DM privacy settings.`,
+      ephemeral: true,
+    });
     return;
   }
 

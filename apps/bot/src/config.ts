@@ -52,6 +52,8 @@ const envSchema = z.object({
   BOT_TOKEN: z.string().min(1, 'BOT_TOKEN is required.'),
   CLIENT_ID: z.string().min(1).optional(),
   TEST_GUILD_ID: z.string().min(1).optional(),
+  TEST_REQUESTER_DISCORD_ID: z.string().min(1).optional(),
+  BOT_TESTER_IDS: z.string().optional(),
   WEB_APP_BASE_URL: z.string().default('http://127.0.0.1:5001').transform(validateBaseUrl),
   WEB_APP_API_TOKEN: z.string().min(1).optional(),
   REQUEST_TIMEOUT_MS: z.string().optional(),
@@ -74,10 +76,24 @@ const envSchema = z.object({
 
 const env = envSchema.parse(process.env);
 
+function parseCsvIds(input: string | undefined): Set<string> {
+  if (!input) {
+    return new Set<string>();
+  }
+  return new Set(
+    input
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0),
+  );
+}
+
 export const config = {
   botToken: env.BOT_TOKEN,
   clientId: env.CLIENT_ID,
   testGuildId: env.TEST_GUILD_ID,
+  testRequesterDiscordId: env.TEST_REQUESTER_DISCORD_ID,
+  testerDiscordIds: parseCsvIds(env.BOT_TESTER_IDS),
   webAppBaseUrl: env.WEB_APP_BASE_URL,
   webAppApiToken: env.WEB_APP_API_TOKEN,
   requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, 10_000, 'REQUEST_TIMEOUT_MS'),
@@ -133,3 +149,7 @@ export const config = {
     'CLAIM_REMINDER_SNOOZE_HOURS',
   ),
 };
+
+if (config.testRequesterDiscordId) {
+  config.testerDiscordIds.add(config.testRequesterDiscordId);
+}
