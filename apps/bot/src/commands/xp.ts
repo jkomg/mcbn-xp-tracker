@@ -163,6 +163,11 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((s) =>
     s
+      .setName('help')
+      .setDescription('Show quick player help for XP claims, spends, and summaries'),
+  )
+  .addSubcommand((s) =>
+    s
       .setName('test-reminder')
       .setDescription('Staff test: post a dummy cubby reminder in-character channel')
       .addStringOption((o) =>
@@ -349,6 +354,24 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       logEvent('warn', 'xp_spend_cost_invalid', { ...meta, category, currentDots, newDots, message });
       await interaction.reply({ content: message, ephemeral: true });
     }
+    return;
+  }
+
+  if (sub === 'help') {
+    const lines = [
+      '**XP Quick Help**',
+      '- `/xp submit`: guided XP claim wizard (recommended)',
+      '- `/xp claim`: quick single-category claim',
+      '- `/xp spend`: submit an XP spend request',
+      '- `/xp summary`: show your character XP totals',
+      '- `/xp spend-cost`: preview spend XP cost',
+      '',
+      `Web player interface: ${config.webAppBaseUrl}/player/`,
+    ];
+    if (config.playerGuideUrl) {
+      lines.push(`Full player guide: ${config.playerGuideUrl}`);
+    }
+    await interaction.reply({ content: lines.join('\n'), ephemeral: true });
     return;
   }
 

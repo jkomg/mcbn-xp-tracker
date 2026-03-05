@@ -3,6 +3,7 @@ import type { AutocompleteInteraction, ChatInputCommandInteraction } from 'disco
 
 describe('xp claim command validation', () => {
   it('rejects invalid discord message links before sending to adapter', async () => {
+    vi.resetModules();
     vi.stubEnv('BOT_TOKEN', 'test-token');
     vi.stubEnv('WEB_APP_BASE_URL', 'http://127.0.0.1:5001');
     const { execute } = await import('../commands/xp');
@@ -44,6 +45,7 @@ describe('xp claim command validation', () => {
   });
 
   it('autocompletes play_period from active open periods', async () => {
+    vi.resetModules();
     vi.stubEnv('BOT_TOKEN', 'test-token');
     vi.stubEnv('WEB_APP_BASE_URL', 'http://127.0.0.1:5001');
     const { autocomplete } = await import('../commands/xp');
@@ -77,6 +79,37 @@ describe('xp claim command validation', () => {
       { name: 'Night 80', value: 'Night 80' },
       { name: 'Night 79', value: 'Night 79' },
     ]);
+
+    vi.unstubAllEnvs();
+  });
+
+  it('returns player help with configured guide URL', async () => {
+    vi.resetModules();
+    vi.stubEnv('BOT_TOKEN', 'test-token');
+    vi.stubEnv('WEB_APP_BASE_URL', 'http://127.0.0.1:5001');
+    vi.stubEnv('PLAYER_GUIDE_URL', 'https://discord.com/channels/1/2/3');
+    const { execute } = await import('../commands/xp');
+
+    const reply = vi.fn();
+    const interaction = {
+      id: 'interaction-3',
+      user: { id: 'user-1', username: 'tester' },
+      guildId: 'guild-1',
+      options: {
+        getSubcommand: vi.fn(() => 'help'),
+        getBoolean: vi.fn(() => null),
+        getString: vi.fn(() => null),
+      },
+      reply,
+    } as unknown as ChatInputCommandInteraction;
+
+    await execute(interaction, { adapter: {} } as never);
+
+    expect(reply).toHaveBeenCalledTimes(1);
+    const payload = reply.mock.calls[0][0] as { content: string; ephemeral: boolean };
+    expect(payload.ephemeral).toBe(true);
+    expect(payload.content).toContain('`/xp submit`');
+    expect(payload.content).toContain('Full player guide: https://discord.com/channels/1/2/3');
 
     vi.unstubAllEnvs();
   });
