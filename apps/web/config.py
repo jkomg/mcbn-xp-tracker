@@ -40,6 +40,15 @@ class Config:
 
     # Cache TTL in seconds for Google Sheets reads
     SHEETS_CACHE_TTL = int(os.environ.get('SHEETS_CACHE_TTL', '30'))
+    SHEETS_VALIDATE_HEADERS_ON_STARTUP = os.environ.get(
+        'SHEETS_VALIDATE_HEADERS_ON_STARTUP', 'false'
+    ).lower() in ('true', '1', 'yes')
+    SHEETS_STARTUP_MAX_RETRIES = int(
+        os.environ.get('SHEETS_STARTUP_MAX_RETRIES', '5')
+    )
+    SHEETS_STARTUP_RETRY_BASE_SECONDS = float(
+        os.environ.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', '1.5')
+    )
 
     # Shared bearer token for bot-facing API endpoints
     WEB_APP_API_TOKEN = os.environ.get('WEB_APP_API_TOKEN', '')

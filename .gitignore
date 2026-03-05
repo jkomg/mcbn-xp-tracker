@@ -29,6 +29,7 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+.run/
 
 # Google Cloud SDK (installed locally, not part of the project)
 google-cloud-sdk/

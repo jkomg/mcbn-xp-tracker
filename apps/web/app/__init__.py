@@ -34,6 +34,9 @@ def create_app():
             credentials_json=app.config.get('GOOGLE_CREDENTIALS_JSON', ''),
             spreadsheet_id=app.config['SPREADSHEET_ID'],
             cache_ttl=app.config.get('SHEETS_CACHE_TTL', 30),
+            validate_headers_on_startup=app.config.get('SHEETS_VALIDATE_HEADERS_ON_STARTUP', False),
+            startup_max_retries=app.config.get('SHEETS_STARTUP_MAX_RETRIES', 5),
+            startup_retry_base_seconds=app.config.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', 1.5),
         )
 
     # Register blueprints
