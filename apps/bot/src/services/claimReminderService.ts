@@ -21,7 +21,9 @@ type ClaimReminderServiceConfig = {
   enabled: boolean;
   guildId?: string;
   intervalMs: number;
+  weekdayLocal: number;
   hourLocal: number;
+  minuteLocal: number;
   timezone: string;
 };
 
@@ -98,20 +100,41 @@ export function setClaimReminderOptOut(discordId: string, optOut: boolean) {
   writePrefs(prefs);
 }
 
-function dayAndHourInZone(now: Date, timeZone: string): { dayKey: string; hour: number } {
+function dayHourMinuteInZone(
+  now: Date,
+  timeZone: string,
+): { dayKey: string; weekday: number; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    weekday: 'short',
     hour: '2-digit',
+    minute: '2-digit',
     hour12: false,
   }).formatToParts(now);
 
   const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   const dayKey = `${pick('year')}-${pick('month')}-${pick('day')}`;
   const hour = Number.parseInt(pick('hour'), 10);
-  return { dayKey, hour: Number.isFinite(hour) ? hour : 0 };
+  const minute = Number.parseInt(pick('minute'), 10);
+  const weekdayLabel = pick('weekday').toLowerCase();
+  const weekdayMap: Record<string, number> = {
+    sun: 0,
+    mon: 1,
+    tue: 2,
+    wed: 3,
+    thu: 4,
+    fri: 5,
+    sat: 6,
+  };
+  return {
+    dayKey,
+    weekday: weekdayMap[weekdayLabel] ?? -1,
+    hour: Number.isFinite(hour) ? hour : 0,
+    minute: Number.isFinite(minute) ? minute : 0,
+  };
 }
 
 export class ClaimReminderService {
@@ -143,7 +166,9 @@ export class ClaimReminderService {
     void this.tick();
     logEvent('info', 'claim_reminder_service_started', {
       intervalMs: this.config.intervalMs,
+      weekdayLocal: this.config.weekdayLocal,
       hourLocal: this.config.hourLocal,
+      minuteLocal: this.config.minuteLocal,
       timezone: this.config.timezone,
     });
   }
@@ -163,8 +188,15 @@ export class ClaimReminderService {
     this.running = true;
     try {
       const now = new Date();
-      const { dayKey, hour } = dayAndHourInZone(now, this.config.timezone);
+      const { dayKey, weekday, hour, minute } = dayHourMinuteInZone(now, this.config.timezone);
+      if (weekday !== this.config.weekdayLocal) {
+        return;
+      }
       if (hour !== this.config.hourLocal) {
+        return;
+      }
+      const windowMinutes = Math.max(1, Math.ceil(this.config.intervalMs / 60_000));
+      if (minute < this.config.minuteLocal || minute >= this.config.minuteLocal + windowMinutes) {
         return;
       }
       if (dayKey === this.lastRunDayKey) {
@@ -226,7 +258,7 @@ export class ClaimReminderService {
             discordId: target.discordId,
             error: errorToMessage(error),
           });
-          continue
+          continue;
         }
       }
 

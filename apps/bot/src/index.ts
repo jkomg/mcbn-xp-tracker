@@ -7,6 +7,12 @@ import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
 import { AutoPeriodCreator } from './services/autoPeriodCreator';
 import { ClaimReminderService } from './services/claimReminderService';
+import {
+  PassageOfTimeService,
+  PASSAGE_DOWNTIME_MESSAGE,
+  PASSAGE_SUNRISE_MESSAGE,
+  PASSAGE_SUNSET_MESSAGE,
+} from './services/passageOfTimeService';
 import { errorToMessage, logEvent } from './logger';
 import { handleClaimReminderButton } from './claimReminderInteractions';
 import {
@@ -45,8 +51,54 @@ const claimReminderService = new ClaimReminderService(client, adapter, {
   enabled: config.claimReminderEnabled,
   guildId: config.claimReminderGuildId,
   intervalMs: config.claimReminderIntervalMs,
+  weekdayLocal: config.claimReminderWeekdayLocal,
   hourLocal: config.claimReminderHourLocal,
+  minuteLocal: config.claimReminderMinuteLocal,
   timezone: config.claimReminderTimezone,
+});
+
+const passageOfTimeService = new PassageOfTimeService(client, {
+  enabled: config.passageOfTimeEnabled,
+  guildId: config.passageOfTimeGuildId,
+  channelId: config.passageOfTimeChannelId,
+  testMode: config.passageOfTimeTestMode,
+  testChannelId: config.passageOfTimeTestChannelId,
+  intervalMs: config.passageOfTimeIntervalMs,
+  timezone: config.passageOfTimeTimezone,
+  mentionRoleIds: [
+    config.passageOfTimeKindredRoleId ?? '',
+    config.passageOfTimeGhoulRoleId ?? '',
+    config.passageOfTimeMortalRoleId ?? '',
+  ],
+  events: [
+    {
+      name: 'sunrise',
+      weekdayLocal: config.passageSunriseWeekdayLocal,
+      hourLocal: config.passageSunriseHourLocal,
+      minuteLocal: config.passageSunriseMinuteLocal,
+      anchorDate: config.passageSunriseAnchorDate,
+      cadenceWeeks: 2,
+      body: PASSAGE_SUNRISE_MESSAGE,
+    },
+    {
+      name: 'sunset',
+      weekdayLocal: config.passageSunsetWeekdayLocal,
+      hourLocal: config.passageSunsetHourLocal,
+      minuteLocal: config.passageSunsetMinuteLocal,
+      anchorDate: config.passageSunsetAnchorDate,
+      cadenceWeeks: 2,
+      body: PASSAGE_SUNSET_MESSAGE,
+    },
+    {
+      name: 'downtime',
+      weekdayLocal: config.passageDowntimeWeekdayLocal,
+      hourLocal: config.passageDowntimeHourLocal,
+      minuteLocal: config.passageDowntimeMinuteLocal,
+      anchorDate: config.passageDowntimeAnchorDate,
+      cadenceWeeks: 8,
+      body: PASSAGE_DOWNTIME_MESSAGE,
+    },
+  ],
 });
 
 client.once('ready', async () => {
@@ -55,6 +107,7 @@ client.once('ready', async () => {
   reviewNotifier.start();
   autoPeriodCreator.start();
   claimReminderService.start();
+  passageOfTimeService.start();
 });
 
 client.on('interactionCreate', async (interaction) => {

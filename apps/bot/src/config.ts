@@ -26,6 +26,22 @@ function parseHour(input: string | undefined, fallback: number, key: string): nu
   return value;
 }
 
+function parseMinute(input: string | undefined, fallback: number, key: string): number {
+  const value = parseNonNegativeInt(input, fallback, key);
+  if (value > 59) {
+    throw new Error(`${key} must be between 0 and 59 (received "${value}").`);
+  }
+  return value;
+}
+
+function parseWeekday(input: string | undefined, fallback: number, key: string): number {
+  const value = parseNonNegativeInt(input, fallback, key);
+  if (value > 6) {
+    throw new Error(`${key} must be between 0 (Sunday) and 6 (Saturday) (received "${value}").`);
+  }
+  return value;
+}
+
 function validateBaseUrl(value: string): string {
   let parsed: URL;
   try {
@@ -71,9 +87,34 @@ const envSchema = z.object({
   CLAIM_REMINDER_GUILD_ID: z.string().optional(),
   CLAIM_REMINDER_INTERVAL_MS: z.string().optional(),
   CLAIM_REMINDER_HOUR_LOCAL: z.string().optional(),
+  CLAIM_REMINDER_MINUTE_LOCAL: z.string().optional(),
+  CLAIM_REMINDER_WEEKDAY_LOCAL: z.string().optional(),
   CLAIM_REMINDER_TIMEZONE: z.string().optional(),
   CLAIM_REMINDER_SNOOZE_HOURS: z.string().optional(),
+  PASSAGE_OF_TIME_ENABLED: z.string().optional(),
+  PASSAGE_OF_TIME_GUILD_ID: z.string().optional(),
+  PASSAGE_OF_TIME_CHANNEL_ID: z.string().optional(),
+  PASSAGE_OF_TIME_TEST_MODE: z.string().optional(),
+  PASSAGE_OF_TIME_TEST_CHANNEL_ID: z.string().optional(),
+  PASSAGE_OF_TIME_INTERVAL_MS: z.string().optional(),
+  PASSAGE_OF_TIME_TIMEZONE: z.string().optional(),
+  PASSAGE_OF_TIME_KINDRED_ROLE_ID: z.string().optional(),
+  PASSAGE_OF_TIME_GHOUL_ROLE_ID: z.string().optional(),
+  PASSAGE_OF_TIME_MORTAL_ROLE_ID: z.string().optional(),
+  PASSAGE_SUNRISE_HOUR_LOCAL: z.string().optional(),
+  PASSAGE_SUNRISE_MINUTE_LOCAL: z.string().optional(),
+  PASSAGE_SUNRISE_WEEKDAY_LOCAL: z.string().optional(),
+  PASSAGE_SUNRISE_ANCHOR_DATE: z.string().optional(),
+  PASSAGE_SUNSET_HOUR_LOCAL: z.string().optional(),
+  PASSAGE_SUNSET_MINUTE_LOCAL: z.string().optional(),
+  PASSAGE_SUNSET_WEEKDAY_LOCAL: z.string().optional(),
+  PASSAGE_SUNSET_ANCHOR_DATE: z.string().optional(),
+  PASSAGE_DOWNTIME_HOUR_LOCAL: z.string().optional(),
+  PASSAGE_DOWNTIME_MINUTE_LOCAL: z.string().optional(),
+  PASSAGE_DOWNTIME_WEEKDAY_LOCAL: z.string().optional(),
+  PASSAGE_DOWNTIME_ANCHOR_DATE: z.string().optional(),
   PLAYER_GUIDE_URL: z.string().url().optional(),
+  PLAYER_WEB_URL: z.string().url().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -145,13 +186,70 @@ export const config = {
     'CLAIM_REMINDER_INTERVAL_MS',
   ),
   claimReminderHourLocal: parseHour(env.CLAIM_REMINDER_HOUR_LOCAL, 8, 'CLAIM_REMINDER_HOUR_LOCAL'),
+  claimReminderMinuteLocal: parseMinute(env.CLAIM_REMINDER_MINUTE_LOCAL, 0, 'CLAIM_REMINDER_MINUTE_LOCAL'),
+  claimReminderWeekdayLocal: parseWeekday(
+    env.CLAIM_REMINDER_WEEKDAY_LOCAL,
+    0,
+    'CLAIM_REMINDER_WEEKDAY_LOCAL',
+  ),
   claimReminderTimezone: env.CLAIM_REMINDER_TIMEZONE ?? 'America/Chicago',
   claimReminderSnoozeHours: parsePositiveInt(
     env.CLAIM_REMINDER_SNOOZE_HOURS,
     24,
     'CLAIM_REMINDER_SNOOZE_HOURS',
   ),
+  passageOfTimeEnabled: (env.PASSAGE_OF_TIME_ENABLED ?? 'false').toLowerCase() === 'true',
+  passageOfTimeGuildId: env.PASSAGE_OF_TIME_GUILD_ID ?? env.TEST_GUILD_ID,
+  passageOfTimeChannelId: env.PASSAGE_OF_TIME_CHANNEL_ID,
+  passageOfTimeTestMode: (env.PASSAGE_OF_TIME_TEST_MODE ?? 'true').toLowerCase() === 'true',
+  passageOfTimeTestChannelId: env.PASSAGE_OF_TIME_TEST_CHANNEL_ID,
+  passageOfTimeIntervalMs: parsePositiveInt(
+    env.PASSAGE_OF_TIME_INTERVAL_MS,
+    900_000,
+    'PASSAGE_OF_TIME_INTERVAL_MS',
+  ),
+  passageOfTimeTimezone: env.PASSAGE_OF_TIME_TIMEZONE ?? 'America/Chicago',
+  passageOfTimeKindredRoleId: env.PASSAGE_OF_TIME_KINDRED_ROLE_ID,
+  passageOfTimeGhoulRoleId: env.PASSAGE_OF_TIME_GHOUL_ROLE_ID,
+  passageOfTimeMortalRoleId: env.PASSAGE_OF_TIME_MORTAL_ROLE_ID,
+  passageSunriseHourLocal: parseHour(env.PASSAGE_SUNRISE_HOUR_LOCAL, 12, 'PASSAGE_SUNRISE_HOUR_LOCAL'),
+  passageSunriseMinuteLocal: parseMinute(
+    env.PASSAGE_SUNRISE_MINUTE_LOCAL,
+    0,
+    'PASSAGE_SUNRISE_MINUTE_LOCAL',
+  ),
+  passageSunriseWeekdayLocal: parseWeekday(
+    env.PASSAGE_SUNRISE_WEEKDAY_LOCAL,
+    0,
+    'PASSAGE_SUNRISE_WEEKDAY_LOCAL',
+  ),
+  passageSunriseAnchorDate: env.PASSAGE_SUNRISE_ANCHOR_DATE ?? '',
+  passageSunsetHourLocal: parseHour(env.PASSAGE_SUNSET_HOUR_LOCAL, 12, 'PASSAGE_SUNSET_HOUR_LOCAL'),
+  passageSunsetMinuteLocal: parseMinute(env.PASSAGE_SUNSET_MINUTE_LOCAL, 0, 'PASSAGE_SUNSET_MINUTE_LOCAL'),
+  passageSunsetWeekdayLocal: parseWeekday(
+    env.PASSAGE_SUNSET_WEEKDAY_LOCAL,
+    2,
+    'PASSAGE_SUNSET_WEEKDAY_LOCAL',
+  ),
+  passageSunsetAnchorDate: env.PASSAGE_SUNSET_ANCHOR_DATE ?? '',
+  passageDowntimeHourLocal: parseHour(
+    env.PASSAGE_DOWNTIME_HOUR_LOCAL,
+    12,
+    'PASSAGE_DOWNTIME_HOUR_LOCAL',
+  ),
+  passageDowntimeMinuteLocal: parseMinute(
+    env.PASSAGE_DOWNTIME_MINUTE_LOCAL,
+    0,
+    'PASSAGE_DOWNTIME_MINUTE_LOCAL',
+  ),
+  passageDowntimeWeekdayLocal: parseWeekday(
+    env.PASSAGE_DOWNTIME_WEEKDAY_LOCAL,
+    0,
+    'PASSAGE_DOWNTIME_WEEKDAY_LOCAL',
+  ),
+  passageDowntimeAnchorDate: env.PASSAGE_DOWNTIME_ANCHOR_DATE ?? '',
   playerGuideUrl: env.PLAYER_GUIDE_URL,
+  playerWebUrl: env.PLAYER_WEB_URL ?? `${env.WEB_APP_BASE_URL}/player/`,
 };
 
 if (config.testRequesterDiscordId) {

@@ -58,12 +58,31 @@ AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
 CLAIM_REMINDER_ENABLED=true
 CLAIM_REMINDER_GUILD_ID=your-discord-server-id
 CLAIM_REMINDER_INTERVAL_MS=900000
-CLAIM_REMINDER_HOUR_LOCAL=8
+CLAIM_REMINDER_WEEKDAY_LOCAL=0
+CLAIM_REMINDER_HOUR_LOCAL=12
+CLAIM_REMINDER_MINUTE_LOCAL=0
 CLAIM_REMINDER_TIMEZONE=America/Chicago
 CLAIM_REMINDER_SNOOZE_HOURS=24
 
+# Optional passage-of-time scheduler (bot-only)
+PASSAGE_OF_TIME_ENABLED=true
+PASSAGE_OF_TIME_GUILD_ID=your-discord-server-id
+PASSAGE_OF_TIME_CHANNEL_ID=passage-of-time-channel-id
+PASSAGE_OF_TIME_TEST_MODE=true
+PASSAGE_OF_TIME_TEST_CHANNEL_ID=bot-testing-channel-id
+PASSAGE_OF_TIME_TIMEZONE=America/Chicago
+PASSAGE_OF_TIME_KINDRED_ROLE_ID=kindred-role-id
+PASSAGE_OF_TIME_GHOUL_ROLE_ID=ghoul-role-id
+PASSAGE_OF_TIME_MORTAL_ROLE_ID=mortal-role-id
+
+# Anchor dates in YYYY-MM-DD. Sunrise/Sunset every 2 weeks. Downtime every 8 weeks.
+PASSAGE_SUNRISE_ANCHOR_DATE=2026-03-08
+PASSAGE_SUNSET_ANCHOR_DATE=2026-03-10
+PASSAGE_DOWNTIME_ANCHOR_DATE=2026-03-08
+
 # Optional: URL for `/xp help` to reference your player guide post
 PLAYER_GUIDE_URL=
+PLAYER_WEB_URL=https://mcbn.jkomg.us/player/
 ```
 
 Notes:
@@ -72,8 +91,10 @@ Notes:
 - Cubby notifications match channel/thread names to `character_name` (normalized).
 - Auto-night creation runs from the bot timer and calls web API (no cloud scheduler needed).
 - In `apps/web/.env`, set `AUTO_CREATE_PERIODS_ENABLED=true` to allow bot-triggered creation.
-- Claim reminders post in character cubby channels at sunrise hour, mentioning linked players and exposing `Not Now` / `Stop Reminders` controls.
+- Claim reminders are scheduled by the bot for Sunday noon local time (`CLAIM_REMINDER_WEEKDAY_LOCAL=0`, `CLAIM_REMINDER_HOUR_LOCAL=12`), and post in character cubbies with `Not Now` / `Stop Reminders` controls.
+- Passage-of-time announcements are also scheduled by the bot process (no additional cloud scheduler/cost). Use `PASSAGE_OF_TIME_TEST_MODE=true` to test in `#bot-testing` without live role pings.
 - Set `PLAYER_GUIDE_URL` to a Discord post or docs page so `/xp help` can point players to your canonical guide.
+- Set `PLAYER_WEB_URL` to your public player page URL so `/xp help` does not show localhost.
 
 ## 4) Install Bot Dependencies
 
