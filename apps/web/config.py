@@ -59,3 +59,17 @@ class Config:
     BOT_API_NONCE_CACHE_SIZE = int(
         os.environ.get('BOT_API_NONCE_CACHE_SIZE', '10000')
     )
+
+    # Optional auto-generation of the next play period.
+    AUTO_CREATE_PERIODS_ENABLED = os.environ.get(
+        'AUTO_CREATE_PERIODS_ENABLED', 'false'
+    ).lower() in ('true', '1', 'yes')
+    AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS = int(
+        os.environ.get('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', '1')
+    )
+    AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS = int(
+        os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', '14')
+    )
+    AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS = int(
+        os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', '0')
+    )

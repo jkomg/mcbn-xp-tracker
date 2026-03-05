@@ -1,8 +1,11 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
+import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
+import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
+import { findCubbyChannel } from '../services/cubbyChannels';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -151,6 +154,20 @@ export const data = new SlashCommandBuilder()
     s
       .setName('health')
       .setDescription('Check bot-to-web API health, latency, and claim-context freshness'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('test-reminder')
+      .setDescription('Staff test: post a dummy cubby reminder in-character channel')
+      .addUserOption((o) =>
+        o.setName('target_user').setDescription('Linked player to mention (default: you)').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o.setName('current_night').setDescription('Override current night label').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o.setName('character').setDescription('Character / cubby channel name to target').setRequired(true),
+      ),
   );
 
 export const name = 'xp';
@@ -323,6 +340,49 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       logEvent('warn', 'xp_spend_cost_invalid', { ...meta, category, currentDots, newDots, message });
       await interaction.reply({ content: message, ephemeral: true });
     }
+    return;
+  }
+
+  if (sub === 'test-reminder') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({
+        content: 'This test command is restricted. Add your Discord ID to BOT_TESTER_IDS.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const targetUser = interaction.options.getUser('target_user') ?? interaction.user;
+    const currentNight = interaction.options.getString('current_night') ?? 'Night TEST';
+    const character = interaction.options.getString('character', true);
+    const guildId = interaction.guildId ?? config.claimReminderGuildId;
+    if (!guildId) {
+      await interaction.reply({ content: 'No guild available for cubby matching.', ephemeral: true });
+      return;
+    }
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.reply({ content: 'Configured guild was not found.', ephemeral: true });
+      return;
+    }
+    const channel = await findCubbyChannel(guild, character);
+    if (!channel) {
+      await interaction.reply({
+        content: `No cubby channel matched character name "${character}".`,
+        ephemeral: true,
+      });
+      return;
+    }
+    const row = buildClaimReminderActionRow(targetUser.id);
+    await channel.send({
+      content: buildClaimReminderText(currentNight, character, targetUser.id),
+      components: [row],
+    });
+
+    await interaction.reply({
+      content: `Posted test reminder in <#${channel.id}> for <@${targetUser.id}>.`,
+      ephemeral: true,
+    });
     return;
   }
 

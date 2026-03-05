@@ -67,6 +67,16 @@ export type AdapterHealthReport = {
   claimContext: ClaimContextProbe;
 };
 
+export type ClaimReminderTarget = {
+  discordId: string;
+  characterName: string;
+};
+
+export type ClaimReminderSnapshot = {
+  currentNight: string | null;
+  targets: ClaimReminderTarget[];
+};
+
 export type ReviewEventBase = {
   eventKey: string;
   kind: 'claim' | 'spend';

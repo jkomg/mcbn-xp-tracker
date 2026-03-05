@@ -277,6 +277,48 @@ def claim_context():
     )
 
 
+@bp.route('/meta/claim-reminder-targets', methods=['GET'])
+@require_bot_scope('read')
+@_limit("20 per minute")
+def claim_reminder_targets():
+    backend = _require_sheets()
+    if backend:
+        return backend
+
+    open_periods = _open_periods_desc()
+    if not open_periods:
+        return jsonify({'currentNight': None, 'targets': []})
+
+    current = open_periods[0]
+    active_characters = sheets_client.get_active_characters()
+    claims = sheets_client.get_all_claims()
+
+    submitted_for_current = {
+        str(c.character_name).strip().lower()
+        for c in claims
+        if str(c.play_period).strip() == current.period_label and str(c.status).strip().lower() != 'denied'
+    }
+
+    targets = []
+    for char in active_characters:
+        if not getattr(char, 'active', True):
+            continue
+        player_discord_id = str(char.player_discord or '').strip()
+        if not DISCORD_ID_RE.fullmatch(player_discord_id):
+            continue
+        if char.character_name.strip().lower() in submitted_for_current:
+            continue
+        targets.append(
+            {
+                'discordId': player_discord_id,
+                'characterName': char.character_name,
+            }
+        )
+    targets.sort(key=lambda item: item['characterName'].lower())
+
+    return jsonify({'currentNight': current.period_label, 'targets': targets})
+
+
 @bp.route('/characters/<string:name>/summary', methods=['GET'])
 @require_bot_scope('read')
 @_limit("60 per minute")
@@ -327,6 +369,7 @@ def review_events():
         return jsonify({'error': 'sinceEpoch must be an integer'}), 400
     if since_epoch < 0:
         return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+    since_event_key = str(request.args.get('sinceEventKey', '')).strip()
 
     events = []
 
@@ -335,11 +378,17 @@ def review_events():
         if status not in {'approved', 'denied'}:
             continue
         reviewed_epoch = _parse_review_date_epoch(claim.review_date)
-        if reviewed_epoch <= since_epoch:
+        event_key = f'claim:{claim.row_index}:{status}:{reviewed_epoch}'
+        if reviewed_epoch < since_epoch:
             continue
+        if reviewed_epoch == since_epoch:
+            if not since_event_key:
+                continue
+            if event_key <= since_event_key:
+                continue
         events.append(
             {
-                'eventKey': f'claim:{claim.row_index}:{status}:{reviewed_epoch}',
+                'eventKey': event_key,
                 'kind': 'claim',
                 'rowIndex': claim.row_index,
                 'characterName': claim.character_name,
@@ -359,11 +408,17 @@ def review_events():
         if status not in {'approved', 'denied'}:
             continue
         reviewed_epoch = _parse_review_date_epoch(spend.review_date)
-        if reviewed_epoch <= since_epoch:
+        event_key = f'spend:{spend.row_index}:{status}:{reviewed_epoch}'
+        if reviewed_epoch < since_epoch:
             continue
+        if reviewed_epoch == since_epoch:
+            if not since_event_key:
+                continue
+            if event_key <= since_event_key:
+                continue
         events.append(
             {
-                'eventKey': f'spend:{spend.row_index}:{status}:{reviewed_epoch}',
+                'eventKey': event_key,
                 'kind': 'spend',
                 'rowIndex': spend.row_index,
                 'characterName': spend.character_name,
@@ -382,10 +437,53 @@ def review_events():
         )
 
     events.sort(key=lambda e: (e['reviewedAtEpoch'], e['eventKey']))
-    if len(events) > limit:
-        events = events[-limit:]
+    has_more = len(events) > limit
+    if has_more:
+        events = events[:limit]
 
-    return jsonify({'events': events})
+    return jsonify({'events': events, 'hasMore': has_more})
+
+
+@bp.route('/periods/auto-create', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("10 per minute")
+def auto_create_period():
+    backend = _require_sheets()
+    if backend:
+        return backend
+
+    if not current_app.config.get('AUTO_CREATE_PERIODS_ENABLED', False):
+        return jsonify({'created': False, 'reason': 'disabled'}), 200
+
+    result = sheets_client.auto_create_next_period_if_due(
+        open_lead_days=current_app.config.get('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', 1),
+        default_length_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', 14),
+        default_gap_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', 0),
+    )
+    period = result.get('period')
+    if result.get('created') and period:
+        sheets_client.log_action(
+            staff_user='bot-api:auto-period',
+            action_type='auto_create_period',
+            target=period.period_label,
+            details=f'Automatically created {period.period_label}',
+        )
+        return jsonify(
+            {
+                'created': True,
+                'reason': 'created',
+                'periodLabel': period.period_label,
+                'nightNumber': period.night_number,
+            }
+        ), 201
+
+    return jsonify(
+        {
+            'created': False,
+            'reason': result.get('reason', 'skipped'),
+        }
+    ), 200
 
 
 @bp.route('/claims', methods=['POST'])

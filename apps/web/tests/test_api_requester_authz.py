@@ -13,6 +13,10 @@ def _app(fake_sheets):
     app.config['WEB_APP_API_WRITE_TOKEN'] = ''
     app.config['BOT_API_REPLAY_PROTECTION_ENABLED'] = False
     app.config['ALLOWED_DISCORD_IDS'] = ['999999999999999999']
+    app.config['AUTO_CREATE_PERIODS_ENABLED'] = True
+    app.config['AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS'] = 1
+    app.config['AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS'] = 14
+    app.config['AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS'] = 0
     app.register_blueprint(api_bp, url_prefix='/api')
 
     api_module.sheets_client = fake_sheets
@@ -25,6 +29,7 @@ class FakeSheets:
         self.claims = []
         self.spends = []
         self.audit = []
+        self.auto_create_calls = []
 
     def get_active_characters(self):
         return [
@@ -113,6 +118,52 @@ class FakeSheets:
                 reviewed_by='Storyteller',
                 review_date='20260303 12:00:00',
                 st_notes='Need more RP support.',
+            ),
+        ]
+
+    def auto_create_next_period_if_due(
+        self,
+        *,
+        open_lead_days: int = 1,
+        default_length_days: int = 14,
+        default_gap_days: int = 0,
+        now=None,
+    ):
+        self.auto_create_calls.append(
+            {
+                'open_lead_days': open_lead_days,
+                'default_length_days': default_length_days,
+                'default_gap_days': default_gap_days,
+            }
+        )
+        return {
+            'created': True,
+            'reason': 'created',
+            'period': PlayPeriod(
+                period_label='Night 78 - 3/8 - 3/22',
+                night_number=78,
+                start_date='20260308',
+                end_date='20260322',
+                session_number=78,
+                submissions_open=True,
+                active=True,
+            ),
+        }
+
+
+class FakeReminderSheets(FakeSheets):
+    def get_all_claims(self):
+        return [
+            XPClaim(
+                row_index=10,
+                character_name='Alice',
+                play_period='Night 77',
+                status='Approved',
+                xp_claimed=3,
+                approved_xp=3,
+                reviewed_by='Storyteller',
+                review_date='20260303 10:00:00',
+                st_notes='',
             ),
         ]
 
@@ -240,3 +291,28 @@ def test_review_events_returns_only_reviewed_claims_and_spends():
         denied_spend = next(e for e in events if e['kind'] == 'spend' and e['status'] == 'denied')
         assert denied_spend['traitName'] == 'Firearms'
         assert denied_spend['staffNotes'] == 'Need more RP support.'
+
+
+def test_claim_reminder_targets_returns_unsubmitted_active_characters():
+    app = _app(FakeReminderSheets())
+    with app.test_client() as client:
+        res = client.get('/api/meta/claim-reminder-targets', headers=_auth())
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body['currentNight'] == 'Night 77'
+        assert body['targets'] == [
+            {'discordId': '222222222222222222', 'characterName': 'Bob'},
+        ]
+
+
+def test_auto_create_period_route_uses_configured_parameters():
+    fake = FakeSheets()
+    app = _app(fake)
+    with app.test_client() as client:
+        res = client.post('/api/periods/auto-create', headers=_auth())
+        assert res.status_code == 201
+        body = res.get_json()
+        assert body['created'] is True
+        assert body['periodLabel'] == 'Night 78 - 3/8 - 3/22'
+        assert fake.auto_create_calls
+        assert fake.auto_create_calls[-1]['open_lead_days'] == 1

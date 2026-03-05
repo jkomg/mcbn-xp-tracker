@@ -4,6 +4,7 @@ import { errorToMessage, logEvent } from '../logger';
 import type {
   AdapterHealthReport,
   ClaimContext,
+  ClaimReminderSnapshot,
   ClaimPayload,
   ReviewEvent,
   RequesterContext,
@@ -14,7 +15,13 @@ import type {
 export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
-  getReviewEvents(opts?: { sinceEpoch?: number; limit?: number }): Promise<ReviewEvent[]>;
+  getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
+  getReviewEvents(opts?: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  }): Promise<{ events: ReviewEvent[]; hasMore: boolean }>;
+  autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -70,6 +77,23 @@ const reviewEventSchema = z.discriminatedUnion('kind', [
 
 const reviewEventsSchema = z.object({
   events: z.array(reviewEventSchema),
+  hasMore: z.boolean().optional(),
+});
+
+const claimReminderTargetsSchema = z.object({
+  currentNight: z.string().nullable(),
+  targets: z.array(
+    z.object({
+      discordId: z.string(),
+      characterName: z.string(),
+    }),
+  ),
+});
+
+const autoCreatePeriodSchema = z.object({
+  created: z.boolean(),
+  reason: z.string().optional(),
+  periodLabel: z.string().optional(),
 });
 
 type AdapterOptions = {
@@ -142,13 +166,34 @@ export class WebAppAdapter implements TrackerAdapter {
     return result.context;
   }
 
-  async getReviewEvents(opts: { sinceEpoch?: number; limit?: number } = {}): Promise<ReviewEvent[]> {
+  async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-reminder-targets`, {
+      headers: this.authHeaders(),
+    }).catch(() => null);
+    if (!resp) {
+      throw new Error('Unable to reach web app claim-reminder-targets API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app claim-reminder-targets API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    return claimReminderTargetsSchema.parse(raw);
+  }
+
+  async getReviewEvents(opts: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  } = {}): Promise<{ events: ReviewEvent[]; hasMore: boolean }> {
     const params = new URLSearchParams();
     if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
       params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
     }
     if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
       params.set('limit', String(Math.floor(opts.limit)));
+    }
+    if (opts.sinceEventKey) {
+      params.set('sinceEventKey', opts.sinceEventKey);
     }
 
     const query = params.toString();
@@ -165,7 +210,38 @@ export class WebAppAdapter implements TrackerAdapter {
     }
 
     const raw = await resp.json();
-    return reviewEventsSchema.parse(raw).events;
+    const parsed = reviewEventsSchema.parse(raw);
+    return { events: parsed.events, hasMore: parsed.hasMore === true };
+  }
+
+  async autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/periods/auto-create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.authHeaders(),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+
+    if (!resp) {
+      return { ok: false, created: false, reason: 'unreachable' };
+    }
+    if (!resp.ok) {
+      return { ok: false, created: false, reason: `http_${resp.status}` };
+    }
+    const raw = await resp.json();
+    const parsed = autoCreatePeriodSchema.parse(raw);
+    return {
+      ok: true,
+      created: parsed.created,
+      reason: parsed.reason,
+      periodLabel: parsed.periodLabel,
+    };
   }
 
   async submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }> {

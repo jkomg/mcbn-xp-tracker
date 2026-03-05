@@ -27,6 +27,19 @@ REVIEW_NOTIFIER_ENABLED=true
 REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
 REVIEW_NOTIFIER_INTERVAL_MS=60000
 REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
+
+# Optional issue #22: auto-create next night when due
+AUTO_PERIOD_CREATOR_ENABLED=true
+AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
+
+# Optional issue #20: sunrise claim reminders
+CLAIM_REMINDER_ENABLED=true
+CLAIM_REMINDER_GUILD_ID=1168638982012293200
+CLAIM_REMINDER_INTERVAL_MS=900000
+CLAIM_REMINDER_HOUR_LOCAL=8
+CLAIM_REMINDER_TIMEZONE=America/Chicago
+CLAIM_REMINDER_SNOOZE_HOURS=24
+BOT_TESTER_IDS=101109440702353408
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
@@ -37,6 +50,36 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - It finds destination cubbies by matching normalized channel/thread names to character names.
 - Example: character `Cecelia` matches channel/thread name `cecelia`.
 - If no matching cubby exists, the bot logs `review_notifier_channel_missing`.
+
+### Auto-night creator behavior
+
+- When enabled, the bot periodically calls `/api/periods/auto-create`.
+- The web app creates the next night only when due, based on latest period dates/cadence.
+- This is idempotent: if not due or already created, the API returns a skip reason.
+
+### Claim reminder behavior
+
+- At configured local hour, bot pulls reminder targets for the current open night.
+- For each eligible character, bot posts in that character's cubby channel/thread.
+- Message mentions linked player (`player_discord`) and includes quick actions:
+  - `Start Claim` (use `/xp submit` or `/xp claim`)
+  - `Not Now` (snoozes reminders)
+  - `Stop Reminders` (opt-out)
+- Buttons are locked to the linked player for that reminder post.
+- Important: cubby channel/thread names must match character names (normalized).
+
+### Robust Discord test harness
+
+- Add your Discord ID to `BOT_TESTER_IDS` in `apps/bot/.env`.
+- Use `/xp test-reminder` to post a dummy reminder to a cubby channel without touching Google Sheets.
+- Recommended command for full UI/button test:
+  - `/xp test-reminder character:"Dummy One" target_user:@you current_night:"Night TEST"`
+- Then click:
+  - `Start Claim`: confirms manual claim path.
+  - `Not Now`: writes a snooze preference.
+  - `Stop Reminders`: writes opt-out preference.
+- Preference state file (local bot host):
+  - `apps/bot/data/claim-reminder-preferences.json`
 
 ## Local run (manual)
 

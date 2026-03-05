@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChatInputCommandInteraction } from 'discord.js';
-import { execute } from '../commands/xp';
 
 describe('xp claim command validation', () => {
   it('rejects invalid discord message links before sending to adapter', async () => {
+    vi.stubEnv('BOT_TOKEN', 'test-token');
+    vi.stubEnv('WEB_APP_BASE_URL', 'http://127.0.0.1:5001');
+    const { execute } = await import('../commands/xp');
+
     const reply = vi.fn();
     const adapter = {
       submitClaim: vi.fn(),
@@ -36,5 +39,7 @@ describe('xp claim command validation', () => {
       content: 'Invalid Discord message link format.',
       ephemeral: true,
     });
+
+    vi.unstubAllEnvs();
   });
 });

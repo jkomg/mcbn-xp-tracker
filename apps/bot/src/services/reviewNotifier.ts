@@ -1,8 +1,9 @@
-import { ChannelType, type Guild, type GuildBasedChannel } from 'discord.js';
+import type { Guild } from 'discord.js';
 import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
+import { findCubbyChannel } from './cubbyChannels';
 
 type ReviewNotifierConfig = {
   enabled: boolean;
@@ -10,15 +11,6 @@ type ReviewNotifierConfig = {
   intervalMs: number;
   lookbackSeconds: number;
 };
-
-function normalizeChannelName(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-+/g, '-');
-}
 
 function eventStatusLabel(status: 'approved' | 'denied'): string {
   return status === 'approved' ? 'Approved' : 'Denied';
@@ -55,51 +47,6 @@ function toNotificationMessage(event: ReviewEvent): string {
   return base.join('\n');
 }
 
-type NotificationChannel = GuildBasedChannel & {
-  send: (payload: { content: string }) => Promise<unknown>;
-};
-
-function isNotificationChannel(channel: GuildBasedChannel | null | undefined): channel is NotificationChannel {
-  if (!channel) {
-    return false;
-  }
-  if (
-    channel.type !== ChannelType.GuildText &&
-    channel.type !== ChannelType.PublicThread &&
-    channel.type !== ChannelType.PrivateThread
-  ) {
-    return false;
-  }
-  return typeof (channel as { send?: unknown }).send === 'function';
-}
-
-async function findCubbyChannel(guild: Guild, characterName: string): Promise<NotificationChannel | null> {
-  const target = normalizeChannelName(characterName);
-  const channels = await guild.channels.fetch();
-  for (const channel of channels.values()) {
-    if (!isNotificationChannel(channel)) {
-      continue;
-    }
-    if (normalizeChannelName(channel.name) === target) {
-      return channel;
-    }
-  }
-
-  const activeThreads = await guild.channels.fetchActiveThreads().catch(() => null);
-  if (!activeThreads) {
-    return null;
-  }
-  for (const thread of activeThreads.threads.values()) {
-    if (!isNotificationChannel(thread)) {
-      continue;
-    }
-    if (normalizeChannelName(thread.name) === target) {
-      return thread;
-    }
-  }
-  return null;
-}
-
 export class ReviewNotifier {
   private readonly client: BotClient;
   private readonly adapter: TrackerAdapter;
@@ -107,7 +54,8 @@ export class ReviewNotifier {
   private timer: NodeJS.Timeout | null = null;
   private initialized = false;
   private polling = false;
-  private lastSeenEpoch = 0;
+  private cursorEpoch = 0;
+  private cursorEventKey = '';
   private readonly seenEventKeys = new Set<string>();
 
   constructor(client: BotClient, adapter: TrackerAdapter, config: ReviewNotifierConfig) {
@@ -154,15 +102,24 @@ export class ReviewNotifier {
     this.polling = true;
     try {
       const nowEpoch = Math.floor(Date.now() / 1000);
-      const fallbackSince = Math.max(0, nowEpoch - this.config.lookbackSeconds);
-      const sinceEpoch = Math.max(fallbackSince, this.lastSeenEpoch - 1);
-      const events = await this.adapter.getReviewEvents({ sinceEpoch, limit: 250 });
-      events.sort((a, b) => a.reviewedAtEpoch - b.reviewedAtEpoch);
-
       if (!this.initialized) {
-        for (const event of events) {
-          this.seenEventKeys.add(event.eventKey);
-          this.lastSeenEpoch = Math.max(this.lastSeenEpoch, event.reviewedAtEpoch);
+        this.cursorEpoch = Math.max(0, nowEpoch - this.config.lookbackSeconds);
+        let pages = 0;
+        while (pages < 20) {
+          const page = await this.adapter.getReviewEvents({
+            sinceEpoch: this.cursorEpoch,
+            sinceEventKey: this.cursorEventKey || undefined,
+            limit: 250,
+          });
+          for (const event of page.events) {
+            this.cursorEpoch = event.reviewedAtEpoch;
+            this.cursorEventKey = event.eventKey;
+            this.seenEventKeys.add(event.eventKey);
+          }
+          pages += 1;
+          if (!page.hasMore || page.events.length === 0) {
+            break;
+          }
         }
         this.initialized = true;
         logEvent('info', 'review_notifier_bootstrap', { seenEvents: this.seenEventKeys.size });
@@ -175,36 +132,67 @@ export class ReviewNotifier {
         return;
       }
 
-      for (const event of events) {
-        this.lastSeenEpoch = Math.max(this.lastSeenEpoch, event.reviewedAtEpoch);
-        if (this.seenEventKeys.has(event.eventKey)) {
-          continue;
-        }
-        this.seenEventKeys.add(event.eventKey);
-        if (this.seenEventKeys.size > 5000) {
-          const first = this.seenEventKeys.values().next().value;
-          if (first) {
-            this.seenEventKeys.delete(first);
-          }
-        }
-
-        const channel = await findCubbyChannel(guild, event.characterName);
-        if (!channel) {
-          logEvent('warn', 'review_notifier_channel_missing', {
-            characterName: event.characterName,
-            eventKey: event.eventKey,
-          });
-          continue;
-        }
-
-        await channel.send({ content: toNotificationMessage(event) });
-        logEvent('info', 'review_notifier_posted', {
-          eventKey: event.eventKey,
-          channelId: channel.id,
-          characterName: event.characterName,
-          kind: event.kind,
-          status: event.status,
+      let pages = 0;
+      while (pages < 20) {
+        const page = await this.adapter.getReviewEvents({
+          sinceEpoch: this.cursorEpoch,
+          sinceEventKey: this.cursorEventKey || undefined,
+          limit: 250,
         });
+        if (page.events.length === 0) {
+          break;
+        }
+
+        for (const event of page.events) {
+          if (this.seenEventKeys.has(event.eventKey)) {
+            this.cursorEpoch = event.reviewedAtEpoch;
+            this.cursorEventKey = event.eventKey;
+            continue;
+          }
+
+          const channel = await findCubbyChannel(guild, event.characterName);
+          if (!channel) {
+            logEvent('warn', 'review_notifier_channel_missing', {
+              characterName: event.characterName,
+              eventKey: event.eventKey,
+            });
+            return;
+          }
+
+          try {
+            await channel.send({ content: toNotificationMessage(event) });
+          } catch (error) {
+            logEvent('warn', 'review_notifier_send_failed', {
+              eventKey: event.eventKey,
+              channelId: channel.id,
+              error: errorToMessage(error),
+            });
+            return;
+          }
+
+          this.seenEventKeys.add(event.eventKey);
+          if (this.seenEventKeys.size > 5000) {
+            const first = this.seenEventKeys.values().next().value;
+            if (first) {
+              this.seenEventKeys.delete(first);
+            }
+          }
+          this.cursorEpoch = event.reviewedAtEpoch;
+          this.cursorEventKey = event.eventKey;
+
+          logEvent('info', 'review_notifier_posted', {
+            eventKey: event.eventKey,
+            channelId: channel.id,
+            characterName: event.characterName,
+            kind: event.kind,
+            status: event.status,
+          });
+        }
+
+        pages += 1;
+        if (!page.hasMore) {
+          break;
+        }
       }
     } catch (error) {
       logEvent('warn', 'review_notifier_poll_failed', { error: errorToMessage(error) });
