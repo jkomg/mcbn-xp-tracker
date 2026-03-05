@@ -165,14 +165,14 @@ export const data = new SlashCommandBuilder()
     s
       .setName('test-reminder')
       .setDescription('Staff test: post a dummy cubby reminder in-character channel')
+      .addStringOption((o) =>
+        o.setName('character').setDescription('Character / cubby channel name to target').setRequired(true),
+      )
       .addUserOption((o) =>
         o.setName('target_user').setDescription('Linked player to mention (default: you)').setRequired(false),
       )
       .addStringOption((o) =>
         o.setName('current_night').setDescription('Override current night label').setRequired(false),
-      )
-      .addStringOption((o) =>
-        o.setName('character').setDescription('Character / cubby channel name to target').setRequired(true),
       ),
   );
 
