@@ -124,18 +124,30 @@ npm run ops:check-adapter
 
 ## Launchd (macOS) managed run
 
-Use launchd so the bot restarts automatically.
+Use launchd so the bot keeps running even when terminal windows are closed.
 
-1. Start from template: `infra/bot-hosting/launchd/us.mcbn.tracker-bot.plist.template`
-2. Create plist at `~/Library/LaunchAgents/us.mcbn.tracker-bot.plist`
-3. Point to Node entrypoint in `apps/bot`
-4. Set env vars in plist or sourced file
-5. Load agent:
+This repo includes a helper script:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/us.mcbn.tracker-bot.plist
-launchctl start us.mcbn.tracker-bot
+# Install and start bot service
+./scripts/macos-services.sh install bot
+
+# Optional: include local web dev service too
+./scripts/macos-services.sh install all
+
+# Service controls
+./scripts/macos-services.sh status all
+./scripts/macos-services.sh restart bot
+./scripts/macos-services.sh stop bot
+./scripts/macos-services.sh logs bot err
 ```
+
+Details:
+- Bot label: `us.mcbn.tracker-bot`
+- Web label: `us.mcbn.web-dev`
+- Generated plists live in `~/Library/LaunchAgents`
+- Logs live in `.run/logs/`
+- Services load environment from `apps/bot/.env` and `apps/web/.env` (no secrets in plist files)
 
 ## systemd (Linux) managed run
 

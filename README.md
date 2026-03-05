@@ -180,6 +180,17 @@ That's it. Opens at **http://127.0.0.1:5001** with debug mode and auto-reload. T
 
 > **Why port 5001?** macOS AirPlay Receiver squats on port 5000.
 
+### Run Without an Open Terminal (macOS)
+
+Use launchd helpers in this repo:
+
+```bash
+./scripts/macos-services.sh install all
+./scripts/macos-services.sh status all
+```
+
+This starts local web (`us.mcbn.web-dev`) and bot (`us.mcbn.tracker-bot`) as background services and keeps them running after terminal windows close.
+
 ### `.env` Configuration
 
 ```env

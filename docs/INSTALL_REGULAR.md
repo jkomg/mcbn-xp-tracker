@@ -132,9 +132,21 @@ If these work, your regular setup is complete.
 
 ## Optional: Keep Bot Running After Reboot
 
-Use one of:
-- macOS launchd template: `infra/bot-hosting/launchd/`
-- Linux systemd template: `infra/bot-hosting/systemd/`
+On macOS, use:
+
+```bash
+./scripts/macos-services.sh install bot
+./scripts/macos-services.sh status bot
+```
+
+If you also want local web dev to run in background:
+
+```bash
+./scripts/macos-services.sh install all
+```
+
+On Linux, use the systemd template:
+- `infra/bot-hosting/systemd/mcbn-tracker-bot.service`
 
 Additional runbook: [RUN_BOT_LOCAL.md](RUN_BOT_LOCAL.md)
 
