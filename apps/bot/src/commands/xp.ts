@@ -76,7 +76,13 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .setAutocomplete(true),
       )
-      .addStringOption((o) => o.setName('play_period').setDescription('Period label').setRequired(true))
+      .addStringOption((o) =>
+        o
+          .setName('play_period')
+          .setDescription('Active period label')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
       .addStringOption((o) =>
         o
           .setName('category')
@@ -176,7 +182,10 @@ export async function autocomplete(interaction: AutocompleteInteraction, { adapt
   const option = interaction.options.getFocused(true);
   const sub = interaction.options.getSubcommand(false) ?? '';
   const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend']);
-  if (!supportsCharacterAutocomplete.has(sub) || option.name !== 'character') {
+  const supportsPeriodAutocomplete = new Set(['submit', 'claim']);
+  const isCharacterLookup = supportsCharacterAutocomplete.has(sub) && option.name === 'character';
+  const isPeriodLookup = supportsPeriodAutocomplete.has(sub) && option.name === 'play_period';
+  if (!isCharacterLookup && !isPeriodLookup) {
     await interaction.respond([]);
     return;
   }
@@ -190,7 +199,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, { adapt
     };
     const query = String(option.value ?? '').trim().toLowerCase();
     const context = await adapter.getClaimContext(requester);
-    const values = context.activeCharacters;
+    const values = isCharacterLookup ? context.activeCharacters : context.openPeriods;
 
     const startsWith = values.filter((v: string) => v.toLowerCase().startsWith(query));
     const includes = values.filter(
