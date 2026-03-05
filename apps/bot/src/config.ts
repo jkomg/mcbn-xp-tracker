@@ -73,6 +73,7 @@ const envSchema = z.object({
   CLAIM_REMINDER_HOUR_LOCAL: z.string().optional(),
   CLAIM_REMINDER_TIMEZONE: z.string().optional(),
   CLAIM_REMINDER_SNOOZE_HOURS: z.string().optional(),
+  PLAYER_GUIDE_URL: z.string().url().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -150,6 +151,7 @@ export const config = {
     24,
     'CLAIM_REMINDER_SNOOZE_HOURS',
   ),
+  playerGuideUrl: env.PLAYER_GUIDE_URL,
 };
 
 if (config.testRequesterDiscordId) {

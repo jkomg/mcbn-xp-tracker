@@ -61,6 +61,9 @@ CLAIM_REMINDER_INTERVAL_MS=900000
 CLAIM_REMINDER_HOUR_LOCAL=8
 CLAIM_REMINDER_TIMEZONE=America/Chicago
 CLAIM_REMINDER_SNOOZE_HOURS=24
+
+# Optional: URL for `/xp help` to reference your player guide post
+PLAYER_GUIDE_URL=
 ```
 
 Notes:
@@ -70,6 +73,7 @@ Notes:
 - Auto-night creation runs from the bot timer and calls web API (no cloud scheduler needed).
 - In `apps/web/.env`, set `AUTO_CREATE_PERIODS_ENABLED=true` to allow bot-triggered creation.
 - Claim reminders post in character cubby channels at sunrise hour, mentioning linked players and exposing `Not Now` / `Stop Reminders` controls.
+- Set `PLAYER_GUIDE_URL` to a Discord post or docs page so `/xp help` can point players to your canonical guide.
 
 ## 4) Install Bot Dependencies
 

@@ -24,6 +24,7 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
 - Install guide (Lite, web-only): [docs/INSTALL_LITE.md](docs/INSTALL_LITE.md)
 - Install guide (Regular, web + bot): [docs/INSTALL_REGULAR.md](docs/INSTALL_REGULAR.md)
+- Player quickstart (web + bot): [docs/PLAYER_QUICKSTART.md](docs/PLAYER_QUICKSTART.md)
 
 ### Data and Privacy Disclosure
 
@@ -320,6 +321,8 @@ The `setup_sheets()` function creates these tabs automatically if they don't exi
 ---
 
 ## Player Guide
+
+Quick version for Discord pin/reference: [docs/PLAYER_QUICKSTART.md](docs/PLAYER_QUICKSTART.md)
 
 ### Claiming XP
 
