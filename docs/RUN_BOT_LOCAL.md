@@ -36,11 +36,28 @@ AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
 CLAIM_REMINDER_ENABLED=true
 CLAIM_REMINDER_GUILD_ID=1168638982012293200
 CLAIM_REMINDER_INTERVAL_MS=900000
-CLAIM_REMINDER_HOUR_LOCAL=8
+CLAIM_REMINDER_WEEKDAY_LOCAL=0
+CLAIM_REMINDER_HOUR_LOCAL=12
+CLAIM_REMINDER_MINUTE_LOCAL=0
 CLAIM_REMINDER_TIMEZONE=America/Chicago
 CLAIM_REMINDER_SNOOZE_HOURS=24
 BOT_TESTER_IDS=101109440702353408
 PLAYER_GUIDE_URL=
+PLAYER_WEB_URL=https://mcbn.jkomg.us/player/
+
+# Optional issue #24: passage-of-time announcements
+PASSAGE_OF_TIME_ENABLED=true
+PASSAGE_OF_TIME_GUILD_ID=1168638982012293200
+PASSAGE_OF_TIME_CHANNEL_ID=<passage-of-time-channel-id>
+PASSAGE_OF_TIME_TEST_MODE=true
+PASSAGE_OF_TIME_TEST_CHANNEL_ID=<bot-testing-channel-id>
+PASSAGE_OF_TIME_TIMEZONE=America/Chicago
+PASSAGE_OF_TIME_KINDRED_ROLE_ID=<kindred-role-id>
+PASSAGE_OF_TIME_GHOUL_ROLE_ID=<ghoul-role-id>
+PASSAGE_OF_TIME_MORTAL_ROLE_ID=<mortal-role-id>
+PASSAGE_SUNRISE_ANCHOR_DATE=2026-03-08
+PASSAGE_SUNSET_ANCHOR_DATE=2026-03-10
+PASSAGE_DOWNTIME_ANCHOR_DATE=2026-03-08
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
@@ -60,7 +77,7 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 
 ### Claim reminder behavior
 
-- At configured local hour, bot pulls reminder targets for the current open night.
+- At configured local day/time, bot pulls reminder targets for the current open night.
 - For each eligible character, bot posts in that character's cubby channel/thread.
 - Message mentions linked player (`player_discord`) and includes quick actions:
   - `Start Claim` (use `/xp submit` or `/xp claim`)
@@ -68,6 +85,14 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
   - `Stop Reminders` (opt-out)
 - Buttons are locked to the linked player for that reminder post.
 - Important: cubby channel/thread names must match character names (normalized).
+
+### Passage-of-time behavior
+
+- Runs entirely in the local bot process, no external scheduler.
+- Posts sunrise/sunset messaging every 2 weeks from configured anchor dates.
+- Posts downtime messaging every 8 weeks from configured anchor date.
+- In test mode, posts to `PASSAGE_OF_TIME_TEST_CHANNEL_ID` without role pings.
+- In live mode, posts to `PASSAGE_OF_TIME_CHANNEL_ID` and prepends configured role mentions.
 
 ### Robust Discord test harness
 

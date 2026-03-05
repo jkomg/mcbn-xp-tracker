@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { AutocompleteInteraction, ChannelType, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
 import { config } from '../config';
@@ -6,6 +6,7 @@ import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
 import { findCubbyChannel } from '../services/cubbyChannels';
+import { getPassageMessage } from '../services/passageOfTimeService';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -178,6 +179,22 @@ export const data = new SlashCommandBuilder()
       )
       .addStringOption((o) =>
         o.setName('current_night').setDescription('Override current night label').setRequired(false),
+      ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('test-passage')
+      .setDescription('Staff test: post a passage-of-time message in #bot-testing (no role tags)')
+      .addStringOption((o) =>
+        o
+          .setName('event')
+          .setDescription('Message variant to post')
+          .setRequired(true)
+          .addChoices(
+            { name: 'Sunrise', value: 'sunrise' },
+            { name: 'Sunset', value: 'sunset' },
+            { name: 'Downtime', value: 'downtime' },
+          ),
       ),
   );
 
@@ -366,7 +383,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       '- `/xp summary`: show your character XP totals',
       '- `/xp spend-cost`: preview spend XP cost',
       '',
-      `Web player interface: ${config.webAppBaseUrl}/player/`,
+      `Web player interface: ${config.playerWebUrl}`,
     ];
     if (config.playerGuideUrl) {
       lines.push(`Full player guide: ${config.playerGuideUrl}`);
@@ -413,6 +430,42 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
 
     await interaction.reply({
       content: `Posted test reminder in <#${channel.id}> for <@${targetUser.id}>.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (sub === 'test-passage') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({
+        content: 'This test command is restricted. Add your Discord ID to BOT_TESTER_IDS.',
+        ephemeral: true,
+      });
+      return;
+    }
+    const guildId = interaction.guildId ?? config.passageOfTimeGuildId;
+    if (!guildId) {
+      await interaction.reply({ content: 'No guild available for passage test.', ephemeral: true });
+      return;
+    }
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.reply({ content: 'Configured guild was not found.', ephemeral: true });
+      return;
+    }
+    const channels = await guild.channels.fetch();
+    const target = channels.find((ch) => ch && ch.type === ChannelType.GuildText && ch.name === 'bot-testing');
+    if (!target || target.type !== ChannelType.GuildText) {
+      await interaction.reply({
+        content: 'Could not find #bot-testing text channel in this guild.',
+        ephemeral: true,
+      });
+      return;
+    }
+    const eventName = interaction.options.getString('event', true) as 'sunrise' | 'sunset' | 'downtime';
+    await target.send({ content: getPassageMessage(eventName) });
+    await interaction.reply({
+      content: `Posted ${eventName} passage message in <#${target.id}> (no role tags).`,
       ephemeral: true,
     });
     return;
