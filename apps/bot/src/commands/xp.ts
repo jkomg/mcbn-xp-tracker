@@ -5,7 +5,7 @@ import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
-import { findCubbyChannel } from '../services/cubbyChannels';
+import { findCubbyChannel, normalizeChannelName } from '../services/cubbyChannels';
 import { getPassageMessage } from '../services/passageOfTimeService';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
@@ -200,10 +200,39 @@ export const data = new SlashCommandBuilder()
 
 export const name = 'xp';
 
+async function suggestCubbyNames(
+  interaction: ChatInputCommandInteraction,
+  requestedName: string,
+): Promise<string[]> {
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return [];
+  }
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    return [];
+  }
+  const normalizedRequested = normalizeChannelName(requestedName);
+  const channels = await guild.channels.fetch();
+  const names = Array.from(channels.values())
+    .filter((ch): ch is NonNullable<typeof ch> => !!ch)
+    .filter((ch) => ch.type === ChannelType.GuildText)
+    .map((ch) => ch.name);
+  const ranked = names
+    .map((name) => ({
+      name,
+      normalized: normalizeChannelName(name),
+    }))
+    .filter((item) => item.normalized.includes(normalizedRequested) || normalizedRequested.includes(item.normalized))
+    .slice(0, 8)
+    .map((item) => item.name);
+  return ranked;
+}
+
 export async function autocomplete(interaction: AutocompleteInteraction, { adapter }: CommandContext) {
   const option = interaction.options.getFocused(true);
   const sub = interaction.options.getSubcommand(false) ?? '';
-  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend']);
+  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend', 'test-reminder']);
   const supportsPeriodAutocomplete = new Set(['submit', 'claim']);
   const isCharacterLookup = supportsCharacterAutocomplete.has(sub) && option.name === 'character';
   const isPeriodLookup = supportsPeriodAutocomplete.has(sub) && option.name === 'play_period';
@@ -416,17 +445,36 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     }
     const channel = await findCubbyChannel(guild, character);
     if (!channel) {
+      const normalized = normalizeChannelName(character);
+      const suggestions = await suggestCubbyNames(interaction, character);
+      const hint = suggestions.length > 0 ? `\nClosest matches: ${suggestions.join(', ')}` : '';
       await interaction.reply({
-        content: `No cubby channel matched character name "${character}".`,
+        content: `No cubby channel matched character name "${character}" (normalized: "${normalized}").${hint}`,
         ephemeral: true,
       });
       return;
     }
     const row = buildClaimReminderActionRow(targetUser.id);
-    await channel.send({
-      content: buildClaimReminderText(currentNight, character, targetUser.id),
-      components: [row],
-    });
+    try {
+      await channel.send({
+        content: buildClaimReminderText(currentNight, character, targetUser.id),
+        components: [row],
+      });
+    } catch (error) {
+      await interaction.reply({
+        content:
+          'I found the cubby, but I cannot post there (Discord Missing Access). Grant the bot View Channel + Send Messages in that cubby.',
+        ephemeral: true,
+      });
+      logEvent('warn', 'xp_test_reminder_send_failed', {
+        interactionId: interaction.id,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        channelId: channel.id,
+        error: errorToMessage(error),
+      });
+      return;
+    }
 
     await interaction.reply({
       content: `Posted test reminder in <#${channel.id}> for <@${targetUser.id}>.`,
@@ -463,7 +511,23 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       return;
     }
     const eventName = interaction.options.getString('event', true) as 'sunrise' | 'sunset' | 'downtime';
-    await target.send({ content: getPassageMessage(eventName) });
+    try {
+      await target.send({ content: getPassageMessage(eventName) });
+    } catch (error) {
+      await interaction.reply({
+        content:
+          'I found #bot-testing, but I cannot post there (Discord Missing Access). Grant the bot View Channel + Send Messages in #bot-testing.',
+        ephemeral: true,
+      });
+      logEvent('warn', 'xp_test_passage_send_failed', {
+        interactionId: interaction.id,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        channelId: target.id,
+        error: errorToMessage(error),
+      });
+      return;
+    }
     await interaction.reply({
       content: `Posted ${eventName} passage message in <#${target.id}> (no role tags).`,
       ephemeral: true,
