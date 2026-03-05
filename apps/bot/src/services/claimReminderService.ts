@@ -195,30 +195,39 @@ export class ClaimReminderService {
       let skippedSnooze = 0;
 
       for (const target of snapshot.targets) {
-        const pref = prefs[target.discordId] ?? {};
-        if (pref.optOut) {
-          skippedOptOut += 1;
-          continue;
-        }
-        if ((pref.snoozeUntilEpoch ?? 0) > nowEpoch) {
-          skippedSnooze += 1;
-          continue;
-        }
+        try {
+          const pref = prefs[target.discordId] ?? {};
+          if (pref.optOut) {
+            skippedOptOut += 1;
+            continue;
+          }
+          if ((pref.snoozeUntilEpoch ?? 0) > nowEpoch) {
+            skippedSnooze += 1;
+            continue;
+          }
 
-        const channel = await findCubbyChannel(guild, target.characterName);
-        if (!channel) {
-          logEvent('warn', 'claim_reminder_channel_missing', {
+          const channel = await findCubbyChannel(guild, target.characterName);
+          if (!channel) {
+            logEvent('warn', 'claim_reminder_channel_missing', {
+              characterName: target.characterName,
+              discordId: target.discordId,
+            });
+            continue;
+          }
+          const actionRow = buildClaimReminderActionRow(target.discordId);
+          await channel.send({
+            content: buildClaimReminderText(snapshot.currentNight, target.characterName, target.discordId),
+            components: [actionRow],
+          });
+          sent += 1;
+        } catch (error) {
+          logEvent('warn', 'claim_reminder_target_failed', {
             characterName: target.characterName,
             discordId: target.discordId,
+            error: errorToMessage(error),
           });
-          continue;
+          continue
         }
-        const actionRow = buildClaimReminderActionRow(target.discordId);
-        await channel.send({
-          content: buildClaimReminderText(snapshot.currentNight, target.characterName, target.discordId),
-          components: [actionRow],
-        });
-        sent += 1;
       }
 
       this.lastRunDayKey = dayKey;

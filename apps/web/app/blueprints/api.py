@@ -369,6 +369,7 @@ def review_events():
         return jsonify({'error': 'sinceEpoch must be an integer'}), 400
     if since_epoch < 0:
         return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+    since_event_key = str(request.args.get('sinceEventKey', '')).strip()
 
     events = []
 
@@ -377,11 +378,17 @@ def review_events():
         if status not in {'approved', 'denied'}:
             continue
         reviewed_epoch = _parse_review_date_epoch(claim.review_date)
-        if reviewed_epoch <= since_epoch:
+        event_key = f'claim:{claim.row_index}:{status}:{reviewed_epoch}'
+        if reviewed_epoch < since_epoch:
             continue
+        if reviewed_epoch == since_epoch:
+            if not since_event_key:
+                continue
+            if event_key <= since_event_key:
+                continue
         events.append(
             {
-                'eventKey': f'claim:{claim.row_index}:{status}:{reviewed_epoch}',
+                'eventKey': event_key,
                 'kind': 'claim',
                 'rowIndex': claim.row_index,
                 'characterName': claim.character_name,
@@ -401,11 +408,17 @@ def review_events():
         if status not in {'approved', 'denied'}:
             continue
         reviewed_epoch = _parse_review_date_epoch(spend.review_date)
-        if reviewed_epoch <= since_epoch:
+        event_key = f'spend:{spend.row_index}:{status}:{reviewed_epoch}'
+        if reviewed_epoch < since_epoch:
             continue
+        if reviewed_epoch == since_epoch:
+            if not since_event_key:
+                continue
+            if event_key <= since_event_key:
+                continue
         events.append(
             {
-                'eventKey': f'spend:{spend.row_index}:{status}:{reviewed_epoch}',
+                'eventKey': event_key,
                 'kind': 'spend',
                 'rowIndex': spend.row_index,
                 'characterName': spend.character_name,
@@ -424,10 +437,11 @@ def review_events():
         )
 
     events.sort(key=lambda e: (e['reviewedAtEpoch'], e['eventKey']))
-    if len(events) > limit:
-        events = events[-limit:]
+    has_more = len(events) > limit
+    if has_more:
+        events = events[:limit]
 
-    return jsonify({'events': events})
+    return jsonify({'events': events, 'hasMore': has_more})
 
 
 @bp.route('/periods/auto-create', methods=['POST'])

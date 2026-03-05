@@ -16,7 +16,11 @@ export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
-  getReviewEvents(opts?: { sinceEpoch?: number; limit?: number }): Promise<ReviewEvent[]>;
+  getReviewEvents(opts?: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  }): Promise<{ events: ReviewEvent[]; hasMore: boolean }>;
   autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
@@ -73,6 +77,7 @@ const reviewEventSchema = z.discriminatedUnion('kind', [
 
 const reviewEventsSchema = z.object({
   events: z.array(reviewEventSchema),
+  hasMore: z.boolean().optional(),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -175,13 +180,20 @@ export class WebAppAdapter implements TrackerAdapter {
     return claimReminderTargetsSchema.parse(raw);
   }
 
-  async getReviewEvents(opts: { sinceEpoch?: number; limit?: number } = {}): Promise<ReviewEvent[]> {
+  async getReviewEvents(opts: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  } = {}): Promise<{ events: ReviewEvent[]; hasMore: boolean }> {
     const params = new URLSearchParams();
     if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
       params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
     }
     if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
       params.set('limit', String(Math.floor(opts.limit)));
+    }
+    if (opts.sinceEventKey) {
+      params.set('sinceEventKey', opts.sinceEventKey);
     }
 
     const query = params.toString();
@@ -198,7 +210,8 @@ export class WebAppAdapter implements TrackerAdapter {
     }
 
     const raw = await resp.json();
-    return reviewEventsSchema.parse(raw).events;
+    const parsed = reviewEventsSchema.parse(raw);
+    return { events: parsed.events, hasMore: parsed.hasMore === true };
   }
 
   async autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }> {
