@@ -53,6 +53,13 @@ REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 # Optional issue #22: bot-triggered auto creation of next play period
 AUTO_PERIOD_CREATOR_ENABLED=true
 AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
+
+# Optional issue #20: sunrise claim reminders
+CLAIM_REMINDER_ENABLED=true
+CLAIM_REMINDER_INTERVAL_MS=900000
+CLAIM_REMINDER_HOUR_LOCAL=8
+CLAIM_REMINDER_TIMEZONE=America/Chicago
+CLAIM_REMINDER_SNOOZE_HOURS=24
 ```
 
 Notes:
@@ -61,6 +68,7 @@ Notes:
 - Cubby notifications match channel/thread names to `character_name` (normalized).
 - Auto-night creation runs from the bot timer and calls web API (no cloud scheduler needed).
 - In `apps/web/.env`, set `AUTO_CREATE_PERIODS_ENABLED=true` to allow bot-triggered creation.
+- Claim reminders DM players at sunrise hour, with `Not Now` (snooze) and `Stop Reminders` controls.
 
 ## 4) Install Bot Dependencies
 

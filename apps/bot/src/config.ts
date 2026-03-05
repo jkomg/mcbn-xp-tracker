@@ -18,6 +18,14 @@ function parseNonNegativeInt(input: string | undefined, fallback: number, key: s
   return parsed;
 }
 
+function parseHour(input: string | undefined, fallback: number, key: string): number {
+  const value = parseNonNegativeInt(input, fallback, key);
+  if (value > 23) {
+    throw new Error(`${key} must be between 0 and 23 (received "${value}").`);
+  }
+  return value;
+}
+
 function validateBaseUrl(value: string): string {
   let parsed: URL;
   try {
@@ -57,6 +65,11 @@ const envSchema = z.object({
   REVIEW_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
   AUTO_PERIOD_CREATOR_ENABLED: z.string().optional(),
   AUTO_PERIOD_CREATOR_INTERVAL_MS: z.string().optional(),
+  CLAIM_REMINDER_ENABLED: z.string().optional(),
+  CLAIM_REMINDER_INTERVAL_MS: z.string().optional(),
+  CLAIM_REMINDER_HOUR_LOCAL: z.string().optional(),
+  CLAIM_REMINDER_TIMEZONE: z.string().optional(),
+  CLAIM_REMINDER_SNOOZE_HOURS: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -105,5 +118,18 @@ export const config = {
     env.AUTO_PERIOD_CREATOR_INTERVAL_MS,
     3_600_000,
     'AUTO_PERIOD_CREATOR_INTERVAL_MS',
+  ),
+  claimReminderEnabled: (env.CLAIM_REMINDER_ENABLED ?? 'false').toLowerCase() === 'true',
+  claimReminderIntervalMs: parsePositiveInt(
+    env.CLAIM_REMINDER_INTERVAL_MS,
+    900_000,
+    'CLAIM_REMINDER_INTERVAL_MS',
+  ),
+  claimReminderHourLocal: parseHour(env.CLAIM_REMINDER_HOUR_LOCAL, 8, 'CLAIM_REMINDER_HOUR_LOCAL'),
+  claimReminderTimezone: env.CLAIM_REMINDER_TIMEZONE ?? 'America/Chicago',
+  claimReminderSnoozeHours: parsePositiveInt(
+    env.CLAIM_REMINDER_SNOOZE_HOURS,
+    24,
+    'CLAIM_REMINDER_SNOOZE_HOURS',
   ),
 };

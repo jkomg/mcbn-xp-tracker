@@ -151,6 +151,23 @@ class FakeSheets:
         }
 
 
+class FakeReminderSheets(FakeSheets):
+    def get_all_claims(self):
+        return [
+            XPClaim(
+                row_index=10,
+                character_name='Alice',
+                play_period='Night 77',
+                status='Approved',
+                xp_claimed=3,
+                approved_xp=3,
+                reviewed_by='Storyteller',
+                review_date='20260303 10:00:00',
+                st_notes='',
+            ),
+        ]
+
+
 def _auth(token='legacy-token'):
     return {'Authorization': f'Bearer {token}'}
 
@@ -274,6 +291,21 @@ def test_review_events_returns_only_reviewed_claims_and_spends():
         denied_spend = next(e for e in events if e['kind'] == 'spend' and e['status'] == 'denied')
         assert denied_spend['traitName'] == 'Firearms'
         assert denied_spend['staffNotes'] == 'Need more RP support.'
+
+
+def test_claim_reminder_targets_returns_unsubmitted_active_characters():
+    app = _app(FakeReminderSheets())
+    with app.test_client() as client:
+        res = client.get('/api/meta/claim-reminder-targets', headers=_auth())
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body['currentNight'] == 'Night 77'
+        assert body['targets'] == [
+            {
+                'discordId': '222222222222222222',
+                'characterNames': ['Bob'],
+            }
+        ]
 
 
 def test_auto_create_period_route_uses_configured_parameters():

@@ -31,6 +31,13 @@ REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 # Optional issue #22: auto-create next night when due
 AUTO_PERIOD_CREATOR_ENABLED=true
 AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
+
+# Optional issue #20: sunrise claim reminders
+CLAIM_REMINDER_ENABLED=true
+CLAIM_REMINDER_INTERVAL_MS=900000
+CLAIM_REMINDER_HOUR_LOCAL=8
+CLAIM_REMINDER_TIMEZONE=America/Chicago
+CLAIM_REMINDER_SNOOZE_HOURS=24
 ```
 
 For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
@@ -47,6 +54,14 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - When enabled, the bot periodically calls `/api/periods/auto-create`.
 - The web app creates the next night only when due, based on latest period dates/cadence.
 - This is idempotent: if not due or already created, the API returns a skip reason.
+
+### Claim reminder behavior
+
+- At configured local hour, bot pulls reminder targets for the current open night.
+- Players get a DM listing eligible characters and quick actions:
+  - `Start Claim` (use `/xp submit` or `/xp claim`)
+  - `Not Now` (snoozes reminders)
+  - `Stop Reminders` (opt-out)
 
 ## Local run (manual)
 

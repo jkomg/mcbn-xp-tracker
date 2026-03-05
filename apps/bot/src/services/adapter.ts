@@ -4,6 +4,7 @@ import { errorToMessage, logEvent } from '../logger';
 import type {
   AdapterHealthReport,
   ClaimContext,
+  ClaimReminderSnapshot,
   ClaimPayload,
   ReviewEvent,
   RequesterContext,
@@ -14,6 +15,7 @@ import type {
 export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
+  getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
   getReviewEvents(opts?: { sinceEpoch?: number; limit?: number }): Promise<ReviewEvent[]>;
   autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
@@ -71,6 +73,16 @@ const reviewEventSchema = z.discriminatedUnion('kind', [
 
 const reviewEventsSchema = z.object({
   events: z.array(reviewEventSchema),
+});
+
+const claimReminderTargetsSchema = z.object({
+  currentNight: z.string().nullable(),
+  targets: z.array(
+    z.object({
+      discordId: z.string(),
+      characterNames: z.array(z.string()),
+    }),
+  ),
 });
 
 const autoCreatePeriodSchema = z.object({
@@ -147,6 +159,20 @@ export class WebAppAdapter implements TrackerAdapter {
   async getClaimContext(requester: RequesterContext, opts: { forceRefresh?: boolean } = {}): Promise<ClaimContext> {
     const result = await this.getClaimContextResult(requester, opts.forceRefresh === true);
     return result.context;
+  }
+
+  async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-reminder-targets`, {
+      headers: this.authHeaders(),
+    }).catch(() => null);
+    if (!resp) {
+      throw new Error('Unable to reach web app claim-reminder-targets API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app claim-reminder-targets API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    return claimReminderTargetsSchema.parse(raw);
   }
 
   async getReviewEvents(opts: { sinceEpoch?: number; limit?: number } = {}): Promise<ReviewEvent[]> {

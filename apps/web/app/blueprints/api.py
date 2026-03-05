@@ -277,6 +277,51 @@ def claim_context():
     )
 
 
+@bp.route('/meta/claim-reminder-targets', methods=['GET'])
+@require_bot_scope('read')
+@_limit("20 per minute")
+def claim_reminder_targets():
+    backend = _require_sheets()
+    if backend:
+        return backend
+
+    open_periods = _open_periods_desc()
+    if not open_periods:
+        return jsonify({'currentNight': None, 'targets': []})
+
+    current = open_periods[0]
+    active_characters = sheets_client.get_active_characters()
+    claims = sheets_client.get_all_claims()
+
+    submitted_for_current = {
+        str(c.character_name).strip().lower()
+        for c in claims
+        if str(c.play_period).strip() == current.period_label and str(c.status).strip().lower() != 'denied'
+    }
+
+    grouped: dict[str, list[str]] = {}
+    for char in active_characters:
+        if not getattr(char, 'active', True):
+            continue
+        player_discord_id = str(char.player_discord or '').strip()
+        if not DISCORD_ID_RE.fullmatch(player_discord_id):
+            continue
+        if char.character_name.strip().lower() in submitted_for_current:
+            continue
+        grouped.setdefault(player_discord_id, []).append(char.character_name)
+
+    targets = [
+        {
+            'discordId': discord_id,
+            'characterNames': sorted(names, key=lambda n: n.lower()),
+        }
+        for discord_id, names in grouped.items()
+    ]
+    targets.sort(key=lambda item: item['discordId'])
+
+    return jsonify({'currentNight': current.period_label, 'targets': targets})
+
+
 @bp.route('/characters/<string:name>/summary', methods=['GET'])
 @require_bot_scope('read')
 @_limit("60 per minute")

@@ -6,7 +6,9 @@ import { initClientCommandCollection, registerCommands } from './registerCommand
 import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
 import { AutoPeriodCreator } from './services/autoPeriodCreator';
+import { ClaimReminderService } from './services/claimReminderService';
 import { errorToMessage, logEvent } from './logger';
+import { handleClaimReminderButton } from './claimReminderInteractions';
 import {
   handleClaimWizardButton,
   handleClaimWizardModal,
@@ -39,11 +41,19 @@ const autoPeriodCreator = new AutoPeriodCreator(adapter, {
   intervalMs: config.autoPeriodCreatorIntervalMs,
 });
 
+const claimReminderService = new ClaimReminderService(client, adapter, {
+  enabled: config.claimReminderEnabled,
+  intervalMs: config.claimReminderIntervalMs,
+  hourLocal: config.claimReminderHourLocal,
+  timezone: config.claimReminderTimezone,
+});
+
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
   reviewNotifier.start();
   autoPeriodCreator.start();
+  claimReminderService.start();
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -73,6 +83,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isButton()) {
+      const reminderHandled = await handleClaimReminderButton(interaction);
+      if (reminderHandled) {
+        logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardButton(interaction, adapter);
       if (handled) {
         logEvent('info', 'interaction_handled_button', { ...baseMeta, customId: interaction.customId });
