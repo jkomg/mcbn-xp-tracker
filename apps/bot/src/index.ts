@@ -43,6 +43,7 @@ const autoPeriodCreator = new AutoPeriodCreator(adapter, {
 
 const claimReminderService = new ClaimReminderService(client, adapter, {
   enabled: config.claimReminderEnabled,
+  guildId: config.claimReminderGuildId,
   intervalMs: config.claimReminderIntervalMs,
   hourLocal: config.claimReminderHourLocal,
   timezone: config.claimReminderTimezone,

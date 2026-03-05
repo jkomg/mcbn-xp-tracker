@@ -299,7 +299,7 @@ def claim_reminder_targets():
         if str(c.play_period).strip() == current.period_label and str(c.status).strip().lower() != 'denied'
     }
 
-    grouped: dict[str, list[str]] = {}
+    targets = []
     for char in active_characters:
         if not getattr(char, 'active', True):
             continue
@@ -308,16 +308,13 @@ def claim_reminder_targets():
             continue
         if char.character_name.strip().lower() in submitted_for_current:
             continue
-        grouped.setdefault(player_discord_id, []).append(char.character_name)
-
-    targets = [
-        {
-            'discordId': discord_id,
-            'characterNames': sorted(names, key=lambda n: n.lower()),
-        }
-        for discord_id, names in grouped.items()
-    ]
-    targets.sort(key=lambda item: item['discordId'])
+        targets.append(
+            {
+                'discordId': player_discord_id,
+                'characterName': char.character_name,
+            }
+        )
+    targets.sort(key=lambda item: item['characterName'].lower())
 
     return jsonify({'currentNight': current.period_label, 'targets': targets})
 

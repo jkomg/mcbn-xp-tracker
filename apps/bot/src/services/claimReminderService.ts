@@ -3,11 +3,12 @@ import path from 'node:path';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
+import { findCubbyChannel } from './cubbyChannels';
 
 export const CLAIM_REMINDER_BUTTON_PREFIX = 'xp:claim-reminder:';
-export const CLAIM_REMINDER_ACTION_START = `${CLAIM_REMINDER_BUTTON_PREFIX}start`;
-export const CLAIM_REMINDER_ACTION_NOT_NOW = `${CLAIM_REMINDER_BUTTON_PREFIX}not-now`;
-export const CLAIM_REMINDER_ACTION_OPT_OUT = `${CLAIM_REMINDER_BUTTON_PREFIX}opt-out`;
+export const CLAIM_REMINDER_ACTION_START = 'start';
+export const CLAIM_REMINDER_ACTION_NOT_NOW = 'not-now';
+export const CLAIM_REMINDER_ACTION_OPT_OUT = 'opt-out';
 
 type ReminderPrefs = {
   optOut?: boolean;
@@ -18,6 +19,7 @@ type PrefStore = Record<string, ReminderPrefs>;
 
 type ClaimReminderServiceConfig = {
   enabled: boolean;
+  guildId?: string;
   intervalMs: number;
   hourLocal: number;
   timezone: string;
@@ -25,23 +27,36 @@ type ClaimReminderServiceConfig = {
 
 const PREFS_PATH = path.resolve(process.cwd(), 'data', 'claim-reminder-preferences.json');
 
-export function buildClaimReminderText(currentNight: string, characterNames: string[]): string {
-  const characterList = characterNames.map((c) => `- ${c}`).join('\n');
+export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string): string {
   return [
+    `Hey <@${discordId}>`,
+    '',
     `Sunrise reminder for **${currentNight}**.`,
     '',
-    'Characters with no submitted claim yet:',
-    characterList || '- none',
+    `Please submit your XP claim for **${characterName}**.`,
     '',
     'Use `/xp submit` (wizard) or `/xp claim` when ready.',
   ].join('\n');
 }
 
-export function buildClaimReminderActionRow() {
+function actionCustomId(action: string, targetDiscordId: string): string {
+  return `${CLAIM_REMINDER_BUTTON_PREFIX}${action}:${targetDiscordId}`;
+}
+
+export function buildClaimReminderActionRow(targetDiscordId: string) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_START).setStyle(ButtonStyle.Success).setLabel('Start Claim'),
-    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_NOT_NOW).setStyle(ButtonStyle.Secondary).setLabel('Not Now'),
-    new ButtonBuilder().setCustomId(CLAIM_REMINDER_ACTION_OPT_OUT).setStyle(ButtonStyle.Danger).setLabel('Stop Reminders'),
+    new ButtonBuilder()
+      .setCustomId(actionCustomId(CLAIM_REMINDER_ACTION_START, targetDiscordId))
+      .setStyle(ButtonStyle.Success)
+      .setLabel('Start Claim'),
+    new ButtonBuilder()
+      .setCustomId(actionCustomId(CLAIM_REMINDER_ACTION_NOT_NOW, targetDiscordId))
+      .setStyle(ButtonStyle.Secondary)
+      .setLabel('Not Now'),
+    new ButtonBuilder()
+      .setCustomId(actionCustomId(CLAIM_REMINDER_ACTION_OPT_OUT, targetDiscordId))
+      .setStyle(ButtonStyle.Danger)
+      .setLabel('Stop Reminders'),
   );
 }
 
@@ -117,6 +132,10 @@ export class ClaimReminderService {
     if (!this.config.enabled || this.timer) {
       return;
     }
+    if (!this.config.guildId) {
+      logEvent('warn', 'claim_reminder_service_disabled_missing_guild');
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.config.intervalMs);
@@ -158,6 +177,16 @@ export class ClaimReminderService {
         logEvent('info', 'claim_reminder_service_no_targets', { dayKey });
         return;
       }
+      const guildId = this.config.guildId;
+      if (!guildId) {
+        logEvent('warn', 'claim_reminder_service_disabled_missing_guild');
+        return;
+      }
+      const guild = await this.client.guilds.fetch(guildId).catch(() => null);
+      if (!guild) {
+        logEvent('warn', 'claim_reminder_service_guild_not_found', { guildId });
+        return;
+      }
 
       const nowEpoch = Math.floor(Date.now() / 1000);
       const prefs = readPrefs();
@@ -176,18 +205,19 @@ export class ClaimReminderService {
           continue;
         }
 
-        const user = await this.client.users.fetch(target.discordId).catch(() => null);
-        if (!user) {
+        const channel = await findCubbyChannel(guild, target.characterName);
+        if (!channel) {
+          logEvent('warn', 'claim_reminder_channel_missing', {
+            characterName: target.characterName,
+            discordId: target.discordId,
+          });
           continue;
         }
-
-        const actionRow = buildClaimReminderActionRow();
-        await user
-          .send({
-            content: buildClaimReminderText(snapshot.currentNight, target.characterNames),
-            components: [actionRow],
-          })
-          .catch(() => null);
+        const actionRow = buildClaimReminderActionRow(target.discordId);
+        await channel.send({
+          content: buildClaimReminderText(snapshot.currentNight, target.characterName, target.discordId),
+          components: [actionRow],
+        });
         sent += 1;
       }
 

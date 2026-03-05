@@ -301,10 +301,7 @@ def test_claim_reminder_targets_returns_unsubmitted_active_characters():
         body = res.get_json()
         assert body['currentNight'] == 'Night 77'
         assert body['targets'] == [
-            {
-                'discordId': '222222222222222222',
-                'characterNames': ['Bob'],
-            }
+            {'discordId': '222222222222222222', 'characterName': 'Bob'},
         ]
 
 

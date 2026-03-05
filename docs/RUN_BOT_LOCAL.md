@@ -34,6 +34,7 @@ AUTO_PERIOD_CREATOR_INTERVAL_MS=3600000
 
 # Optional issue #20: sunrise claim reminders
 CLAIM_REMINDER_ENABLED=true
+CLAIM_REMINDER_GUILD_ID=1168638982012293200
 CLAIM_REMINDER_INTERVAL_MS=900000
 CLAIM_REMINDER_HOUR_LOCAL=8
 CLAIM_REMINDER_TIMEZONE=America/Chicago
@@ -59,17 +60,20 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 ### Claim reminder behavior
 
 - At configured local hour, bot pulls reminder targets for the current open night.
-- Players get a DM listing eligible characters and quick actions:
+- For each eligible character, bot posts in that character's cubby channel/thread.
+- Message mentions linked player (`player_discord`) and includes quick actions:
   - `Start Claim` (use `/xp submit` or `/xp claim`)
   - `Not Now` (snoozes reminders)
   - `Stop Reminders` (opt-out)
+- Buttons are locked to the linked player for that reminder post.
+- Important: cubby channel/thread names must match character names (normalized).
 
 ### Robust Discord test harness
 
 - Add your Discord ID to `BOT_TESTER_IDS` in `apps/bot/.env`.
-- Use `/xp test-reminder` to send a dummy DM without touching Google Sheets.
+- Use `/xp test-reminder` to post a dummy reminder to a cubby channel without touching Google Sheets.
 - Recommended command for full UI/button test:
-  - `/xp test-reminder target_user:@you current_night:"Night TEST" dummy_characters:"Dummy One, Dummy Two"`
+  - `/xp test-reminder character:"Dummy One" target_user:@you current_night:"Night TEST"`
 - Then click:
   - `Start Claim`: confirms manual claim path.
   - `Not Now`: writes a snooze preference.

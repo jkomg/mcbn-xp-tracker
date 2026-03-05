@@ -5,6 +5,7 @@ import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
+import { findCubbyChannel } from '../services/cubbyChannels';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -157,18 +158,15 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('test-reminder')
-      .setDescription('Staff test: send a dummy sunrise reminder DM')
+      .setDescription('Staff test: post a dummy cubby reminder in-character channel')
       .addUserOption((o) =>
-        o.setName('target_user').setDescription('User to receive test DM (default: you)').setRequired(false),
+        o.setName('target_user').setDescription('Linked player to mention (default: you)').setRequired(false),
       )
       .addStringOption((o) =>
         o.setName('current_night').setDescription('Override current night label').setRequired(false),
       )
       .addStringOption((o) =>
-        o
-          .setName('dummy_characters')
-          .setDescription('Comma-separated dummy character names')
-          .setRequired(false),
+        o.setName('character').setDescription('Character / cubby channel name to target').setRequired(true),
       ),
   );
 
@@ -356,26 +354,33 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
 
     const targetUser = interaction.options.getUser('target_user') ?? interaction.user;
     const currentNight = interaction.options.getString('current_night') ?? 'Night TEST';
-    const dummyRaw = interaction.options.getString('dummy_characters') ?? 'Dummy Character';
-    const characters = dummyRaw
-      .split(',')
-      .map((v) => v.trim())
-      .filter((v) => v.length > 0)
-      .slice(0, 20);
-
-    const row = buildClaimReminderActionRow();
-    const sent = await targetUser
-      .send({
-        content: buildClaimReminderText(currentNight, characters),
-        components: [row],
-      })
-      .then(() => true)
-      .catch(() => false);
+    const character = interaction.options.getString('character', true);
+    const guildId = interaction.guildId ?? config.claimReminderGuildId;
+    if (!guildId) {
+      await interaction.reply({ content: 'No guild available for cubby matching.', ephemeral: true });
+      return;
+    }
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.reply({ content: 'Configured guild was not found.', ephemeral: true });
+      return;
+    }
+    const channel = await findCubbyChannel(guild, character);
+    if (!channel) {
+      await interaction.reply({
+        content: `No cubby channel matched character name "${character}".`,
+        ephemeral: true,
+      });
+      return;
+    }
+    const row = buildClaimReminderActionRow(targetUser.id);
+    await channel.send({
+      content: buildClaimReminderText(currentNight, character, targetUser.id),
+      components: [row],
+    });
 
     await interaction.reply({
-      content: sent
-        ? `Sent test reminder DM to <@${targetUser.id}> for ${characters.length} character(s).`
-        : `Could not DM <@${targetUser.id}>. Check DM privacy settings.`,
+      content: `Posted test reminder in <#${channel.id}> for <@${targetUser.id}>.`,
       ephemeral: true,
     });
     return;

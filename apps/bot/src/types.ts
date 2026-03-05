@@ -69,7 +69,7 @@ export type AdapterHealthReport = {
 
 export type ClaimReminderTarget = {
   discordId: string;
-  characterNames: string[];
+  characterName: string;
 };
 
 export type ClaimReminderSnapshot = {

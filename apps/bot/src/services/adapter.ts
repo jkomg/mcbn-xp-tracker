@@ -80,7 +80,7 @@ const claimReminderTargetsSchema = z.object({
   targets: z.array(
     z.object({
       discordId: z.string(),
-      characterNames: z.array(z.string()),
+      characterName: z.string(),
     }),
   ),
 });

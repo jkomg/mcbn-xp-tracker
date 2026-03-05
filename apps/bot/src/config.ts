@@ -68,6 +68,7 @@ const envSchema = z.object({
   AUTO_PERIOD_CREATOR_ENABLED: z.string().optional(),
   AUTO_PERIOD_CREATOR_INTERVAL_MS: z.string().optional(),
   CLAIM_REMINDER_ENABLED: z.string().optional(),
+  CLAIM_REMINDER_GUILD_ID: z.string().optional(),
   CLAIM_REMINDER_INTERVAL_MS: z.string().optional(),
   CLAIM_REMINDER_HOUR_LOCAL: z.string().optional(),
   CLAIM_REMINDER_TIMEZONE: z.string().optional(),
@@ -136,6 +137,7 @@ export const config = {
     'AUTO_PERIOD_CREATOR_INTERVAL_MS',
   ),
   claimReminderEnabled: (env.CLAIM_REMINDER_ENABLED ?? 'false').toLowerCase() === 'true',
+  claimReminderGuildId: env.CLAIM_REMINDER_GUILD_ID ?? env.REVIEW_NOTIFIER_GUILD_ID ?? env.TEST_GUILD_ID,
   claimReminderIntervalMs: parsePositiveInt(
     env.CLAIM_REMINDER_INTERVAL_MS,
     900_000,
