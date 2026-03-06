@@ -107,6 +107,22 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - Preference state file (local bot host):
   - `apps/bot/data/claim-reminder-preferences.json`
 
+### Bulk grant bot access to all cubbies
+
+If the bot cannot post in character cubbies, run:
+
+1. Dry run (no changes): `/xp sync-cubby-access dry_run:true`
+2. Apply changes: `/xp sync-cubby-access dry_run:false`
+
+Behavior:
+- Scans category names containing `Character Cubbies`
+- Updates permission overwrites for bot on each matched category and child text channel
+- Grants: `View Channel`, `Send Messages`, `Read Message History`, `Use Application Commands`, `Send Messages in Threads`
+
+Requirements:
+- Command caller must be in `BOT_TESTER_IDS`
+- Bot role must have permission to manage channel overwrites (`Manage Channels` or `Manage Roles`)
+
 ## Local run (manual)
 
 ```bash

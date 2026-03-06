@@ -1,4 +1,12 @@
-import { AutocompleteInteraction, ChannelType, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import {
+  AutocompleteInteraction,
+  CategoryChannel,
+  ChannelType,
+  ChatInputCommandInteraction,
+  PermissionsBitField,
+  SlashCommandBuilder,
+  TextChannel,
+} from 'discord.js';
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
 import { config } from '../config';
@@ -195,6 +203,17 @@ export const data = new SlashCommandBuilder()
             { name: 'Sunset', value: 'sunset' },
             { name: 'Downtime', value: 'downtime' },
           ),
+      ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('sync-cubby-access')
+      .setDescription('Staff tool: grant bot permissions on all Character Cubbies channels')
+      .addBooleanOption((o) =>
+        o
+          .setName('dry_run')
+          .setDescription('Preview changes only (default: true)')
+          .setRequired(false),
       ),
   );
 
@@ -532,6 +551,120 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       content: `Posted ${eventName} passage message in <#${target.id}> (no role tags).`,
       ephemeral: true,
     });
+    return;
+  }
+
+  if (sub === 'sync-cubby-access') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({
+        content: 'This admin command is restricted. Add your Discord ID to BOT_TESTER_IDS.',
+        ephemeral: true,
+      });
+      return;
+    }
+    await interaction.deferReply({ ephemeral: true });
+
+    const dryRun = interaction.options.getBoolean('dry_run') ?? true;
+    const guildId = interaction.guildId ?? config.claimReminderGuildId ?? config.passageOfTimeGuildId;
+    if (!guildId) {
+      await interaction.editReply('No guild context is available for cubby sync.');
+      return;
+    }
+
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.editReply('Configured guild was not found.');
+      return;
+    }
+    const me = await guild.members.fetchMe().catch(() => null);
+    if (!me) {
+      await interaction.editReply('Unable to resolve bot membership in this guild.');
+      return;
+    }
+
+    const canManageChannels = me.permissions.has(PermissionsBitField.Flags.ManageChannels);
+    const canManageRoles = me.permissions.has(PermissionsBitField.Flags.ManageRoles);
+    if (!canManageChannels && !canManageRoles) {
+      await interaction.editReply(
+        'Bot lacks permission to update channel overwrites. Grant Manage Channels (or Manage Roles) and retry.',
+      );
+      return;
+    }
+
+    const allChannels = await guild.channels.fetch();
+    const categories = Array.from(allChannels.values())
+      .filter((ch): ch is CategoryChannel => !!ch && ch.type === ChannelType.GuildCategory)
+      .filter((ch) => ch.name.toLowerCase().includes('character cubbies'));
+
+    if (categories.length === 0) {
+      await interaction.editReply('No categories matching "Character Cubbies" were found.');
+      return;
+    }
+
+    const textChannels = Array.from(allChannels.values())
+      .filter((ch): ch is TextChannel => !!ch && ch.type === ChannelType.GuildText)
+      .filter((ch) => !!ch.parentId && categories.some((cat) => cat.id === ch.parentId));
+
+    const permissionPatch = {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true,
+      SendMessagesInThreads: true,
+    } as const;
+
+    let updated = 0;
+    let failed = 0;
+    const failures: string[] = [];
+
+    for (const category of categories) {
+      try {
+        if (!dryRun) {
+          await category.permissionOverwrites.edit(me.id, permissionPatch);
+        }
+        updated += 1;
+      } catch (error) {
+        failed += 1;
+        failures.push(`Category ${category.name}: ${errorToMessage(error)}`);
+      }
+    }
+
+    for (const channel of textChannels) {
+      try {
+        if (!dryRun) {
+          await channel.permissionOverwrites.edit(me.id, permissionPatch);
+        }
+        updated += 1;
+      } catch (error) {
+        failed += 1;
+        failures.push(`#${channel.name}: ${errorToMessage(error)}`);
+      }
+    }
+
+    const lines = [
+      `Mode: ${dryRun ? 'dry-run' : 'apply'}`,
+      `Categories matched: ${categories.length}`,
+      `Cubby text channels matched: ${textChannels.length}`,
+      `Targets processed: ${categories.length + textChannels.length}`,
+      `Successful: ${updated}`,
+      `Failed: ${failed}`,
+    ];
+    if (failures.length > 0) {
+      lines.push('', 'Failures (first 10):');
+      lines.push(...failures.slice(0, 10).map((msg) => `- ${msg}`));
+    }
+
+    logEvent('info', 'xp_sync_cubby_access', {
+      interactionId: interaction.id,
+      userId: interaction.user.id,
+      guildId: guild.id,
+      dryRun,
+      categories: categories.length,
+      channels: textChannels.length,
+      updated,
+      failed,
+    });
+    await interaction.editReply(lines.join('\n'));
     return;
   }
 
