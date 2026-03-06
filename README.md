@@ -191,6 +191,19 @@ Use launchd helpers in this repo:
 
 This starts local web (`us.mcbn.web-dev`) and bot (`us.mcbn.tracker-bot`) as background services and keeps them running after terminal windows close.
 
+### Local Diagnostics Page
+
+When `LOCAL_STATUS_ENABLED=true`, staff can view:
+- launchd status for local web/bot services
+- recent access log entries
+- recent `web.*` and `bot.*` log tails
+
+URL: `http://127.0.0.1:5001/local/status`
+
+Security:
+- route is staff-protected
+- route only serves localhost requests
+
 ### `.env` Configuration
 
 ```env

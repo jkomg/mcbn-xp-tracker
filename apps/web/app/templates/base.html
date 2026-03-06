@@ -99,6 +99,14 @@
                             <i class="bi bi-clock-history"></i> <span>Audit Log</span>
                         </a>
                     </li>
+                    {% if config.LOCAL_STATUS_ENABLED %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'local_status.status_page' %}active{% endif %}"
+                           href="{{ url_for('local_status.status_page') }}">
+                            <i class="bi bi-activity"></i> <span>Local Status</span>
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <hr class="mx-3 border-secondary">
                 <ul class="nav flex-column p-2">

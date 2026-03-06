@@ -82,3 +82,14 @@ class Config:
     AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS = int(
         os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', '0')
     )
+
+    # Local-only diagnostics page (launchd/logs/access tail).
+    LOCAL_STATUS_ENABLED = os.environ.get(
+        'LOCAL_STATUS_ENABLED', 'false'
+    ).lower() in ('true', '1', 'yes')
+    LOCAL_STATUS_ACCESS_LOG_FILE = os.environ.get(
+        'LOCAL_STATUS_ACCESS_LOG_FILE', '.run/logs/access.log'
+    )
+    LOCAL_STATUS_LOG_LINES = int(
+        os.environ.get('LOCAL_STATUS_LOG_LINES', '120')
+    )

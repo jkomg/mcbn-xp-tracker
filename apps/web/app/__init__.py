@@ -1,6 +1,9 @@
 """MCbN XP Tracker — Flask application factory."""
 
-from flask import Flask, session
+from datetime import datetime
+from pathlib import Path
+
+from flask import Flask, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
@@ -16,6 +19,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
     csrf.init_app(app)
+    project_root = Path(__file__).resolve().parents[2]
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
     global limiter
@@ -48,6 +52,7 @@ def create_app():
     from .blueprints.audit import bp as audit_bp
     from .blueprints.player import bp as player_bp
     from .blueprints.api import bp as api_bp
+    from .blueprints.local_status import bp as local_status_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -57,6 +62,7 @@ def create_app():
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(player_bp, url_prefix='/player')
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(local_status_bp)
     csrf.exempt(api_bp)
 
     # Inject auth helpers into all templates
@@ -70,5 +76,25 @@ def create_app():
             'current_discord_name': session.get('discord_name', ''),
             'current_discord_id': session.get('discord_id', ''),
         }
+
+    if app.config.get('LOCAL_STATUS_ENABLED', False):
+        access_log_file = Path(app.config.get('LOCAL_STATUS_ACCESS_LOG_FILE', '.run/logs/access.log'))
+        if not access_log_file.is_absolute():
+            access_log_file = project_root / access_log_file
+        access_log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        @app.before_request
+        def _record_local_access():
+            user_id = session.get('discord_id') or '-'
+            method = request.method
+            path = request.full_path.rstrip('?')
+            remote_addr = request.remote_addr or '-'
+            ua = (request.user_agent.string or '-').replace('\n', ' ').replace('\r', ' ')
+            line = (
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                f'{remote_addr} user={user_id} {method} {path} ua="{ua}"\n'
+            )
+            with access_log_file.open('a', encoding='utf-8') as fh:
+                fh.write(line)
 
     return app
