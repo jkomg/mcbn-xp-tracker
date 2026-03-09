@@ -49,7 +49,8 @@ type ServiceState = {
   postedKeys: string[];
 };
 
-const STATE_PATH = path.resolve(process.cwd(), 'data', 'passage-of-time-state.json');
+const BOT_ROOT = path.resolve(__dirname, '..', '..');
+const STATE_PATH = path.join(BOT_ROOT, 'data', 'passage-of-time-state.json');
 const CYCLE_DAYS = 7;
 
 function ensureStateDir() {

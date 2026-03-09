@@ -27,7 +27,8 @@ type ClaimReminderServiceConfig = {
   timezone: string;
 };
 
-const PREFS_PATH = path.resolve(process.cwd(), 'data', 'claim-reminder-preferences.json');
+const BOT_ROOT = path.resolve(__dirname, '..', '..');
+const PREFS_PATH = path.join(BOT_ROOT, 'data', 'claim-reminder-preferences.json');
 
 export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string): string {
   return [
@@ -262,7 +263,10 @@ export class ClaimReminderService {
         }
       }
 
-      this.lastRunDayKey = dayKey;
+      const failed = Math.max(0, snapshot.targets.length - sent - skippedOptOut - skippedSnooze);
+      if (!(sent === 0 && failed > 0)) {
+        this.lastRunDayKey = dayKey;
+      }
       logEvent('info', 'claim_reminder_service_run', {
         dayKey,
         currentNight: snapshot.currentNight,
@@ -270,6 +274,8 @@ export class ClaimReminderService {
         sent,
         skippedOptOut,
         skippedSnooze,
+        failed,
+        willRetryWindow: sent === 0 && failed > 0,
       });
     } catch (error) {
       logEvent('warn', 'claim_reminder_service_error', { error: errorToMessage(error) });

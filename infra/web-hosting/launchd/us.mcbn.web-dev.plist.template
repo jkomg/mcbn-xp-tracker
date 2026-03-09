@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>us.mcbn.web-dev</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/zsh</string>
+      <string>-lc</string>
+      <string>cd /ABSOLUTE/PATH/TO/mcbn-xp-tracker/apps/web &amp;&amp; lsof -ti:5001 2&gt;/dev/null | xargs kill -9 2&gt;/dev/null || true &amp;&amp; export FLASK_APP=app:create_app &amp;&amp; export FLASK_DEBUG=false &amp;&amp; export SESSION_COOKIE_SECURE=false &amp;&amp; if [ -x ./venv/bin/python ]; then exec ./venv/bin/python -m flask run --host 127.0.0.1 --port 5001; else exec python3 -m flask run --host 127.0.0.1 --port 5001; fi</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/mcbn-xp-tracker/apps/web</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/mcbn-web-dev.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/mcbn-web-dev.err.log</string>
+  </dict>
+</plist>

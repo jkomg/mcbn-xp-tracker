@@ -1,11 +1,19 @@
-import { AutocompleteInteraction, ChannelType, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import {
+  AutocompleteInteraction,
+  CategoryChannel,
+  ChannelType,
+  ChatInputCommandInteraction,
+  PermissionsBitField,
+  SlashCommandBuilder,
+  TextChannel,
+} from 'discord.js';
 import type { CommandContext } from '../discord';
 import { startClaimWizard } from '../interactiveClaimWizard';
 import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
-import { findCubbyChannel } from '../services/cubbyChannels';
+import { findCubbyChannel, normalizeChannelName } from '../services/cubbyChannels';
 import { getPassageMessage } from '../services/passageOfTimeService';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
@@ -87,11 +95,51 @@ export const data = new SlashCommandBuilder()
       .addStringOption((o) =>
         o
           .setName('category')
-          .setDescription('Claim category')
+          .setDescription('Claim category (slot 1)')
           .setRequired(true)
           .addChoices(...CLAIM_CATEGORY_CHOICES),
       )
-      .addStringOption((o) => o.setName('link').setDescription('Discord post link').setRequired(true))
+      .addStringOption((o) => o.setName('link').setDescription('Discord post link (slot 1)').setRequired(true))
+      .addStringOption((o) =>
+        o
+          .setName('category_2')
+          .setDescription('Optional second claim category')
+          .setRequired(false)
+          .addChoices(...CLAIM_CATEGORY_CHOICES),
+      )
+      .addStringOption((o) => o.setName('link_2').setDescription('Discord post link for category_2').setRequired(false))
+      .addStringOption((o) =>
+        o
+          .setName('category_3')
+          .setDescription('Optional third claim category')
+          .setRequired(false)
+          .addChoices(...CLAIM_CATEGORY_CHOICES),
+      )
+      .addStringOption((o) => o.setName('link_3').setDescription('Discord post link for category_3').setRequired(false))
+      .addStringOption((o) =>
+        o
+          .setName('category_4')
+          .setDescription('Optional fourth claim category')
+          .setRequired(false)
+          .addChoices(...CLAIM_CATEGORY_CHOICES),
+      )
+      .addStringOption((o) => o.setName('link_4').setDescription('Discord post link for category_4').setRequired(false))
+      .addStringOption((o) =>
+        o
+          .setName('category_5')
+          .setDescription('Optional fifth claim category')
+          .setRequired(false)
+          .addChoices(...CLAIM_CATEGORY_CHOICES),
+      )
+      .addStringOption((o) => o.setName('link_5').setDescription('Discord post link for category_5').setRequired(false))
+      .addStringOption((o) =>
+        o
+          .setName('category_6')
+          .setDescription('Optional sixth claim category')
+          .setRequired(false)
+          .addChoices(...CLAIM_CATEGORY_CHOICES),
+      )
+      .addStringOption((o) => o.setName('link_6').setDescription('Discord post link for category_6').setRequired(false))
       .addBooleanOption((o) =>
         o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
       )
@@ -196,14 +244,54 @@ export const data = new SlashCommandBuilder()
             { name: 'Downtime', value: 'downtime' },
           ),
       ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('sync-cubby-access')
+      .setDescription('Staff tool: grant bot permissions on all Character Cubbies channels')
+      .addBooleanOption((o) =>
+        o
+          .setName('dry_run')
+          .setDescription('Preview changes only (default: true)')
+          .setRequired(false),
+      ),
   );
 
 export const name = 'xp';
 
+async function suggestCubbyNames(
+  interaction: ChatInputCommandInteraction,
+  requestedName: string,
+): Promise<string[]> {
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return [];
+  }
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    return [];
+  }
+  const normalizedRequested = normalizeChannelName(requestedName);
+  const channels = await guild.channels.fetch();
+  const names = Array.from(channels.values())
+    .filter((ch): ch is NonNullable<typeof ch> => !!ch)
+    .filter((ch) => ch.type === ChannelType.GuildText)
+    .map((ch) => ch.name);
+  const ranked = names
+    .map((name) => ({
+      name,
+      normalized: normalizeChannelName(name),
+    }))
+    .filter((item) => item.normalized.includes(normalizedRequested) || normalizedRequested.includes(item.normalized))
+    .slice(0, 8)
+    .map((item) => item.name);
+  return ranked;
+}
+
 export async function autocomplete(interaction: AutocompleteInteraction, { adapter }: CommandContext) {
   const option = interaction.options.getFocused(true);
   const sub = interaction.options.getSubcommand(false) ?? '';
-  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend']);
+  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend', 'test-reminder']);
   const supportsPeriodAutocomplete = new Set(['submit', 'claim']);
   const isCharacterLookup = supportsCharacterAutocomplete.has(sub) && option.name === 'character';
   const isPeriodLookup = supportsPeriodAutocomplete.has(sub) && option.name === 'play_period';
@@ -298,28 +386,71 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   if (sub === 'claim') {
     const character = interaction.options.getString('character', true);
     const playPeriod = interaction.options.getString('play_period', true);
-    const category = interaction.options.getString('category', true) as XpClaimCategory;
-    const link = interaction.options.getString('link', true);
-    const parsed = parseMessageLink(link);
-    if (!parsed) {
-      await interaction.reply({ content: 'Invalid Discord message link format.', ephemeral: true });
-      return;
+    const claimPairs: Array<{ category: XpClaimCategory; link: string }> = [
+      {
+        category: interaction.options.getString('category', true) as XpClaimCategory,
+        link: interaction.options.getString('link', true),
+      },
+    ];
+
+    for (let slot = 2; slot <= 6; slot += 1) {
+      const category = interaction.options.getString(`category_${slot}`) as XpClaimCategory | null;
+      const link = interaction.options.getString(`link_${slot}`);
+      if (!category && !link) {
+        continue;
+      }
+      if (!category || !link) {
+        await interaction.reply({
+          content: `Claim slot ${slot} requires both category_${slot} and link_${slot}.`,
+          ephemeral: true,
+        });
+        return;
+      }
+      claimPairs.push({ category, link });
     }
-    if (interaction.guildId && parsed.guildId !== interaction.guildId) {
-      await interaction.reply({ content: 'Link must point to a message in this server.', ephemeral: true });
-      return;
+
+    const seenCategories = new Set<string>();
+    const payloadCategories: Partial<Record<XpClaimCategory, string>> = {};
+    for (const pair of claimPairs) {
+      if (seenCategories.has(pair.category)) {
+        await interaction.reply({
+          content: `Duplicate claim category "${pair.category}" is not allowed in one submission.`,
+          ephemeral: true,
+        });
+        return;
+      }
+      seenCategories.add(pair.category);
+
+      const parsed = parseMessageLink(pair.link);
+      if (!parsed) {
+        await interaction.reply({ content: `Invalid Discord message link for "${pair.category}".`, ephemeral: true });
+        return;
+      }
+      if (interaction.guildId && parsed.guildId !== interaction.guildId) {
+        await interaction.reply({
+          content: `Link for "${pair.category}" must point to a message in this server.`,
+          ephemeral: true,
+        });
+        return;
+      }
+      payloadCategories[pair.category] = pair.link;
     }
 
     const result = await adapter.submitClaim({
       characterName: character,
       playPeriod,
       ...requester,
-      categories: {
-        [category]: link,
-      },
+      categories: payloadCategories,
     });
 
-    logEvent('info', 'xp_claim_result', { ...meta, character, playPeriod, category, ok: result.ok });
+    logEvent('info', 'xp_claim_result', {
+      ...meta,
+      character,
+      playPeriod,
+      categoryCount: claimPairs.length,
+      categories: claimPairs.map((pair) => pair.category),
+      ok: result.ok,
+    });
     await interaction.reply({ content: result.message, ephemeral: true });
     return;
   }
@@ -378,7 +509,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const lines = [
       '**XP Quick Help**',
       '- `/xp submit`: guided XP claim wizard (recommended)',
-      '- `/xp claim`: quick single-category claim',
+      '- `/xp claim`: quick claim (1-6 category/link pairs in one submission)',
       '- `/xp spend`: submit an XP spend request',
       '- `/xp summary`: show your character XP totals',
       '- `/xp spend-cost`: preview spend XP cost',
@@ -416,17 +547,36 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     }
     const channel = await findCubbyChannel(guild, character);
     if (!channel) {
+      const normalized = normalizeChannelName(character);
+      const suggestions = await suggestCubbyNames(interaction, character);
+      const hint = suggestions.length > 0 ? `\nClosest matches: ${suggestions.join(', ')}` : '';
       await interaction.reply({
-        content: `No cubby channel matched character name "${character}".`,
+        content: `No cubby channel matched character name "${character}" (normalized: "${normalized}").${hint}`,
         ephemeral: true,
       });
       return;
     }
     const row = buildClaimReminderActionRow(targetUser.id);
-    await channel.send({
-      content: buildClaimReminderText(currentNight, character, targetUser.id),
-      components: [row],
-    });
+    try {
+      await channel.send({
+        content: buildClaimReminderText(currentNight, character, targetUser.id),
+        components: [row],
+      });
+    } catch (error) {
+      await interaction.reply({
+        content:
+          'I found the cubby, but I cannot post there (Discord Missing Access). Grant the bot View Channel + Send Messages in that cubby.',
+        ephemeral: true,
+      });
+      logEvent('warn', 'xp_test_reminder_send_failed', {
+        interactionId: interaction.id,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        channelId: channel.id,
+        error: errorToMessage(error),
+      });
+      return;
+    }
 
     await interaction.reply({
       content: `Posted test reminder in <#${channel.id}> for <@${targetUser.id}>.`,
@@ -463,11 +613,141 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       return;
     }
     const eventName = interaction.options.getString('event', true) as 'sunrise' | 'sunset' | 'downtime';
-    await target.send({ content: getPassageMessage(eventName) });
+    try {
+      await target.send({ content: getPassageMessage(eventName) });
+    } catch (error) {
+      await interaction.reply({
+        content:
+          'I found #bot-testing, but I cannot post there (Discord Missing Access). Grant the bot View Channel + Send Messages in #bot-testing.',
+        ephemeral: true,
+      });
+      logEvent('warn', 'xp_test_passage_send_failed', {
+        interactionId: interaction.id,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        channelId: target.id,
+        error: errorToMessage(error),
+      });
+      return;
+    }
     await interaction.reply({
       content: `Posted ${eventName} passage message in <#${target.id}> (no role tags).`,
       ephemeral: true,
     });
+    return;
+  }
+
+  if (sub === 'sync-cubby-access') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({
+        content: 'This admin command is restricted. Add your Discord ID to BOT_TESTER_IDS.',
+        ephemeral: true,
+      });
+      return;
+    }
+    await interaction.deferReply({ ephemeral: true });
+
+    const dryRun = interaction.options.getBoolean('dry_run') ?? true;
+    const guildId = interaction.guildId ?? config.claimReminderGuildId ?? config.passageOfTimeGuildId;
+    if (!guildId) {
+      await interaction.editReply('No guild context is available for cubby sync.');
+      return;
+    }
+
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.editReply('Configured guild was not found.');
+      return;
+    }
+    const me = await guild.members.fetchMe().catch(() => null);
+    if (!me) {
+      await interaction.editReply('Unable to resolve bot membership in this guild.');
+      return;
+    }
+
+    const canManageChannels = me.permissions.has(PermissionsBitField.Flags.ManageChannels);
+    const canManageRoles = me.permissions.has(PermissionsBitField.Flags.ManageRoles);
+    if (!canManageChannels && !canManageRoles) {
+      await interaction.editReply(
+        'Bot lacks permission to update channel overwrites. Grant Manage Channels (or Manage Roles) and retry.',
+      );
+      return;
+    }
+
+    const allChannels = await guild.channels.fetch();
+    const categories = Array.from(allChannels.values())
+      .filter((ch): ch is CategoryChannel => !!ch && ch.type === ChannelType.GuildCategory)
+      .filter((ch) => ch.name.toLowerCase().includes('character cubbies'));
+
+    if (categories.length === 0) {
+      await interaction.editReply('No categories matching "Character Cubbies" were found.');
+      return;
+    }
+
+    const textChannels = Array.from(allChannels.values())
+      .filter((ch): ch is TextChannel => !!ch && ch.type === ChannelType.GuildText)
+      .filter((ch) => !!ch.parentId && categories.some((cat) => cat.id === ch.parentId));
+
+    const permissionPatch = {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true,
+      SendMessagesInThreads: true,
+    } as const;
+
+    let updated = 0;
+    let failed = 0;
+    const failures: string[] = [];
+
+    for (const category of categories) {
+      try {
+        if (!dryRun) {
+          await category.permissionOverwrites.edit(me.id, permissionPatch);
+        }
+        updated += 1;
+      } catch (error) {
+        failed += 1;
+        failures.push(`Category ${category.name}: ${errorToMessage(error)}`);
+      }
+    }
+
+    for (const channel of textChannels) {
+      try {
+        if (!dryRun) {
+          await channel.permissionOverwrites.edit(me.id, permissionPatch);
+        }
+        updated += 1;
+      } catch (error) {
+        failed += 1;
+        failures.push(`#${channel.name}: ${errorToMessage(error)}`);
+      }
+    }
+
+    const lines = [
+      `Mode: ${dryRun ? 'dry-run' : 'apply'}`,
+      `Categories matched: ${categories.length}`,
+      `Cubby text channels matched: ${textChannels.length}`,
+      `Targets processed: ${categories.length + textChannels.length}`,
+      `Successful: ${updated}`,
+      `Failed: ${failed}`,
+    ];
+    if (failures.length > 0) {
+      lines.push('', 'Failures (first 10):');
+      lines.push(...failures.slice(0, 10).map((msg) => `- ${msg}`));
+    }
+
+    logEvent('info', 'xp_sync_cubby_access', {
+      interactionId: interaction.id,
+      userId: interaction.user.id,
+      guildId: guild.id,
+      dryRun,
+      categories: categories.length,
+      channels: textChannels.length,
+      updated,
+      failed,
+    });
+    await interaction.editReply(lines.join('\n'));
     return;
   }
 

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Error Alerts — MCbN XP Tracker{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-exclamation-triangle"></i> Error Alerts</h2>
+
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="source" class="form-label">Source Log</label>
+                <select class="form-select" id="source" name="source">
+                    <option value="">All</option>
+                    <option value="bot.err.log" {% if source_filter == 'bot.err.log' %}selected{% endif %}>bot.err.log</option>
+                    <option value="web.err.log" {% if source_filter == 'web.err.log' %}selected{% endif %}>web.err.log</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="level" class="form-label">Level</label>
+                <select class="form-select" id="level" name="level">
+                    <option value="">All</option>
+                    <option value="warn" {% if level_filter == 'warn' %}selected{% endif %}>warn</option>
+                    <option value="error" {% if level_filter == 'error' %}selected{% endif %}>error</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="event" class="form-label">Event contains</label>
+                <input type="text" class="form-control" id="event" name="event" value="{{ event_filter }}" placeholder="claim_reminder_...">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-light w-100">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+            </div>
+        </form>
+        <p class="text-muted mt-3 mb-0">
+            Read from {{ log_dir }} (last {{ max_lines }} lines per selected file), snapshot at {{ now }}.
+        </p>
+    </div>
+</div>
+
+{% if event_counts %}
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header">Top Error Events</div>
+    <div class="card-body">
+        {% for event_name, count in event_counts %}
+        <span class="badge bg-secondary me-2 mb-2">{{ event_name }}: {{ count }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Source</th>
+                <th>Level</th>
+                <th>Event</th>
+                <th>Message</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td class="text-nowrap">{{ entry.timestamp or 'n/a' }}</td>
+                <td><code>{{ entry.source }}</code></td>
+                <td>
+                    <span class="badge {% if entry.level == 'error' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                        {{ entry.level }}
+                    </span>
+                </td>
+                <td><code>{{ entry.event }}</code></td>
+                <td style="max-width: 420px; white-space: pre-wrap;">{{ entry.message }}</td>
+                <td style="max-width: 420px; white-space: pre-wrap;"><small class="text-muted">{{ entry.details }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not entries %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-check-circle" style="font-size: 3rem;"></i>
+    <p class="mt-2">No warning/error alerts matched your filters.</p>
+</div>
+{% endif %}
+{% endblock %}
+

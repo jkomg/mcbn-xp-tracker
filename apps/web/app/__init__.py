@@ -1,6 +1,11 @@
 """MCbN XP Tracker — Flask application factory."""
 
-from flask import Flask, session
+import os
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlparse
+
+from flask import Flask, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
@@ -12,10 +17,36 @@ limiter: Limiter = None
 csrf: CSRFProtect = CSRFProtect()
 
 
+def _apply_local_session_cookie_defaults(app: Flask, session_cookie_secure_configured: bool | None = None) -> None:
+    """Avoid secure-cookie OAuth loops for localhost HTTP development.
+
+    When running local OAuth callbacks over plain HTTP (127.0.0.1/localhost),
+    secure cookies are not sent by browsers. That drops session state and can
+    cause repeated Discord OAuth redirects. Keep production behavior intact by
+    only overriding when SESSION_COOKIE_SECURE is not explicitly configured.
+    """
+    if session_cookie_secure_configured is None:
+        session_cookie_secure_configured = 'SESSION_COOKIE_SECURE' in os.environ
+    if session_cookie_secure_configured:
+        return
+
+    redirect_uri = app.config.get('DISCORD_REDIRECT_URI', '')
+    parsed = urlparse(redirect_uri)
+    if parsed.scheme != 'http':
+        return
+    if parsed.hostname not in {'127.0.0.1', 'localhost', '::1'}:
+        return
+
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['REMEMBER_COOKIE_SECURE'] = False
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+    _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
+    project_root = Path(__file__).resolve().parents[2]
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
     global limiter
@@ -34,6 +65,9 @@ def create_app():
             credentials_json=app.config.get('GOOGLE_CREDENTIALS_JSON', ''),
             spreadsheet_id=app.config['SPREADSHEET_ID'],
             cache_ttl=app.config.get('SHEETS_CACHE_TTL', 30),
+            validate_headers_on_startup=app.config.get('SHEETS_VALIDATE_HEADERS_ON_STARTUP', False),
+            startup_max_retries=app.config.get('SHEETS_STARTUP_MAX_RETRIES', 5),
+            startup_retry_base_seconds=app.config.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', 1.5),
         )
 
     # Register blueprints
@@ -45,6 +79,7 @@ def create_app():
     from .blueprints.audit import bp as audit_bp
     from .blueprints.player import bp as player_bp
     from .blueprints.api import bp as api_bp
+    from .blueprints.local_status import bp as local_status_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -54,6 +89,7 @@ def create_app():
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(player_bp, url_prefix='/player')
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(local_status_bp)
     csrf.exempt(api_bp)
 
     # Inject auth helpers into all templates
@@ -67,5 +103,25 @@ def create_app():
             'current_discord_name': session.get('discord_name', ''),
             'current_discord_id': session.get('discord_id', ''),
         }
+
+    if app.config.get('LOCAL_STATUS_ENABLED', False):
+        access_log_file = Path(app.config.get('LOCAL_STATUS_ACCESS_LOG_FILE', '.run/logs/access.log'))
+        if not access_log_file.is_absolute():
+            access_log_file = project_root / access_log_file
+        access_log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        @app.before_request
+        def _record_local_access():
+            user_id = session.get('discord_id') or '-'
+            method = request.method
+            path = request.full_path.rstrip('?')
+            remote_addr = request.remote_addr or '-'
+            ua = (request.user_agent.string or '-').replace('\n', ' ').replace('\r', ' ')
+            line = (
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                f'{remote_addr} user={user_id} {method} {path} ua="{ua}"\n'
+            )
+            with access_log_file.open('a', encoding='utf-8') as fh:
+                fh.write(line)
 
     return app

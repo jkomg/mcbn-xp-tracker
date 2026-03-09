@@ -13,6 +13,7 @@ Tabs:
 """
 
 import json
+import logging
 import re
 import time
 from collections import defaultdict
@@ -20,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import gspread
+from gspread.exceptions import APIError
 from google.oauth2.service_account import Credentials
 
 from .models import (
@@ -195,7 +197,10 @@ class SheetsClient:
     """Primary data access layer for the MCbN XP Tracker."""
 
     def __init__(self, credentials_file: str, spreadsheet_id: str,
-                 cache_ttl: int = 30, credentials_json: str = ''):
+                 cache_ttl: int = 30, credentials_json: str = '',
+                 validate_headers_on_startup: bool = False,
+                 startup_max_retries: int = 5,
+                 startup_retry_base_seconds: float = 1.5):
         # Cloud Run: load credentials from JSON env var; local: from file
         if credentials_json:
             info = json.loads(credentials_json)
@@ -205,13 +210,59 @@ class SheetsClient:
                 credentials_file, scopes=SCOPES
             )
         self.gc = gspread.authorize(creds)
-        self.spreadsheet = self.gc.open_by_key(spreadsheet_id)
+        self.spreadsheet = self._open_with_retry(
+            spreadsheet_id=spreadsheet_id,
+            max_retries=max(0, startup_max_retries),
+            retry_base_seconds=max(0.1, startup_retry_base_seconds),
+        )
         self._cache = _Cache(ttl=cache_ttl)
         self._worksheets: dict[str, gspread.Worksheet] = {}
         self._next_row_cache: dict[str, int] = {}
 
-        # Validate sheet headers on startup
-        self._validate_headers()
+        # Optional expensive startup check (off by default to reduce quota pressure).
+        if validate_headers_on_startup:
+            self._validate_headers()
+
+    @staticmethod
+    def _is_retryable_api_error(exc: Exception) -> bool:
+        text = str(exc)
+        retry_tokens = (
+            '[429]',
+            'quota exceeded',
+            'resource_exhausted',
+            '[500]',
+            '[502]',
+            '[503]',
+            '[504]',
+            'backend error',
+        )
+        lowered = text.lower()
+        return any(token in lowered for token in retry_tokens)
+
+    def _open_with_retry(
+        self,
+        spreadsheet_id: str,
+        max_retries: int,
+        retry_base_seconds: float,
+    ):
+        log = logging.getLogger(__name__)
+        attempt = 0
+        while True:
+            try:
+                return self.gc.open_by_key(spreadsheet_id)
+            except APIError as exc:
+                if attempt >= max_retries or not self._is_retryable_api_error(exc):
+                    raise
+                delay = retry_base_seconds * (2 ** attempt)
+                log.warning(
+                    'Sheets open_by_key retrying after API error (attempt %d/%d, delay %.1fs): %s',
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                    exc,
+                )
+                time.sleep(delay)
+                attempt += 1
 
     def _validate_headers(self):
         """Check all sheet headers on startup. Log warnings for mismatches.
