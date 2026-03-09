@@ -156,7 +156,7 @@ export class ReviewNotifier {
               characterName: event.characterName,
               eventKey: event.eventKey,
             });
-            return;
+            continue;
           }
 
           try {
@@ -167,7 +167,7 @@ export class ReviewNotifier {
               channelId: channel.id,
               error: errorToMessage(error),
             });
-            return;
+            continue;
           }
 
           this.seenEventKeys.add(event.eventKey);

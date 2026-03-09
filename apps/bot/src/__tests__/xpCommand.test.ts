@@ -16,7 +16,7 @@ describe('xp claim command validation', () => {
     const interaction = {
       id: 'interaction-1',
       user: { id: 'user-1' },
-      guildId: 'guild-1',
+      guildId: '123456789012345678',
       options: {
         getSubcommand: vi.fn(() => 'claim'),
         getBoolean: vi.fn(() => null),
@@ -37,7 +37,7 @@ describe('xp claim command validation', () => {
 
     expect(adapter.submitClaim).not.toHaveBeenCalled();
     expect(reply).toHaveBeenCalledWith({
-      content: 'Invalid Discord message link format.',
+      content: 'Invalid Discord message link for "posted_once".',
       ephemeral: true,
     });
 
@@ -62,7 +62,7 @@ describe('xp claim command validation', () => {
     const interaction = {
       id: 'interaction-2',
       user: { id: 'user-1', username: 'tester' },
-      guildId: 'guild-1',
+      guildId: '123456789012345678',
       options: {
         getSubcommand: vi.fn(() => 'claim'),
         getFocused: vi.fn(() => ({ name: 'play_period', value: 'night' })),
@@ -79,6 +79,72 @@ describe('xp claim command validation', () => {
       { name: 'Night 80', value: 'Night 80' },
       { name: 'Night 79', value: 'Night 79' },
     ]);
+
+    vi.unstubAllEnvs();
+  });
+
+  it('submits multiple claim categories in one adapter request', async () => {
+    vi.resetModules();
+    vi.stubEnv('BOT_TOKEN', 'test-token');
+    vi.stubEnv('WEB_APP_BASE_URL', 'http://127.0.0.1:5001');
+    const { execute } = await import('../commands/xp');
+
+    const reply = vi.fn();
+    const adapter = {
+      submitClaim: vi.fn(async () => ({ ok: true, message: 'Claim submitted to web app API.' })),
+    };
+
+    const interaction = {
+      id: 'interaction-4',
+      user: { id: 'user-1', username: 'tester' },
+      guildId: '123456789012345678',
+      options: {
+        getSubcommand: vi.fn(() => 'claim'),
+        getBoolean: vi.fn(() => null),
+        getString: vi.fn((name: string, required?: boolean) => {
+          const values: Record<string, string | null | undefined> = {
+            character: 'Alice',
+            play_period: 'Night 1',
+            category: 'posted_once',
+            link: 'https://discord.com/channels/123456789012345678/223456789012345678/323456789012345678',
+            category_2: 'scene_with_another',
+            link_2: 'https://discord.com/channels/123456789012345678/423456789012345678/523456789012345678',
+            category_3: undefined,
+            link_3: undefined,
+            category_4: undefined,
+            link_4: undefined,
+            category_5: undefined,
+            link_5: undefined,
+            category_6: undefined,
+            link_6: undefined,
+          };
+          const value = values[name];
+          if (required && (value === null || value === undefined || value === '')) {
+            throw new Error(`Missing required option ${name}`);
+          }
+          return value as string | null;
+        }),
+      },
+      reply,
+    } as unknown as ChatInputCommandInteraction;
+
+    await execute(interaction, { adapter } as never);
+    expect(adapter.submitClaim).toHaveBeenCalledTimes(1);
+    expect(adapter.submitClaim).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterName: 'Alice',
+        playPeriod: 'Night 1',
+        categories: {
+          posted_once: 'https://discord.com/channels/123456789012345678/223456789012345678/323456789012345678',
+          scene_with_another:
+            'https://discord.com/channels/123456789012345678/423456789012345678/523456789012345678',
+        },
+      }),
+    );
+    expect(reply).toHaveBeenCalledWith({
+      content: 'Claim submitted to web app API.',
+      ephemeral: true,
+    });
 
     vi.unstubAllEnvs();
   });

@@ -1,7 +1,9 @@
 """MCbN XP Tracker — Flask application factory."""
 
+import os
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Flask, request, session
 from flask_limiter import Limiter
@@ -15,9 +17,34 @@ limiter: Limiter = None
 csrf: CSRFProtect = CSRFProtect()
 
 
+def _apply_local_session_cookie_defaults(app: Flask, session_cookie_secure_configured: bool | None = None) -> None:
+    """Avoid secure-cookie OAuth loops for localhost HTTP development.
+
+    When running local OAuth callbacks over plain HTTP (127.0.0.1/localhost),
+    secure cookies are not sent by browsers. That drops session state and can
+    cause repeated Discord OAuth redirects. Keep production behavior intact by
+    only overriding when SESSION_COOKIE_SECURE is not explicitly configured.
+    """
+    if session_cookie_secure_configured is None:
+        session_cookie_secure_configured = 'SESSION_COOKIE_SECURE' in os.environ
+    if session_cookie_secure_configured:
+        return
+
+    redirect_uri = app.config.get('DISCORD_REDIRECT_URI', '')
+    parsed = urlparse(redirect_uri)
+    if parsed.scheme != 'http':
+        return
+    if parsed.hostname not in {'127.0.0.1', 'localhost', '::1'}:
+        return
+
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['REMEMBER_COOKIE_SECURE'] = False
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+    _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
     project_root = Path(__file__).resolve().parents[2]
 

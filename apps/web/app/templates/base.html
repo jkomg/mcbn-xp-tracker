@@ -94,9 +94,15 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('audit.') %}active{% endif %}"
+                        <a class="nav-link {% if request.endpoint == 'audit.log' %}active{% endif %}"
                            href="{{ url_for('audit.log') }}">
                             <i class="bi bi-clock-history"></i> <span>Audit Log</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'audit.errors' %}active{% endif %}"
+                           href="{{ url_for('audit.errors') }}">
+                            <i class="bi bi-exclamation-triangle"></i> <span>Error Alerts</span>
                         </a>
                     </li>
                     {% if config.LOCAL_STATUS_ENABLED %}
