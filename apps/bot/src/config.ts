@@ -115,6 +115,7 @@ const envSchema = z.object({
   PASSAGE_DOWNTIME_ANCHOR_DATE: z.string().optional(),
   PLAYER_GUIDE_URL: z.string().url().optional(),
   PLAYER_WEB_URL: z.string().url().optional(),
+  SYSTEM_HELPER_MENTION: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -250,6 +251,7 @@ export const config = {
   passageDowntimeAnchorDate: env.PASSAGE_DOWNTIME_ANCHOR_DATE ?? '',
   playerGuideUrl: env.PLAYER_GUIDE_URL,
   playerWebUrl: env.PLAYER_WEB_URL ?? `${env.WEB_APP_BASE_URL}/player/`,
+  systemHelperMention: env.SYSTEM_HELPER_MENTION ?? '@system helper',
 };
 
 if (config.testRequesterDiscordId) {
