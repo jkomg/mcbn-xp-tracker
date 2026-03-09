@@ -10,13 +10,14 @@ type ReviewNotifierConfig = {
   guildId?: string;
   intervalMs: number;
   lookbackSeconds: number;
+  systemHelperMention?: string;
 };
 
 function eventStatusLabel(status: 'approved' | 'denied'): string {
   return status === 'approved' ? 'Approved' : 'Denied';
 }
 
-function toNotificationMessage(event: ReviewEvent): string {
+export function buildReviewNotificationMessage(event: ReviewEvent, systemHelperMention?: string): string {
   if (event.kind === 'claim') {
     const base = [
       `XP claim **${eventStatusLabel(event.status)}** for **${event.characterName}**`,
@@ -40,6 +41,11 @@ function toNotificationMessage(event: ReviewEvent): string {
   ];
   if (event.status === 'approved') {
     base.push(`Verified: **${event.verifiedCost} XP**`);
+    base.push('Next step: please upload your updated character sheet in this cubby.');
+    const helperMention = (systemHelperMention ?? '').trim();
+    if (helperMention) {
+      base.push(`Helper requested: ${helperMention}`);
+    }
   }
   if (event.staffNotes.trim()) {
     base.push(`ST notes: ${event.staffNotes.trim()}`);
@@ -160,7 +166,7 @@ export class ReviewNotifier {
           }
 
           try {
-            await channel.send({ content: toNotificationMessage(event) });
+            await channel.send({ content: buildReviewNotificationMessage(event, this.config.systemHelperMention) });
           } catch (error) {
             logEvent('warn', 'review_notifier_send_failed', {
               eventKey: event.eventKey,

@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import type { ClaimReviewEvent, SpendReviewEvent } from '../types';
+import { buildReviewNotificationMessage } from '../services/reviewNotifier';
+
+describe('review notifier message formatting', () => {
+  it('adds sheet upload + helper mention for approved spends', () => {
+    const event: SpendReviewEvent = {
+      eventKey: 'spend:1:approved:1',
+      kind: 'spend',
+      rowIndex: 1,
+      characterName: 'Alice',
+      status: 'approved',
+      reviewedBy: 'Storyteller',
+      reviewDate: '20260309 12:00:00',
+      reviewedAtEpoch: 1,
+      staffNotes: 'Looks good.',
+      spendCategory: 'Attribute',
+      traitName: 'Strength',
+      currentDots: 2,
+      newDots: 3,
+      requestedCost: 15,
+      verifiedCost: 15,
+    };
+
+    const message = buildReviewNotificationMessage(event, '@system helper');
+    expect(message).toContain('XP spend **Approved** for **Alice**');
+    expect(message).toContain('Next step: please upload your updated character sheet in this cubby.');
+    expect(message).toContain('Helper requested: @system helper');
+  });
+
+  it('does not add sheet upload instructions for denied spends', () => {
+    const event: SpendReviewEvent = {
+      eventKey: 'spend:2:denied:2',
+      kind: 'spend',
+      rowIndex: 2,
+      characterName: 'Bob',
+      status: 'denied',
+      reviewedBy: 'Storyteller',
+      reviewDate: '20260309 12:00:00',
+      reviewedAtEpoch: 2,
+      staffNotes: 'Need more RP support.',
+      spendCategory: 'Skill',
+      traitName: 'Stealth',
+      currentDots: 1,
+      newDots: 2,
+      requestedCost: 6,
+      verifiedCost: 0,
+    };
+
+    const message = buildReviewNotificationMessage(event, '@system helper');
+    expect(message).not.toContain('Next step: please upload your updated character sheet in this cubby.');
+    expect(message).not.toContain('Helper requested: @system helper');
+  });
+
+  it('keeps claim notifications unchanged', () => {
+    const event: ClaimReviewEvent = {
+      eventKey: 'claim:1:approved:1',
+      kind: 'claim',
+      rowIndex: 1,
+      characterName: 'Charlie',
+      status: 'approved',
+      reviewedBy: 'Storyteller',
+      reviewDate: '20260309 12:00:00',
+      reviewedAtEpoch: 1,
+      staffNotes: '',
+      playPeriod: 'Night 77',
+      requestedXp: 5,
+      approvedXp: 5,
+    };
+
+    const message = buildReviewNotificationMessage(event, '@system helper');
+    expect(message).toContain('XP claim **Approved** for **Charlie**');
+    expect(message).not.toContain('Helper requested:');
+  });
+});
+

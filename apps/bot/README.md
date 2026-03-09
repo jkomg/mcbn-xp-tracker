@@ -33,6 +33,7 @@ Optional:
 - `CLAIM_CONTEXT_STALE_IF_ERROR_MS` (default: `300000`)
 - `CLAIM_CONTEXT_MAX_RETRIES` (default: `2`)
 - `CLAIM_CONTEXT_RETRY_BASE_MS` (default: `250`)
+- `SYSTEM_HELPER_MENTION` (default: `@system helper`)
 
 ## Quick Start
 
