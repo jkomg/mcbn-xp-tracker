@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { ChannelType, type Client, type GuildTextBasedChannel } from 'discord.js';
+import { AttachmentBuilder, ChannelType, type Client, type GuildTextBasedChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 
 type ScheduledEventConfig = {
@@ -11,15 +11,16 @@ type ScheduledEventConfig = {
   anchorDate: string;
   cadenceWeeks: number;
   body: string;
+  imageFile?: string;
 };
 
 export const PASSAGE_SUNSET_MESSAGE = `The kindred of Nashville once again rule the night. Now the predatory denizens of Music City continue their attempts to rebuild, while thralls bound to their masters serve their every whim, and unknowing mortals expose themselves to danger by roaming in the dark.
 
 Those of you who have not completed your experience submissions, please do so when you get the chance! This night shall end in two weeks!`;
 
-export const PASSAGE_SUNRISE_MESSAGE = `The sun rises over Music City as creatures of the night retreat into their havens. Post your experience submissions into your individual character tickets using the bot or web interface and begin wrapping up active scenes! You may continue roleplaying in your current scene until the next night begins, and if you wish to still continue a scene, then please move it into to-be-continued!
+export const PASSAGE_SUNRISE_MESSAGE = `The sun rises over Music City as creatures of the night retreat into their havens. Post your experience submissions through the player portal (https://mcbn.jkomg.us/player/) and begin wrapping up active scenes! You may continue roleplaying in your current scene until the next night begins, and if you wish to still continue a scene, then please move it into to-be-continued!
 
-The next night begins on Tuesday at 12 pm CST, and will last until two Sundays from now!`;
+The next night begins on Tuesday at noon CT, and will last until two Sundays from now!`;
 
 export const PASSAGE_DOWNTIME_MESSAGE = `It's that time again! Time for server downtime! Happening every 8 weeks (4 IC nights), it's time to spend your character's XP in your Character Story ticket and also to roll on Projects (8 rolls, remember). We'll see you in your tickets!`;
 
@@ -285,7 +286,18 @@ export class PassageOfTimeService {
 
         const mentionPrefix = this.config.testMode ? '' : roleMentions(this.config.mentionRoleIds);
         const content = mentionPrefix ? `${mentionPrefix}\n\n${event.body}` : event.body;
-        await channel.send({ content });
+
+        if (event.imageFile && fs.existsSync(event.imageFile)) {
+          const filename = path.basename(event.imageFile);
+          const attachment = new AttachmentBuilder(event.imageFile, { name: filename });
+          await channel.send({
+            content,
+            files: [attachment],
+            embeds: [{ image: { url: `attachment://${filename}` } }],
+          });
+        } else {
+          await channel.send({ content });
+        }
         posted.add(eventKey);
         postedCount += 1;
         logEvent('info', 'passage_service_posted', {
