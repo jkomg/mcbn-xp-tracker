@@ -475,6 +475,11 @@ def delete(name):
     if not char:
         abort(404)
 
+    # Guard: only inactive characters may be deleted
+    if char.active:
+        flash('Deactivate the character before deleting.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
     # Require the user to confirm by typing the character name
     confirm = request.form.get('confirm_name', '').strip()
     if confirm.lower() != name.lower():
