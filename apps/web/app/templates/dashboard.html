@@ -3,37 +3,73 @@
 {% block content %}
 <h2 class="mb-4">Dashboard</h2>
 
+<!-- Action strip -->
+{% if pending_claims > 0 or pending_spends > 0 %}
+<div class="action-strip d-flex align-items-center gap-3 flex-wrap mb-4 p-3">
+    <span><i class="bi bi-bell-fill text-warning me-1"></i> <strong>Needs attention:</strong></span>
+    {% if pending_claims > 0 %}
+    <a href="{{ url_for('claims.pending') }}" class="btn btn-sm btn-outline-warning">
+        <i class="bi bi-journal-check"></i> {{ pending_claims }} Claim{{ 's' if pending_claims != 1 }}
+    </a>
+    {% endif %}
+    {% if pending_spends > 0 %}
+    <a href="{{ url_for('spends.pending') }}" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-cart-check"></i> {{ pending_spends }} Spend{{ 's' if pending_spends != 1 }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Stat cards -->
 <div class="row mb-4">
   <div class="col-md-4 mb-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Active Characters</h5>
-        <p class="card-text display-6">{{ characters|selectattr('active')|list|length }}</p>
+    <div class="card stat-card stat-card-characters h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-people stat-icon text-info"></i>
+        <div>
+          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Active Characters</h6>
+          <p class="card-text display-6 mb-0 lh-1">{{ characters|selectattr('active')|list|length }}</p>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-md-4 mb-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Pending Claims</h5>
-        <p class="card-text display-6">{{ pending_claims }}</p>
-        <a href="/claims/" class="btn btn-sm btn-primary">View Claims</a>
+    <div class="card stat-card stat-card-claims h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-journal-check stat-icon text-warning"></i>
+        <div>
+          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Claims</h6>
+          <p class="card-text display-6 mb-2 lh-1">{{ pending_claims }}</p>
+          <a href="/claims/" class="btn btn-sm btn-outline-warning">View Claims</a>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-md-4 mb-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Pending Spends</h5>
-        <p class="card-text display-6">{{ pending_spends }}</p>
-        <a href="/spends/" class="btn btn-sm btn-primary">View Spends</a>
+    <div class="card stat-card stat-card-spends h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-cart-check stat-icon text-danger"></i>
+        <div>
+          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Spends</h6>
+          <p class="card-text display-6 mb-2 lh-1">{{ pending_spends }}</p>
+          <a href="/spends/" class="btn btn-sm btn-outline-danger">View Spends</a>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="mb-3">
-  <input type="text" class="form-control" id="table-search" placeholder="Search characters...">
+<!-- Filter controls -->
+<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
+  <div class="btn-group me-2" role="group" aria-label="Filter characters">
+    <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">All</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="active">Active</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="no-claim">
+      <i class="bi bi-exclamation-circle"></i> No Claims
+    </button>
+  </div>
+  <input type="text" class="form-control form-control-sm" id="table-search"
+         placeholder="Search characters..." style="max-width: 240px;">
 </div>
 
 <div class="table-responsive">
@@ -41,29 +77,84 @@
     <thead>
       <tr>
         <th data-sort="text">Character Name</th>
-        <th data-sort="text">Clan</th>
-        <th data-sort="number">Creation XP</th>
-        <th data-sort="number">Earned XP</th>
-        <th data-sort="number">Total XP</th>
-        <th data-sort="number">Spends</th>
+        <th data-sort="text" class="d-none d-md-table-cell">Clan</th>
+        <th data-sort="number" class="d-none d-lg-table-cell">Creation XP</th>
+        <th data-sort="number" class="d-none d-lg-table-cell">Earned XP</th>
+        <th data-sort="number" class="d-none d-lg-table-cell">Total XP</th>
+        <th data-sort="number" class="d-none d-lg-table-cell">Spends</th>
         <th data-sort="number">Available XP</th>
-        <th data-sort="text">Last Submission</th>
+        <th data-sort="text" class="d-none d-md-table-cell">Last Submission</th>
       </tr>
     </thead>
     <tbody>
       {% for c in characters %}
-      <tr{% if not c.active %} class="opacity-50"{% endif %}>
-        <td><a href="/roster/{{ c.character_name }}">{{ c.character_name }}</a></td>
-        <td>{{ c.clan }}</td>
-        <td>{{ c.creation_xp }}</td>
-        <td>{{ c.earned_xp }}</td>
-        <td>{{ c.total_xp }}</td>
-        <td>{{ c.approved_spends }}</td>
+      <tr{% if not c.active %} class="opacity-50 has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}"
+         {% else %} class="has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}"{% endif %}
+          data-href="{{ url_for('roster.detail', name=c.character_name) }}"
+          data-active="{{ 'true' if c.active else 'false' }}"
+          data-no-claim="{{ 'true' if not c.last_submission else 'false' }}">
+        <td>
+          <a href="{{ url_for('roster.detail', name=c.character_name) }}" onclick="event.stopPropagation()">
+            {{ c.character_name }}
+          </a>
+          {% if not c.last_submission and c.active %}
+          <span class="badge bg-warning text-dark ms-1" title="No claims submitted" style="font-size:0.65rem;">
+            <i class="bi bi-exclamation"></i>
+          </span>
+          {% endif %}
+        </td>
+        <td class="d-none d-md-table-cell">
+          {% if c.clan %}
+          <span class="clan-badge clan-{{ c.clan | lower | replace(' ', '-') }}">{{ c.clan }}</span>
+          {% endif %}
+        </td>
+        <td class="d-none d-lg-table-cell">{{ c.creation_xp }}</td>
+        <td class="d-none d-lg-table-cell">{{ c.earned_xp }}</td>
+        <td class="d-none d-lg-table-cell">{{ c.total_xp }}</td>
+        <td class="d-none d-lg-table-cell">{{ c.approved_spends }}</td>
         <td class="{% if c.available_xp > 0 %}xp-positive{% elif c.available_xp < 0 %}xp-negative{% else %}xp-zero{% endif %}">{{ c.available_xp }}</td>
-        <td>{{ c.last_submission }}</td>
+        <td class="d-none d-md-table-cell">{{ c.last_submission }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const rows = document.querySelectorAll('tbody tr');
+    const filterBtns = document.querySelectorAll('[data-filter]');
+    const search = document.getElementById('table-search');
+    let activeFilter = 'all';
+
+    function applyFilters() {
+        const q = search.value.toLowerCase();
+        rows.forEach(function (row) {
+            const name = row.querySelector('td')?.textContent.toLowerCase() || '';
+            const matchesSearch = !q || name.includes(q);
+            const isActive = row.dataset.active === 'true';
+            const noClaim = row.dataset.noClaim === 'true';
+
+            let matchesFilter = true;
+            if (activeFilter === 'active') matchesFilter = isActive;
+            if (activeFilter === 'no-claim') matchesFilter = noClaim && isActive;
+
+            row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        });
+    }
+
+    filterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            filterBtns.forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            activeFilter = btn.dataset.filter;
+            applyFilters();
+        });
+    });
+
+    search.addEventListener('input', applyFilters);
+});
+</script>
 {% endblock %}

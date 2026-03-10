@@ -85,4 +85,31 @@ document.addEventListener('DOMContentLoaded', function () {
             cb.addEventListener('change', updateTotal);
         });
     }
+
+    // ── Clickable table rows ─────────────────────────────────────────
+    document.querySelectorAll('tr[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            // Don't navigate if user clicked a button, link, or form inside the row
+            if (e.target.closest('a, button, input, select, textarea, form')) return;
+            window.location.href = row.dataset.href;
+        });
+    });
+
+    // ── Form submit spinner ──────────────────────────────────────────
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (!btn || btn.classList.contains('no-spinner')) return;
+            var original = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ' + (btn.dataset.loadingText || 'Submitting…');
+            btn.classList.add('btn-loading');
+            btn.disabled = true;
+            // Re-enable after 8s as a safety fallback
+            setTimeout(function () {
+                btn.innerHTML = original;
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }, 8000);
+        });
+    });
 });

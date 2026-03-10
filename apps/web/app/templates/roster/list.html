@@ -50,25 +50,30 @@
       <thead>
         <tr>
           <th class="sortable" data-col="0" role="button" tabindex="0" aria-sort="ascending">Name <span class="sort-arrow">▲</span></th>
-          <th class="sortable" data-col="1" role="button" tabindex="0" aria-sort="none">Clan <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="2" role="button" tabindex="0" aria-sort="none">Age <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="3" role="button" tabindex="0" aria-sort="none">Sect <span class="sort-arrow"></span></th>
-          <th>Active</th>
+          <th class="sortable d-none d-sm-table-cell" data-col="1" role="button" tabindex="0" aria-sort="none">Clan <span class="sort-arrow"></span></th>
+          <th class="sortable d-none d-md-table-cell" data-col="2" role="button" tabindex="0" aria-sort="none">Age <span class="sort-arrow"></span></th>
+          <th class="sortable d-none d-md-table-cell" data-col="3" role="button" tabindex="0" aria-sort="none">Sect <span class="sort-arrow"></span></th>
+          <th class="d-none d-sm-table-cell">Active</th>
           <th class="sortable" data-col="5" role="button" tabindex="0" aria-sort="none">Available XP <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody>
         {% for item in char_data %}
-        <tr {% if not item.char.active %}class="opacity-50"{% endif %}>
+        <tr class="has-clan-color clan-{{ item.char.clan | lower | replace(' ', '-') }}{% if not item.char.active %} opacity-50{% endif %}"
+            data-href="{{ url_for('roster.detail', name=item.char.character_name) }}">
           <td>
-            <a href="{{ url_for('roster.detail', name=item.char.character_name) }}">
+            <a href="{{ url_for('roster.detail', name=item.char.character_name) }}" onclick="event.stopPropagation()">
               {{ item.char.character_name }}
             </a>
           </td>
-          <td>{{ item.char.clan }}</td>
-          <td>{{ item.char.age_category }}</td>
-          <td>{{ item.char.sect }}</td>
-          <td>
+          <td class="d-none d-sm-table-cell">
+            {% if item.char.clan %}
+            <span class="clan-badge clan-{{ item.char.clan | lower | replace(' ', '-') }}">{{ item.char.clan }}</span>
+            {% endif %}
+          </td>
+          <td class="d-none d-md-table-cell">{{ item.char.age_category }}</td>
+          <td class="d-none d-md-table-cell">{{ item.char.sect }}</td>
+          <td class="d-none d-sm-table-cell">
             {% if item.char.active %}
               <span class="badge bg-success">Yes</span>
             {% else %}

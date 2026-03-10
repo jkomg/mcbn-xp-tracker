@@ -10,6 +10,7 @@ from app.auth import (
     get_player_discord_id,
 )
 from app.models import SPEND_CATEGORIES
+from app.game_calendar import get_calendar
 
 bp = Blueprint('player', __name__)
 
@@ -21,6 +22,13 @@ def my_characters():
     discord_id = get_player_discord_id()
     my_chars = sheets_client.get_characters_by_discord_id(discord_id)
 
+    # Fetch open periods for the banner
+    all_periods = sheets_client.get_all_periods()
+    open_periods = [p for p in all_periods if p.submissions_open and p.active]
+    open_periods.sort(key=lambda p: p.night_number, reverse=True)
+
+    calendar = get_calendar()
+
     # Staff also see a full character search
     if check_is_staff():
         all_characters = sheets_client.get_active_characters()
@@ -30,6 +38,8 @@ def my_characters():
             my_characters=my_chars,
             all_characters=all_characters,
             show_all=True,
+            open_periods=open_periods,
+            calendar=calendar,
         )
 
     if not my_chars:
@@ -42,6 +52,8 @@ def my_characters():
         my_characters=my_chars,
         all_characters=None,
         show_all=False,
+        open_periods=open_periods,
+        calendar=calendar,
     )
 
 
