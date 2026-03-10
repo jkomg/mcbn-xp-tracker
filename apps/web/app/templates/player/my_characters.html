@@ -5,6 +5,20 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
+
+        {% if open_periods %}
+        <div class="open-period-banner mb-4">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="open-period-pulse"></span>
+                <span class="fw-semibold">Claims open:</span>
+                {% for p in open_periods %}
+                <span class="open-period-pill">{{ p.period_label }}</span>
+                {% endfor %}
+            </div>
+            <div class="small mt-1" style="opacity:0.75;">Submit XP claims from your character page.</div>
+        </div>
+        {% endif %}
+
         <div class="text-center mb-4">
             <h2 class="text-danger">My Characters</h2>
             <p class="text-muted">Select a character to view XP, submit claims, or request spends.</p>
@@ -15,11 +29,11 @@
         <div class="list-group mb-4">
             {% for char in my_characters %}
             <a href="{{ url_for('player.character', name=char.character_name) }}"
-               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}">
                 <div>
                     <strong>{{ char.character_name }}</strong>
                     {% if char.clan %}
-                    <small class="text-muted ms-2">{{ char.clan }}</small>
+                    <span class="clan-badge clan-{{ char.clan | lower | replace(' ', '-') }} ms-2">{{ char.clan }}</span>
                     {% endif %}
                 </div>
                 <i class="bi bi-chevron-right text-muted"></i>
@@ -37,6 +51,110 @@
             <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-danger">
                 <i class="bi bi-link-45deg"></i> Link a Character
             </a>
+        </div>
+        {% endif %}
+
+        {% if calendar %}
+        <div class="cal-widget mb-4">
+            <div class="cal-widget-header">
+                <i class="bi bi-moon-stars-fill me-2" style="color:#c5a55a;"></i>
+                <span>Chronicle Calendar</span>
+            </div>
+
+            {# Find current or next entry for the hero slot #}
+            {% set current_entry = namespace(val=none) %}
+            {% set next_entry = namespace(val=none) %}
+            {% for e in calendar %}
+                {% if e.status == 'current' and current_entry.val is none %}
+                    {% set current_entry.val = e %}
+                {% endif %}
+                {% if e.status == 'upcoming' and next_entry.val is none %}
+                    {% set next_entry.val = e %}
+                {% endif %}
+            {% endfor %}
+
+            {# Hero: current or next up #}
+            {% if current_entry.val %}
+            <div class="cal-hero cal-hero-current">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="cal-hero-eyebrow">Now Active</div>
+                        <div class="cal-hero-label">{{ current_entry.val.label }}</div>
+                        {% if current_entry.val.note %}
+                        <div class="cal-hero-note">{{ current_entry.val.note }}</div>
+                        {% endif %}
+                        <div class="cal-hero-dates">{{ current_entry.val.start_fmt }} – {{ current_entry.val.end_fmt }}</div>
+                    </div>
+                    <div class="cal-hero-days">
+                        <span class="cal-days-num">{{ current_entry.val.days_left }}</span>
+                        <span class="cal-days-label">day{{ 's' if current_entry.val.days_left != 1 }} left</span>
+                    </div>
+                </div>
+            </div>
+            {% elif next_entry.val %}
+            <div class="cal-hero cal-hero-upcoming">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="cal-hero-eyebrow">Next Up</div>
+                        <div class="cal-hero-label">{{ next_entry.val.label }}</div>
+                        {% if next_entry.val.note %}
+                        <div class="cal-hero-note">{{ next_entry.val.note }}</div>
+                        {% endif %}
+                        <div class="cal-hero-dates">{{ next_entry.val.start_fmt }} – {{ next_entry.val.end_fmt }}</div>
+                    </div>
+                    <div class="cal-hero-days">
+                        <span class="cal-days-num">{{ next_entry.val.days_until }}</span>
+                        <span class="cal-days-label">day{{ 's' if next_entry.val.days_until != 1 }} away</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Timeline list: last 3 past + current + upcoming, collapsed after 6 #}
+            <div class="cal-timeline" id="cal-timeline">
+                {% set past_count = namespace(n=0) %}
+                {% set past_shown = namespace(n=0) %}
+                {% for e in calendar %}{% if e.status == 'past' %}{% set past_count.n = past_count.n + 1 %}{% endif %}{% endfor %}
+                {% set past_skip = [past_count.n - 3, 0] | max %}
+
+                {% set seen = namespace(n=0) %}
+                {% set upcoming_shown = namespace(n=0) %}
+                {% for e in calendar %}
+                    {% if e.status == 'past' %}
+                        {% set seen.n = seen.n + 1 %}
+                        {% if seen.n > past_skip %}
+                        <div class="cal-row cal-row-past">
+                            <span class="cal-row-label">{{ e.label }}</span>
+                            <span class="cal-row-dates">{{ e.start_fmt }} – {{ e.end_fmt }}</span>
+                            {% if e.note %}<span class="cal-row-note">{{ e.note }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                    {% elif e.status == 'current' %}
+                    <div class="cal-row cal-row-current">
+                        <i class="bi bi-caret-right-fill cal-row-now-icon"></i>
+                        <span class="cal-row-label">{{ e.label }}</span>
+                        <span class="cal-row-dates">{{ e.start_fmt }} – {{ e.end_fmt }}</span>
+                        {% if e.note %}<span class="cal-row-note">{{ e.note }}</span>{% endif %}
+                    </div>
+                    {% else %}
+                        {% set upcoming_shown.n = upcoming_shown.n + 1 %}
+                        <div class="cal-row cal-row-upcoming{% if upcoming_shown.n > 5 %} cal-extra d-none{% endif %}">
+                            <span class="cal-row-label">{{ e.label }}</span>
+                            <span class="cal-row-dates">{{ e.start_fmt }} – {{ e.end_fmt }}</span>
+                            {% if e.note %}<span class="cal-row-note">{{ e.note }}</span>{% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            {% if upcoming_shown.n > 5 %}
+            <button class="cal-show-more" id="cal-show-more" onclick="
+                document.querySelectorAll('.cal-extra').forEach(el => el.classList.remove('d-none'));
+                this.style.display='none';
+            ">
+                <i class="bi bi-chevron-down me-1"></i> Show full calendar
+            </button>
+            {% endif %}
         </div>
         {% endif %}
 

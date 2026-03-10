@@ -11,7 +11,8 @@ from app import sheets_client
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_parents = Path(__file__).resolve().parents
+PROJECT_ROOT = _parents[min(4, len(_parents) - 1)]
 LOG_DIR = PROJECT_ROOT / '.run' / 'logs'
 ERROR_LOG_FILES = ('bot.err.log', 'web.err.log')
 

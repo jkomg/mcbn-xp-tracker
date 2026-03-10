@@ -13,24 +13,24 @@
       <thead>
         <tr>
           <th>Character</th>
-          <th>Category</th>
+          <th class="d-none d-md-table-cell">Category</th>
           <th>Trait</th>
-          <th>Dots</th>
-          <th>Player Cost</th>
-          <th>Verified Cost</th>
+          <th class="d-none d-sm-table-cell">Dots</th>
+          <th class="d-none d-md-table-cell">Player Cost</th>
+          <th class="d-none d-md-table-cell">Verified Cost</th>
           <th>Status</th>
-          <th>Reviewed By</th>
+          <th class="d-none d-lg-table-cell">Reviewed By</th>
         </tr>
       </thead>
       <tbody id="spendTableBody">
         {% for spend in spends %}
         <tr>
           <td>{{ spend.character_name }}</td>
-          <td>{{ spend.category }}</td>
+          <td class="d-none d-md-table-cell">{{ spend.category }}</td>
           <td>{{ spend.trait_name }}</td>
-          <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
-          <td>{{ spend.player_cost }}</td>
-          <td>{{ spend.verified_cost or '-' }}</td>
+          <td class="d-none d-sm-table-cell">{{ spend.current_dots }} → {{ spend.new_dots }}</td>
+          <td class="d-none d-md-table-cell">{{ spend.player_cost }}</td>
+          <td class="d-none d-md-table-cell">{{ spend.verified_cost or '-' }}</td>
           <td>
             {% if spend.status == 'approved' %}
               <span class="badge bg-success">Approved</span>
@@ -42,7 +42,7 @@
               <span class="badge bg-secondary">{{ spend.status }}</span>
             {% endif %}
           </td>
-          <td>{{ spend.reviewed_by or '-' }}</td>
+          <td class="d-none d-lg-table-cell">{{ spend.reviewed_by or '-' }}</td>
         </tr>
         {% endfor %}
       </tbody>

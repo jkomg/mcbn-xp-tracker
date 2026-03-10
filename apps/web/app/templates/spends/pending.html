@@ -1,48 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Pending Spend Requests <span class="badge bg-secondary">{{ spends|length }}</span></h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Spend Requests <span class="badge bg-secondary fs-6 align-middle">{{ spends|length }}</span></h2>
+    <a href="{{ url_for('spends.history') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-clock-history"></i> History
+    </a>
+</div>
 
-    {% if not spends %}
-    <div class="alert alert-info mt-3">
-        No pending spend requests at this time.
-    </div>
-    {% else %}
-    <div class="table-responsive mt-3">
-        <table class="table table-dark table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Character</th>
-                    <th>Category</th>
-                    <th>Trait</th>
-                    <th>Dots</th>
-                    <th>XP Cost</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for spend in spends %}
-                <tr>
-                    <td>{{ spend.character_name }}</td>
-                    <td>{{ spend.spend_category }}</td>
-                    <td>{{ spend.trait_name }}</td>
-                    <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
-                    <td>{{ spend.xp_cost }}</td>
-                    <td>{{ spend.timestamp }}</td>
-                    <td>
-                        <a href="{{ url_for('spends.review', row_id=spend.row_index) }}" class="btn btn-sm btn-outline-light">Review</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    <div class="mt-3">
-        <a href="{{ url_for('spends.history') }}" class="btn btn-outline-secondary">View Spend History</a>
+{% if not spends %}
+<div class="card">
+    <div class="empty-state">
+        <i class="bi bi-cart-check"></i>
+        <p>No pending spend requests at this time.</p>
     </div>
 </div>
+{% else %}
+<div class="table-responsive">
+    <table class="table table-dark table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Character</th>
+                <th class="d-none d-md-table-cell">Category</th>
+                <th>Trait</th>
+                <th class="d-none d-sm-table-cell">Dots</th>
+                <th>XP Cost</th>
+                <th class="d-none d-sm-table-cell">Submitted</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for spend in spends %}
+            <tr data-href="{{ url_for('spends.review', row_id=spend.row_index) }}">
+                <td><strong>{{ spend.character_name }}</strong></td>
+                <td class="d-none d-md-table-cell">{{ spend.spend_category }}</td>
+                <td>{{ spend.trait_name }}</td>
+                <td class="d-none d-sm-table-cell"><span class="text-muted">{{ spend.current_dots }} → {{ spend.new_dots }}</span></td>
+                <td><span class="badge bg-danger">{{ spend.xp_cost }} XP</span></td>
+                <td class="d-none d-sm-table-cell"><small class="text-muted">{{ spend.timestamp }}</small></td>
+                <td class="text-end">
+                    <a href="{{ url_for('spends.review', row_id=spend.row_index) }}"
+                       class="btn btn-sm btn-outline-light" onclick="event.stopPropagation()">
+                        <i class="bi bi-pencil-square"></i> Review
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 {% endblock %}
