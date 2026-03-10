@@ -112,7 +112,7 @@ function buildPrompt(
       content: [
         `**🩸 Messy Critical** detected for **${characterName}**.`,
         `> You may negate a Messy Critical by choosing to fail — you won't feed, but no consequences apply.`,
-        `When you're done with any Willpower rerolls, choose below.`,
+        `When you're done with any Willpower rerolls, click below if the Messy Critical still applies.`,
       ].join('\n'),
       components: [row],
     };
@@ -128,7 +128,7 @@ function buildPrompt(
     content: [
       `**🐺 Bestial Failure** detected for **${characterName}**.`,
       `> The character gains an appropriate compulsion and fails the hunt. Bestial Failures cannot be negated.`,
-      `When you're done with any Willpower rerolls, click below.`,
+      `When you're done with any Willpower rerolls, click below if the Bestial Failure still applies.`,
     ].join('\n'),
     components: [row],
   };
