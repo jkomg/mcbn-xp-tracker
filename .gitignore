@@ -30,6 +30,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 .run/
+apps/bot/data/*.json
+!apps/bot/data/.gitkeep
 
 # Google Cloud SDK (installed locally, not part of the project)
 google-cloud-sdk/
