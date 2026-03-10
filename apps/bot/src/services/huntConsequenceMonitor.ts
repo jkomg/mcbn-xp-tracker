@@ -172,6 +172,15 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
             error: errorToMessage(error),
           });
         }
+      } else {
+        // Reply is still in flight — update the type now; the initial reply handler
+        // will detect the mismatch once it resolves and edit the sent message
+        existing.type = type;
+        logEvent('info', 'hunt_consequence_type_queued', {
+          messageId: message.id,
+          newType: type,
+          characterName: existing.characterName,
+        });
       }
       return;
     }
@@ -184,20 +193,48 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
 
     respondedIds.add(message.id);
 
+    // Set the pending entry immediately — before awaiting the reply — so any
+    // messageUpdate that arrives while the reply is in flight sees the entry and
+    // can update existing.type rather than being dropped as "already resolved"
+    pending.set(message.id, { type, characterName, messageUrl, promptMessage: null });
+
     const { content, components } = buildPrompt(type, characterName, message.id);
 
     try {
       const promptMessage = await message.reply({ content, components });
-      pending.set(message.id, { type, characterName, messageUrl, promptMessage });
+      const entry = pending.get(message.id);
+      if (entry) {
+        entry.promptMessage = promptMessage;
+        // A messageUpdate may have changed the type while the reply was in flight;
+        // if so, edit the just-sent message to reflect the final type
+        if (entry.type !== type) {
+          const { content: c, components: r } = buildPrompt(entry.type, entry.characterName, message.id);
+          try {
+            await promptMessage.edit({ content: c, components: r });
+            logEvent('info', 'hunt_consequence_prompt_corrected', {
+              messageId: message.id,
+              originalType: type,
+              finalType: entry.type,
+              characterName,
+            });
+          } catch (editError) {
+            logEvent('warn', 'hunt_consequence_prompt_correct_failed', {
+              messageId: message.id,
+              error: errorToMessage(editError),
+            });
+          }
+        }
+      }
       logEvent('info', 'hunt_consequence_prompted', {
         messageId: message.id,
         channelId: message.channelId,
-        type,
+        type: entry?.type ?? type,
         characterName,
       });
     } catch (error) {
       // Clean up so a retry is possible if the reply fails
       respondedIds.delete(message.id);
+      pending.delete(message.id);
       logEvent('warn', 'hunt_consequence_prompt_failed', {
         messageId: message.id,
         error: errorToMessage(error),
