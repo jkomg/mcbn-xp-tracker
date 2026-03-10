@@ -289,5 +289,41 @@
   {% endif %}
 
   <a href="{{ url_for('roster.list_characters') }}" class="btn btn-secondary">Back to Roster</a>
+
+  <!-- Danger Zone: Delete Character -->
+  {% if not char.active %}
+  <hr class="border-danger mt-4">
+  <div class="card border-danger mt-3 mb-4">
+    <div class="card-header bg-danger bg-opacity-10 text-danger fw-semibold">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i> Danger Zone
+    </div>
+    <div class="card-body">
+      <p class="mb-1 fw-semibold">Permanently delete this character</p>
+      <p class="text-muted small mb-3">
+        This removes <strong>{{ char.character_name }}</strong> from the roster entirely.
+        Claims, spends, and ledger history are retained as orphaned records for audit purposes.
+        This action cannot be undone.
+      </p>
+      <button class="btn btn-outline-danger btn-sm" type="button"
+              data-bs-toggle="collapse" data-bs-target="#delete-confirm-panel">
+        <i class="bi bi-trash3 me-1"></i> Delete Character…
+      </button>
+      <div class="collapse mt-3" id="delete-confirm-panel">
+        <form method="POST" action="{{ url_for('roster.delete', name=char.character_name) }}">
+          <label class="form-label small text-danger fw-semibold">
+            Type <code>{{ char.character_name }}</code> to confirm deletion:
+          </label>
+          <div class="d-flex gap-2">
+            <input type="text" name="confirm_name" class="form-control form-control-sm"
+                   placeholder="{{ char.character_name }}" autocomplete="off">
+            <button type="submit" class="btn btn-danger btn-sm text-nowrap">
+              <i class="bi bi-trash3-fill me-1"></i> Delete Forever
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

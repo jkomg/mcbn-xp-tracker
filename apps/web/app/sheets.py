@@ -468,6 +468,23 @@ class SheetsClient:
     def deactivate_character(self, name: str) -> None:
         self.update_character(name, {'active': 'FALSE'})
 
+    def delete_character(self, name: str) -> None:
+        """Hard-delete a character row from the Roster sheet.
+
+        Does NOT cascade to Claims, Spends, or Ledger — those records are
+        retained for audit purposes as orphaned rows.
+        """
+        ws = self._ws(TAB_ROSTER)
+        rows = self._get_all_rows(TAB_ROSTER)
+        for i, row in enumerate(rows):
+            if row.get('character_name', '').lower() == name.lower():
+                row_num = i + 2  # +1 header, +1 for 1-indexed
+                ws.delete_rows(row_num)
+                self._cache.invalidate(TAB_ROSTER)
+                self._next_row_cache.pop(TAB_ROSTER, None)
+                return
+        raise ValueError(f'Character not found: {name}')
+
     def _row_to_character(self, row: dict) -> Character:
         return Character(
             character_name=str(row.get('character_name', '')),

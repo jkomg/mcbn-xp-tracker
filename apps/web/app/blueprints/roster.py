@@ -461,3 +461,30 @@ def activate(name):
 
     flash(f'{name} has been re-activated.', 'success')
     return redirect(url_for('roster.detail', name=name))
+
+
+@bp.route('/<name>/delete', methods=['POST'])
+@require_staff
+def delete(name):
+    """Permanently delete a character from the roster."""
+    char = sheets_client.get_character(name)
+    if not char:
+        abort(404)
+
+    # Require the user to confirm by typing the character name
+    confirm = request.form.get('confirm_name', '').strip()
+    if confirm.lower() != name.lower():
+        flash('Confirmation name did not match. Character was NOT deleted.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    staff = get_staff_user()
+    sheets_client.delete_character(name)
+    sheets_client.log_action(
+        staff_user=staff,
+        action_type='delete_character',
+        target=name,
+        details=f'Permanently deleted character {name}',
+    )
+
+    flash(f'{name} has been permanently deleted.', 'danger')
+    return redirect(url_for('roster.list_characters'))
