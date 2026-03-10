@@ -7,12 +7,15 @@ import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
 import { AutoPeriodCreator } from './services/autoPeriodCreator';
 import { ClaimReminderService } from './services/claimReminderService';
+import path from 'node:path';
 import {
   PassageOfTimeService,
   PASSAGE_DOWNTIME_MESSAGE,
   PASSAGE_SUNRISE_MESSAGE,
   PASSAGE_SUNSET_MESSAGE,
 } from './services/passageOfTimeService';
+
+const ASSETS_DIR = path.resolve(__dirname, '..', 'assets');
 import { errorToMessage, logEvent } from './logger';
 import { handleClaimReminderButton } from './claimReminderInteractions';
 import {
@@ -86,6 +89,7 @@ const passageOfTimeService = new PassageOfTimeService(client, {
       anchorDate: config.passageSunriseAnchorDate,
       cadenceWeeks: 2,
       body: PASSAGE_SUNRISE_MESSAGE,
+      imageFile: path.join(ASSETS_DIR, 'sunrise-rising-sun.gif'),
     },
     {
       name: 'sunset',
@@ -95,6 +99,7 @@ const passageOfTimeService = new PassageOfTimeService(client, {
       anchorDate: config.passageSunsetAnchorDate,
       cadenceWeeks: 2,
       body: PASSAGE_SUNSET_MESSAGE,
+      imageFile: path.join(ASSETS_DIR, 'Nashville_at_Night.gif'),
     },
     {
       name: 'downtime',
