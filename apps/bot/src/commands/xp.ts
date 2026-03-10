@@ -345,19 +345,10 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   };
 
   if (sub === 'submit') {
-    logEvent('info', 'xp_submit_start', meta);
-    const character = interaction.options.getString('character') ?? undefined;
-    const playPeriod = interaction.options.getString('play_period') ?? undefined;
-    await interaction.deferReply({ ephemeral: true });
-    try {
-      await startClaimWizard(interaction, adapter, character, playPeriod, requester);
-      logEvent('info', 'xp_submit_ready', meta);
-    } catch (error) {
-      logEvent('error', 'xp_submit_failed', { ...meta, error: errorToMessage(error) });
-      const message =
-        'Unable to load claim context from the web app right now (temporary API issue). Please retry in a minute.';
-      await interaction.editReply({ content: message, components: [] });
-    }
+    await interaction.reply({
+      content: `XP claims are now submitted through the player portal — the bot wizard is temporarily offline.\n👉 ${config.playerWebUrl}`,
+      ephemeral: true,
+    });
     return;
   }
 
@@ -384,107 +375,18 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   }
 
   if (sub === 'claim') {
-    const character = interaction.options.getString('character', true);
-    const playPeriod = interaction.options.getString('play_period', true);
-    const claimPairs: Array<{ category: XpClaimCategory; link: string }> = [
-      {
-        category: interaction.options.getString('category', true) as XpClaimCategory,
-        link: interaction.options.getString('link', true),
-      },
-    ];
-
-    for (let slot = 2; slot <= 6; slot += 1) {
-      const category = interaction.options.getString(`category_${slot}`) as XpClaimCategory | null;
-      const link = interaction.options.getString(`link_${slot}`);
-      if (!category && !link) {
-        continue;
-      }
-      if (!category || !link) {
-        await interaction.reply({
-          content: `Claim slot ${slot} requires both category_${slot} and link_${slot}.`,
-          ephemeral: true,
-        });
-        return;
-      }
-      claimPairs.push({ category, link });
-    }
-
-    const seenCategories = new Set<string>();
-    const payloadCategories: Partial<Record<XpClaimCategory, string>> = {};
-    for (const pair of claimPairs) {
-      if (seenCategories.has(pair.category)) {
-        await interaction.reply({
-          content: `Duplicate claim category "${pair.category}" is not allowed in one submission.`,
-          ephemeral: true,
-        });
-        return;
-      }
-      seenCategories.add(pair.category);
-
-      const parsed = parseMessageLink(pair.link);
-      if (!parsed) {
-        await interaction.reply({ content: `Invalid Discord message link for "${pair.category}".`, ephemeral: true });
-        return;
-      }
-      if (interaction.guildId && parsed.guildId !== interaction.guildId) {
-        await interaction.reply({
-          content: `Link for "${pair.category}" must point to a message in this server.`,
-          ephemeral: true,
-        });
-        return;
-      }
-      payloadCategories[pair.category] = pair.link;
-    }
-
-    const result = await adapter.submitClaim({
-      characterName: character,
-      playPeriod,
-      ...requester,
-      categories: payloadCategories,
+    await interaction.reply({
+      content: `XP claims are now submitted through the player portal — the bot wizard is temporarily offline.\n👉 ${config.playerWebUrl}`,
+      ephemeral: true,
     });
-
-    logEvent('info', 'xp_claim_result', {
-      ...meta,
-      character,
-      playPeriod,
-      categoryCount: claimPairs.length,
-      categories: claimPairs.map((pair) => pair.category),
-      ok: result.ok,
-    });
-    await interaction.reply({ content: result.message, ephemeral: true });
     return;
   }
 
   if (sub === 'spend') {
-    const character = interaction.options.getString('character', true);
-    const spendCategory = interaction.options.getString('category', true);
-    const traitName = interaction.options.getString('trait', true);
-    const currentDots = interaction.options.getInteger('current_dots', true);
-    const newDots = interaction.options.getInteger('new_dots', true);
-    const isInClan = interaction.options.getBoolean('is_in_clan') ?? false;
-    const justification = interaction.options.getString('justification', true);
-
-    const result = await adapter.submitSpend({
-      characterName: character,
-      ...requester,
-      spendCategory: spendCategory as XpSpendCategory,
-      traitName,
-      currentDots,
-      newDots,
-      isInClan,
-      justification,
+    await interaction.reply({
+      content: `XP spends are now submitted through the player portal — the bot wizard is temporarily offline.\n👉 ${config.playerWebUrl}`,
+      ephemeral: true,
     });
-
-    logEvent('info', 'xp_spend_result', {
-      ...meta,
-      character,
-      spendCategory,
-      traitName,
-      currentDots,
-      newDots,
-      ok: result.ok,
-    });
-    await interaction.reply({ content: result.message, ephemeral: true });
     return;
   }
 
