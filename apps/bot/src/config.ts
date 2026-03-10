@@ -116,6 +116,13 @@ const envSchema = z.object({
   PLAYER_GUIDE_URL: z.string().url().optional(),
   PLAYER_WEB_URL: z.string().url().optional(),
   SYSTEM_HELPER_MENTION: z.string().optional(),
+  HUNT_CONSEQUENCE_ENABLED: z.string().optional(),
+  HUNT_CONSEQUENCE_ELDEST_BOT_ID: z.string().optional(),
+  HUNT_CONSEQUENCE_CHANNEL_IDS: z.string().optional(),
+  HUNT_CONSEQUENCE_STAFF_CHANNEL_ID: z.string().optional(),
+  HUNT_CONSEQUENCE_STAFF_ROLE_ID: z.string().optional(),
+  HUNT_CONSEQUENCE_TEST_MODE: z.string().optional(),
+  HUNT_CONSEQUENCE_TEST_CHANNEL_ID: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -252,6 +259,13 @@ export const config = {
   playerGuideUrl: env.PLAYER_GUIDE_URL,
   playerWebUrl: env.PLAYER_WEB_URL ?? `${env.WEB_APP_BASE_URL}/player/`,
   systemHelperMention: env.SYSTEM_HELPER_MENTION ?? '@system helper',
+  huntConsequenceEnabled: (env.HUNT_CONSEQUENCE_ENABLED ?? 'false').toLowerCase() === 'true',
+  huntConsequenceEldestBotId: env.HUNT_CONSEQUENCE_ELDEST_BOT_ID ?? '814857851406647309',
+  huntConsequenceChannelIds: (env.HUNT_CONSEQUENCE_CHANNEL_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+  huntConsequenceStaffChannelId: env.HUNT_CONSEQUENCE_STAFF_CHANNEL_ID ?? '',
+  huntConsequenceStaffRoleId: env.HUNT_CONSEQUENCE_STAFF_ROLE_ID ?? '',
+  huntConsequenceTestMode: (env.HUNT_CONSEQUENCE_TEST_MODE ?? 'false').toLowerCase() === 'true',
+  huntConsequenceTestChannelId: env.HUNT_CONSEQUENCE_TEST_CHANNEL_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {

@@ -21,6 +21,11 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
+import {
+  startHuntConsequenceMonitor,
+  isHuntConsequenceButton,
+  handleHuntConsequenceButton,
+} from './services/huntConsequenceMonitor';
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   requestTimeoutMs: config.requestTimeoutMs,
@@ -31,7 +36,7 @@ const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
 });
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 }) as BotClient;
 
 initClientCommandCollection(client);
@@ -103,6 +108,21 @@ const passageOfTimeService = new PassageOfTimeService(client, {
   ],
 });
 
+// Build hunt consequence config, respecting test mode
+const huntConsequenceCfg = {
+  enabled: config.huntConsequenceEnabled,
+  eldestBotId: config.huntConsequenceEldestBotId,
+  monitorChannelIds: new Set(
+    config.huntConsequenceTestMode
+      ? [config.huntConsequenceTestChannelId].filter(Boolean)
+      : config.huntConsequenceChannelIds,
+  ),
+  staffChannelId: config.huntConsequenceTestMode
+    ? config.huntConsequenceTestChannelId
+    : config.huntConsequenceStaffChannelId,
+  staffRoleId: config.huntConsequenceStaffRoleId,
+};
+
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
@@ -111,6 +131,7 @@ client.once('ready', async () => {
   claimReminderService.start();
   passageOfTimeService.start();
   startCubbyChannelMonitor(client);
+  startHuntConsequenceMonitor(client, huntConsequenceCfg);
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -140,6 +161,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isButton()) {
+      if (isHuntConsequenceButton(interaction.customId)) {
+        await handleHuntConsequenceButton(interaction, huntConsequenceCfg);
+        logEvent('info', 'interaction_handled_hunt_consequence', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const reminderHandled = await handleClaimReminderButton(interaction);
       if (reminderHandled) {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
