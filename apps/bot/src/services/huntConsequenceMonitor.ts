@@ -153,12 +153,14 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
       if (!existing) return; // already resolved — don't re-open
       if (type === null || type === existing.type) return; // no change
 
-      // Consequence type changed (e.g. MC → BF after WP reroll) — update state and edit prompt
-      existing.type = type;
+      // Consequence type changed (e.g. MC → BF after WP reroll) — edit prompt first, then update state
       const { content, components } = buildPrompt(type, existing.characterName, message.id);
       if (existing.promptMessage) {
         try {
           await existing.promptMessage.edit({ content, components });
+          // Only mutate after the edit succeeds — if it fails, existing.type stays unchanged
+          // so the next messageUpdate event will retry rather than skip the stale type
+          existing.type = type;
           logEvent('info', 'hunt_consequence_prompt_updated', {
             messageId: message.id,
             newType: type,
