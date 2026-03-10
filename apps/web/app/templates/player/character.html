@@ -5,16 +5,30 @@
 {% block content %}
 <!-- Character Hero -->
 {% set pct = ((earned_xp / total_xp) * 100)|round|int if total_xp > 0 else 0 %}
-<div class="char-hero mb-4 has-clan-color clan-{{ char.clan | lower | replace(' ', '-') if char.clan else '' }}">
+{% set clan_slug = char.clan | lower | replace(' ', '-') if char.clan else '' %}
+<div class="char-hero mb-4 has-clan-color clan-{{ clan_slug }}">
+    {% if clan_slug %}
+    <img src="{{ url_for('static', filename='images/symbols/' + clan_slug + '.png') }}"
+         class="char-hero-clan-symbol" aria-hidden="true"
+         onerror="this.style.display='none'">
+    {% endif %}
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div class="flex-grow-1">
             <h1 class="char-hero-name">{{ char.character_name }}</h1>
             <p class="char-hero-meta">
-                {%- set parts = [] -%}
-                {%- if char.clan %}{% set _ = parts.append(char.clan) %}{% endif -%}
-                {%- if char.sect and char.sect != 'NA' %}{% set _ = parts.append(char.sect) %}{% endif -%}
-                {%- if char.age_category %}{% set _ = parts.append(char.age_category) %}{% endif -%}
-                {{ parts | join(' · ') }}
+                {%- if char.clan -%}{{ char.clan }}{%- endif -%}
+                {%- if char.sect and char.sect != 'NA' %}
+                <img src="{{ url_for('static', filename='images/symbols/' + char.sect | lower | replace(' ', '-') + '.png') }}"
+                     class="hero-sect-symbol" aria-hidden="true"
+                     onerror="this.style.display='none'">
+                · {{ char.sect }}
+                {%- endif -%}
+                {%- if char.age_category %}
+                <img src="{{ url_for('static', filename='images/symbols/' + char.age_category | lower | replace(' ', '-') + '.png') }}"
+                     class="hero-sect-symbol" aria-hidden="true"
+                     onerror="this.style.display='none'">
+                · {{ char.age_category }}
+                {%- endif -%}
             </p>
             <div class="d-flex gap-4 flex-wrap mb-2">
                 <div>
