@@ -20,6 +20,7 @@ import {
   handleClaimWizardModal,
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
+import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   requestTimeoutMs: config.requestTimeoutMs,
@@ -109,6 +110,7 @@ client.once('ready', async () => {
   autoPeriodCreator.start();
   claimReminderService.start();
   passageOfTimeService.start();
+  startCubbyChannelMonitor(client);
 });
 
 client.on('interactionCreate', async (interaction) => {
