@@ -36,7 +36,7 @@ const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
 });
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 }) as BotClient;
 
 initClientCommandCollection(client);
