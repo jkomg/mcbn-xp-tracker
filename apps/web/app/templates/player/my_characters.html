@@ -30,11 +30,18 @@
             {% for char in my_characters %}
             <a href="{{ url_for('player.character', name=char.character_name) }}"
                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}">
-                <div>
-                    <strong>{{ char.character_name }}</strong>
+                <div class="d-flex align-items-center gap-2">
                     {% if char.clan %}
-                    <span class="clan-badge clan-{{ char.clan | lower | replace(' ', '-') }} ms-2">{{ char.clan }}</span>
+                    <img src="{{ url_for('static', filename='images/symbols/' + char.clan | lower | replace(' ', '-') + '.png') }}"
+                         class="char-list-clan-symbol" aria-hidden="true"
+                         onerror="this.style.display='none'">
                     {% endif %}
+                    <div>
+                        <strong>{{ char.character_name }}</strong>
+                        {% if char.clan %}
+                        <span class="clan-badge clan-{{ char.clan | lower | replace(' ', '-') }} ms-2">{{ char.clan }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <i class="bi bi-chevron-right text-muted"></i>
             </a>
