@@ -124,11 +124,15 @@ def detail(name):
     # Compute XP totals (includes ledger)
     xp = sheets_client.get_xp_totals(name)
 
+    pending_claims_count = sum(1 for c in claims if c.status.lower() == 'pending')
+    pending_spends_count = sum(1 for s in spends if s.status.lower() == 'pending')
+
     return render_template(
         'roster/detail.html',
         char=char,
-        claims=claims,
         spends=spends,
+        pending_claims_count=pending_claims_count,
+        pending_spends_count=pending_spends_count,
         earned_xp=xp['earned_xp'],
         total_xp=xp['total_xp'],
         total_spends=xp['total_spends'] + xp['ledger_spent'],

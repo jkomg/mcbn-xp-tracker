@@ -2,192 +2,217 @@
 
 {% block content %}
 <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="d-inline">{{ char.character_name }}</h2>
-      {% if char.active %}
-        <span class="badge bg-success ms-2">Active</span>
-      {% else %}
-        <span class="badge bg-secondary ms-2">Inactive</span>
-      {% endif %}
+
+  <!-- ═══ Character Hero ═══ -->
+  {% set pct = ((earned_xp / total_xp) * 100)|round|int if total_xp > 0 else 0 %}
+  {% set clan_slug = char.clan | lower | replace(' ', '-') if char.clan else '' %}
+  <div class="char-hero mb-4 has-clan-color clan-{{ clan_slug }}">
+    {% if clan_slug %}
+    <img src="{{ url_for('static', filename='images/symbols/' + clan_slug + '.png') }}"
+         class="char-hero-clan-symbol" aria-hidden="true"
+         onerror="this.style.display='none'">
+    {% endif %}
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+          <h1 class="char-hero-name mb-0">{{ char.character_name }}</h1>
+          {% if char.active %}
+          <span class="badge bg-success">Active</span>
+          {% else %}
+          <span class="badge bg-secondary">Inactive</span>
+          {% endif %}
+        </div>
+        <p class="char-hero-meta mb-2">
+          {%- if char.clan %}{{ char.clan }}{% endif -%}
+          {%- if char.sect and char.sect != 'NA' %}
+          <img src="{{ url_for('static', filename='images/symbols/' + char.sect | lower | replace(' ', '-') + '.png') }}"
+               class="hero-sect-symbol" aria-hidden="true" onerror="this.style.display='none'">
+          · {{ char.sect }}
+          {%- endif -%}
+          {%- if char.age_category %}
+          <img src="{{ url_for('static', filename='images/symbols/' + char.age_category | lower | replace(' ', '-') + '.png') }}"
+               class="hero-sect-symbol" aria-hidden="true" onerror="this.style.display='none'">
+          · {{ char.age_category }}
+          {%- endif -%}
+        </p>
+        <div class="d-flex gap-4 flex-wrap mb-2">
+          <div>
+            <div class="char-stat-val">{{ total_xp }}</div>
+            <div class="char-stat-lbl">Total XP</div>
+          </div>
+          <div>
+            <div class="char-stat-val">{{ earned_xp }}</div>
+            <div class="char-stat-lbl">Earned</div>
+          </div>
+          <div>
+            <div class="char-stat-val text-danger">{{ total_spends }}</div>
+            <div class="char-stat-lbl">Spent</div>
+          </div>
+        </div>
+        {% if total_xp > 0 %}
+        <div class="xp-progress-bar">
+          <div class="fill" style="width: {{ pct }}%;"></div>
+        </div>
+        <small class="text-muted" style="font-size:0.7rem;">{{ earned_xp }} earned · {{ total_xp }} total</small>
+        {% endif %}
+      </div>
+      <div class="text-end flex-shrink-0">
+        <div class="char-hero-xp-num {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% else %}text-muted{% endif %}">
+          {{ available_xp }}
+        </div>
+        <div class="char-hero-xp-lbl">XP Available</div>
+      </div>
     </div>
-    <div>
-      <a href="{{ url_for('roster.adjust_xp_form', name=char.character_name) }}" class="btn btn-warning me-2">
+    <!-- Staff action buttons -->
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('roster.list_characters') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Roster
+      </a>
+      <a href="{{ url_for('roster.adjust_xp_form', name=char.character_name) }}" class="btn btn-sm btn-warning">
         <i class="bi bi-sliders"></i> Adjust XP
       </a>
-      <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-primary">Edit</a>
-    </div>
-  </div>
-
-  <!-- XP Summary Cards -->
-  <div class="row mb-4">
-    <div class="col-md">
-      <div class="card">
-        <div class="card-body text-center">
-          <h6 class="card-subtitle mb-2 text-muted">Creation XP</h6>
-          <h3 class="card-title">{{ char.creation_xp }}</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md">
-      <div class="card">
-        <div class="card-body text-center">
-          <h6 class="card-subtitle mb-2 text-muted">Earned XP</h6>
-          <h3 class="card-title">{{ earned_xp }}</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md">
-      <div class="card">
-        <div class="card-body text-center">
-          <h6 class="card-subtitle mb-2 text-muted">Total XP</h6>
-          <h3 class="card-title">{{ total_xp }}</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md">
-      <div class="card">
-        <div class="card-body text-center">
-          <h6 class="card-subtitle mb-2 text-muted">Approved Spends</h6>
-          <h3 class="card-title">{{ total_spends }}</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md">
-      <div class="card {% if available_xp > 0 %}border-success{% elif available_xp < 0 %}border-danger{% endif %}">
-        <div class="card-body text-center">
-          <h6 class="card-subtitle mb-2 text-muted">Available XP</h6>
-          <h3 class="card-title {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">
-            {{ available_xp }}
-          </h3>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Character Info -->
-  <div class="card mb-4">
-    <div class="card-header">
-      <h5>Character Information</h5>
-    </div>
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-6">
-          <p><strong>Clan:</strong> {{ char.clan or 'Not specified' }}</p>
-          <p><strong>Age Category:</strong> {{ char.age_category or 'Not specified' }}</p>
-          <p><strong>Sect:</strong> {{ char.sect or 'Not specified' }}</p>
-        </div>
-        <div class="col-md-6">
-          <p><strong>Player:</strong> {{ char.player_discord_name or char.player_discord or 'Not linked' }}{% if char.player_discord %} <small class="text-muted">({{ char.player_discord }})</small>{% endif %}</p>
-          <p><strong>Enemy:</strong> {{ char.enemy or 'None' }}</p>
-        </div>
-      </div>
-      {% if char.notes %}
-      <div class="mt-2">
-        <p><strong>Notes:</strong></p>
-        <p>{{ char.notes }}</p>
-      </div>
+      <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-sm btn-primary">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+      {% if char.active %}
+      <form method="POST" action="{{ url_for('roster.deactivate', name=char.character_name) }}" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-warning"
+                data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
+          <i class="bi bi-pause-circle"></i> Deactivate
+        </button>
+      </form>
+      {% else %}
+      <form method="POST" action="{{ url_for('roster.activate', name=char.character_name) }}" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-success"
+                data-confirm="Are you sure you want to re-activate {{ char.character_name }}?">
+          <i class="bi bi-play-circle"></i> Re-activate
+        </button>
+      </form>
       {% endif %}
     </div>
   </div>
 
-  <!-- XP Claims History -->
-  <div class="card mb-4">
-    <div class="card-header">
-      <h5>XP Claims History</h5>
+  <!-- ═══ Info + Pending Activity ═══ -->
+  <div class="row mb-4">
+    <div class="col-md-7 mb-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4 text-muted small">Player</dt>
+            <dd class="col-sm-8">
+              {{ char.player_discord_name or char.player_discord or 'Not linked' }}
+              {% if char.player_discord %}
+              <small class="text-muted d-block">{{ char.player_discord }}</small>
+              {% endif %}
+            </dd>
+            {% if char.enemy %}
+            <dt class="col-sm-4 text-muted small">Enemy</dt>
+            <dd class="col-sm-8">{{ char.enemy }}</dd>
+            {% endif %}
+            {% if char.notes %}
+            <dt class="col-sm-4 text-muted small">Notes</dt>
+            <dd class="col-sm-8">{{ char.notes }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
     </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-dark table-striped">
-          <thead>
-            <tr>
-              <th>Period</th>
-              <th>XP Claimed</th>
-              <th>Approved XP</th>
-              <th>Status</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for claim in claims %}
-            <tr>
-              <td>{{ claim.period }}</td>
-              <td>{{ claim.xp_claimed }}</td>
-              <td>{{ claim.approved_xp or '-' }}</td>
-              <td>
-                {% if claim.status == 'approved' %}
-                  <span class="badge bg-success">Approved</span>
-                {% elif claim.status == 'denied' %}
-                  <span class="badge bg-danger">Denied</span>
-                {% elif claim.status == 'pending' %}
-                  <span class="badge bg-warning">Pending</span>
-                {% else %}
-                  <span class="badge bg-secondary">{{ claim.status }}</span>
-                {% endif %}
-              </td>
-              <td>{{ claim.date or '-' }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <div class="col-md-5 mb-3">
+      <div class="card h-100 {% if pending_claims_count > 0 or pending_spends_count > 0 %}border-warning{% endif %}">
+        <div class="card-body">
+          {% if pending_claims_count > 0 or pending_spends_count > 0 %}
+          <div class="d-flex gap-2 align-items-center mb-2">
+            <i class="bi bi-hourglass-split text-warning"></i>
+            <span class="fw-semibold">Pending Review</span>
+          </div>
+          {% if pending_claims_count > 0 %}
+          <div>
+            <a href="{{ url_for('claims.pending') }}" class="text-decoration-none">
+              <span class="badge bg-warning text-dark me-1">{{ pending_claims_count }}</span>
+              XP claim{{ 's' if pending_claims_count != 1 }}
+            </a>
+          </div>
+          {% endif %}
+          {% if pending_spends_count > 0 %}
+          <div class="mt-1">
+            <a href="{{ url_for('spends.pending') }}" class="text-decoration-none">
+              <span class="badge bg-warning text-dark me-1">{{ pending_spends_count }}</span>
+              spend request{{ 's' if pending_spends_count != 1 }}
+            </a>
+          </div>
+          {% endif %}
+          {% else %}
+          <p class="text-muted mb-0 small">No pending claims or spends.</p>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Spend History -->
+  <!-- ═══ Spend History ═══ -->
   <div class="card mb-4">
     <div class="card-header">
-      <h5>Spend History</h5>
+      <h5 class="mb-0">Spend History</h5>
     </div>
     <div class="card-body">
+      {% if spends %}
       <div class="table-responsive">
-        <table class="table table-dark table-striped">
+        <table class="table table-dark table-striped table-sm mb-0">
           <thead>
             <tr>
-              <th>Category</th>
               <th>Trait</th>
-              <th>Dots</th>
+              <th class="d-none d-sm-table-cell">Category</th>
+              <th class="d-none d-sm-table-cell">Dots</th>
               <th>Cost</th>
-              <th>Verified Cost</th>
               <th>Status</th>
-              <th>Date</th>
+              <th class="d-none d-md-table-cell">Date</th>
             </tr>
           </thead>
           <tbody>
             {% for spend in spends %}
             <tr>
-              <td>{{ spend.category }}</td>
               <td>{{ spend.trait_name }}</td>
-              <td>{{ spend.current_dots }} → {{ spend.new_dots }}</td>
-              <td>{{ spend.player_cost }}</td>
-              <td>{{ spend.verified_cost or '-' }}</td>
+              <td class="d-none d-sm-table-cell">{{ spend.spend_category }}</td>
+              <td class="d-none d-sm-table-cell">{{ spend.current_dots }} → {{ spend.new_dots }}</td>
               <td>
-                {% if spend.status == 'approved' %}
+                {% if spend.verified_cost %}
+                <span class="text-danger fw-semibold">{{ spend.verified_cost }}</span>
+                {% else %}
+                {{ spend.xp_cost }}
+                {% endif %}
+              </td>
+              <td>
+                {% if spend.status | lower == 'approved' %}
                   <span class="badge bg-success">Approved</span>
-                {% elif spend.status == 'denied' %}
+                {% elif spend.status | lower == 'denied' %}
                   <span class="badge bg-danger">Denied</span>
-                {% elif spend.status == 'pending' %}
-                  <span class="badge bg-warning">Pending</span>
+                {% elif spend.status | lower == 'pending' %}
+                  <span class="badge bg-warning text-dark">Pending</span>
                 {% else %}
                   <span class="badge bg-secondary">{{ spend.status }}</span>
                 {% endif %}
               </td>
-              <td>{{ spend.date or '-' }}</td>
+              <td class="d-none d-md-table-cell">
+                <small class="text-muted">{{ spend.review_date or spend.timestamp or '—' }}</small>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% else %}
+      <p class="text-muted mb-0">No spend requests yet.</p>
+      {% endif %}
     </div>
   </div>
 
-  <!-- XP Ledger -->
+  <!-- ═══ XP Ledger ═══ -->
   <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">XP Ledger</h5>
       <div>
         <a href="{{ url_for('roster.import_ledger', name=char.character_name) }}" class="btn btn-sm btn-outline-info me-1">
-          <i class="bi bi-cloud-arrow-down"></i> Import from Sheet
+          <i class="bi bi-cloud-arrow-down"></i> Import
         </a>
         <button class="btn btn-sm btn-danger" data-bs-toggle="collapse" data-bs-target="#ledger-add-form">
           <i class="bi bi-plus-lg"></i> Add Entry
@@ -214,7 +239,8 @@
             </div>
             <div class="col-md-4">
               <label for="ledger-reason" class="form-label">Reason</label>
-              <input type="text" class="form-control" id="ledger-reason" name="reason" placeholder="e.g., Night 53 XP or Strength 2→3" required>
+              <input type="text" class="form-control" id="ledger-reason" name="reason"
+                     placeholder="e.g., Night 53 XP or Strength 2→3" required>
             </div>
             <div class="col-md-2 d-flex align-items-end">
               <button type="submit" class="btn btn-danger w-100">Add</button>
@@ -231,31 +257,31 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th>Awarded</th>
-              <th>Spent</th>
-              <th>Reason</th>
-              <th>Entered By</th>
+              <th>XP</th>
+              <th>Source / Reason</th>
+              <th class="d-none d-md-table-cell">Entered By</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {% for entry in ledger %}
             <tr>
-              <td>{{ entry.date }}</td>
-              <td>
+              <td class="text-nowrap">{{ entry.date }}</td>
+              <td class="text-nowrap">
                 {% if entry.awarded %}
-                <span class="text-success">+{{ entry.awarded }}</span>
+                <span class="text-success fw-semibold">+{{ entry.awarded }}</span>
                 {% endif %}
-              </td>
-              <td>
                 {% if entry.spent %}
-                <span class="text-danger">-{{ entry.spent }}</span>
+                <span class="text-danger fw-semibold">−{{ entry.spent }}</span>
                 {% endif %}
               </td>
               <td>{{ entry.reason }}</td>
-              <td><small class="text-muted">{{ entry.entered_by }}</small></td>
+              <td class="d-none d-md-table-cell">
+                <small class="text-muted">{{ entry.entered_by }}</small>
+              </td>
               <td>
-                <form method="POST" action="{{ url_for('roster.delete_ledger_entry', name=char.character_name, row_index=entry.row_index) }}"
+                <form method="POST"
+                      action="{{ url_for('roster.delete_ledger_entry', name=char.character_name, row_index=entry.row_index) }}"
                       onsubmit="return confirm('Delete this ledger entry?');" class="d-inline">
                   <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
                     <i class="bi bi-x-lg"></i>
@@ -273,24 +299,7 @@
     </div>
   </div>
 
-  <!-- Deactivate/Activate Button -->
-  {% if char.active %}
-  <form method="POST" action="{{ url_for('roster.deactivate', name=char.character_name) }}" class="mb-4">
-    <button type="submit" class="btn btn-warning" data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
-      Deactivate Character
-    </button>
-  </form>
-  {% else %}
-  <form method="POST" action="{{ url_for('roster.activate', name=char.character_name) }}" class="mb-4">
-    <button type="submit" class="btn btn-success" data-confirm="Are you sure you want to activate {{ char.character_name }}?">
-      Activate Character
-    </button>
-  </form>
-  {% endif %}
-
-  <a href="{{ url_for('roster.list_characters') }}" class="btn btn-secondary">Back to Roster</a>
-
-  <!-- Danger Zone: Delete Character -->
+  <!-- ═══ Danger Zone (inactive characters only) ═══ -->
   {% if not char.active %}
   <hr class="border-danger mt-4">
   <div class="card border-danger mt-3 mb-4">
@@ -325,5 +334,6 @@
     </div>
   </div>
   {% endif %}
+
 </div>
 {% endblock %}
