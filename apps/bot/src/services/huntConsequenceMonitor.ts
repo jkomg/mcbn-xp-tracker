@@ -36,6 +36,8 @@ type PendingEntry = {
   type: ConsequenceType;
   characterName: string;
   messageUrl: string;
+  // Stored so we can edit the prompt if a WP reroll flips the consequence type
+  promptMessage: Message | null;
 };
 
 export type HuntConsequenceConfig = {
@@ -139,24 +141,52 @@ function buildPrompt(
 export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequenceConfig): void {
   if (!cfg.enabled) return;
 
-  async function handleMessage(message: Message): Promise<void> {
+  async function handleMessage(message: Message, isUpdate = false): Promise<void> {
     if (message.author.id !== cfg.eldestBotId) return;
     if (!cfg.monitorChannelIds.has(message.channelId)) return;
-    if (respondedIds.has(message.id)) return;
 
     const type = detectType(message);
+
+    // On updates to an already-prompted message, check for a type flip
+    if (isUpdate && respondedIds.has(message.id)) {
+      const existing = pending.get(message.id);
+      if (!existing) return; // already resolved — don't re-open
+      if (type === null || type === existing.type) return; // no change
+
+      // Consequence type changed (e.g. MC → BF after WP reroll) — update state and edit prompt
+      existing.type = type;
+      const { content, components } = buildPrompt(type, existing.characterName, message.id);
+      if (existing.promptMessage) {
+        try {
+          await existing.promptMessage.edit({ content, components });
+          logEvent('info', 'hunt_consequence_prompt_updated', {
+            messageId: message.id,
+            newType: type,
+            characterName: existing.characterName,
+          });
+        } catch (error) {
+          logEvent('warn', 'hunt_consequence_prompt_edit_failed', {
+            messageId: message.id,
+            error: errorToMessage(error),
+          });
+        }
+      }
+      return;
+    }
+
+    if (respondedIds.has(message.id)) return;
     if (!type) return;
 
     const characterName = extractCharacter(message);
     const messageUrl = `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
 
-    pending.set(message.id, { type, characterName, messageUrl });
     respondedIds.add(message.id);
 
     const { content, components } = buildPrompt(type, characterName, message.id);
 
     try {
-      await message.reply({ content, components });
+      const promptMessage = await message.reply({ content, components });
+      pending.set(message.id, { type, characterName, messageUrl, promptMessage });
       logEvent('info', 'hunt_consequence_prompted', {
         messageId: message.id,
         channelId: message.channelId,
@@ -165,7 +195,6 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
       });
     } catch (error) {
       // Clean up so a retry is possible if the reply fails
-      pending.delete(message.id);
       respondedIds.delete(message.id);
       logEvent('warn', 'hunt_consequence_prompt_failed', {
         messageId: message.id,
@@ -175,7 +204,7 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
   }
 
   client.on('messageCreate', (message) => {
-    handleMessage(message).catch((err) =>
+    handleMessage(message, false).catch((err) =>
       logEvent('error', 'hunt_consequence_create_error', { error: errorToMessage(err) }),
     );
   });
@@ -187,7 +216,7 @@ export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequence
       : Promise.resolve(newMessage as Message);
 
     resolve
-      .then((msg) => msg && handleMessage(msg))
+      .then((msg) => msg && handleMessage(msg, true))
       .catch((err) =>
         logEvent('error', 'hunt_consequence_update_error', { error: errorToMessage(err) }),
       );
@@ -219,7 +248,16 @@ export async function handleHuntConsequenceButton(
     return;
   }
 
-  pending.delete(messageId);
+  // Guard: negate is only valid for Messy Critical. If a WP reroll flipped the type to BF
+  // after the prompt was posted, reject the stale negate click gracefully.
+  if (isNegate && entry.type === 'bf') {
+    await interaction.reply({
+      content:
+        'The roll was updated to a **Bestial Failure** after your Willpower reroll — negation is not available. Please use the Roll d10 button.',
+      ephemeral: true,
+    });
+    return;
+  }
 
   // Fetch the staff/coordination channel
   const staffChannel = await interaction.client.channels
@@ -229,6 +267,7 @@ export async function handleHuntConsequenceButton(
     staffChannel !== null && staffChannel.type === ChannelType.GuildText;
 
   const typeLabel = entry.type === 'mc' ? 'Messy Critical' : 'Bestial Failure';
+  const resolvedBy = `<@${interaction.user.id}>`;
 
   // ── Negate path (Messy Critical only) ──────────────────────────────────────
   if (isNegate) {
@@ -238,26 +277,26 @@ export async function handleHuntConsequenceButton(
       `**Character:** ${entry.characterName}`,
       `**Roll Type:** ${typeLabel}`,
       `**Outcome:** Player chose to fail — Messy Critical negated, no consequence applies. Character does not feed.`,
+      `**Resolved by:** ${resolvedBy}`,
       ``,
       `**Original Roll:** ${entry.messageUrl}`,
     ].join('\n');
 
     if (staffChannelOk) {
       await (staffChannel as TextChannel).send({ content: coordMsg });
-      await interaction.reply({
-        content: `Messy Critical negated — **${entry.characterName}** chose to fail. Staff notified in <#${cfg.staffChannelId}>.`,
-        ephemeral: true,
-      });
-    } else {
-      await interaction.reply({
-        content: `Messy Critical negated — **${entry.characterName}** chose to fail. ⚠️ Could not reach staff channel, please ping staff manually.`,
-        ephemeral: true,
-      });
     }
+    await interaction.reply({
+      content: staffChannelOk
+        ? `Messy Critical negated — **${entry.characterName}** chose to fail. Staff notified in <#${cfg.staffChannelId}>.`
+        : `Messy Critical negated — **${entry.characterName}** chose to fail. ⚠️ Could not reach staff channel, please ping staff manually.`,
+      ephemeral: true,
+    });
 
+    pending.delete(messageId);
     logEvent('info', 'hunt_consequence_negated', {
       messageId,
       characterName: entry.characterName,
+      resolvedByUserId: interaction.user.id,
     });
     return;
   }
@@ -278,28 +317,28 @@ export async function handleHuntConsequenceButton(
     `**Roll Type:** ${typeLabel}`,
     `**d10 Result:** ${roll}`,
     `**Consequence:** ${result}${bestialNote}`,
+    `**Resolved by:** ${resolvedBy}`,
     ``,
     `**Original Roll:** ${entry.messageUrl}`,
   ].join('\n');
 
   if (staffChannelOk) {
     await (staffChannel as TextChannel).send({ content: coordMsg });
-    await interaction.reply({
-      content: `🎲 Rolled a **${roll}** — *${result}*${bestialNote}\nPosted to <#${cfg.staffChannelId}> for staff to resolve.`,
-      ephemeral: true,
-    });
-  } else {
-    await interaction.reply({
-      content: `🎲 Rolled a **${roll}** — *${result}*${bestialNote}\n⚠️ Could not reach staff channel — please ping staff manually.`,
-      ephemeral: true,
-    });
   }
+  await interaction.reply({
+    content: staffChannelOk
+      ? `🎲 Rolled a **${roll}** — *${result}*${bestialNote}\nPosted to <#${cfg.staffChannelId}> for staff to resolve.`
+      : `🎲 Rolled a **${roll}** — *${result}*${bestialNote}\n⚠️ Could not reach staff channel — please ping staff manually.`,
+    ephemeral: true,
+  });
 
+  pending.delete(messageId);
   logEvent('info', 'hunt_consequence_rolled', {
     messageId,
     type: entry.type,
     characterName: entry.characterName,
     roll,
     result,
+    resolvedByUserId: interaction.user.id,
   });
 }
