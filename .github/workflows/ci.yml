@@ -14,6 +14,7 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       bot: ${{ steps.filter.outputs.bot }}
       contract: ${{ steps.filter.outputs.contract }}
+      docker_docs: ${{ steps.filter.outputs.docker_docs }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,6 +35,16 @@ jobs:
             contract:
               - 'packages/api-contract/**'
               - 'packages/rules/**'
+              - '.github/workflows/ci.yml'
+            docker_docs:
+              - 'compose.web.yml'
+              - 'compose.full.yml'
+              - 'apps/web/docker-compose.yml'
+              - 'apps/bot/docker-compose.yml'
+              - 'scripts/bootstrap-local.sh'
+              - 'scripts/check-docs-parity.sh'
+              - 'README.md'
+              - 'docs/**'
               - '.github/workflows/ci.yml'
 
   web-test-and-lint:
@@ -129,12 +140,55 @@ jobs:
           npm ci
           npm run test -- src/__tests__/sharedContract.test.ts
 
+  docker-and-docs-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docker_docs == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare local env files for compose checks
+        run: |
+          cp apps/web/.env.example apps/web/.env
+          cp apps/bot/.env.example apps/bot/.env
+          printf '\nSPREADSHEET_ID=\nFLASK_SECRET_KEY=ci-local-secret\n' >> apps/web/.env
+
+      - name: Validate compose files
+        run: |
+          docker compose -f compose.web.yml config -q
+          docker compose -f compose.full.yml config -q
+          docker compose -f apps/web/docker-compose.yml config -q
+          docker compose -f apps/bot/docker-compose.yml config -q
+
+      - name: Smoke start local web docker profile
+        run: |
+          docker compose -f compose.web.yml up -d --build
+          for n in {1..30}; do
+            if curl -fsS http://127.0.0.1:5001/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Web docker smoke check failed to respond on 127.0.0.1:5001"
+          docker compose -f compose.web.yml logs --tail=200
+          exit 1
+
+      - name: Docs parity checks
+        run: ./scripts/check-docs-parity.sh
+
+      - name: Cleanup smoke containers
+        if: always()
+        run: docker compose -f compose.web.yml down -v || true
+
   test-and-lint:
     runs-on: ubuntu-latest
     needs:
       - web-test-and-lint
       - bot-test-and-lint
       - contract-tests
+      - docker-and-docs-hygiene
     if: always()
     steps:
       - name: Enforce required-check result

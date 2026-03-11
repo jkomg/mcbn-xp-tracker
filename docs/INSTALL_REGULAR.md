@@ -4,11 +4,27 @@ Use this guide if you want both:
 - web interface (`apps/web`)
 - Discord bot front-end (`apps/bot`)
 
+Reference: [ENV_AND_SECRETS.md](ENV_AND_SECRETS.md)
+
 ## Outcome
 
 - Web app running at `http://127.0.0.1:5001`
 - Bot running locally and registering commands in your test guild
 - No extra managed database/cloud runtime required for bot hosting
+
+## Fast Path (One Command, Docker)
+
+After completing env and credential setup (Lite + Bot env below), start full local profile:
+
+```bash
+./scripts/bootstrap-local.sh web+bot
+```
+
+Stop it with:
+
+```bash
+./scripts/bootstrap-local.sh web+bot down
+```
 
 ## 1) Complete Lite Setup First
 
@@ -157,4 +173,5 @@ Additional runbook: [RUN_BOT_LOCAL.md](RUN_BOT_LOCAL.md)
 - Bot connects but commands missing:
   - Check `TEST_GUILD_ID` and rerun `npm run dev`.
 - Bot cannot reach web API:
-  - Check `WEB_APP_BASE_URL` and ensure web app is running.
+  - For Docker full profile, set `WEB_APP_BASE_URL=http://web:5001` in `apps/bot/.env`.
+  - For host web + host bot runtime, keep `WEB_APP_BASE_URL=http://127.0.0.1:5001`.
