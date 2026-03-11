@@ -1,5 +1,7 @@
 # Run Discord Bot Locally (Cost-Flat Option)
 
+Prefer containerized local hosting with audit-ready retention? Use [RUN_BOT_DOCKER.md](RUN_BOT_DOCKER.md).
+
 ## Why local hosting
 
 A Discord bot relies on a persistent gateway connection. Running it locally avoids always-on cloud runtime costs while keeping the web app on Cloud Run.

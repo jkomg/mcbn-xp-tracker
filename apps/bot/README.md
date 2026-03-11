@@ -43,6 +43,22 @@ npm install
 npm run dev
 ```
 
+## Docker Runtime (Recommended for Usage Audits)
+
+```bash
+cp .env.example .env
+npm run ops:docker:up
+npm run ops:docker:logs
+```
+
+Export last 30 days of usage summaries:
+
+```bash
+npm run ops:docker:usage-30d
+```
+
+See monorepo runbook: `docs/RUN_BOT_DOCKER.md`.
+
 ## Commands
 
 - `/ping`
@@ -64,6 +80,10 @@ npm run test
 npm run check
 npm run ops:check-adapter
 npm run ops:deploy-local
+npm run ops:docker:up
+npm run ops:docker:down
+npm run ops:docker:logs
+npm run ops:docker:usage-30d
 ```
 
 ## CI and Automation Hygiene

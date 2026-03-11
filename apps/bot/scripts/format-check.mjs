@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const INCLUDE_EXT = new Set(['.ts', '.js', '.mjs', '.json', '.md', '.yml', '.yaml']);
-const IGNORE_DIRS = new Set(['.git', 'node_modules', 'dist']);
+const IGNORE_DIRS = new Set(['.git', 'node_modules', 'dist', 'data']);
 const errors = [];
 
 function walk(dir) {
