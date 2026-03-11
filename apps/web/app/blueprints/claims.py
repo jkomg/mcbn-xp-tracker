@@ -36,7 +36,7 @@ def approve(row_id):
         abort(404)
 
     # Guard: prevent double-approve
-    if claim.status.lower() == 'approved':
+    if claim.status.strip().lower() == 'approved':
         flash(f'Claim for {claim.character_name} ({claim.play_period}) '
               f'is already approved.', 'warning')
         return redirect(url_for('claims.pending'))
@@ -86,7 +86,7 @@ def deny(row_id):
         abort(404)
 
     # Guard: prevent double-deny
-    if claim.status.lower() == 'denied':
+    if claim.status.strip().lower() == 'denied':
         flash(f'Claim for {claim.character_name} ({claim.play_period}) '
               f'is already denied.', 'warning')
         return redirect(url_for('claims.pending'))

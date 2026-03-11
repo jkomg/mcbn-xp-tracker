@@ -28,3 +28,22 @@ def test_get_dashboard_data_aggregates_without_n_plus_one():
     assert rows[0]["last_submission"] == "20250101 10:00:00"
     assert rows[1]["character_name"] == "Bob"
     assert rows[1]["available_xp"] == 6
+
+
+def test_pending_filters_tolerate_status_whitespace():
+    client = SheetsClient.__new__(SheetsClient)
+
+    client.get_all_claims = lambda: [
+        XPClaim(character_name="Alice", status="Pending "),
+        XPClaim(character_name="Bob", status="Approved"),
+    ]
+    client.get_all_spends = lambda: [
+        SpendRequest(character_name="Alice", status=" pending"),
+        SpendRequest(character_name="Bob", status="Denied"),
+    ]
+
+    pending_claims = client.get_pending_claims()
+    pending_spends = client.get_pending_spends()
+
+    assert [c.character_name for c in pending_claims] == ["Alice"]
+    assert [s.character_name for s in pending_spends] == ["Alice"]

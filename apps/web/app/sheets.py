@@ -162,6 +162,12 @@ def _parse_yyyymmdd(value: str) -> Optional[datetime]:
         return None
 
 
+def _normalize_status(value, default: str = 'Pending') -> str:
+    """Normalize status strings from Sheets (trim whitespace, keep casing)."""
+    text = str(value if value is not None else '').strip()
+    return text or default
+
+
 def _short_md(value: datetime) -> str:
     return f'{value.month}/{value.day}'
 
@@ -628,7 +634,7 @@ class SheetsClient:
 
     def get_pending_claims(self) -> list[XPClaim]:
         return [c for c in self.get_all_claims()
-                if c.status.lower() == 'pending']
+                if c.status.strip().lower() == 'pending']
 
     def get_claims_for_character(self, name: str) -> list[XPClaim]:
         return [c for c in self.get_all_claims()
@@ -762,7 +768,7 @@ class SheetsClient:
             wildcard_reason=str(row.get('wildcard_reason', '')),
             wildcard_amount=_parse_int(row.get('wildcard_amount', 0)),
             xp_claimed=_parse_int(row.get('xp_claimed', 0)),
-            status=str(row.get('status', 'Pending')),
+            status=_normalize_status(row.get('status', 'Pending')),
             approved_xp=_parse_int(row.get('approved_xp', 0)),
             reviewed_by=str(row.get('reviewed_by', '')),
             review_date=str(row.get('review_date', '')),
@@ -778,7 +784,7 @@ class SheetsClient:
 
     def get_pending_spends(self) -> list[SpendRequest]:
         return [s for s in self.get_all_spends()
-                if s.status.lower() == 'pending']
+                if s.status.strip().lower() == 'pending']
 
     def get_spends_for_character(self, name: str) -> list[SpendRequest]:
         return [s for s in self.get_all_spends()
@@ -871,7 +877,7 @@ class SheetsClient:
             xp_cost=_parse_int(row.get('xp_cost', 0)),
             is_in_clan=_parse_bool(row.get('is_in_clan', False)),
             justification=str(row.get('justification', '')),
-            status=str(row.get('status', 'Pending')),
+            status=_normalize_status(row.get('status', 'Pending')),
             verified_cost=_parse_int(row.get('verified_cost', 0)),
             reviewed_by=str(row.get('reviewed_by', '')),
             review_date=str(row.get('review_date', '')),
