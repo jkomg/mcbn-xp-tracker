@@ -22,6 +22,9 @@ XP tracking and management for **Music City by Night**, a Vampire: The Masquerad
 - Go-live checklist: [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)
 - Local bot hosting runbook: [docs/RUN_BOT_LOCAL.md](docs/RUN_BOT_LOCAL.md)
 - Docker bot hosting runbook: [docs/RUN_BOT_DOCKER.md](docs/RUN_BOT_DOCKER.md)
+- Docker web hosting runbook: [docs/RUN_WEB_DOCKER.md](docs/RUN_WEB_DOCKER.md)
+- Environment + secrets flow: [docs/ENV_AND_SECRETS.md](docs/ENV_AND_SECRETS.md)
+- Release note (2026-03-11): [docs/RELEASE_2026-03-11_CONTAINERIZATION_AND_FIXES.md](docs/RELEASE_2026-03-11_CONTAINERIZATION_AND_FIXES.md)
 - Monorepo CI/CD blueprint: [docs/MONOREPO_CI_CD_BLUEPRINT.md](docs/MONOREPO_CI_CD_BLUEPRINT.md)
 - Install guide (Lite, web-only): [docs/INSTALL_LITE.md](docs/INSTALL_LITE.md)
 - Install guide (Regular, web + bot): [docs/INSTALL_REGULAR.md](docs/INSTALL_REGULAR.md)
@@ -124,6 +127,16 @@ Expected GCP impact:
 
 If you are unsure, start with Lite and add the bot later.
 
+### Quickstart Matrix
+
+| Install Profile | Runtime | One Command | Compose File |
+|---|---|---|---|
+| Web-only | Local Docker | `./scripts/bootstrap-local.sh web-only` | `compose.web.yml` |
+| Web + Bot | Local Docker | `./scripts/bootstrap-local.sh web+bot` | `compose.full.yml` |
+| Web-only | GCP Cloud Run | `cd apps/web && ./deploy.sh` | N/A |
+
+For local host-venv workflows, keep using `./dev.sh` (web) and `cd apps/bot && npm run dev` (bot).
+
 ## Local Development
 
 Phase 1 note: repository layout is now monorepo-style.
@@ -184,22 +197,19 @@ That's it. Opens at **http://127.0.0.1:5001** with debug mode and auto-reload. T
 Docker option:
 
 ```bash
-cd apps/web
-docker compose up -d --build
+./scripts/bootstrap-local.sh web-only
 ```
 
 Container logs:
 
 ```bash
-cd apps/web
-docker compose logs -f --tail=200 web-dev
+./scripts/bootstrap-local.sh web-only logs
 ```
 
 Stop:
 
 ```bash
-cd apps/web
-docker compose down
+./scripts/bootstrap-local.sh web-only down
 ```
 
 Detailed runbook: [docs/RUN_WEB_DOCKER.md](docs/RUN_WEB_DOCKER.md)
@@ -339,6 +349,8 @@ To stay in free-tier range:
 
 | Script | What It Does |
 |--------|-------------|
+| `./scripts/bootstrap-local.sh web-only` | Bootstrap + run local web in Docker (`compose.web.yml`) |
+| `./scripts/bootstrap-local.sh web+bot` | Bootstrap + run local web+bot in Docker (`compose.full.yml`) |
 | `./dev.sh` | Start local dev server on port 5001 |
 | `cd apps/web && docker compose up -d --build` | Start local web dev server in Docker on port 5001 |
 | `./deploy.sh` | Build and deploy to Cloud Run |

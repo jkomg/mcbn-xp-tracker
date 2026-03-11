@@ -2,6 +2,8 @@
 
 Use this when you want the web app local dev server (`127.0.0.1:5001`) to run in Docker instead of a host Python venv.
 
+Profile file: `compose.web.yml`
+
 ## Prerequisites
 
 - Docker Desktop (or Docker Engine + Compose)
@@ -11,8 +13,7 @@ Use this when you want the web app local dev server (`127.0.0.1:5001`) to run in
 ## Start
 
 ```bash
-cd apps/web
-docker compose up -d --build
+./scripts/bootstrap-local.sh web-only
 ```
 
 Open: `http://127.0.0.1:5001`
@@ -20,15 +21,13 @@ Open: `http://127.0.0.1:5001`
 ## Logs
 
 ```bash
-cd apps/web
-docker compose logs -f --tail=200 web-dev
+./scripts/bootstrap-local.sh web-only logs
 ```
 
 ## Stop
 
 ```bash
-cd apps/web
-docker compose down
+./scripts/bootstrap-local.sh web-only down
 ```
 
 ## Notes
@@ -36,3 +35,4 @@ docker compose down
 - The container mounts local source code (`apps/web`) and `packages` read-only.
 - Flask debug mode is enabled in-container for auto reload.
 - The web dev container name is `mcbn-xp-tracker-web`.
+- Env/secrets details: [ENV_AND_SECRETS.md](ENV_AND_SECRETS.md)

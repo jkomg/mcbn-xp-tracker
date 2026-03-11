@@ -1,0 +1,45 @@
+services:
+  web:
+    container_name: mcbn-xp-tracker-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - apps/web/.env
+    environment:
+      FLASK_APP: app:create_app
+      FLASK_DEBUG: "true"
+      SESSION_COOKIE_SECURE: "false"
+      PYTHONUNBUFFERED: "1"
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ./apps/web:/app
+      - ./packages:/app/packages:ro
+    command: python -m flask run --host 0.0.0.0 --port 5001
+
+  bot:
+    container_name: lasombra-bot
+    build:
+      context: ./apps/bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - apps/bot/.env
+    environment:
+      NODE_ENV: production
+      WEB_APP_BASE_URL: http://web:5001
+      TZ: ${TZ:-America/Chicago}
+    depends_on:
+      - web
+    volumes:
+      - ./apps/bot/data:/app/data
+      - ./packages:/packages:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "${BOT_LOG_MAX_SIZE:-25m}"
+        max-file: "${BOT_LOG_MAX_FILE:-120}"

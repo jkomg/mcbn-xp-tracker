@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-03-11] Containerized Local Profiles, Notification Tuning, and Review Stability
+
+### Containerized Local Profiles
+
+- Added root compose profiles:
+  - `compose.web.yml` for web-only local runtime.
+  - `compose.full.yml` for local web + bot runtime.
+- Added one-command bootstrap script:
+  - `./scripts/bootstrap-local.sh web-only`
+  - `./scripts/bootstrap-local.sh web+bot`
+- Added web Docker runbook: `docs/RUN_WEB_DOCKER.md`.
+
+### Review Workflow Fixes
+
+- Hardened claim/spend status normalization against case and trailing/leading whitespace from sheet values.
+- Fixed claim review lock-state mismatch between local/prod when status formatting differs.
+- Fixed roster edit crash when `Creation / Audit XP` is left blank.
+- Made spend justification links clickable in staff review UI.
+
+### Bot Notification Fixes
+
+- Updated review notifier copy so approved **claim** notifications no longer request sheet upload.
+- Kept approved **spend** notification sheet-upload guidance.
+
+### Documentation and CI
+
+- Added release note: `docs/RELEASE_2026-03-11_CONTAINERIZATION_AND_FIXES.md`.
+- Added env/secrets standardization runbook: `docs/ENV_AND_SECRETS.md`.
+- Added docs parity check script: `scripts/check-docs-parity.sh`.
+- Extended CI with compose validation + web Docker smoke startup checks.
+
 ## [2026-03-10] Web UI Overhaul — Design, Mobile, and Player Features
 
 ### Visual Design

@@ -2,10 +2,26 @@
 
 Use this guide if you only want the web interface and do **not** want to run the Discord bot.
 
+Reference: [ENV_AND_SECRETS.md](ENV_AND_SECRETS.md)
+
 ## Outcome
 
 - Web app running at `http://127.0.0.1:5001` locally.
 - Same Google Sheet-backed workflow as production.
+
+## Fast Path (One Command, Docker)
+
+After completing env and credential setup in this guide, start web-only profile with:
+
+```bash
+./scripts/bootstrap-local.sh web-only
+```
+
+Stop it with:
+
+```bash
+./scripts/bootstrap-local.sh web-only down
+```
 
 ## 1) Prerequisites
 
@@ -79,8 +95,7 @@ Host Python venv:
 Docker option:
 
 ```bash
-cd apps/web
-docker compose up -d --build
+./scripts/bootstrap-local.sh web-only
 ```
 
 Open: `http://127.0.0.1:5001`

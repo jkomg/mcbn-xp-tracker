@@ -5,6 +5,7 @@ Use this when you want the bot in a managed container with persistent, queryable
 ## What this setup gives you
 
 - Bot runtime in Docker (`apps/bot/docker-compose.yml`)
+- Optional full-stack profile runtime (`compose.full.yml`, web + bot)
 - Automatic restarts (`restart: unless-stopped`)
 - Structured JSON app logs to Docker log driver (`json-file`)
 - Log retention controls via:
@@ -37,10 +38,18 @@ TZ=America/Chicago
 
 ## 2) Start bot container
 
+Bot-only workflow:
+
 ```bash
 cd apps/bot
 npm run ops:docker:up
 docker ps --filter name=lasombra-bot
+```
+
+Full-stack profile (web + bot):
+
+```bash
+./scripts/bootstrap-local.sh web+bot
 ```
 
 Tail logs:
@@ -98,3 +107,4 @@ docker logs lasombra-bot --since "24h" --timestamps | tail -n 100
 
 - This keeps bot hosting local while making usage auditable.
 - You do not need to migrate bot to GCP to produce cost modeling inputs.
+- For Docker full profile, bot uses `WEB_APP_BASE_URL=http://web:5001`.
