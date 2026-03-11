@@ -53,7 +53,7 @@ describe('review notifier message formatting', () => {
     expect(message).not.toContain('Helper requested: @system helper');
   });
 
-  it('keeps claim notifications unchanged', () => {
+  it('does not add sheet upload instructions for approved claims', () => {
     const event: ClaimReviewEvent = {
       eventKey: 'claim:1:approved:1',
       kind: 'claim',
@@ -71,6 +71,7 @@ describe('review notifier message formatting', () => {
 
     const message = buildReviewNotificationMessage(event, '@system helper');
     expect(message).toContain('**XP Claim** Approved for Charlie');
+    expect(message).not.toContain('Next step: please upload your updated character sheet in this cubby.');
     expect(message).toContain('**Helper requested:** @system helper');
   });
 

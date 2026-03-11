@@ -31,7 +31,6 @@ export function buildReviewNotificationMessage(event: ReviewEvent, systemHelperM
     ];
     if (event.status === 'approved') {
       base.push(`**Granted:** ${event.approvedXp} XP`);
-      base.push('Next step: please upload your updated character sheet in this cubby.');
       const helper = (systemHelperMention ?? '').trim();
       if (helper) {
         base.push(`**Helper requested:** ${helper}`);
