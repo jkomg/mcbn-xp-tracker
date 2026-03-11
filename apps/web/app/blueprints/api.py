@@ -373,7 +373,14 @@ def review_events():
 
     # Build character-name → Discord-ID lookup for player pings.
     discord_by_name: dict[str, str] = {}
-    for char in sheets_client.get_all_characters():
+    get_characters = getattr(sheets_client, 'get_all_characters', None)
+    if callable(get_characters):
+        characters_for_lookup = get_characters()
+    else:
+        # Backward-compatible fallback for simplified test doubles.
+        characters_for_lookup = sheets_client.get_active_characters()
+
+    for char in characters_for_lookup:
         if char.player_discord:
             discord_by_name[char.character_name.lower()] = char.player_discord
 
