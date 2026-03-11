@@ -31,10 +31,6 @@ export function buildReviewNotificationMessage(event: ReviewEvent, systemHelperM
     ];
     if (event.status === 'approved') {
       base.push(`**Granted:** ${event.approvedXp} XP`);
-      const helper = (systemHelperMention ?? '').trim();
-      if (helper) {
-        base.push(`**Helper requested:** ${helper}`);
-      }
     }
     if (event.staffNotes.trim()) {
       base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
