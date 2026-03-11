@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONTAINER_NAME="${1:-mcbn-tracker-bot}"
+CONTAINER_NAME="${1:-lasombra-bot}"
 OUT_DIR="${2:-$(pwd)/.run/docker-audit}"
 SINCE_INPUT="${3:-}"
 UNTIL_INPUT="${4:-}"

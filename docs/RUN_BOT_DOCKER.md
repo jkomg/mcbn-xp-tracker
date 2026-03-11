@@ -40,7 +40,7 @@ TZ=America/Chicago
 ```bash
 cd apps/bot
 npm run ops:docker:up
-docker ps --filter name=mcbn-tracker-bot
+docker ps --filter name=lasombra-bot
 ```
 
 Tail logs:
@@ -73,7 +73,7 @@ Custom window:
 
 ```bash
 bash scripts/export-docker-usage-window.sh \
-  mcbn-tracker-bot \
+  lasombra-bot \
   "$(pwd)/.run/docker-audit" \
   "2026-02-09T00:00:00Z" \
   "2026-03-11T23:59:59Z"
@@ -81,17 +81,17 @@ bash scripts/export-docker-usage-window.sh \
 
 Outputs:
 
-- `.run/docker-audit/mcbn-tracker-bot-summary.txt`
-- `.run/docker-audit/mcbn-tracker-bot-event-counts.txt`
-- `.run/docker-audit/mcbn-tracker-bot-command-counts.txt`
-- `.run/docker-audit/mcbn-tracker-bot-daily-counts.txt`
+- `.run/docker-audit/lasombra-bot-summary.txt`
+- `.run/docker-audit/lasombra-bot-event-counts.txt`
+- `.run/docker-audit/lasombra-bot-command-counts.txt`
+- `.run/docker-audit/lasombra-bot-daily-counts.txt`
 - raw/payload/json logs in same folder
 
 ## 5) Recommended operational checks
 
 ```bash
-docker inspect mcbn-tracker-bot --format '{{json .HostConfig.LogConfig}}'
-docker logs mcbn-tracker-bot --since "24h" --timestamps | tail -n 100
+docker inspect lasombra-bot --format '{{json .HostConfig.LogConfig}}'
+docker logs lasombra-bot --since "24h" --timestamps | tail -n 100
 ```
 
 ## Notes
