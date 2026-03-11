@@ -1,6 +1,6 @@
 services:
   bot:
-    container_name: mcbn-tracker-bot
+    container_name: lasombra-bot
     build:
       context: .
       dockerfile: Dockerfile

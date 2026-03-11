@@ -38,3 +38,6 @@ google-cloud-sdk/
 google-cloud-cli-*.tar.gz
 
 **/credentials/*.json
+
+# Local unrelated sandbox repo
+/tg-local/
