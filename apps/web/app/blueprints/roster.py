@@ -10,6 +10,14 @@ from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
 bp = Blueprint('roster', __name__)
 
 
+def _parse_creation_xp(raw_value: str | None) -> int:
+    """Parse Creation/Audit XP from forms; blank means reset to 0."""
+    value = (raw_value or '').strip()
+    if not value:
+        return 0
+    return int(value)
+
+
 @bp.route('/')
 @require_staff
 def list_characters():
@@ -82,6 +90,12 @@ def add():
         flash(f'Character "{name}" already exists.', 'danger')
         return redirect(url_for('roster.add_form'))
 
+    try:
+        creation_xp = _parse_creation_xp(request.form.get('creation_xp'))
+    except ValueError:
+        flash('Creation / Audit XP must be a whole number.', 'danger')
+        return redirect(url_for('roster.add_form'))
+
     char = Character(
         character_name=name,
         player_discord=request.form.get('player_discord', '').strip(),
@@ -90,7 +104,7 @@ def add():
         age_category=request.form.get('age_category', ''),
         sect=request.form.get('sect', ''),
         active=True,
-        creation_xp=int(request.form.get('creation_xp', 0)),
+        creation_xp=creation_xp,
         enemy=request.form.get('enemy', '').strip(),
         notes=request.form.get('notes', '').strip(),
     )
@@ -295,7 +309,12 @@ def edit(name):
         if val != getattr(char, field, ''):
             updates[field] = val
 
-    creation_xp = int(request.form.get('creation_xp', char.creation_xp))
+    try:
+        creation_xp = _parse_creation_xp(request.form.get('creation_xp'))
+    except ValueError:
+        flash('Creation / Audit XP must be a whole number.', 'danger')
+        return redirect(url_for('roster.edit_form', name=name))
+
     if creation_xp != char.creation_xp:
         updates['creation_xp'] = creation_xp
 
