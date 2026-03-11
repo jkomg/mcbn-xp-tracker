@@ -72,7 +72,7 @@ describe('review notifier message formatting', () => {
     const message = buildReviewNotificationMessage(event, '@system helper');
     expect(message).toContain('**XP Claim** Approved for Charlie');
     expect(message).not.toContain('Next step: please upload your updated character sheet in this cubby.');
-    expect(message).toContain('**Helper requested:** @system helper');
+    expect(message).not.toContain('**Helper requested:** @system helper');
   });
 
   it('omits mention when playerDiscordId is absent', () => {
