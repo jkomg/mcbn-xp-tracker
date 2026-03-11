@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { AttachmentBuilder, ChannelType, type Client, type GuildTextBasedChannel } from 'discord.js';
+import { AttachmentBuilder, ChannelType, type Client, type GuildTextBasedChannel, type TextChannel, type NewsChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 
 type ScheduledEventConfig = {
@@ -140,26 +140,39 @@ function roleMentions(roleIds: string[]): string {
   return ids.map((id) => `<@&${id}>`).join(' ');
 }
 
+function isSendableChannelType(type: ChannelType): boolean {
+  return (
+    type === ChannelType.GuildText ||
+    type === ChannelType.GuildAnnouncement ||
+    type === ChannelType.PublicThread ||
+    type === ChannelType.PrivateThread
+  );
+}
+
 async function resolveTargetChannel(
   client: Client,
   guildId: string,
   channelId?: string,
   fallbackName?: string,
 ): Promise<GuildTextBasedChannel | null> {
-  const guild = await client.guilds.fetch(guildId).catch(() => null);
+  const guild = await client.guilds.fetch(guildId).catch((err) => {
+    logEvent('warn', 'passage_resolve_guild_failed', { guildId, error: errorToMessage(err) });
+    return null;
+  });
   if (!guild) {
     return null;
   }
 
   if (channelId) {
-    const channel = await guild.channels.fetch(channelId).catch(() => null);
-    if (
-      channel &&
-      (channel.type === ChannelType.GuildText ||
-        channel.type === ChannelType.PublicThread ||
-        channel.type === ChannelType.PrivateThread)
-    ) {
-      return channel;
+    const channel = await guild.channels.fetch(channelId).catch((err) => {
+      logEvent('warn', 'passage_resolve_channel_fetch_failed', { channelId, error: errorToMessage(err) });
+      return null;
+    });
+    if (channel && isSendableChannelType(channel.type)) {
+      return channel as TextChannel | NewsChannel;
+    }
+    if (channel) {
+      logEvent('warn', 'passage_resolve_channel_wrong_type', { channelId, type: channel.type });
     }
   }
 
@@ -172,11 +185,11 @@ async function resolveTargetChannel(
     if (!channel) {
       continue;
     }
-    if (channel.type !== ChannelType.GuildText) {
+    if (!isSendableChannelType(channel.type)) {
       continue;
     }
     if (channel.name.toLowerCase() === fallbackName.toLowerCase()) {
-      return channel;
+      return channel as TextChannel | NewsChannel;
     }
   }
   return null;

@@ -82,6 +82,7 @@ export type ReviewEventBase = {
   kind: 'claim' | 'spend';
   rowIndex: number;
   characterName: string;
+  playerDiscordId?: string;
   status: 'approved' | 'denied';
   reviewedBy: string;
   reviewDate: string;

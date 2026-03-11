@@ -13,42 +13,52 @@ type ReviewNotifierConfig = {
   systemHelperMention?: string;
 };
 
-function eventStatusLabel(status: 'approved' | 'denied'): string {
+function statusLabel(status: 'approved' | 'denied'): string {
   return status === 'approved' ? 'Approved' : 'Denied';
+}
+
+function playerMention(event: ReviewEvent): string {
+  const id = (event.playerDiscordId ?? '').trim();
+  return id ? ` <@${id}>` : '';
 }
 
 export function buildReviewNotificationMessage(event: ReviewEvent, systemHelperMention?: string): string {
   if (event.kind === 'claim') {
     const base = [
-      `XP claim **${eventStatusLabel(event.status)}** for **${event.characterName}**`,
-      `Period: **${event.playPeriod}**`,
-      `Requested: **${event.requestedXp} XP**`,
+      `**XP Claim** ${statusLabel(event.status)} for ${event.characterName}${playerMention(event)}`,
+      `**Period:** ${event.playPeriod}`,
+      `**Requested:** ${event.requestedXp} XP`,
     ];
     if (event.status === 'approved') {
-      base.push(`Granted: **${event.approvedXp} XP**`);
+      base.push(`**Granted:** ${event.approvedXp} XP`);
+      base.push('Next step: please upload your updated character sheet in this cubby.');
+      const helper = (systemHelperMention ?? '').trim();
+      if (helper) {
+        base.push(`**Helper requested:** ${helper}`);
+      }
     }
     if (event.staffNotes.trim()) {
-      base.push(`ST notes: ${event.staffNotes.trim()}`);
+      base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
     }
     return base.join('\n');
   }
 
   const base = [
-    `XP spend **${eventStatusLabel(event.status)}** for **${event.characterName}**`,
-    `Trait: **${event.traitName}** (${event.currentDots} -> ${event.newDots})`,
-    `Category: **${event.spendCategory}**`,
-    `Requested: **${event.requestedCost} XP**`,
+    `**XP Spend** ${statusLabel(event.status)} for ${event.characterName}${playerMention(event)}`,
+    `**Trait:** ${event.traitName} (${event.currentDots} → ${event.newDots})`,
+    `**Category:** ${event.spendCategory}`,
+    `**Requested:** ${event.requestedCost} XP`,
   ];
   if (event.status === 'approved') {
-    base.push(`Verified: **${event.verifiedCost} XP**`);
+    base.push(`**Verified:** ${event.verifiedCost} XP`);
     base.push('Next step: please upload your updated character sheet in this cubby.');
-    const helperMention = (systemHelperMention ?? '').trim();
-    if (helperMention) {
-      base.push(`Helper requested: ${helperMention}`);
+    const helper = (systemHelperMention ?? '').trim();
+    if (helper) {
+      base.push(`**Helper requested:** ${helper}`);
     }
   }
   if (event.staffNotes.trim()) {
-    base.push(`ST notes: ${event.staffNotes.trim()}`);
+    base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
   }
   return base.join('\n');
 }

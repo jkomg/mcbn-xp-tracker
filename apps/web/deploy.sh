@@ -78,6 +78,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --set-env-vars "FLASK_DEBUG=false" \
   --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
+  --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
   --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
   --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
   --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \

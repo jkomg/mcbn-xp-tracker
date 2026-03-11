@@ -11,6 +11,10 @@
     "format:check": "node scripts/format-check.mjs",
     "ops:check-adapter": "bash scripts/check-adapter.sh",
     "ops:deploy-local": "bash scripts/deploy-local.sh",
+    "ops:docker:up": "docker compose -f docker-compose.yml up -d --build",
+    "ops:docker:down": "docker compose -f docker-compose.yml down",
+    "ops:docker:logs": "docker compose -f docker-compose.yml logs -f --tail=200 bot",
+    "ops:docker:usage-30d": "bash scripts/export-docker-usage-window.sh mcbn-tracker-bot",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"

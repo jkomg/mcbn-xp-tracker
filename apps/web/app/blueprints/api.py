@@ -371,6 +371,19 @@ def review_events():
         return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
     since_event_key = str(request.args.get('sinceEventKey', '')).strip()
 
+    # Build character-name → Discord-ID lookup for player pings.
+    discord_by_name: dict[str, str] = {}
+    get_characters = getattr(sheets_client, 'get_all_characters', None)
+    if callable(get_characters):
+        characters_for_lookup = get_characters()
+    else:
+        # Backward-compatible fallback for simplified test doubles.
+        characters_for_lookup = sheets_client.get_active_characters()
+
+    for char in characters_for_lookup:
+        if char.player_discord:
+            discord_by_name[char.character_name.lower()] = char.player_discord
+
     events = []
 
     for claim in sheets_client.get_all_claims():
@@ -392,6 +405,9 @@ def review_events():
                 'kind': 'claim',
                 'rowIndex': claim.row_index,
                 'characterName': claim.character_name,
+                'playerDiscordId': discord_by_name.get(
+                    claim.character_name.lower(), ''
+                ),
                 'status': status,
                 'reviewedBy': claim.reviewed_by,
                 'reviewDate': claim.review_date,
@@ -422,6 +438,9 @@ def review_events():
                 'kind': 'spend',
                 'rowIndex': spend.row_index,
                 'characterName': spend.character_name,
+                'playerDiscordId': discord_by_name.get(
+                    spend.character_name.lower(), ''
+                ),
                 'status': status,
                 'reviewedBy': spend.reviewed_by,
                 'reviewDate': spend.review_date,
