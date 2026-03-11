@@ -69,7 +69,9 @@
                 </small>
             </div>
             <div class="card-body">
-                <p class="mb-0" style="font-style:italic;color:#ccc;">{{ spend.justification }}</p>
+                <p class="mb-0" style="font-style:italic;color:#ccc;word-break:break-word;">
+                    {{ spend.justification | urlize(target='_blank', rel='noopener noreferrer nofollow') }}
+                </p>
             </div>
         </div>
         {% endif %}
