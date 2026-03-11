@@ -70,8 +70,17 @@ cd ../..
 
 ## 7) Start Local Web App
 
+Host Python venv:
+
 ```bash
 ./dev.sh
+```
+
+Docker option:
+
+```bash
+cd apps/web
+docker compose up -d --build
 ```
 
 Open: `http://127.0.0.1:5001`
