@@ -9,8 +9,8 @@
         <h2 class="mb-0 d-inline">{{ claim.character_name }}</h2>
         <span class="badge bg-secondary ms-2">{{ claim.play_period }}</span>
         <span class="badge ms-1
-            {% if claim.status == 'pending' %}bg-warning text-dark
-            {% elif claim.status == 'approved' %}bg-success
+            {% if claim.status|lower == 'pending' %}bg-warning text-dark
+            {% elif claim.status|lower == 'approved' %}bg-success
             {% else %}bg-danger{% endif %}">
             {{ claim.status | capitalize }}
         </span>
@@ -71,7 +71,7 @@
                 </div>
             </div>
 
-            {% if claim.status == 'pending' %}
+            {% if claim.status|lower == 'pending' %}
             <!-- Approve -->
             <div class="card mb-3 border-success">
                 <div class="card-header bg-success bg-opacity-25">
