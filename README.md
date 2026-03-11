@@ -173,11 +173,36 @@ pip install -r apps/web/requirements.txt
 
 ### Running the Dev Server
 
+Host Python venv:
+
 ```bash
 ./dev.sh
 ```
 
 That's it. Opens at **http://127.0.0.1:5001** with debug mode and auto-reload. The script kills any existing process on port 5001 first, so it's safe to run repeatedly.
+
+Docker option:
+
+```bash
+cd apps/web
+docker compose up -d --build
+```
+
+Container logs:
+
+```bash
+cd apps/web
+docker compose logs -f --tail=200 web-dev
+```
+
+Stop:
+
+```bash
+cd apps/web
+docker compose down
+```
+
+Detailed runbook: [docs/RUN_WEB_DOCKER.md](docs/RUN_WEB_DOCKER.md)
 
 > **Why port 5001?** macOS AirPlay Receiver squats on port 5000.
 
@@ -315,6 +340,7 @@ To stay in free-tier range:
 | Script | What It Does |
 |--------|-------------|
 | `./dev.sh` | Start local dev server on port 5001 |
+| `cd apps/web && docker compose up -d --build` | Start local web dev server in Docker on port 5001 |
 | `./deploy.sh` | Build and deploy to Cloud Run |
 | `./update-staff-access.sh` | Push Discord ID changes from `.env` to prod |
 | `./setup-secrets.sh` | One-time GCP Secret Manager setup (interactive) |

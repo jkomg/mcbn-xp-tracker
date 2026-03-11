@@ -1,0 +1,21 @@
+services:
+  web-dev:
+    container_name: mcbn-xp-tracker-web
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      FLASK_APP: app:create_app
+      FLASK_DEBUG: "true"
+      SESSION_COOKIE_SECURE: "false"
+      PYTHONUNBUFFERED: "1"
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ./:/app
+      - ../../packages:/app/packages:ro
+    command: python -m flask run --host 0.0.0.0 --port 5001
