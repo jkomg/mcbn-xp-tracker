@@ -6,7 +6,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session,
     current_app,
 )
-from app import db_service, sheets_sync, limiter
+from app import db_service, limiter
 from app.auth import require_staff, is_allowed_discord_user, pop_login_next
 
 bp = Blueprint('dashboard', __name__)

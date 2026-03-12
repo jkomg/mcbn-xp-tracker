@@ -203,8 +203,8 @@ class DBService:
 
     def get_unlinked_characters(self) -> list[Character]:
         rows = DbCharacter.query.filter(
-            DbCharacter.active == True,
-            (DbCharacter.player_discord == None) | (DbCharacter.player_discord == ''),
+            DbCharacter.active == True,  # noqa: E712
+            (DbCharacter.player_discord == None) | (DbCharacter.player_discord == ''),  # noqa: E711
         ).all()
         return [_row_to_character(r) for r in rows]
 

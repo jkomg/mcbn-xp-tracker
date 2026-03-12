@@ -53,7 +53,7 @@ def create_app():
     csrf.init_app(app)
     db.init_app(app)
     from flask_migrate import Migrate
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     project_root = Path(__file__).resolve().parents[2]
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)

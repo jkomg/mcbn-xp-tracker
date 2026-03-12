@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.sheets import SheetsClient
-    from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry
+    from app.models import Character, PlayPeriod
 
 logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='sheets-sync')
