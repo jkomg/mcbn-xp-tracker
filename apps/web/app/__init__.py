@@ -10,9 +10,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 from .sheets import SheetsClient
+from .db import db
+from .db_service import DBService
+from .sheets_sync import SheetsSyncWorker
 
 # Module-level singletons
 sheets_client: SheetsClient = None
+db_service: DBService = None
+sheets_sync: SheetsSyncWorker = None
 limiter: Limiter = None
 csrf: CSRFProtect = CSRFProtect()
 
@@ -46,6 +51,9 @@ def create_app():
     app.config.from_object('config.Config')
     _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
+    db.init_app(app)
+    from flask_migrate import Migrate
+    migrate = Migrate(app, db)
     project_root = Path(__file__).resolve().parents[2]
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
@@ -58,7 +66,7 @@ def create_app():
     )
 
     # Initialize Google Sheets client
-    global sheets_client
+    global sheets_client, db_service, sheets_sync
     if app.config['SPREADSHEET_ID']:
         sheets_client = SheetsClient(
             credentials_file=app.config['GOOGLE_CREDENTIALS_FILE'],
@@ -69,6 +77,15 @@ def create_app():
             startup_max_retries=app.config.get('SHEETS_STARTUP_MAX_RETRIES', 5),
             startup_retry_base_seconds=app.config.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', 1.5),
         )
+
+    # Initialize DB service and Sheets sync worker
+    db_service = DBService(sheets_client=sheets_client)
+    if sheets_client:
+        sheets_sync = SheetsSyncWorker(sheets_client)
+
+    # Create DB tables if they don't exist
+    with app.app_context():
+        db.create_all()
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp

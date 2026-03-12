@@ -19,7 +19,7 @@ def _app(fake_sheets):
     app.config['AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS'] = 0
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    api_module.sheets_client = fake_sheets
+    api_module.db_service = fake_sheets
     api_module.limiter = None
     return app
 

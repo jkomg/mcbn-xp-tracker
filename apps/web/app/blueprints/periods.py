@@ -3,7 +3,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash
 )
-from app import sheets_client
+from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.models import PlayPeriod
 
@@ -14,7 +14,7 @@ bp = Blueprint('periods', __name__)
 @require_staff
 def list_periods():
     """List all play periods."""
-    periods = sheets_client.get_all_periods()
+    periods = db_service.get_all_periods()
     # Most recent first
     periods.sort(key=lambda p: p.night_number, reverse=True)
     return render_template('periods/list.html', periods=periods)
@@ -24,7 +24,7 @@ def list_periods():
 @require_staff
 def add_form():
     """Show form to create a new play period."""
-    next_night = sheets_client.get_next_night_number()
+    next_night = db_service.get_next_night_number()
     return render_template('periods/add.html', next_night=next_night)
 
 
@@ -60,15 +60,22 @@ def add():
         active=True,
     )
 
-    sheets_client.create_period(period)
+    db_service.create_period(period)
+    if sheets_sync:
+        sheets_sync.sync_create_period(period)
 
     staff = get_staff_user()
-    sheets_client.log_action(
+    db_service.log_action(
         staff_user=staff,
         action_type='create_period',
         target=label,
         details=f'Created play period: {label} (Session {session_number})',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff, action_type='create_period',
+            target=label, details=f'Created play period: {label} (Session {session_number})',
+        )
 
     flash(f'Created {label}.', 'success')
     return redirect(url_for('periods.list_periods'))
@@ -89,7 +96,7 @@ def import_periods():
             flash('Please paste a Google Sheet URL.', 'danger')
             return redirect(url_for('periods.import_periods'))
         try:
-            periods = sheets_client.preview_period_import(sheet_url)
+            periods = db_service.preview_period_import(sheet_url)
         except Exception as e:
             flash(f'Error reading spreadsheet: {e}', 'danger')
             return redirect(url_for('periods.import_periods'))
@@ -112,15 +119,21 @@ def import_periods():
             return redirect(url_for('periods.import_periods'))
 
         try:
-            periods = sheets_client.preview_period_import(sheet_url)
+            periods = db_service.preview_period_import(sheet_url)
             staff = get_staff_user()
-            count = sheets_client.bulk_add_periods(periods, staff)
-            sheets_client.log_action(
+            count = db_service.bulk_add_periods(periods, staff)
+            db_service.log_action(
                 staff_user=staff,
                 action_type='period_import',
                 target='Play Periods',
                 details=f'Imported {count} play periods from master spreadsheet',
             )
+            if sheets_sync:
+                sheets_sync.sync_log_action(
+                    staff_user=staff, action_type='period_import',
+                    target='Play Periods',
+                    details=f'Imported {count} play periods from master spreadsheet',
+                )
             flash(f'Successfully imported {count} play periods.', 'success')
         except Exception as e:
             flash(f'Import failed: {e}', 'danger')
@@ -134,14 +147,14 @@ def import_periods():
 @require_staff
 def toggle_submissions(label):
     """Toggle whether submissions are open for a period."""
-    periods = sheets_client.get_all_periods()
+    periods = db_service.get_all_periods()
     period = next((p for p in periods if p.period_label == label), None)
     if not period:
         flash('Period not found.', 'danger')
         return redirect(url_for('periods.list_periods'))
 
     new_value = 'FALSE' if period.submissions_open else 'TRUE'
-    sheets_client.update_period(label, {'submissions_open': new_value})
+    db_service.update_period(label, {'submissions_open': new_value})
 
     status = 'opened' if new_value == 'TRUE' else 'closed'
     flash(f'Submissions {status} for {label}.', 'success')
@@ -152,14 +165,14 @@ def toggle_submissions(label):
 @require_staff
 def toggle_active(label):
     """Toggle whether a period shows in form dropdowns."""
-    periods = sheets_client.get_all_periods()
+    periods = db_service.get_all_periods()
     period = next((p for p in periods if p.period_label == label), None)
     if not period:
         flash('Period not found.', 'danger')
         return redirect(url_for('periods.list_periods'))
 
     new_value = 'FALSE' if period.active else 'TRUE'
-    sheets_client.update_period(label, {'active': new_value})
+    db_service.update_period(label, {'active': new_value})
 
     status = 'activated' if new_value == 'TRUE' else 'deactivated'
     flash(f'{label} {status} in form dropdowns.', 'success')

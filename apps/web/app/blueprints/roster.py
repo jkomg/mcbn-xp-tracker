@@ -3,7 +3,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort
 )
-from app import sheets_client
+from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
 
@@ -26,10 +26,10 @@ def list_characters():
     clan_filter = request.args.get('clan', request.args.get('clan_filter', ''))
     sect_filter = request.args.get('sect', request.args.get('sect_filter', ''))
 
-    characters = sheets_client.get_all_characters()
+    characters = db_service.get_all_characters()
     xp_by_character = {
         row['character_name'].lower(): row['available_xp']
-        for row in sheets_client.get_dashboard_data()
+        for row in db_service.get_dashboard_data()
     }
 
     if show == 'active':
@@ -85,7 +85,7 @@ def add():
         return redirect(url_for('roster.add_form'))
 
     # Check for duplicates
-    existing = sheets_client.get_character(name)
+    existing = db_service.get_character(name)
     if existing:
         flash(f'Character "{name}" already exists.', 'danger')
         return redirect(url_for('roster.add_form'))
@@ -109,15 +109,24 @@ def add():
         notes=request.form.get('notes', '').strip(),
     )
 
-    sheets_client.add_character(char)
+    db_service.add_character(char)
+    if sheets_sync:
+        sheets_sync.sync_add_character(char)
 
     staff = get_staff_user()
-    sheets_client.log_action(
+    db_service.log_action(
         staff_user=staff,
         action_type='add_character',
         target=name,
         details=f'Added character: {name} ({char.clan}, {char.sect})',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='add_character',
+            target=name,
+            details=f'Added character: {name} ({char.clan}, {char.sect})',
+        )
 
     flash(f'Added {name} to the roster.', 'success')
     return redirect(url_for('roster.detail', name=name))
@@ -127,16 +136,16 @@ def add():
 @require_staff
 def detail(name):
     """Character detail page with full XP history."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
-    claims = sheets_client.get_claims_for_character(name)
-    spends = sheets_client.get_spends_for_character(name)
-    ledger = sheets_client.get_ledger_for_character(name)
+    claims = db_service.get_claims_for_character(name)
+    spends = db_service.get_spends_for_character(name)
+    ledger = db_service.get_ledger_for_character(name)
 
     # Compute XP totals (includes ledger)
-    xp = sheets_client.get_xp_totals(name)
+    xp = db_service.get_xp_totals(name)
 
     pending_claims_count = sum(1 for c in claims if c.status.lower() == 'pending')
     pending_spends_count = sum(1 for s in spends if s.status.lower() == 'pending')
@@ -159,7 +168,7 @@ def detail(name):
 @require_staff
 def add_ledger_entry(name):
     """Add a new XP ledger entry for a character."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -179,13 +188,29 @@ def add_ledger_entry(name):
     # Convert browser date (YYYY-MM-DD) to YYYYMMDD
     date = date_raw.replace('-', '')
     staff = get_staff_user()
-    sheets_client.add_ledger_entry(name, date, awarded, spent, reason, staff)
-    sheets_client.log_action(
+    db_service.add_ledger_entry(name, date, awarded, spent, reason, staff)
+    if sheets_sync:
+        sheets_sync.sync_add_ledger_entry(
+            character_name=name,
+            date=date,
+            awarded=awarded,
+            spent=spent,
+            reason=reason,
+            staff_user=staff,
+        )
+    db_service.log_action(
         staff_user=staff,
         action_type='ledger_entry',
         target=name,
         details=f'Ledger: +{awarded}/-{spent} XP on {date}: {reason}',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='ledger_entry',
+            target=name,
+            details=f'Ledger: +{awarded}/-{spent} XP on {date}: {reason}',
+        )
     flash(f'Ledger entry added for {name}.', 'success')
     return redirect(url_for('roster.detail', name=name))
 
@@ -194,18 +219,25 @@ def add_ledger_entry(name):
 @require_staff
 def delete_ledger_entry(name, row_index):
     """Delete an XP ledger entry."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
     staff = get_staff_user()
-    sheets_client.delete_ledger_entry(row_index)
-    sheets_client.log_action(
+    db_service.delete_ledger_entry(row_index)
+    db_service.log_action(
         staff_user=staff,
         action_type='delete_ledger_entry',
         target=name,
         details=f'Deleted ledger entry row {row_index}',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='delete_ledger_entry',
+            target=name,
+            details=f'Deleted ledger entry row {row_index}',
+        )
     flash('Ledger entry deleted.', 'warning')
     return redirect(url_for('roster.detail', name=name))
 
@@ -214,7 +246,7 @@ def delete_ledger_entry(name, row_index):
 @require_staff
 def import_ledger(name):
     """Import XP ledger entries from an external Google Sheet."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -235,7 +267,7 @@ def import_ledger(name):
             flash('Please paste a Google Sheet URL.', 'danger')
             return redirect(url_for('roster.import_ledger', name=name))
         try:
-            entries = sheets_client.preview_ledger_import(sheet_url)
+            entries = db_service.preview_ledger_import(sheet_url)
         except Exception as e:
             flash(f'Error reading spreadsheet: {e}', 'danger')
             return redirect(url_for('roster.import_ledger', name=name))
@@ -259,15 +291,20 @@ def import_ledger(name):
             return redirect(url_for('roster.import_ledger', name=name))
 
         try:
-            entries = sheets_client.preview_ledger_import(sheet_url)
+            entries = db_service.preview_ledger_import(sheet_url)
             staff = get_staff_user()
-            count = sheets_client.bulk_add_ledger_entries(name, entries, staff)
-            sheets_client.log_action(
+            count = db_service.bulk_add_ledger_entries(name, entries, staff)
+            db_service.log_action(
                 staff_user=staff,
                 action_type='ledger_import',
                 target=name,
                 details=f'Imported {count} ledger entries from external sheet',
             )
+            if sheets_sync:
+                sheets_sync.sync_log_action(
+                    staff_user=staff, action_type='ledger_import',
+                    target=name, details=f'Imported {count} ledger entries from external sheet',
+                )
             flash(f'Successfully imported {count} ledger entries for {name}.', 'success')
         except Exception as e:
             flash(f'Import failed: {e}', 'danger')
@@ -281,7 +318,7 @@ def import_ledger(name):
 @require_staff
 def edit_form(name):
     """Show edit form for a character."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -298,7 +335,7 @@ def edit_form(name):
 @require_staff
 def edit(name):
     """Update character details."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -319,14 +356,21 @@ def edit(name):
         updates['creation_xp'] = creation_xp
 
     if updates:
-        sheets_client.update_character(name, updates)
+        db_service.update_character(name, updates)
         staff = get_staff_user()
-        sheets_client.log_action(
+        db_service.log_action(
             staff_user=staff,
             action_type='edit_character',
             target=name,
             details=f'Updated fields: {", ".join(updates.keys())}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=staff,
+                action_type='edit_character',
+                target=name,
+                details=f'Updated fields: {", ".join(updates.keys())}',
+            )
         flash(f'Updated {name}.', 'success')
     else:
         flash('No changes detected.', 'info')
@@ -338,12 +382,12 @@ def edit(name):
 @require_staff
 def adjust_xp_form(name):
     """Show XP adjustment form."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
     # Compute current XP totals for context (includes ledger)
-    xp = sheets_client.get_xp_totals(name)
+    xp = db_service.get_xp_totals(name)
 
     return render_template(
         'roster/adjust_xp.html',
@@ -359,7 +403,7 @@ def adjust_xp_form(name):
 @require_staff
 def adjust_xp(name):
     """Apply a manual XP adjustment."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -381,58 +425,90 @@ def adjust_xp(name):
 
     if adjustment_type == 'grant_xp':
         # Add earned XP as a ledger award
-        sheets_client.add_ledger_entry(
+        db_service.add_ledger_entry(
             name, today, abs(xp_amount), 0,
             f'Staff Adjustment: {reason}', staff
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_ledger_entry(
+                character_name=name, date=today, awarded=abs(xp_amount), spent=0,
+                reason=f'Staff Adjustment: {reason}', staff_user=staff,
+            )
+        db_service.log_action(
             staff_user=staff,
             action_type='xp_adjustment',
             target=name,
             details=f'Granted {abs(xp_amount)} XP: {reason}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(staff_user=staff, action_type='xp_adjustment',
+                                        target=name, details=f'Granted {abs(xp_amount)} XP: {reason}')
         flash(f'Granted {abs(xp_amount)} XP to {name}.', 'success')
 
     elif adjustment_type == 'remove_xp':
         # Remove earned XP as a negative ledger award
-        sheets_client.add_ledger_entry(
+        db_service.add_ledger_entry(
             name, today, -abs(xp_amount), 0,
             f'Staff Adjustment (removal): {reason}', staff
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_ledger_entry(
+                character_name=name, date=today, awarded=-abs(xp_amount), spent=0,
+                reason=f'Staff Adjustment (removal): {reason}', staff_user=staff,
+            )
+        db_service.log_action(
             staff_user=staff,
             action_type='xp_adjustment',
             target=name,
             details=f'Removed {abs(xp_amount)} XP: {reason}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(staff_user=staff, action_type='xp_adjustment',
+                                        target=name, details=f'Removed {abs(xp_amount)} XP: {reason}')
         flash(f'Removed {abs(xp_amount)} XP from {name}.', 'warning')
 
     elif adjustment_type == 'refund_spend':
         # Refund a spend as a negative ledger spend
-        sheets_client.add_ledger_entry(
+        db_service.add_ledger_entry(
             name, today, 0, -abs(xp_amount),
             f'Staff Refund: {reason}', staff
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_ledger_entry(
+                character_name=name, date=today, awarded=0, spent=-abs(xp_amount),
+                reason=f'Staff Refund: {reason}', staff_user=staff,
+            )
+        db_service.log_action(
             staff_user=staff,
             action_type='spend_adjustment',
             target=name,
             details=f'Refunded {abs(xp_amount)} XP spend: {reason}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(staff_user=staff, action_type='spend_adjustment',
+                                        target=name, details=f'Refunded {abs(xp_amount)} XP spend: {reason}')
         flash(f'Refunded {abs(xp_amount)} XP of spends for {name}.', 'success')
 
     elif adjustment_type == 'add_spend':
         # Record a spend retroactively as a ledger spend
-        sheets_client.add_ledger_entry(
+        db_service.add_ledger_entry(
             name, today, 0, abs(xp_amount),
             f'Staff Adjustment: {reason}', staff
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_ledger_entry(
+                character_name=name, date=today, awarded=0, spent=abs(xp_amount),
+                reason=f'Staff Adjustment: {reason}', staff_user=staff,
+            )
+        db_service.log_action(
             staff_user=staff,
             action_type='spend_adjustment',
             target=name,
             details=f'Added {abs(xp_amount)} XP spend: {reason}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(staff_user=staff, action_type='spend_adjustment',
+                                        target=name, details=f'Added {abs(xp_amount)} XP spend: {reason}')
         flash(f'Added {abs(xp_amount)} XP spend for {name}.', 'info')
 
     else:
@@ -446,19 +522,24 @@ def adjust_xp(name):
 @require_staff
 def deactivate(name):
     """Deactivate a character."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
-    sheets_client.deactivate_character(name)
+    db_service.deactivate_character(name)
 
     staff = get_staff_user()
-    sheets_client.log_action(
+    db_service.log_action(
         staff_user=staff,
         action_type='deactivate_character',
         target=name,
         details=f'Deactivated {name}',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff, action_type='deactivate_character',
+            target=name, details=f'Deactivated {name}',
+        )
 
     flash(f'{name} has been deactivated.', 'warning')
     return redirect(url_for('roster.list_characters'))
@@ -468,19 +549,24 @@ def deactivate(name):
 @require_staff
 def activate(name):
     """Re-activate a character."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
-    sheets_client.update_character(name, {'active': 'TRUE'})
+    db_service.update_character(name, {'active': 'TRUE'})
 
     staff = get_staff_user()
-    sheets_client.log_action(
+    db_service.log_action(
         staff_user=staff,
         action_type='activate_character',
         target=name,
         details=f'Re-activated {name}',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff, action_type='activate_character',
+            target=name, details=f'Re-activated {name}',
+        )
 
     flash(f'{name} has been re-activated.', 'success')
     return redirect(url_for('roster.detail', name=name))
@@ -490,7 +576,7 @@ def activate(name):
 @require_staff
 def delete(name):
     """Permanently delete a character from the roster."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
@@ -506,13 +592,18 @@ def delete(name):
         return redirect(url_for('roster.detail', name=name))
 
     staff = get_staff_user()
-    sheets_client.delete_character(name)
-    sheets_client.log_action(
+    db_service.delete_character(name)
+    db_service.log_action(
         staff_user=staff,
         action_type='delete_character',
         target=name,
         details=f'Permanently deleted character {name}',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff, action_type='delete_character',
+            target=name, details=f'Permanently deleted character {name}',
+        )
 
     flash(f'{name} has been permanently deleted.', 'danger')
     return redirect(url_for('roster.list_characters'))

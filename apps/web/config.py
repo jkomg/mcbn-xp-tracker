@@ -83,6 +83,14 @@ class Config:
         os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', '0')
     )
 
+    # Database (SQLite for local dev, libsql+turso URL for production)
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL', 'sqlite:///data/db.sqlite'
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Turso auth token (only needed when DATABASE_URL uses libsql+turso://)
+    TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '')
+
     # Local-only diagnostics page (launchd/logs/access tail).
     LOCAL_STATUS_ENABLED = os.environ.get(
         'LOCAL_STATUS_ENABLED', 'false'

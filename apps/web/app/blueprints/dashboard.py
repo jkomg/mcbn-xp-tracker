@@ -6,7 +6,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session,
     current_app,
 )
-from app import sheets_client, limiter
+from app import db_service, sheets_sync, limiter
 from app.auth import require_staff, is_allowed_discord_user, pop_login_next
 
 bp = Blueprint('dashboard', __name__)
@@ -21,9 +21,9 @@ DISCORD_USER_URL = 'https://discord.com/api/v10/users/@me'
 @require_staff
 def index():
     """Main dashboard showing XP summary for all characters."""
-    dashboard_data = sheets_client.get_dashboard_data()
-    pending_claims = len(sheets_client.get_pending_claims())
-    pending_spends = len(sheets_client.get_pending_spends())
+    dashboard_data = db_service.get_dashboard_data()
+    pending_claims = len(db_service.get_pending_claims())
+    pending_spends = len(db_service.get_pending_spends())
 
     return render_template(
         'dashboard.html',
