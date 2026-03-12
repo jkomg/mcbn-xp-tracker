@@ -3,7 +3,7 @@ import type { ClaimReviewEvent, SpendReviewEvent } from '../types';
 import { buildReviewNotificationMessage } from '../services/reviewNotifier';
 
 describe('review notifier message formatting', () => {
-  it('adds sheet upload + helper mention for approved spends', () => {
+  it('adds sheet upload instruction for approved spends', () => {
     const event: SpendReviewEvent = {
       eventKey: 'spend:1:approved:1',
       kind: 'spend',
@@ -23,10 +23,9 @@ describe('review notifier message formatting', () => {
       playerDiscordId: '123456789012345678',
     };
 
-    const message = buildReviewNotificationMessage(event, '@system helper');
+    const message = buildReviewNotificationMessage(event);
     expect(message).toContain('**XP Spend** Approved for Alice <@123456789012345678>');
-    expect(message).toContain('Next step: please upload your updated character sheet in this cubby.');
-    expect(message).toContain('**Helper requested:** @system helper');
+    expect(message).toContain('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
   });
 
   it('does not add sheet upload instructions for denied spends', () => {
@@ -48,9 +47,8 @@ describe('review notifier message formatting', () => {
       verifiedCost: 0,
     };
 
-    const message = buildReviewNotificationMessage(event, '@system helper');
-    expect(message).not.toContain('Next step: please upload your updated character sheet in this cubby.');
-    expect(message).not.toContain('Helper requested: @system helper');
+    const message = buildReviewNotificationMessage(event);
+    expect(message).not.toContain('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
   });
 
   it('does not add sheet upload instructions for approved claims', () => {
@@ -69,7 +67,7 @@ describe('review notifier message formatting', () => {
       approvedXp: 5,
     };
 
-    const message = buildReviewNotificationMessage(event, '@system helper');
+    const message = buildReviewNotificationMessage(event);
     expect(message).toContain('**XP Claim** Approved for Charlie');
     expect(message).not.toContain('Next step: please upload your updated character sheet in this cubby.');
     expect(message).not.toContain('**Helper requested:** @system helper');
@@ -91,7 +89,7 @@ describe('review notifier message formatting', () => {
       approvedXp: 3,
     };
 
-    const message = buildReviewNotificationMessage(event, '@system helper');
+    const message = buildReviewNotificationMessage(event);
     expect(message).toContain('**XP Claim** Approved for Dana');
     expect(message).not.toContain('<@');
   });
