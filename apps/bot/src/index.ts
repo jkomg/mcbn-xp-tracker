@@ -49,7 +49,6 @@ const reviewNotifier = new ReviewNotifier(client, adapter, {
   guildId: config.reviewNotifierGuildId,
   intervalMs: config.reviewNotifierIntervalMs,
   lookbackSeconds: config.reviewNotifierLookbackSeconds,
-  systemHelperMention: config.systemHelperMention,
 });
 
 const autoPeriodCreator = new AutoPeriodCreator(adapter, {

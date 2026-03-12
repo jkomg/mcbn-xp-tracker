@@ -403,6 +403,16 @@ tr.has-clan-color {
     user-select: none;
 }
 
+/* Age category symbol in the hero right column */
+.char-hero-age-symbol {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    opacity: 0.5;
+    filter: invert(1);
+    display: block;
+}
+
 /* Sect symbol inline in the meta line */
 .hero-sect-symbol {
     width: 16px;

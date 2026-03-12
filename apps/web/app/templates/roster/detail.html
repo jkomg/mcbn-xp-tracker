@@ -41,26 +41,26 @@
             <div class="char-stat-lbl">Total XP</div>
           </div>
           <div>
-            <div class="char-stat-val">{{ earned_xp }}</div>
-            <div class="char-stat-lbl">Earned</div>
-          </div>
-          <div>
             <div class="char-stat-val text-danger">{{ total_spends }}</div>
             <div class="char-stat-lbl">Spent</div>
+          </div>
+          <div>
+            <div class="char-stat-val {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% endif %}">{{ available_xp }}</div>
+            <div class="char-stat-lbl">Available</div>
           </div>
         </div>
         {% if total_xp > 0 %}
         <div class="xp-progress-bar">
           <div class="fill" style="width: {{ pct }}%;"></div>
         </div>
-        <small class="text-muted" style="font-size:0.7rem;">{{ earned_xp }} earned · {{ total_xp }} total</small>
         {% endif %}
       </div>
       <div class="text-end flex-shrink-0">
-        <div class="char-hero-xp-num {% if available_xp > 0 %}text-success{% elif available_xp < 0 %}text-danger{% else %}text-muted{% endif %}">
-          {{ available_xp }}
-        </div>
-        <div class="char-hero-xp-lbl">XP Available</div>
+        {% if char.age_category %}
+        <img src="{{ url_for('static', filename='images/symbols/' + char.age_category | lower | replace(' ', '-') + '.png') }}"
+             class="char-hero-age-symbol" aria-hidden="true"
+             onerror="this.style.display='none'">
+        {% endif %}
       </div>
     </div>
     <!-- Staff action buttons -->
