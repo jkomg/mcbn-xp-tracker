@@ -61,3 +61,93 @@ class SheetsSyncWorker:
     def sync_log_action(self, staff_user: str, action_type: str, target: str, details: str) -> None:
         _run(self._sheets.log_action, staff_user=staff_user, action_type=action_type,
              target=target, details=details)
+
+    # ------------------------------------------------------------------
+    # Phase 2: status update mirroring (approve / deny)
+    # ------------------------------------------------------------------
+
+    def sync_approve_claim(self, character_name: str, play_period: str,
+                           approved_xp: int, reviewer: str, notes: str = '') -> None:
+        def _task():
+            try:
+                match = next(
+                    (c for c in self._sheets.get_all_claims()
+                     if c.character_name.lower() == character_name.lower()
+                     and c.play_period == play_period),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: approve_claim no match for %s / %s',
+                                   character_name, play_period)
+                    return
+                self._sheets.approve_claim(match.row_index, approved_xp, reviewer, notes)
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: approve_claim — %s', exc)
+        _executor.submit(_task)
+
+    def sync_deny_claim(self, character_name: str, play_period: str,
+                        reviewer: str, notes: str = '') -> None:
+        def _task():
+            try:
+                match = next(
+                    (c for c in self._sheets.get_all_claims()
+                     if c.character_name.lower() == character_name.lower()
+                     and c.play_period == play_period),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: deny_claim no match for %s / %s',
+                                   character_name, play_period)
+                    return
+                self._sheets.deny_claim(match.row_index, reviewer, notes)
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: deny_claim — %s', exc)
+        _executor.submit(_task)
+
+    def sync_approve_spend(self, character_name: str, trait_name: str,
+                           spend_category: str, current_dots: int, new_dots: int,
+                           verified_cost: int, reviewer: str, notes: str = '') -> None:
+        def _task():
+            try:
+                match = next(
+                    (s for s in self._sheets.get_all_spends()
+                     if s.character_name.lower() == character_name.lower()
+                     and s.trait_name == trait_name
+                     and s.spend_category == spend_category
+                     and s.current_dots == current_dots
+                     and s.new_dots == new_dots
+                     and s.status.lower() == 'pending'),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: approve_spend no match for %s / %s',
+                                   character_name, trait_name)
+                    return
+                self._sheets.approve_spend(match.row_index, verified_cost, reviewer, notes)
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: approve_spend — %s', exc)
+        _executor.submit(_task)
+
+    def sync_deny_spend(self, character_name: str, trait_name: str,
+                        spend_category: str, current_dots: int, new_dots: int,
+                        reviewer: str, notes: str = '') -> None:
+        def _task():
+            try:
+                match = next(
+                    (s for s in self._sheets.get_all_spends()
+                     if s.character_name.lower() == character_name.lower()
+                     and s.trait_name == trait_name
+                     and s.spend_category == spend_category
+                     and s.current_dots == current_dots
+                     and s.new_dots == new_dots
+                     and s.status.lower() == 'pending'),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: deny_spend no match for %s / %s',
+                                   character_name, trait_name)
+                    return
+                self._sheets.deny_spend(match.row_index, reviewer, notes)
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: deny_spend — %s', exc)
+        _executor.submit(_task)
