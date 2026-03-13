@@ -161,31 +161,31 @@ def _migrate_spends(app, sheets_client):
 
 def _migrate_ledger(app, sheets_client):
     with app.app_context():
-        characters = sheets_client.get_all_characters()
+        # Read all rows directly — not per-character — so entries for deleted
+        # or renamed characters are not silently dropped.
+        all_entries = sheets_client.get_all_ledger_entries()
         added = skipped = 0
-        for char in characters:
-            entries = sheets_client.get_ledger_for_character(char.character_name)
-            for entry in entries:
-                existing = DbLedgerEntry.query.filter(
-                    func.lower(DbLedgerEntry.character_name) == entry.character_name.lower(),
-                    DbLedgerEntry.timestamp == entry.timestamp,
-                    DbLedgerEntry.date == entry.date,
-                    DbLedgerEntry.reason == entry.reason,
-                ).first()
-                if existing:
-                    skipped += 1
-                    continue
-                row = DbLedgerEntry(
-                    character_name=entry.character_name or '',
-                    date=entry.date or '',
-                    awarded=entry.awarded or 0,
-                    spent=entry.spent or 0,
-                    reason=entry.reason or '',
-                    entered_by=entry.entered_by or '',
-                    timestamp=entry.timestamp or '',
-                )
-                db.session.add(row)
-                added += 1
+        for entry in all_entries:
+            existing = DbLedgerEntry.query.filter(
+                func.lower(DbLedgerEntry.character_name) == entry.character_name.lower(),
+                DbLedgerEntry.timestamp == entry.timestamp,
+                DbLedgerEntry.date == entry.date,
+                DbLedgerEntry.reason == entry.reason,
+            ).first()
+            if existing:
+                skipped += 1
+                continue
+            row = DbLedgerEntry(
+                character_name=entry.character_name or '',
+                date=entry.date or '',
+                awarded=entry.awarded or 0,
+                spent=entry.spent or 0,
+                reason=entry.reason or '',
+                entered_by=entry.entered_by or '',
+                timestamp=entry.timestamp or '',
+            )
+            db.session.add(row)
+            added += 1
         db.session.commit()
         print(f'  Ledger entries: {added} added, {skipped} skipped')
         return added

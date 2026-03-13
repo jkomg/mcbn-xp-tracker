@@ -584,15 +584,15 @@ class DBService:
 
         # Ledger aggregates per character
         ledger_agg = db.session.query(
-            DbLedgerEntry.character_name,
+            func.lower(DbLedgerEntry.character_name).label('name_lower'),
             func.coalesce(func.sum(DbLedgerEntry.awarded), 0).label('earned_xp'),
             func.coalesce(func.sum(DbLedgerEntry.spent), 0).label('ledger_spent'),
             func.max(DbLedgerEntry.timestamp).label('last_submission'),
-        ).group_by(DbLedgerEntry.character_name).all()
+        ).group_by(func.lower(DbLedgerEntry.character_name)).all()
 
         ledger_by_name: dict[str, dict] = {}
         for row in ledger_agg:
-            ledger_by_name[row.character_name.lower()] = {
+            ledger_by_name[row.name_lower] = {
                 'earned_xp': int(row.earned_xp or 0),
                 'ledger_spent': int(row.ledger_spent or 0),
                 'last_submission': row.last_submission or '',
@@ -600,15 +600,15 @@ class DBService:
 
         # Approved spend aggregates per character
         spend_agg = db.session.query(
-            DbSpendRequest.character_name,
+            func.lower(DbSpendRequest.character_name).label('name_lower'),
             func.coalesce(func.sum(DbSpendRequest.verified_cost), 0).label('total_spends'),
         ).filter(
             func.lower(DbSpendRequest.status) == 'approved'
-        ).group_by(DbSpendRequest.character_name).all()
+        ).group_by(func.lower(DbSpendRequest.character_name)).all()
 
         spend_by_name: dict[str, int] = {}
         for row in spend_agg:
-            spend_by_name[row.character_name.lower()] = int(row.total_spends or 0)
+            spend_by_name[row.name_lower] = int(row.total_spends or 0)
 
         result = []
         for char in characters:
