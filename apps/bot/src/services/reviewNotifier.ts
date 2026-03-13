@@ -73,7 +73,7 @@ export function buildReviewNotificationMessage(event: ReviewEvent): string {
   ];
   if (event.status === 'approved') {
     base.push(`**Verified:** ${event.verifiedCost} XP`);
-    base.push('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
+    base.push('Next step: upload your updated character sheet and notify a system helper.');
   }
   if (event.staffNotes.trim()) {
     base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
