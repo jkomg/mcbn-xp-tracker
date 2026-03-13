@@ -26,9 +26,9 @@ mcbn/
 
 ## System boundaries
 
-- `apps/web` is the authority for validation, approvals, and persistence.
-- `apps/bot` calls web API endpoints with a service token.
-- Bot should not write directly to Google Sheets.
+- `apps/web` is the authority for validation, approvals, and persistence (Turso/libsql database).
+- Google Sheets is a best-effort background mirror — written after every DB commit, never read as primary source.
+- `apps/bot` calls web API endpoints with a service token. Bot does not write to the database or Sheets directly.
 - Shared packages prevent category/rule drift between clients.
 
 ## API ownership model
@@ -71,6 +71,6 @@ Why:
 
 ## Non-goals for phase 1
 
-- No replacement of Google Sheets persistence.
-- No migration to a new database.
+- ~~No replacement of Google Sheets persistence.~~ *(completed — Turso/libsql is now primary)*
+- ~~No migration to a new database.~~ *(completed — Sheets data migrated to Turso)*
 - No unified single runtime process for both app + bot.
