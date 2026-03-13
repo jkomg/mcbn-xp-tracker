@@ -1,9 +1,37 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Guild } from 'discord.js';
 import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
 import { findCubbyChannel } from './cubbyChannels';
+
+const STATE_PATH = path.resolve('./data/review-notifier-cursor.json');
+
+type CursorState = { cursorEpoch: number; cursorEventKey: string };
+
+function loadCursorState(): CursorState | null {
+  try {
+    const raw = fs.readFileSync(STATE_PATH, 'utf8');
+    const parsed = JSON.parse(raw) as CursorState;
+    if (typeof parsed.cursorEpoch === 'number' && typeof parsed.cursorEventKey === 'string') {
+      return parsed;
+    }
+  } catch {
+    // missing or corrupt — fall through to bootstrap
+  }
+  return null;
+}
+
+function saveCursorState(state: CursorState) {
+  try {
+    fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+    fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+  } catch (error) {
+    logEvent('warn', 'review_notifier_cursor_save_failed', { error: errorToMessage(error) });
+  }
+}
 
 type ReviewNotifierConfig = {
   enabled: boolean;
@@ -45,7 +73,7 @@ export function buildReviewNotificationMessage(event: ReviewEvent): string {
   ];
   if (event.status === 'approved') {
     base.push(`**Verified:** ${event.verifiedCost} XP`);
-    base.push('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
+    base.push('Next step: upload your updated character sheet and notify a system helper.');
   }
   if (event.staffNotes.trim()) {
     base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
@@ -109,6 +137,18 @@ export class ReviewNotifier {
     try {
       const nowEpoch = Math.floor(Date.now() / 1000);
       if (!this.initialized) {
+        const saved = loadCursorState();
+        if (saved) {
+          this.cursorEpoch = saved.cursorEpoch;
+          this.cursorEventKey = saved.cursorEventKey;
+          this.initialized = true;
+          logEvent('info', 'review_notifier_resumed', {
+            cursorEpoch: this.cursorEpoch,
+            cursorEventKey: this.cursorEventKey,
+          });
+          return;
+        }
+
         this.cursorEpoch = Math.max(0, nowEpoch - this.config.lookbackSeconds);
         let pages = 0;
         while (pages < 20) {
@@ -128,6 +168,7 @@ export class ReviewNotifier {
           }
         }
         this.initialized = true;
+        saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
         logEvent('info', 'review_notifier_bootstrap', { seenEvents: this.seenEventKeys.size });
         return;
       }
@@ -185,6 +226,7 @@ export class ReviewNotifier {
           }
           this.cursorEpoch = event.reviewedAtEpoch;
           this.cursorEventKey = event.eventKey;
+          saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
 
           logEvent('info', 'review_notifier_posted', {
             eventKey: event.eventKey,

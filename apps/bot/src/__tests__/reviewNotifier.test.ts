@@ -25,7 +25,7 @@ describe('review notifier message formatting', () => {
 
     const message = buildReviewNotificationMessage(event);
     expect(message).toContain('**XP Spend** Approved for Alice <@123456789012345678>');
-    expect(message).toContain('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
+    expect(message).toContain('Next step: upload your updated character sheet and notify a system helper.');
   });
 
   it('does not add sheet upload instructions for denied spends', () => {
@@ -48,7 +48,7 @@ describe('review notifier message formatting', () => {
     };
 
     const message = buildReviewNotificationMessage(event);
-    expect(message).not.toContain('Next step: upload your updated character sheet in this cubby, then ping a system helper to have it processed.');
+    expect(message).not.toContain('Next step: upload your updated character sheet and notify a system helper.');
   });
 
   it('does not add sheet upload instructions for approved claims', () => {
