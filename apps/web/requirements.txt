@@ -7,6 +7,6 @@ requests==2.*
 gspread==6.*
 google-auth==2.*
 python-dotenv==1.*
-gunicorn==23.*
+gunicorn==25.*
 pytest==9.*
 libsql-experimental==0.*
