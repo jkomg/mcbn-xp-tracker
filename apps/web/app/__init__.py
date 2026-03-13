@@ -51,6 +51,25 @@ def create_app():
     app.config.from_object('config.Config')
     _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
+    turso_url = app.config.get('TURSO_CONNECT_URL', '')
+    if turso_url:
+        import libsql_experimental as libsql  # noqa: PLC0415
+        turso_token = app.config.get('TURSO_AUTH_TOKEN', '')
+
+        class _LibSQLConn:
+            """Proxy that adds a no-op create_function so pysqlite dialect is happy."""
+            def __init__(self, conn):
+                self._c = conn
+            def __getattr__(self, name):
+                return getattr(self._c, name)
+            def create_function(self, *a, **kw):
+                pass
+            def cursor(self, *a, **kw):
+                return self._c.cursor(*a, **kw)
+
+        def _turso_creator():
+            return _LibSQLConn(libsql.connect(turso_url, auth_token=turso_token))
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'creator': _turso_creator}
     db.init_app(app)
     from flask_migrate import Migrate
     Migrate(app, db)
