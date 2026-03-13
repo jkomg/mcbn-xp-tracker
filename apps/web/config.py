@@ -93,7 +93,13 @@ class Config:
         SQLALCHEMY_DATABASE_URI = 'sqlite+pysqlite:///:memory:'
         TURSO_CONNECT_URL = _raw_db_url.replace('libsql+https://', 'https://').replace('libsql://', 'https://')
     else:
-        SQLALCHEMY_DATABASE_URI = _raw_db_url
+        # Resolve relative sqlite paths to absolute so SQLite and mkdir agree on the location.
+        if _raw_db_url.startswith('sqlite:///') and not _raw_db_url.startswith('sqlite:////'):
+            _db_rel = _raw_db_url[len('sqlite:///'):]
+            _db_abs = os.path.join(os.path.dirname(os.path.abspath(__file__)), _db_rel)
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///' + _db_abs
+        else:
+            SQLALCHEMY_DATABASE_URI = _raw_db_url
         TURSO_CONNECT_URL = ''
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

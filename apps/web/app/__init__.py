@@ -51,12 +51,14 @@ def create_app():
     app.config.from_object('config.Config')
     _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
-    # Ensure SQLite data directory exists on first boot
+    # Ensure SQLite data directory exists on first boot.
+    # Use app.root_path (the package dir) parent as the base so the resolved
+    # path matches how SQLite opens relative URIs (from the process CWD).
     raw_db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if raw_db_url.startswith('sqlite:///') and not raw_db_url.startswith('sqlite:////'):
-        db_path = Path(raw_db_url[len('sqlite:///'):])
-        if not db_path.is_absolute():
-            db_path = Path(app.instance_path).parent / db_path
+    if raw_db_url.startswith('sqlite:///'):
+        # Strip sqlite:/// (3 slashes); absolute paths start with / giving //path → strip one more.
+        db_path_str = raw_db_url[len('sqlite:///'):]
+        db_path = Path(db_path_str) if db_path_str.startswith('/') else Path(app.root_path).parent / db_path_str
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
     turso_url = app.config.get('TURSO_CONNECT_URL', '')

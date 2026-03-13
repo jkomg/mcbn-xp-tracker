@@ -7,7 +7,8 @@ Reference: [ENV_AND_SECRETS.md](ENV_AND_SECRETS.md)
 ## Outcome
 
 - Web app running at `http://127.0.0.1:5001` locally.
-- Same Google Sheet-backed workflow as production.
+- SQLite database for local dev (production uses Turso — see `ENV_AND_SECRETS.md`).
+- Google Sheets remains active as a background backup mirror.
 
 ## Fast Path (One Command, Docker)
 
@@ -57,6 +58,11 @@ Edit `apps/web/.env` and set:
 FLASK_SECRET_KEY=replace-with-random-string
 FLASK_DEBUG=true
 
+# Database — SQLite for local dev (default, no extra setup needed)
+# For production Turso: libsql+https://your-db.turso.io + TURSO_AUTH_TOKEN
+DATABASE_URL=sqlite:///data/db.sqlite
+
+# Google Sheets (still required — used as backup mirror)
 GOOGLE_CREDENTIALS_FILE=credentials/service-account.json
 SPREADSHEET_ID=your-google-sheet-id
 
@@ -76,7 +82,19 @@ mkdir -p apps/web/credentials
 # apps/web/credentials/service-account.json
 ```
 
-## 6) Initialize Sheet Tabs (Safe to Re-Run)
+## 6) Initialize Database and Sheet Tabs
+
+The database schema is created automatically on first startup — no manual step needed.
+
+If you have existing data in Google Sheets that you want to import into the DB:
+
+```bash
+cd apps/web
+python3 scripts/migrate_sheets_to_db.py
+cd ../..
+```
+
+To initialize Google Sheets tabs for the backup mirror (safe to re-run):
 
 ```bash
 cd apps/web
