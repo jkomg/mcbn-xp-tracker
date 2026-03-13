@@ -47,9 +47,10 @@ strategy with Sheets as a backup mirror.
   with native wheels on linux/amd64).
 - `apps/web/deploy.sh` now injects `DATABASE_URL` and `TURSO_AUTH_TOKEN`
   via `--update-secrets`.
-- `apps/web/setup-secrets.sh` rewritten to read from `.env`, compare
-  against GCP current value, and only push a new version when the
-  value has changed. No interactive prompts.
+- `apps/web/setup-secrets.sh` rewritten to read all values from `.env`
+  (no interactive prompts), compare each against the current GCP secret
+  value, and only push a new version when the value has changed. Also
+  covers the new `DATABASE_URL` and `TURSO_AUTH_TOKEN` secrets.
 
 ### Bug fixes
 

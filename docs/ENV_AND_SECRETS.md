@@ -14,7 +14,7 @@ This project uses separate local env files per app and a managed secret path for
 - Local dev: SQLite (default — no extra config needed). `DATABASE_URL=sqlite:///data/db.sqlite`
 - Production (Cloud Run): Turso/libsql. Set `DATABASE_URL=libsql+https://your-db.turso.io` and `TURSO_AUTH_TOKEN=your-token`.
 - Schema is created on first startup automatically.
-- To sync existing Sheets data into the DB: `python scripts/migrate_sheets_to_db.py`
+- To sync existing Sheets data into the DB: `cd apps/web && python scripts/migrate_sheets_to_db.py`
 
 **Google Sheets** remains active as a background mirror for backup. The `GOOGLE_CREDENTIALS_FILE` and `SPREADSHEET_ID` are still required in production.
 
