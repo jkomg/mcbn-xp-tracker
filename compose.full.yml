@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      platforms:
+        - linux/amd64
     restart: unless-stopped
     env_file:
       - apps/web/.env
