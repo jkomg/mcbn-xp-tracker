@@ -20,7 +20,18 @@ PROJECT_ROOT = _parents[min(4, len(_parents) - 1)]
 
 def _is_local_request() -> bool:
     remote_addr = request.remote_addr or ''
-    return remote_addr in {'127.0.0.1', '::1'} or remote_addr.startswith('::ffff:127.0.0.1')
+    if remote_addr in {'127.0.0.1', '::1'} or remote_addr.startswith('::ffff:127.0.0.1'):
+        return True
+    # Allow Docker bridge gateway (172.16.0.0/12) when running in a container
+    parts = remote_addr.split('.')
+    if len(parts) == 4:
+        try:
+            first, second = int(parts[0]), int(parts[1])
+            if first == 172 and 16 <= second <= 31:
+                return True
+        except ValueError:
+            pass
+    return False
 
 
 def _tail_lines(path: Path, max_lines: int) -> list[str]:
