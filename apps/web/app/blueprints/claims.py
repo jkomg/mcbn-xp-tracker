@@ -54,6 +54,13 @@ def approve(row_id):
 
     db_service.approve_claim(row_id, approved_xp, staff, notes)
     if sheets_sync:
+        sheets_sync.sync_approve_claim(
+            character_name=claim.character_name,
+            play_period=claim.play_period,
+            approved_xp=approved_xp,
+            reviewer=staff,
+            notes=notes,
+        )
         sheets_sync.sync_log_action(
             staff_user=staff,
             action_type='approve_claim',
@@ -113,6 +120,12 @@ def deny(row_id):
 
     db_service.deny_claim(row_id, staff, notes)
     if sheets_sync:
+        sheets_sync.sync_deny_claim(
+            character_name=claim.character_name,
+            play_period=claim.play_period,
+            reviewer=staff,
+            notes=notes,
+        )
         sheets_sync.sync_log_action(
             staff_user=staff,
             action_type='deny_claim',

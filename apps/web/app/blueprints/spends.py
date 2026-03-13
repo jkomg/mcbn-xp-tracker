@@ -86,6 +86,16 @@ def approve(row_id):
         ).strip(),
     )
     if sheets_sync:
+        sheets_sync.sync_approve_spend(
+            character_name=spend.character_name,
+            trait_name=spend.trait_name,
+            spend_category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            verified_cost=verified_cost,
+            reviewer=staff,
+            notes=notes,
+        )
         sheets_sync.sync_log_action(
             staff_user=staff,
             action_type='approve_spend',
@@ -131,6 +141,15 @@ def deny(row_id):
         ).strip(),
     )
     if sheets_sync:
+        sheets_sync.sync_deny_spend(
+            character_name=spend.character_name,
+            trait_name=spend.trait_name,
+            spend_category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            reviewer=staff,
+            notes=notes,
+        )
         sheets_sync.sync_log_action(
             staff_user=staff,
             action_type='deny_spend',
