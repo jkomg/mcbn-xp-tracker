@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import Blueprint, render_template, request
-from app import sheets_client
+from app import db_service
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
@@ -25,7 +25,7 @@ def log():
     character_filter = request.args.get('character', '')
     staff_filter = request.args.get('staff', '')
 
-    all_entries = sheets_client.get_audit_log(limit=500)
+    all_entries = db_service.get_audit_log(limit=500)
     entries = list(all_entries)
 
     if action_filter:

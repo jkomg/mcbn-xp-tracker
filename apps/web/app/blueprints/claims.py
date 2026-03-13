@@ -3,7 +3,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort
 )
-from app import sheets_client
+from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 
 bp = Blueprint('claims', __name__)
@@ -13,7 +13,7 @@ bp = Blueprint('claims', __name__)
 @require_staff
 def pending():
     """List all pending XP claims."""
-    claims = sheets_client.get_pending_claims()
+    claims = db_service.get_pending_claims()
     return render_template('claims/pending.html', claims=claims)
 
 
@@ -21,7 +21,7 @@ def pending():
 @require_staff
 def review(row_id):
     """Review a single XP claim."""
-    claim = sheets_client.get_claim_by_row(row_id)
+    claim = db_service.get_claim_by_row(row_id)
     if not claim:
         abort(404)
     return render_template('claims/review.html', claim=claim)
@@ -31,7 +31,7 @@ def review(row_id):
 @require_staff
 def approve(row_id):
     """Approve an XP claim."""
-    claim = sheets_client.get_claim_by_row(row_id)
+    claim = db_service.get_claim_by_row(row_id)
     if not claim:
         abort(404)
 
@@ -52,21 +52,38 @@ def approve(row_id):
     notes = request.form.get('notes', '')
     staff = get_staff_user()
 
-    sheets_client.approve_claim(row_id, approved_xp, staff, notes)
+    db_service.approve_claim(row_id, approved_xp, staff, notes)
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='approve_claim',
+            target=claim.character_name,
+            details=f'Approved {approved_xp} XP for {claim.play_period}. {notes}'.strip(),
+        )
 
     # Write approved XP to the ledger so it's permanently recorded
     if approved_xp > 0:
         from datetime import date as _date
-        sheets_client.add_ledger_entry(
+        ledger_date = _date.today().strftime('%Y%m%d')
+        db_service.add_ledger_entry(
             character_name=claim.character_name,
-            date=_date.today().strftime('%Y%m%d'),
+            date=ledger_date,
             awarded=approved_xp,
             spent=0,
             reason=f'{claim.play_period} (claim approved)',
             staff_user=staff,
         )
+        if sheets_sync:
+            sheets_sync.sync_add_ledger_entry(
+                character_name=claim.character_name,
+                date=ledger_date,
+                awarded=approved_xp,
+                spent=0,
+                reason=f'{claim.play_period} (claim approved)',
+                staff_user=staff,
+            )
 
-    sheets_client.log_action(
+    db_service.log_action(
         staff_user=staff,
         action_type='approve_claim',
         target=claim.character_name,
@@ -81,7 +98,7 @@ def approve(row_id):
 @require_staff
 def deny(row_id):
     """Deny an XP claim."""
-    claim = sheets_client.get_claim_by_row(row_id)
+    claim = db_service.get_claim_by_row(row_id)
     if not claim:
         abort(404)
 
@@ -94,8 +111,15 @@ def deny(row_id):
     notes = request.form.get('notes', '')
     staff = get_staff_user()
 
-    sheets_client.deny_claim(row_id, staff, notes)
-    sheets_client.log_action(
+    db_service.deny_claim(row_id, staff, notes)
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='deny_claim',
+            target=claim.character_name,
+            details=f'Denied claim for {claim.play_period}. {notes}'.strip(),
+        )
+    db_service.log_action(
         staff_user=staff,
         action_type='deny_claim',
         target=claim.character_name,
@@ -110,5 +134,5 @@ def deny(row_id):
 @require_staff
 def history():
     """View all claims (approved, denied, pending)."""
-    all_claims = sheets_client.get_all_claims()
+    all_claims = db_service.get_all_claims()
     return render_template('claims/history.html', claims=all_claims)

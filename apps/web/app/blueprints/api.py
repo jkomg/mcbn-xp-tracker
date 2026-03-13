@@ -15,7 +15,7 @@ from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app import sheets_client, limiter
+from app import db_service, sheets_sync, limiter
 from app.auth import is_allowed_discord_user
 
 bp = Blueprint('api', __name__)
@@ -160,14 +160,14 @@ def require_replay_protection(f):
     return decorated
 
 
-def _require_sheets():
-    if sheets_client is None:
-        return jsonify({'error': 'Google Sheets backend is not configured'}), 503
+def _require_db():
+    if db_service is None:
+        return jsonify({'error': 'Database backend is not configured'}), 503
     return None
 
 
 def _open_periods_desc():
-    periods = [p for p in sheets_client.get_all_periods() if p.submissions_open and p.active]
+    periods = [p for p in db_service.get_all_periods() if p.submissions_open and p.active]
     periods.sort(key=lambda p: p.night_number, reverse=True)
     return periods
 
@@ -254,7 +254,7 @@ def health():
 @require_bot_scope('read')
 @_limit("60 per minute")
 def claim_context():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
     requester_discord_id, _, effective_discord_id, _, test_mode, error = _requester_from_query()
@@ -262,9 +262,9 @@ def claim_context():
         return error
 
     if (not test_mode) and effective_discord_id == requester_discord_id and _is_requester_staff(requester_discord_id):
-        characters = sheets_client.get_active_characters()
+        characters = db_service.get_active_characters()
     else:
-        characters = [c for c in sheets_client.get_characters_by_discord_id(effective_discord_id) if c.active]
+        characters = [c for c in db_service.get_characters_by_discord_id(effective_discord_id) if c.active]
     characters.sort(key=lambda c: c.character_name.lower())
     open_periods = _open_periods_desc()
 
@@ -281,7 +281,7 @@ def claim_context():
 @require_bot_scope('read')
 @_limit("20 per minute")
 def claim_reminder_targets():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
 
@@ -290,8 +290,8 @@ def claim_reminder_targets():
         return jsonify({'currentNight': None, 'targets': []})
 
     current = open_periods[0]
-    active_characters = sheets_client.get_active_characters()
-    claims = sheets_client.get_all_claims()
+    active_characters = db_service.get_active_characters()
+    claims = db_service.get_all_claims()
 
     submitted_for_current = {
         str(c.character_name).strip().lower()
@@ -323,20 +323,20 @@ def claim_reminder_targets():
 @require_bot_scope('read')
 @_limit("60 per minute")
 def character_summary(name: str):
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
     _, _, effective_discord_id, _, test_mode, error = _requester_from_query()
     if error:
         return error
 
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
     if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
         return jsonify({'error': 'Character not found'}), 404
 
-    totals = sheets_client.get_xp_totals(name)
+    totals = db_service.get_xp_totals(name)
     return jsonify(
         {
             'characterName': char.character_name,
@@ -352,7 +352,7 @@ def character_summary(name: str):
 @require_bot_scope('read')
 @_limit("30 per minute")
 def review_events():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
 
@@ -373,12 +373,12 @@ def review_events():
 
     # Build character-name → Discord-ID lookup for player pings.
     discord_by_name: dict[str, str] = {}
-    get_characters = getattr(sheets_client, 'get_all_characters', None)
+    get_characters = getattr(db_service, 'get_all_characters', None)
     if callable(get_characters):
         characters_for_lookup = get_characters()
     else:
         # Backward-compatible fallback for simplified test doubles.
-        characters_for_lookup = sheets_client.get_active_characters()
+        characters_for_lookup = db_service.get_active_characters()
 
     for char in characters_for_lookup:
         if char.player_discord:
@@ -386,7 +386,7 @@ def review_events():
 
     events = []
 
-    for claim in sheets_client.get_all_claims():
+    for claim in db_service.get_all_claims():
         status = str(claim.status or '').strip().lower()
         if status not in {'approved', 'denied'}:
             continue
@@ -419,7 +419,7 @@ def review_events():
             }
         )
 
-    for spend in sheets_client.get_all_spends():
+    for spend in db_service.get_all_spends():
         status = str(spend.status or '').strip().lower()
         if status not in {'approved', 'denied'}:
             continue
@@ -468,26 +468,34 @@ def review_events():
 @require_replay_protection
 @_limit("10 per minute")
 def auto_create_period():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
 
     if not current_app.config.get('AUTO_CREATE_PERIODS_ENABLED', False):
         return jsonify({'created': False, 'reason': 'disabled'}), 200
 
-    result = sheets_client.auto_create_next_period_if_due(
+    result = db_service.auto_create_next_period_if_due(
         open_lead_days=current_app.config.get('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', 1),
         default_length_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', 14),
         default_gap_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', 0),
     )
     period = result.get('period')
     if result.get('created') and period:
-        sheets_client.log_action(
+        db_service.log_action(
             staff_user='bot-api:auto-period',
             action_type='auto_create_period',
             target=period.period_label,
             details=f'Automatically created {period.period_label}',
         )
+        if sheets_sync:
+            sheets_sync.sync_create_period(period)
+            sheets_sync.sync_log_action(
+                staff_user='bot-api:auto-period',
+                action_type='auto_create_period',
+                target=period.period_label,
+                details=f'Automatically created {period.period_label}',
+            )
         return jsonify(
             {
                 'created': True,
@@ -510,7 +518,7 @@ def auto_create_period():
 @require_replay_protection
 @_limit("20 per minute")
 def submit_claim():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
 
@@ -525,7 +533,7 @@ def submit_claim():
     if not character_name or not play_period or not isinstance(categories, dict):
         return jsonify({'error': 'characterName, playPeriod, and categories are required'}), 400
 
-    char = sheets_client.get_character(character_name)
+    char = db_service.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
     if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
@@ -547,8 +555,10 @@ def submit_claim():
         return jsonify({'error': 'Too many claim categories in payload'}), 400
 
     try:
-        sheets_client.submit_xp_claim(character_name, play_period, normalized)
-        sheets_client.log_action(
+        db_service.submit_xp_claim(character_name, play_period, normalized)
+        if sheets_sync:
+            sheets_sync.sync_add_claim(character_name, play_period, normalized)
+        db_service.log_action(
             staff_user=f'bot-api:{requester_discord_id}',
             action_type='bot_claim_submitted',
             target=character_name,
@@ -557,6 +567,16 @@ def submit_claim():
                 f'{effective_name or requester_discord_name or requester_discord_id}'
             ),
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'bot-api:{requester_discord_id}',
+                action_type='bot_claim_submitted',
+                target=character_name,
+                details=(
+                    f'Claim submitted for {play_period} by '
+                    f'{effective_name or requester_discord_name or requester_discord_id}'
+                ),
+            )
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
 
@@ -568,7 +588,7 @@ def submit_claim():
 @require_replay_protection
 @_limit("20 per minute")
 def submit_spend():
-    backend = _require_sheets()
+    backend = _require_db()
     if backend:
         return backend
 
@@ -595,14 +615,14 @@ def submit_spend():
 
     is_in_clan = bool(payload.get('isInClan', False))
 
-    char = sheets_client.get_character(character_name)
+    char = db_service.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
     if not _requester_can_access_character(char, effective_discord_id, allow_staff_bypass=not test_mode):
         return jsonify({'error': 'Character not found'}), 404
 
     try:
-        xp_cost = sheets_client.submit_spend_request(
+        xp_cost = db_service.submit_spend_request(
             character_name=character_name,
             spend_category=spend_category,
             trait_name=trait_name,
@@ -611,7 +631,17 @@ def submit_spend():
             is_in_clan=is_in_clan,
             justification=justification,
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_spend(
+                character_name=character_name,
+                spend_category=spend_category,
+                trait_name=trait_name,
+                current_dots=current_dots,
+                new_dots=new_dots,
+                is_in_clan=is_in_clan,
+                justification=justification,
+            )
+        db_service.log_action(
             staff_user=f'bot-api:{requester_discord_id}',
             action_type='bot_spend_submitted',
             target=character_name,
@@ -620,6 +650,16 @@ def submit_spend():
                 f'for {xp_cost} XP by {effective_name or requester_discord_name or requester_discord_id}'
             ),
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'bot-api:{requester_discord_id}',
+                action_type='bot_spend_submitted',
+                target=character_name,
+                details=(
+                    f'{spend_category}: {trait_name} ({current_dots}->{new_dots}) '
+                    f'for {xp_cost} XP by {effective_name or requester_discord_name or requester_discord_id}'
+                ),
+            )
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
 

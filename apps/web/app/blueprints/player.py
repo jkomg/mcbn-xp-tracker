@@ -4,7 +4,7 @@ from flask import (
     Blueprint, render_template, request, abort, flash, redirect, url_for,
     session,
 )
-from app import sheets_client
+from app import db_service, sheets_sync
 from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
@@ -20,10 +20,10 @@ bp = Blueprint('player', __name__)
 def my_characters():
     """Player landing page showing their linked characters."""
     discord_id = get_player_discord_id()
-    my_chars = sheets_client.get_characters_by_discord_id(discord_id)
+    my_chars = db_service.get_characters_by_discord_id(discord_id)
 
     # Fetch open periods for the banner
-    all_periods = sheets_client.get_all_periods()
+    all_periods = db_service.get_all_periods()
     open_periods = [p for p in all_periods if p.submissions_open and p.active]
     open_periods.sort(key=lambda p: p.night_number, reverse=True)
 
@@ -31,7 +31,7 @@ def my_characters():
 
     # Staff also see a full character search
     if check_is_staff():
-        all_characters = sheets_client.get_active_characters()
+        all_characters = db_service.get_active_characters()
         all_characters.sort(key=lambda c: c.character_name.lower())
         return render_template(
             'player/my_characters.html',
@@ -65,10 +65,10 @@ def link_character():
     discord_name = session.get('discord_name', '')
 
     # Check if they already have characters
-    existing = sheets_client.get_characters_by_discord_id(discord_id)
+    existing = db_service.get_characters_by_discord_id(discord_id)
 
     if request.method == 'GET':
-        unlinked = sheets_client.get_unlinked_characters()
+        unlinked = db_service.get_unlinked_characters()
         unlinked.sort(key=lambda c: c.character_name.lower())
         return render_template(
             'player/link_character.html',
@@ -82,7 +82,7 @@ def link_character():
         flash('Please select a character.', 'danger')
         return redirect(url_for('player.link_character'))
 
-    char = sheets_client.get_character(character_name)
+    char = db_service.get_character(character_name)
     if not char:
         flash('Character not found.', 'danger')
         return redirect(url_for('player.link_character'))
@@ -91,13 +91,20 @@ def link_character():
         flash('This character is already linked to another player.', 'danger')
         return redirect(url_for('player.link_character'))
 
-    sheets_client.link_character_to_discord(character_name, discord_id, discord_name)
-    sheets_client.log_action(
+    db_service.link_character_to_discord(character_name, discord_id, discord_name)
+    db_service.log_action(
         staff_user=f'player:{discord_name}',
         action_type='player_link_character',
         target=character_name,
         details=f'Player self-linked Discord ID {discord_id} ({discord_name})',
     )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=f'player:{discord_name}',
+            action_type='player_link_character',
+            target=character_name,
+            details=f'Player self-linked Discord ID {discord_id} ({discord_name})',
+        )
     flash(f'Successfully linked {character_name} to your Discord account.', 'success')
     return redirect(url_for('player.character', name=character_name))
 
@@ -106,12 +113,12 @@ def link_character():
 @require_character_owner
 def character(name):
     """Character XP summary with submission forms."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char:
         abort(404)
 
-    claims = sheets_client.get_claims_for_character(name)
-    spends = sheets_client.get_spends_for_character(name)
+    claims = db_service.get_claims_for_character(name)
+    spends = db_service.get_spends_for_character(name)
 
     # Only show approved data to players
     approved_claims = [
@@ -127,13 +134,13 @@ def character(name):
         s for s in spends if s.status.lower() == 'pending'
     ]
 
-    ledger = sheets_client.get_ledger_for_character(name)
+    ledger = db_service.get_ledger_for_character(name)
 
     # Compute XP totals (includes ledger)
-    xp = sheets_client.get_xp_totals(name)
+    xp = db_service.get_xp_totals(name)
 
     # Open periods for claim form dropdown
-    all_periods = sheets_client.get_all_periods()
+    all_periods = db_service.get_all_periods()
     open_periods = [p for p in all_periods if p.submissions_open and p.active]
     open_periods.sort(key=lambda p: p.night_number, reverse=True)
 
@@ -165,7 +172,7 @@ def character(name):
 @require_character_owner
 def submit_claim(name):
     """Submit an XP claim for a play period."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char or not char.active:
         abort(404)
 
@@ -175,7 +182,7 @@ def submit_claim(name):
         return redirect(url_for('player.character', name=name))
 
     # Validate period exists and is open
-    all_periods = sheets_client.get_all_periods()
+    all_periods = db_service.get_all_periods()
     period = next((p for p in all_periods if p.period_label == play_period), None)
     if not period or not period.submissions_open:
         flash('That play period is not open for submissions.', 'danger')
@@ -222,13 +229,22 @@ def submit_claim(name):
         wc_amt = int(categories.get('wildcard_amount', 1)) if 'wildcard' in categories else 0
         xp_count = sum(1 for k in category_keys if k in categories and k != 'wildcard') + wc_amt
         discord_name = session.get('discord_name', 'unknown')
-        sheets_client.submit_xp_claim(name, play_period, categories)
-        sheets_client.log_action(
+        db_service.submit_xp_claim(name, play_period, categories)
+        if sheets_sync:
+            sheets_sync.sync_add_claim(name, play_period, categories)
+        db_service.log_action(
             staff_user=f'player:{discord_name}',
             action_type='player_claim_submitted',
             target=name,
             details=f'Claimed {xp_count} XP for {play_period}',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'player:{discord_name}',
+                action_type='player_claim_submitted',
+                target=name,
+                details=f'Claimed {xp_count} XP for {play_period}',
+            )
         flash(
             f'XP claim submitted for {play_period} — '
             f'{len(categories)} categor{"y" if len(categories) == 1 else "ies"} '
@@ -245,7 +261,7 @@ def submit_claim(name):
 @require_character_owner
 def submit_spend(name):
     """Submit a spend request."""
-    char = sheets_client.get_character(name)
+    char = db_service.get_character(name)
     if not char or not char.active:
         abort(404)
 
@@ -279,7 +295,7 @@ def submit_spend(name):
 
     try:
         discord_name = session.get('discord_name', 'unknown')
-        xp_cost = sheets_client.submit_spend_request(
+        xp_cost = db_service.submit_spend_request(
             character_name=name,
             spend_category=spend_category,
             trait_name=trait_name,
@@ -288,12 +304,29 @@ def submit_spend(name):
             is_in_clan=is_in_clan,
             justification=justification,
         )
-        sheets_client.log_action(
+        if sheets_sync:
+            sheets_sync.sync_add_spend(
+                character_name=name,
+                spend_category=spend_category,
+                trait_name=trait_name,
+                current_dots=current_dots,
+                new_dots=new_dots,
+                is_in_clan=is_in_clan,
+                justification=justification,
+            )
+        db_service.log_action(
             staff_user=f'player:{discord_name}',
             action_type='player_spend_submitted',
             target=name,
             details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots}) for {xp_cost} XP',
         )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'player:{discord_name}',
+                action_type='player_spend_submitted',
+                target=name,
+                details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots}) for {xp_cost} XP',
+            )
         flash(
             f'Spend request submitted: {trait_name} '
             f'({current_dots}→{new_dots}) for {xp_cost} XP. '

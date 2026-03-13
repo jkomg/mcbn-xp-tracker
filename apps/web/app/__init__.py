@@ -10,9 +10,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 from .sheets import SheetsClient
+from .db import db
+from .db_service import DBService
+from .sheets_sync import SheetsSyncWorker
 
 # Module-level singletons
 sheets_client: SheetsClient = None
+db_service: DBService = None
+sheets_sync: SheetsSyncWorker = None
 limiter: Limiter = None
 csrf: CSRFProtect = CSRFProtect()
 
@@ -46,6 +51,36 @@ def create_app():
     app.config.from_object('config.Config')
     _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
+    # Ensure SQLite data directory exists on first boot
+    raw_db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if raw_db_url.startswith('sqlite:///') and not raw_db_url.startswith('sqlite:////'):
+        db_path = Path(raw_db_url[len('sqlite:///'):])
+        if not db_path.is_absolute():
+            db_path = Path(app.instance_path).parent / db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    turso_url = app.config.get('TURSO_CONNECT_URL', '')
+    if turso_url:
+        import libsql_experimental as libsql  # noqa: PLC0415
+        turso_token = app.config.get('TURSO_AUTH_TOKEN', '')
+
+        class _LibSQLConn:
+            """Proxy that adds a no-op create_function so pysqlite dialect is happy."""
+            def __init__(self, conn):
+                self._c = conn
+            def __getattr__(self, name):
+                return getattr(self._c, name)
+            def create_function(self, *a, **kw):
+                pass
+            def cursor(self, *a, **kw):
+                return self._c.cursor(*a, **kw)
+
+        def _turso_creator():
+            return _LibSQLConn(libsql.connect(turso_url, auth_token=turso_token))
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'creator': _turso_creator}
+    db.init_app(app)
+    from flask_migrate import Migrate
+    Migrate(app, db)
     project_root = Path(__file__).resolve().parents[2]
 
     # Rate limiting — uses in-memory storage (resets on deploy, fine for this scale)
@@ -58,7 +93,7 @@ def create_app():
     )
 
     # Initialize Google Sheets client
-    global sheets_client
+    global sheets_client, db_service, sheets_sync
     if app.config['SPREADSHEET_ID']:
         sheets_client = SheetsClient(
             credentials_file=app.config['GOOGLE_CREDENTIALS_FILE'],
@@ -69,6 +104,15 @@ def create_app():
             startup_max_retries=app.config.get('SHEETS_STARTUP_MAX_RETRIES', 5),
             startup_retry_base_seconds=app.config.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', 1.5),
         )
+
+    # Initialize DB service and Sheets sync worker
+    db_service = DBService(sheets_client=sheets_client)
+    if sheets_client:
+        sheets_sync = SheetsSyncWorker(sheets_client)
+
+    # Create DB tables if they don't exist
+    with app.app_context():
+        db.create_all()
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp

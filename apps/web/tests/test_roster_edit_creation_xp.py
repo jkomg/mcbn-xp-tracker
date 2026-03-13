@@ -31,7 +31,7 @@ def _app(fake_sheets: FakeSheets):
     app.config['TESTING'] = True
     app.secret_key = 'test-secret'
     app.register_blueprint(roster_bp, url_prefix='/roster')
-    roster_module.sheets_client = fake_sheets
+    roster_module.db_service = fake_sheets
     return app
 
 

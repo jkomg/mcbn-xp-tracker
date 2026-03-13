@@ -83,6 +83,20 @@ class Config:
         os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', '0')
     )
 
+    # Database (SQLite for local dev, Turso/libSQL for production)
+    # libsql-experimental is a DB-API driver, not a SQLAlchemy dialect.
+    # When DATABASE_URL is a libsql URL, store the real URL in TURSO_CONNECT_URL
+    # and point SQLAlchemy at pysqlite (same SQL dialect, real connection via creator).
+    _raw_db_url = os.environ.get('DATABASE_URL', 'sqlite:///data/db.sqlite')
+    TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '')
+    if _raw_db_url.startswith('libsql'):
+        SQLALCHEMY_DATABASE_URI = 'sqlite+pysqlite:///:memory:'
+        TURSO_CONNECT_URL = _raw_db_url.replace('libsql+https://', 'https://').replace('libsql://', 'https://')
+    else:
+        SQLALCHEMY_DATABASE_URI = _raw_db_url
+        TURSO_CONNECT_URL = ''
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
     # Local-only diagnostics page (launchd/logs/access tail).
     LOCAL_STATUS_ENABLED = os.environ.get(
         'LOCAL_STATUS_ENABLED', 'false'

@@ -1072,6 +1072,23 @@ class SheetsClient:
         entries.sort(key=lambda e: e.date, reverse=True)
         return entries
 
+    def get_all_ledger_entries(self) -> list[LedgerEntry]:
+        """Get every row in the XP Ledger tab, regardless of character."""
+        rows = self._get_all_rows(TAB_XP_LEDGER)
+        entries = []
+        for i, r in enumerate(rows):
+            entries.append(LedgerEntry(
+                row_index=i,
+                character_name=str(r.get('character_name', '')),
+                date=str(r.get('date', '')),
+                awarded=_parse_int(r.get('awarded', 0)),
+                spent=_parse_int(r.get('spent', 0)),
+                reason=str(r.get('reason', '')),
+                entered_by=str(r.get('entered_by', '')),
+                timestamp=str(r.get('timestamp', '')),
+            ))
+        return entries
+
     def add_ledger_entry(self, character_name: str, date: str,
                          awarded: int, spent: int, reason: str,
                          staff_user: str) -> None:
