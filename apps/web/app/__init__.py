@@ -126,6 +126,7 @@ def create_app():
     from .blueprints.player import bp as player_bp
     from .blueprints.api import bp as api_bp
     from .blueprints.local_status import bp as local_status_bp
+    from .blueprints.settings import bp as settings_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -136,6 +137,7 @@ def create_app():
     app.register_blueprint(player_bp, url_prefix='/player')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(local_status_bp)
+    app.register_blueprint(settings_bp, url_prefix='/settings')
     csrf.exempt(api_bp)
 
     # Inject auth helpers into all templates

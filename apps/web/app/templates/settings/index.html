@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <h2 class="mb-0">Settings</h2>
+    <span class="text-muted small">Read-only — change values in the server environment and redeploy.</span>
+  </div>
+
+  {# ═══ Web App — Feature Flags ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Feature Flags</h5>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0">
+        <thead>
+          <tr>
+            <th style="width:200px">Feature</th>
+            <th style="width:120px">Status</th>
+            <th>Description</th>
+            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in web_flags %}
+          <tr>
+            <td class="fw-semibold">{{ f.label }}</td>
+            <td>
+              {% if f.enabled %}
+                <span class="badge bg-success">Enabled</span>
+              {% else %}
+                <span class="badge bg-secondary">Disabled</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ f.description }}</td>
+            <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ═══ Web App — Integrations ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Integrations</h5>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0">
+        <thead>
+          <tr>
+            <th style="width:200px">Integration</th>
+            <th style="width:120px">Status</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in integrations %}
+          <tr>
+            <td class="fw-semibold">{{ i.label }}</td>
+            <td>
+              {% if i.configured %}
+                <span class="badge bg-success">Configured</span>
+              {% else %}
+                <span class="badge bg-secondary">Not set</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ i.description }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ═══ Web App — Tuning ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Tuning</h5>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0">
+        <thead>
+          <tr>
+            <th style="width:220px">Parameter</th>
+            <th style="width:100px">Value</th>
+            <th>Description</th>
+            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in web_tuning %}
+          <tr>
+            <td class="fw-semibold">{{ t.label }}</td>
+            <td><span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span></td>
+            <td class="text-muted small">{{ t.description }}</td>
+            <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ═══ Bot — Feature Flags (static reference) ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Feature Flags</h5>
+  <p class="text-muted small mb-2">
+    The bot runs as a separate process. These flags are set in the bot's <code>.env</code> file and are shown here for reference only.
+  </p>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0">
+        <thead>
+          <tr>
+            <th style="width:200px">Feature</th>
+            <th>Description</th>
+            <th class="d-none d-md-table-cell text-muted" style="width:220px">Enable env var</th>
+            <th class="d-none d-lg-table-cell text-muted" style="width:220px">Interval env var</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in bot_flags %}
+          <tr>
+            <td class="fw-semibold">{{ f.label }}</td>
+            <td class="text-muted small">{{ f.description }}</td>
+            <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
+            <td class="d-none d-lg-table-cell">
+              {% if f.interval_env %}
+                <code class="small text-secondary">{{ f.interval_env }}</code>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
