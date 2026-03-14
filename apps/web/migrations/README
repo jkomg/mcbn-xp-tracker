@@ -1,0 +1,34 @@
+Flask-Migrate / Alembic — MCbN XP Tracker
+
+## Schema change workflow
+
+For any change to a model in app/db.py:
+
+1. Make the model change.
+2. Generate a migration:
+   cd apps/web
+   FLASK_APP=app:create_app flask db migrate -m "describe the change"
+3. Review the generated file in migrations/versions/.
+4. Apply locally:
+   FLASK_APP=app:create_app flask db upgrade
+5. Commit the migration file with your code change.
+
+## Production (Turso/libsql)
+
+db.create_all() runs on startup and is safe for new installs. For
+existing production databases, schema changes must be applied manually
+via the Turso CLI or migration scripts until libsql supports Alembic
+directly. Document any manual steps in the release notes.
+
+## Baseline
+
+The revision a976d7d0510b is an empty baseline adopted when Flask-Migrate
+was initialised (2026-03-14). All tables at that point were managed by
+db.create_all(). Stamp an existing dev DB with:
+
+   FLASK_APP=app:create_app flask db stamp head
+
+## migrate_csv_to_sheets.py
+
+Legacy one-time data migration script (pre-Turso). Not part of the
+Alembic version history.

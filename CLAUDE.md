@@ -113,9 +113,11 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - **Local dev**: SQLite — default when `DATABASE_URL` is omitted or `sqlite:///data/db.sqlite`.
 - Schema is created automatically on startup (`db.create_all()`); no manual migration needed for new installs.
 - To migrate existing Sheets data: `cd apps/web && python scripts/migrate_sheets_to_db.py`
+- **Schema changes**: edit `app/db.py`, then `cd apps/web && FLASK_APP=app:create_app flask db migrate -m "description"`, review the file in `migrations/versions/`, then `flask db upgrade`. Commit the migration with your code. See `apps/web/migrations/README` for details.
 
 ## Key Docs
 
+- `docs/API_ENDPOINTS.md` — bot-facing API reference (auth, all routes, request/response schemas)
 - `docs/MONOREPO_ARCHITECTURE.md` — system boundaries and runtime model
 - `docs/ENV_AND_SECRETS.md` — env and secrets flow
 - `docs/RUN_WEB_DOCKER.md` — web Docker runbook
