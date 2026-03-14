@@ -143,6 +143,91 @@ def deny(row_id):
     return redirect(url_for('claims.pending'))
 
 
+@bp.route('/bulk-approve', methods=['POST'])
+@require_staff
+def bulk_approve():
+    """Approve multiple pending claims as submitted (uses each claim's xp_claimed)."""
+    raw_ids = request.form.getlist('claim_ids')
+    notes = request.form.get('notes', '')[:1000]
+    staff = get_staff_user()
+
+    approved_count = 0
+    approved_xp_total = 0
+    skipped = []
+
+    for raw_id in raw_ids:
+        try:
+            row_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+
+        claim = db_service.get_claim_by_row(row_id)
+        if not claim or claim.status.strip().lower() != 'pending':
+            skipped.append(raw_id)
+            continue
+
+        approved_xp = claim.xp_claimed or 0
+        db_service.approve_claim(row_id, approved_xp, staff, notes)
+
+        if approved_xp > 0:
+            from datetime import date as _date
+            ledger_date = _date.today().strftime('%Y%m%d')
+            db_service.add_ledger_entry(
+                character_name=claim.character_name,
+                date=ledger_date,
+                awarded=approved_xp,
+                spent=0,
+                reason=f'{claim.play_period} (claim approved)',
+                staff_user=staff,
+            )
+            if sheets_sync:
+                sheets_sync.sync_add_ledger_entry(
+                    character_name=claim.character_name,
+                    date=ledger_date,
+                    awarded=approved_xp,
+                    spent=0,
+                    reason=f'{claim.play_period} (claim approved)',
+                    staff_user=staff,
+                )
+
+        if sheets_sync:
+            sheets_sync.sync_approve_claim(
+                character_name=claim.character_name,
+                play_period=claim.play_period,
+                approved_xp=approved_xp,
+                reviewer=staff,
+                notes=notes,
+            )
+            sheets_sync.sync_log_action(
+                staff_user=staff,
+                action_type='approve_claim',
+                target=claim.character_name,
+                details=f'Approved {approved_xp} XP for {claim.play_period}. {notes}'.strip(),
+            )
+
+        db_service.log_action(
+            staff_user=staff,
+            action_type='approve_claim',
+            target=claim.character_name,
+            details=f'Bulk approved {approved_xp} XP for {claim.play_period}. {notes}'.strip(),
+        )
+
+        approved_count += 1
+        approved_xp_total += approved_xp
+
+    if approved_count:
+        flash(
+            f'Bulk approved {approved_count} claim(s) — {approved_xp_total} XP total.',
+            'success',
+        )
+    if skipped:
+        flash(f'{len(skipped)} claim(s) skipped (already reviewed or not found).', 'warning')
+    if not approved_count and not skipped:
+        flash('No claims selected.', 'warning')
+
+    return redirect(url_for('claims.pending'))
+
+
 @bp.route('/history')
 @require_staff
 def history():
