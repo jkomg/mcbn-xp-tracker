@@ -88,8 +88,12 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
   --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
   --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
-  --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
-  --traffic=LATEST
+  --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest"
+
+echo "==> Routing 100% traffic to latest revision..."
+gcloud run services update-traffic "${SERVICE_NAME}" \
+  --region "${REGION}" \
+  --to-latest
 
 echo ""
 echo "==> Deployed! Your app URL:"
