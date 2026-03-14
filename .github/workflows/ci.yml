@@ -66,8 +66,8 @@ jobs:
       - name: Install web dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r apps/web/requirements.txt
-          pip install ruff pytest-cov
+          pip install -r apps/web/requirements-lock.txt
+          pip install ruff pytest-cov mypy types-requests
 
       - name: Lint web (ruff)
         run: ruff check apps/web/app apps/web/tests
@@ -77,6 +77,9 @@ jobs:
 
       - name: Compile web sanity check
         run: python -m compileall apps/web/app apps/web/tests
+
+      - name: Type-check web (mypy, informational)
+        run: mypy --ignore-missing-imports --no-strict-optional --allow-untyped-defs apps/web/app || true
 
   bot-test-and-lint:
     runs-on: ubuntu-latest
@@ -119,12 +122,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
-          cache-dependency-path: apps/web/requirements.txt
+          cache-dependency-path: apps/web/requirements-lock.txt
 
       - name: Run web contract test
         run: |
           python -m pip install --upgrade pip
-          pip install -r apps/web/requirements.txt
+          pip install -r apps/web/requirements-lock.txt
           cd apps/web && pytest -q tests/test_shared_contract.py
 
       - name: Setup Node (contract)
