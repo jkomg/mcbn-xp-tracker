@@ -114,6 +114,12 @@
                             <i class="bi bi-exclamation-triangle"></i> <span>Error Alerts</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('settings.') %}active{% endif %}"
+                           href="{{ url_for('settings.index') }}">
+                            <i class="bi bi-gear"></i> <span>Settings</span>
+                        </a>
+                    </li>
                     {% if config.LOCAL_STATUS_ENABLED %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'local_status.status_page' %}active{% endif %}"
