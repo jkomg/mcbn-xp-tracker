@@ -85,6 +85,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
   --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
   --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
+  --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
   --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
   --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
   --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest"
