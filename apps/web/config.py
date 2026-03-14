@@ -37,6 +37,11 @@ class Config:
     ALLOWED_DISCORD_IDS = set(
         uid.strip() for uid in _allowed_ids.split(',') if uid.strip()
     )
+    # Comma-separated list of Discord user IDs allowed to edit Settings
+    _admin_ids = os.environ.get('SETTINGS_ADMIN_DISCORD_IDS', '')
+    SETTINGS_ADMIN_DISCORD_IDS = set(
+        uid.strip() for uid in _admin_ids.split(',') if uid.strip()
+    )
 
     # Cache TTL in seconds for Google Sheets reads
     SHEETS_CACHE_TTL = int(os.environ.get('SHEETS_CACHE_TTL', '30'))

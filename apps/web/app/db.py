@@ -1,7 +1,9 @@
 """SQLAlchemy models for MCbN XP Tracker."""
 
+from datetime import datetime
+
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Integer, String, Boolean, Text
+from sqlalchemy import DateTime, Integer, String, Boolean, Text
 
 db = SQLAlchemy()
 
@@ -107,3 +109,11 @@ class DbAuditLog(db.Model):
     action_type = db.Column(String(100), default='', index=True)
     target_character = db.Column(String(200), default='')
     details = db.Column(Text, default='')
+
+
+class AppSetting(db.Model):
+    __tablename__ = 'app_settings'
+    key = db.Column(String(64), primary_key=True)
+    value = db.Column(String(256), nullable=False)
+    updated_by = db.Column(String(100), nullable=False, default='')
+    updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
