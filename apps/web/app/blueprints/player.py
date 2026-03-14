@@ -136,6 +136,9 @@ def character(name):
     pending_claims = [
         c for c in claims if c.status.lower() == 'pending'
     ]
+    amend_claims = [
+        c for c in claims if c.status.lower() == 'amend'
+    ]
     pending_spends = [
         s for s in spends if s.status.lower() == 'pending'
     ]
@@ -165,6 +168,7 @@ def character(name):
         available_xp=xp['available_xp'],
         approved_claims=approved_claims,
         approved_spends=approved_spends,
+        amend_claims=amend_claims,
         pending_claims_count=len(pending_claims),
         pending_spends_count=len(pending_spends),
         ledger=ledger,
@@ -344,4 +348,83 @@ def submit_spend(name):
     except ValueError as e:
         flash(f'Invalid spend request: {e}', 'danger')
 
+    return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/claim/<int:claim_id>/amend', methods=['GET', 'POST'])
+@require_character_owner
+@_limit("10 per minute")
+def amend_claim(name, claim_id):
+    """Let a player edit and resubmit a claim that was re-opened for amendment."""
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    claim = db_service.get_claim_by_row(claim_id)
+    if not claim:
+        abort(404)
+
+    # Only allow amendment of claims belonging to this character and in Amend status
+    if claim.character_name.lower() != name.lower():
+        abort(403)
+    if claim.status.strip().lower() != 'amend':
+        flash('This claim is not open for amendment.', 'warning')
+        return redirect(url_for('player.character', name=name))
+
+    if request.method == 'GET':
+        return render_template('player/amend_claim.html', char=char, claim=claim)
+
+    # POST: process amended submission
+    category_keys = [
+        'posted_once', 'hunting_awakening', 'scene_with_another',
+        'conflict', 'combat', 'unmitigated_stain', 'wildcard',
+    ]
+    categories = {}
+    missing_links = []
+    for key in category_keys:
+        if request.form.get(key):
+            link = request.form.get(f'{key}_link', '').strip()
+            if not link:
+                missing_links.append(key)
+            categories[key] = link
+    if 'wildcard' in categories:
+        wildcard_reason = request.form.get('wildcard_reason', '').strip()[:500]
+        if not wildcard_reason:
+            flash('Please provide a reason for the wildcard XP claim.', 'danger')
+            return redirect(url_for('player.amend_claim', name=name, claim_id=claim_id))
+        categories['wildcard_reason'] = wildcard_reason
+        wildcard_amount = request.form.get('wildcard_amount', '1').strip()
+        try:
+            wildcard_amount = max(1, min(10, int(wildcard_amount)))
+        except (ValueError, TypeError):
+            wildcard_amount = 1
+        categories['wildcard_amount'] = str(wildcard_amount)
+
+    if not categories:
+        flash('Please select at least one XP category to claim.', 'danger')
+        return redirect(url_for('player.amend_claim', name=name, claim_id=claim_id))
+    if missing_links:
+        flash('A Discord post link is required for each claimed category.', 'danger')
+        return redirect(url_for('player.amend_claim', name=name, claim_id=claim_id))
+
+    discord_name = session.get('discord_name', 'unknown')
+    db_service.amend_claim(claim_id, categories)
+    db_service.log_action(
+        staff_user=f'player:{discord_name}',
+        action_type='player_claim_amended',
+        target=name,
+        details=f'Player amended and resubmitted claim for {claim.play_period}',
+    )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=f'player:{discord_name}',
+            action_type='player_claim_amended',
+            target=name,
+            details=f'Player amended and resubmitted claim for {claim.play_period}',
+        )
+    flash(
+        f'Your amended claim for {claim.play_period} has been resubmitted. '
+        f'Awaiting staff review.',
+        'success',
+    )
     return redirect(url_for('player.character', name=name))

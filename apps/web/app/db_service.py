@@ -398,6 +398,59 @@ class DBService:
         row.st_notes = notes
         db.session.commit()
 
+    def reopen_claim_for_amendment(self, row_index: int, reviewer: str,
+                                   notes: str = '') -> None:
+        """Set a denied claim to 'Amend' so the player can edit and resubmit."""
+        row = DbXPClaim.query.get(row_index)
+        if not row:
+            raise ValueError(f'Claim not found: {row_index}')
+        row.status = 'Amend'
+        row.reviewed_by = reviewer
+        row.review_date = _now_str()
+        row.st_notes = notes
+        db.session.commit()
+
+    def amend_claim(self, row_index: int, categories: dict) -> None:
+        """Update claim evidence fields in-place and return it to Pending."""
+        row = DbXPClaim.query.get(row_index)
+        if not row:
+            raise ValueError(f'Claim not found: {row_index}')
+        cat_keys = [
+            'posted_once', 'hunting_awakening', 'scene_with_another',
+            'conflict', 'combat', 'unmitigated_stain', 'wildcard',
+        ]
+        try:
+            wildcard_amount = int(categories.get('wildcard_amount', 1))
+        except (TypeError, ValueError):
+            wildcard_amount = 1
+        xp_claimed = sum(1 for k in cat_keys if k in categories and k != 'wildcard')
+        if 'wildcard' in categories:
+            xp_claimed += wildcard_amount
+        row.posted_once = 'posted_once' in categories
+        row.posted_once_link = categories.get('posted_once', '')
+        row.hunting_awakening = 'hunting_awakening' in categories
+        row.hunting_awakening_link = categories.get('hunting_awakening', '')
+        row.scene_with_another = 'scene_with_another' in categories
+        row.scene_with_another_link = categories.get('scene_with_another', '')
+        row.conflict = 'conflict' in categories
+        row.conflict_link = categories.get('conflict', '')
+        row.combat = 'combat' in categories
+        row.combat_link = categories.get('combat', '')
+        row.unmitigated_stain = 'unmitigated_stain' in categories
+        row.unmitigated_stain_link = categories.get('unmitigated_stain', '')
+        row.wildcard = 'wildcard' in categories
+        row.wildcard_link = categories.get('wildcard', '')
+        row.wildcard_reason = categories.get('wildcard_reason', '')
+        row.wildcard_amount = wildcard_amount if 'wildcard' in categories else 0
+        row.xp_claimed = xp_claimed
+        row.status = 'Pending'
+        row.timestamp = _now_str()
+        row.approved_xp = 0
+        row.reviewed_by = ''
+        row.review_date = ''
+        row.st_notes = ''
+        db.session.commit()
+
     def submit_xp_claim(self, character_name: str, play_period: str,
                         categories: dict) -> None:
         """Submit a new XP claim.

@@ -65,6 +65,25 @@
     </div>
 </div>
 
+<!-- Amendment notifications -->
+{% if amend_claims %}
+{% for ac in amend_claims %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <i class="bi bi-arrow-counterclockwise"></i>
+        <strong>Your claim for {{ ac.play_period }} needs amendment.</strong>
+        {% if ac.st_notes %}
+        <span class="text-muted ms-1">Staff note: "{{ ac.st_notes }}"</span>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('player.amend_claim', name=char.character_name, claim_id=ac.row_index) }}"
+       class="btn btn-sm btn-info">
+        <i class="bi bi-pencil"></i> Edit &amp; Resubmit
+    </a>
+</div>
+{% endfor %}
+{% endif %}
+
 <!-- Pending notifications -->
 {% if pending_claims_count > 0 or pending_spends_count > 0 %}
 <div class="alert alert-info">

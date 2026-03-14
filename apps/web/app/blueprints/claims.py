@@ -143,6 +143,37 @@ def deny(row_id):
     return redirect(url_for('claims.pending'))
 
 
+@bp.route('/<int:row_id>/reopen', methods=['POST'])
+@require_staff
+def reopen(row_id):
+    """Re-open a denied claim for player amendment."""
+    claim = db_service.get_claim_by_row(row_id)
+    if not claim:
+        abort(404)
+
+    if claim.status.strip().lower() != 'denied':
+        flash('Only denied claims can be re-opened for amendment.', 'warning')
+        return redirect(url_for('claims.review', row_id=row_id))
+
+    notes = request.form.get('notes', '')[:1000]
+    staff = get_staff_user()
+
+    db_service.reopen_claim_for_amendment(row_id, staff, notes)
+    db_service.log_action(
+        staff_user=staff,
+        action_type='reopen_claim',
+        target=claim.character_name,
+        details=f'Re-opened claim for {claim.play_period} for player amendment. {notes}'.strip(),
+    )
+
+    flash(
+        f'Claim for {claim.character_name} ({claim.play_period}) '
+        f'has been re-opened for amendment.',
+        'info',
+    )
+    return redirect(url_for('claims.review', row_id=row_id))
+
+
 @bp.route('/bulk-approve', methods=['POST'])
 @require_staff
 def bulk_approve():
