@@ -55,7 +55,8 @@ function validateBaseUrl(value: string): string {
     host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '::1' ||
-    host.endsWith('.local');
+    host.endsWith('.local') ||
+    !host.includes('.'); // Docker service name (e.g. "web")
 
   if (parsed.protocol !== 'https:' && !isLocalhost) {
     throw new Error('WEB_APP_BASE_URL must use https unless it targets localhost.');
