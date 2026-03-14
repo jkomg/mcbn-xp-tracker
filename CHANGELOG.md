@@ -1,5 +1,44 @@
 # Changelog
 
+## [2026-03-14] Turso DB Migration, Security Hardening, and Developer Practices
+
+### Breaking Changes
+
+- **Database**: Google Sheets is no longer the primary data store. Turso (libsql) is now the system of record. All reads and writes go through SQLAlchemy models. Sheets sync continues as a best-effort background mirror.
+- **`DATABASE_URL` required in production**: Set `DATABASE_URL=libsql+https://...` and `TURSO_AUTH_TOKEN` in Cloud Run secrets. See `docs/ENV_AND_SECRETS.md`.
+
+### Database Migration (Turso / libsql)
+
+- Replaced Sheets-as-primary-DB with SQLAlchemy + Turso (libsql) for all claims, spends, characters, ledger, and audit log.
+- Local dev defaults to SQLite when `DATABASE_URL` is unset.
+- SQLite path is now resolved to absolute at config load time so containers and migrations agree on the file path.
+- Added Flask-Migrate for schema change management. Baseline revision stamped; future changes use `flask db migrate` / `flask db upgrade`.
+- Added `platforms: linux/amd64` to all Docker compose build targets to fix libsql-experimental ARM wheel absence.
+- See release notes: `docs/RELEASE_2026-03-13_TURSO_DB_MIGRATION.md`.
+
+### Security
+
+- Fixed `require_character_owner` auth guard to use DB service instead of stale Sheets reference.
+- Added input length caps on all free-text fields: `wildcard_reason` ≤500, `justification` ≤1000, staff notes ≤1000, roster reason ≤500.
+- Added rate limits to player-facing claim and spend submit endpoints (10/min).
+
+### Performance
+
+- `GET /api/review-events` now filters claims and spends at the DB level (`review_date >= since_date_str`, `status IN ('approved', 'denied')`) instead of fetching all rows and filtering in Python.
+- Added composite DB index on `(character_name, play_period)` for claim lookups.
+
+### API Documentation
+
+- Added `docs/API_ENDPOINTS.md` documenting all 8 bot-facing endpoints with auth model, replay protection headers, request/response schemas, error codes, and pagination pattern.
+
+### Developer Practices
+
+- Added `.pre-commit-config.yaml`: ruff lint+format for `apps/web/`, plus yaml/json/trailing-whitespace/merge-conflict/large-file hooks.
+- Added `apps/web/requirements-lock.txt` (pip-compiled): all transitive Python dependencies pinned for reproducible CI and local installs.
+- Added `apps/web/pyproject.toml`: pytest and coverage config (`--cov-fail-under=30`, missing-line reporting).
+- CI (`web-test-and-lint`) now installs from `requirements-lock.txt`, runs pytest with 30% coverage gate, and runs mypy as an informational (non-failing) type check.
+- Added Flask-Migrate skeleton: `apps/web/migrations/` with baseline revision and schema change workflow documented in `apps/web/migrations/README`.
+
 ## [2026-03-11] Containerized Local Profiles, Notification Tuning, and Review Stability
 
 ### Containerized Local Profiles
