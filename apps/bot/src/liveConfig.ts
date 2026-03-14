@@ -1,12 +1,10 @@
-import { config } from './config';
-
-/** Mutable runtime config — updated by ConfigSyncWorker from /api/bot-config. */
+/** Mutable runtime config — seeded from .env in index.ts, then updated by ConfigSyncWorker. */
 export const liveConfig = {
-  reviewNotifierEnabled: config.reviewNotifierEnabled,
-  submissionNotifierEnabled: config.submissionNotifierEnabled,
-  autoPeriodCreatorEnabled: config.autoPeriodCreatorEnabled,
-  autoPeriodCloserEnabled: config.autoPeriodCloserEnabled,
-  claimReminderEnabled: config.claimReminderEnabled,
-  passageOfTimeEnabled: config.passageOfTimeEnabled,
-  huntConsequenceEnabled: config.huntConsequenceEnabled,
+  reviewNotifierEnabled: false,
+  submissionNotifierEnabled: false,
+  autoPeriodCreatorEnabled: false,
+  autoPeriodCloserEnabled: false,
+  claimReminderEnabled: false,
+  passageOfTimeEnabled: false,
+  huntConsequenceEnabled: false,
 };
