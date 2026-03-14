@@ -32,6 +32,9 @@ class FakeSheets:
         self.auto_create_calls = []
 
     def get_active_characters(self):
+        return [c for c in self.get_all_characters() if c.active]
+
+    def get_all_characters(self):
         return [
             Character(character_name='Alice', player_discord='111111111111111111', active=True),
             Character(character_name='Bob', player_discord='222222222222222222', active=True),
@@ -62,6 +65,20 @@ class FakeSheets:
 
     def log_action(self, **kwargs):
         self.audit.append(kwargs)
+
+    def get_reviewed_claims_since(self, since_date_str: str):
+        return [
+            c for c in self.get_all_claims()
+            if (c.status or '').lower() in ('approved', 'denied')
+            and (not since_date_str or (c.review_date or '') >= since_date_str)
+        ]
+
+    def get_reviewed_spends_since(self, since_date_str: str):
+        return [
+            s for s in self.get_all_spends()
+            if (s.status or '').lower() in ('approved', 'denied')
+            and (not since_date_str or (s.review_date or '') >= since_date_str)
+        ]
 
     def get_all_claims(self):
         return [
