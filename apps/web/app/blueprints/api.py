@@ -540,6 +540,31 @@ def review_events():
     return jsonify({'events': events, 'hasMore': has_more})
 
 
+@bp.route('/bot-config')
+@require_bot_scope('read')
+@_limit('10 per minute')
+def bot_config():
+    BOT_KEYS = {
+        'BOT_REVIEW_NOTIFIER_ENABLED': 'reviewNotifierEnabled',
+        'BOT_SUBMISSION_NOTIFIER_ENABLED': 'submissionNotifierEnabled',
+        'BOT_AUTO_PERIOD_CREATOR_ENABLED': 'autoPeriodCreatorEnabled',
+        'BOT_AUTO_PERIOD_CLOSER_ENABLED': 'autoPeriodCloserEnabled',
+        'BOT_CLAIM_REMINDER_ENABLED': 'claimReminderEnabled',
+        'BOT_PASSAGE_OF_TIME_ENABLED': 'passageOfTimeEnabled',
+        'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
+    }
+    from app.db import AppSetting
+    records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(BOT_KEYS)).all()}
+    result = {}
+    for db_key, api_key in BOT_KEYS.items():
+        record = records.get(db_key)
+        if record is None:
+            result[api_key] = None
+        else:
+            result[api_key] = record.value.lower() in ('true', '1', 'yes')
+    return jsonify(result)
+
+
 @bp.route('/periods/auto-create', methods=['POST'])
 @require_bot_scope('write')
 @require_replay_protection

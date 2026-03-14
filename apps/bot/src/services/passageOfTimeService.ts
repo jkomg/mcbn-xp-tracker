@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { AttachmentBuilder, ChannelType, type Client, type GuildTextBasedChannel, type TextChannel, type NewsChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
+import { liveConfig } from '../liveConfig';
 
 type ScheduledEventConfig = {
   name: 'sunrise' | 'sunset' | 'downtime';
@@ -207,7 +208,7 @@ export class PassageOfTimeService {
   }
 
   start() {
-    if (!this.config.enabled || this.timer) {
+    if (this.timer) {
       return;
     }
     if (!this.config.guildId) {
@@ -243,6 +244,7 @@ export class PassageOfTimeService {
   }
 
   private async tick() {
+    if (!liveConfig.passageOfTimeEnabled) return;
     if (this.running) {
       return;
     }

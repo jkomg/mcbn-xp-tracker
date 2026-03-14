@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client } from 'disco
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import { findCubbyChannel } from './cubbyChannels';
+import { liveConfig } from '../liveConfig';
 
 type AutoPeriodCloserConfig = {
   enabled: boolean;
@@ -33,7 +34,7 @@ export class AutoPeriodCloser {
   }
 
   start() {
-    if (!this.config.enabled || this.timer) {
+    if (this.timer) {
       return;
     }
     if (!this.config.guildId) {
@@ -57,6 +58,7 @@ export class AutoPeriodCloser {
   }
 
   private async tick() {
+    if (!liveConfig.autoPeriodCloserEnabled) return;
     if (this.running) {
       return;
     }

@@ -6,6 +6,7 @@ import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
 import { findCubbyChannel } from './cubbyChannels';
+import { liveConfig } from '../liveConfig';
 
 const STATE_PATH = path.resolve('./data/review-notifier-cursor.json');
 
@@ -99,9 +100,6 @@ export class ReviewNotifier {
   }
 
   start() {
-    if (!this.config.enabled) {
-      return;
-    }
     if (!this.config.guildId) {
       logEvent('warn', 'review_notifier_disabled_missing_guild');
       return;
@@ -130,6 +128,7 @@ export class ReviewNotifier {
   }
 
   private async pollOnce() {
+    if (!liveConfig.reviewNotifierEnabled) return;
     if (this.polling || !this.config.guildId) {
       return;
     }

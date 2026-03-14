@@ -1,5 +1,6 @@
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
+import { liveConfig } from '../liveConfig';
 
 type AutoPeriodCreatorConfig = {
   enabled: boolean;
@@ -18,7 +19,7 @@ export class AutoPeriodCreator {
   }
 
   start() {
-    if (!this.config.enabled || this.timer) {
+    if (this.timer) {
       return;
     }
     this.timer = setInterval(() => {
@@ -38,6 +39,7 @@ export class AutoPeriodCreator {
   }
 
   private async tick() {
+    if (!liveConfig.autoPeriodCreatorEnabled) return;
     if (this.running) {
       return;
     }

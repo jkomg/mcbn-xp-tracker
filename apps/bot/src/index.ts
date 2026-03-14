@@ -31,6 +31,7 @@ import {
   isHuntConsequenceButton,
   handleHuntConsequenceButton,
 } from './services/huntConsequenceMonitor';
+import { ConfigSyncWorker } from './services/configSyncWorker';
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   requestTimeoutMs: config.requestTimeoutMs,
@@ -127,6 +128,8 @@ const passageOfTimeService = new PassageOfTimeService(client, {
   ],
 });
 
+const configSyncWorker = new ConfigSyncWorker(adapter);
+
 // Build hunt consequence config, respecting test mode
 const huntConsequenceCfg = {
   enabled: config.huntConsequenceEnabled,
@@ -145,6 +148,7 @@ const huntConsequenceCfg = {
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
+  configSyncWorker.start();
   reviewNotifier.start();
   autoPeriodCreator.start();
   autoPeriodCloser.start();

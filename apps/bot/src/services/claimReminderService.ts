@@ -4,6 +4,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client } from 'disco
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import { findCubbyChannel } from './cubbyChannels';
+import { liveConfig } from '../liveConfig';
 
 export const CLAIM_REMINDER_BUTTON_PREFIX = 'xp:claim-reminder:';
 export const CLAIM_REMINDER_ACTION_START = 'start';
@@ -153,7 +154,7 @@ export class ClaimReminderService {
   }
 
   start() {
-    if (!this.config.enabled || this.timer) {
+    if (this.timer) {
       return;
     }
     if (!this.config.guildId) {
@@ -183,6 +184,7 @@ export class ClaimReminderService {
   }
 
   private async tick() {
+    if (!liveConfig.claimReminderEnabled) return;
     if (this.running) {
       return;
     }
