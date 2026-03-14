@@ -39,7 +39,7 @@
         </div>
     </nav>
 
-    <div class="d-flex">
+    <div class="d-flex" style="height: 100vh; overflow: hidden;">
         <!-- Sidebar: offcanvas on mobile, permanent on md+ -->
         <nav class="sidebar offcanvas-md offcanvas-start bg-dark border-end border-secondary" id="sidebar"
              tabindex="-1" aria-labelledby="sidebarLabel">
@@ -148,7 +148,7 @@
         </nav>
 
         <!-- Main content -->
-        <main class="flex-grow-1 p-4" style="min-height: 100vh;">
+        <main class="flex-grow-1 p-4" style="height: 100vh; overflow-y: auto;">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
