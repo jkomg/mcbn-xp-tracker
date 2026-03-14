@@ -87,9 +87,8 @@ body.login-page {
 
 @media (min-width: 768px) {
     .sidebar {
-        min-height: 100vh;
-        position: sticky;
-        top: 0;
+        height: 100vh;
+        overflow-y: auto;
     }
 }
 
