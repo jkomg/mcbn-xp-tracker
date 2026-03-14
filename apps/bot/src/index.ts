@@ -25,6 +25,7 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
+import { SubmissionNotifier } from './services/submissionNotifier';
 import {
   startHuntConsequenceMonitor,
   isHuntConsequenceButton,
@@ -61,6 +62,13 @@ const autoPeriodCloser = new AutoPeriodCloser(client, adapter, {
   enabled: config.autoPeriodCloserEnabled,
   guildId: config.autoPeriodCloserGuildId,
   intervalMs: config.autoPeriodCloserIntervalMs,
+});
+
+const submissionNotifier = new SubmissionNotifier(client, adapter, {
+  enabled: config.submissionNotifierEnabled,
+  channelId: config.submissionNotifierChannelId,
+  intervalMs: config.submissionNotifierIntervalMs,
+  lookbackSeconds: config.submissionNotifierLookbackSeconds,
 });
 
 const claimReminderService = new ClaimReminderService(client, adapter, {
@@ -140,6 +148,7 @@ client.once('ready', async () => {
   reviewNotifier.start();
   autoPeriodCreator.start();
   autoPeriodCloser.start();
+  submissionNotifier.start();
   claimReminderService.start();
   passageOfTimeService.start();
   startCubbyChannelMonitor(client);

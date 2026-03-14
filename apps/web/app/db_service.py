@@ -420,6 +420,13 @@ class DBService:
         ).order_by(DbXPClaim.id.asc()).all()
         return [_row_to_claim(r) for r in rows]
 
+    def get_pending_claims_since(self, since_date_str: str) -> list[XPClaim]:
+        """Return pending claims submitted at or after since_date_str ('YYYYMMDD HH:MM:SS')."""
+        q = DbXPClaim.query.filter(func.lower(DbXPClaim.status) == 'pending')
+        if since_date_str:
+            q = q.filter(DbXPClaim.timestamp >= since_date_str)
+        return [_row_to_claim(r) for r in q.order_by(DbXPClaim.id.asc()).all()]
+
     def get_claims_for_character(self, name: str) -> list[XPClaim]:
         rows = DbXPClaim.query.filter(
             func.lower(DbXPClaim.character_name) == name.lower()
@@ -587,6 +594,13 @@ class DBService:
             func.lower(DbSpendRequest.status) == 'pending'
         ).order_by(DbSpendRequest.id.asc()).all()
         return [_row_to_spend(r) for r in rows]
+
+    def get_pending_spends_since(self, since_date_str: str) -> list[SpendRequest]:
+        """Return pending spends submitted at or after since_date_str ('YYYYMMDD HH:MM:SS')."""
+        q = DbSpendRequest.query.filter(func.lower(DbSpendRequest.status) == 'pending')
+        if since_date_str:
+            q = q.filter(DbSpendRequest.timestamp >= since_date_str)
+        return [_row_to_spend(r) for r in q.order_by(DbSpendRequest.id.asc()).all()]
 
     def get_spends_for_character(self, name: str) -> list[SpendRequest]:
         rows = DbSpendRequest.query.filter(

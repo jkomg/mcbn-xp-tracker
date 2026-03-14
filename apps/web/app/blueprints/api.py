@@ -348,6 +348,93 @@ def character_summary(name: str):
     )
 
 
+@bp.route('/submission-events', methods=['GET'])
+@require_bot_scope('read')
+@_limit("30 per minute")
+def submission_events():
+    """Return pending claims/spends submitted since sinceEpoch.
+
+    Used by the bot's SubmissionNotifier to post staff-channel alerts when
+    new claims or spends arrive.
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    try:
+        limit = int(request.args.get('limit', '100'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be an integer'}), 400
+    if limit < 1 or limit > 500:
+        return jsonify({'error': 'limit must be between 1 and 500'}), 400
+
+    try:
+        since_epoch = int(request.args.get('sinceEpoch', '0'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'sinceEpoch must be an integer'}), 400
+    if since_epoch < 0:
+        return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+    since_event_key = str(request.args.get('sinceEventKey', '')).strip()
+
+    discord_by_name: dict[str, str] = {}
+    for char in db_service.get_all_characters():
+        if char.player_discord:
+            discord_by_name[char.character_name.lower()] = char.player_discord
+
+    since_date_str = (
+        datetime.fromtimestamp(since_epoch, tz=timezone.utc).strftime('%Y%m%d %H:%M:%S')
+        if since_epoch > 0 else ''
+    )
+
+    events = []
+
+    for claim in db_service.get_pending_claims_since(since_date_str):
+        submitted_epoch = _parse_review_date_epoch(claim.timestamp)
+        event_key = f'claim:{claim.row_index}:pending:{submitted_epoch}'
+        if submitted_epoch == since_epoch:
+            if not since_event_key or event_key <= since_event_key:
+                continue
+        events.append({
+            'eventKey': event_key,
+            'kind': 'claim',
+            'rowIndex': claim.row_index,
+            'characterName': claim.character_name,
+            'playerDiscordId': discord_by_name.get(claim.character_name.lower(), ''),
+            'submittedAt': claim.timestamp,
+            'submittedAtEpoch': submitted_epoch,
+            'playPeriod': claim.play_period,
+            'requestedXp': claim.xp_claimed,
+        })
+
+    for spend in db_service.get_pending_spends_since(since_date_str):
+        submitted_epoch = _parse_review_date_epoch(spend.timestamp)
+        event_key = f'spend:{spend.row_index}:pending:{submitted_epoch}'
+        if submitted_epoch == since_epoch:
+            if not since_event_key or event_key <= since_event_key:
+                continue
+        events.append({
+            'eventKey': event_key,
+            'kind': 'spend',
+            'rowIndex': spend.row_index,
+            'characterName': spend.character_name,
+            'playerDiscordId': discord_by_name.get(spend.character_name.lower(), ''),
+            'submittedAt': spend.timestamp,
+            'submittedAtEpoch': submitted_epoch,
+            'spendCategory': spend.spend_category,
+            'traitName': spend.trait_name,
+            'currentDots': spend.current_dots,
+            'newDots': spend.new_dots,
+            'requestedCost': spend.xp_cost,
+        })
+
+    events.sort(key=lambda e: (e['submittedAtEpoch'], e['eventKey']))
+    has_more = len(events) > limit
+    if has_more:
+        events = events[:limit]
+
+    return jsonify({'events': events, 'hasMore': has_more})
+
+
 @bp.route('/review-events', methods=['GET'])
 @require_bot_scope('read')
 @_limit("30 per minute")

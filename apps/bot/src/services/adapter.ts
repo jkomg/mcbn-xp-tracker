@@ -7,6 +7,7 @@ import type {
   ClaimReminderSnapshot,
   ClaimPayload,
   ReviewEvent,
+  SubmissionEvent,
   RequesterContext,
   SpendPayload,
   XpSummary,
@@ -30,6 +31,11 @@ export interface TrackerAdapter {
     nightNumber?: number;
     reminderTargets?: Array<{ discordId: string; characterName: string }>;
   }>;
+  getSubmissionEvents(opts?: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  }): Promise<{ events: SubmissionEvent[]; hasMore: boolean }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -116,6 +122,38 @@ const autoClosePeriodSchema = z.object({
     .optional(),
 });
 
+const submissionEventBase = {
+  eventKey: z.string(),
+  rowIndex: z.number(),
+  characterName: z.string(),
+  playerDiscordId: z.string().optional(),
+  submittedAt: z.string(),
+  submittedAtEpoch: z.number(),
+};
+
+const submissionEventSchema = z.discriminatedUnion('kind', [
+  z.object({
+    ...submissionEventBase,
+    kind: z.literal('claim'),
+    playPeriod: z.string(),
+    requestedXp: z.number(),
+  }),
+  z.object({
+    ...submissionEventBase,
+    kind: z.literal('spend'),
+    spendCategory: z.string(),
+    traitName: z.string(),
+    currentDots: z.number(),
+    newDots: z.number(),
+    requestedCost: z.number(),
+  }),
+]);
+
+const submissionEventsSchema = z.object({
+  events: z.array(submissionEventSchema),
+  hasMore: z.boolean().optional(),
+});
+
 type AdapterOptions = {
   requestTimeoutMs?: number;
   claimContextCacheTtlMs?: number;
@@ -198,6 +236,40 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     return claimReminderTargetsSchema.parse(raw);
+  }
+
+  async getSubmissionEvents(opts: {
+    sinceEpoch?: number;
+    sinceEventKey?: string;
+    limit?: number;
+  } = {}): Promise<{ events: SubmissionEvent[]; hasMore: boolean }> {
+    const params = new URLSearchParams();
+    if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
+      params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
+    }
+    if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
+      params.set('limit', String(Math.floor(opts.limit)));
+    }
+    if (opts.sinceEventKey) {
+      params.set('sinceEventKey', opts.sinceEventKey);
+    }
+
+    const query = params.toString();
+    const url = `${this.baseUrl}/api/submission-events${query ? `?${query}` : ''}`;
+    const resp = await this.fetchWithTimeout(url, {
+      headers: this.authHeaders(),
+    }).catch(() => null);
+
+    if (!resp) {
+      throw new Error('Unable to reach web app submission-events API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app submission-events API failed (${resp.status})`);
+    }
+
+    const raw = await resp.json();
+    const parsed = submissionEventsSchema.parse(raw);
+    return { events: parsed.events as SubmissionEvent[], hasMore: parsed.hasMore ?? false };
   }
 
   async getReviewEvents(opts: {

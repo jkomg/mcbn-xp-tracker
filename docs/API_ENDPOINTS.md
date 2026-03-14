@@ -129,6 +129,59 @@ staff can access any.
 
 ---
 
+## GET /api/submission-events
+
+**Scope:** read | **Rate limit:** 30/min
+
+Returns pending claims and spends submitted since a given timestamp.
+Used by the bot's SubmissionNotifier to post alerts to a staff channel when new submissions arrive.
+
+**Query params:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sinceEpoch` | int | 0 | Unix timestamp; return events submitted at or after this time |
+| `sinceEventKey` | string | — | Cursor from last page |
+| `limit` | int | 100 | Max events per response (1–500) |
+
+**Response 200:**
+```json
+{
+  "events": [
+    {
+      "eventKey": "claim:42:pending:1741200000",
+      "kind": "claim",
+      "rowIndex": 42,
+      "characterName": "Alice",
+      "playerDiscordId": "111111111111111111",
+      "submittedAt": "20260301 14:00:00",
+      "submittedAtEpoch": 1741200000,
+      "playPeriod": "Night 77 - 3/1 - 3/15",
+      "requestedXp": 3
+    },
+    {
+      "eventKey": "spend:22:pending:1741203600",
+      "kind": "spend",
+      "rowIndex": 22,
+      "characterName": "Alice",
+      "playerDiscordId": "111111111111111111",
+      "submittedAt": "20260301 15:00:00",
+      "submittedAtEpoch": 1741203600,
+      "spendCategory": "Merit/Background",
+      "traitName": "Status",
+      "currentDots": 2,
+      "newDots": 3,
+      "requestedCost": 3
+    }
+  ],
+  "hasMore": false
+}
+```
+
+Only pending items are returned. Once a claim or spend is reviewed (approved/denied), it no longer appears here.
+
+---
+
 ## GET /api/review-events
 
 **Scope:** read | **Rate limit:** 30/min

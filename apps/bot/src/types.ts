@@ -108,3 +108,30 @@ export type SpendReviewEvent = ReviewEventBase & {
 };
 
 export type ReviewEvent = ClaimReviewEvent | SpendReviewEvent;
+
+export type SubmissionEventBase = {
+  eventKey: string;
+  kind: 'claim' | 'spend';
+  rowIndex: number;
+  characterName: string;
+  playerDiscordId?: string;
+  submittedAt: string;
+  submittedAtEpoch: number;
+};
+
+export type ClaimSubmissionEvent = SubmissionEventBase & {
+  kind: 'claim';
+  playPeriod: string;
+  requestedXp: number;
+};
+
+export type SpendSubmissionEvent = SubmissionEventBase & {
+  kind: 'spend';
+  spendCategory: string;
+  traitName: string;
+  currentDots: number;
+  newDots: number;
+  requestedCost: number;
+};
+
+export type SubmissionEvent = ClaimSubmissionEvent | SpendSubmissionEvent;
