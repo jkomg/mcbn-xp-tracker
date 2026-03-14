@@ -68,6 +68,9 @@
       <a href="{{ url_for('roster.list_characters') }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Roster
       </a>
+      <a href="{{ url_for('roster.xp_audit', name=char.character_name) }}" class="btn btn-sm btn-outline-info">
+        <i class="bi bi-clock-history"></i> XP Audit
+      </a>
       <a href="{{ url_for('roster.adjust_xp_form', name=char.character_name) }}" class="btn btn-sm btn-warning">
         <i class="bi bi-sliders"></i> Adjust XP
       </a>

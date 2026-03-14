@@ -922,3 +922,109 @@ class DBService:
             )
             for r in rows
         ]
+
+    def get_xp_timeline(self, name: str) -> dict | None:
+        """Return a character's full XP history as a unified, sorted timeline.
+
+        Combines approved claims, approved spends, and ledger entries into a
+        single chronological list with a running balance. Pending and denied
+        items are returned separately for reference.
+
+        Each event dict has:
+          kind        – 'claim' | 'spend' | 'ledger'
+          sort_key    – comparable string for chronological ordering
+          date_display – human-readable date string
+          delta       – signed XP change (positive = gain, negative = cost)
+          description – short summary line
+          detail      – secondary info (reviewer, period, etc.)
+          row_id      – DB row id for linking
+          status      – 'approved' | 'pending' | 'denied' | 'amend'
+        """
+        char = self.get_character(name)
+        if not char:
+            return None
+
+        claims = self.get_claims_for_character(name)
+        spends = self.get_spends_for_character(name)
+        ledger = self.get_ledger_for_character(name)
+
+        def _sort_key(raw: str) -> str:
+            """Normalize YYYYMMDD[ HH:MM:SS] to a sortable string."""
+            return (raw or '').strip().replace(' ', 'T') or '00000000'
+
+        def _display_date(raw: str) -> str:
+            """Convert YYYYMMDD[ HH:MM:SS] to YYYY-MM-DD."""
+            s = (raw or '').strip()[:8]
+            if len(s) == 8 and s.isdigit():
+                return f'{s[:4]}-{s[4:6]}-{s[6:]}'
+            return s or '—'
+
+        approved_events: list[dict] = []
+        pending_claims: list[XPClaim] = []
+        pending_spends: list[SpendRequest] = []
+        other_claims: list[XPClaim] = []
+        other_spends: list[SpendRequest] = []
+
+        for c in claims:
+            st = c.status.strip().lower()
+            if st == 'approved':
+                approved_events.append({
+                    'kind': 'claim',
+                    'sort_key': _sort_key(c.review_date),
+                    'date_display': _display_date(c.review_date),
+                    'delta': c.approved_xp or c.xp_claimed or 0,
+                    'description': f'XP Claim — {c.play_period}',
+                    'detail': f'Approved by {c.reviewed_by}' if c.reviewed_by else '',
+                    'row_id': c.row_index,
+                    'status': 'approved',
+                })
+            elif st == 'pending':
+                pending_claims.append(c)
+            else:
+                other_claims.append(c)
+
+        for s in spends:
+            st = s.status.strip().lower()
+            if st == 'approved':
+                cost = s.verified_cost or s.xp_cost or 0
+                approved_events.append({
+                    'kind': 'spend',
+                    'sort_key': _sort_key(s.review_date),
+                    'date_display': _display_date(s.review_date),
+                    'delta': -cost,
+                    'description': f'Spend — {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                    'detail': f'{s.spend_category} · Approved by {s.reviewed_by}' if s.reviewed_by else s.spend_category,
+                    'row_id': s.row_index,
+                    'status': 'approved',
+                })
+            elif st == 'pending':
+                pending_spends.append(s)
+            else:
+                other_spends.append(s)
+
+        for e in ledger:
+            delta = (e.awarded or 0) - (e.spent or 0)
+            approved_events.append({
+                'kind': 'ledger',
+                'sort_key': _sort_key(e.date),
+                'date_display': _display_date(e.date),
+                'delta': delta,
+                'description': e.reason or '(no reason)',
+                'detail': f'Entered by {e.entered_by}' if e.entered_by else '',
+                'row_id': e.row_index,
+                'status': 'approved',
+            })
+
+        approved_events.sort(key=lambda ev: ev['sort_key'])
+
+        xp = self.get_xp_totals(name)
+        return {
+            'character': char,
+            'creation_xp': char.creation_xp or 0,
+            'events': approved_events,
+            'pending_claims': pending_claims,
+            'pending_spends': pending_spends,
+            'other_claims': other_claims,
+            'other_spends': other_spends,
+            'summary': xp,
+        }
