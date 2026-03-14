@@ -5,6 +5,7 @@ import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { SubmissionEvent } from '../types';
+import { liveConfig } from '../liveConfig';
 
 const STATE_PATH = path.resolve('./data/submission-notifier-cursor.json');
 
@@ -78,9 +79,6 @@ export class SubmissionNotifier {
   }
 
   start() {
-    if (!this.config.enabled) {
-      return;
-    }
     if (!this.config.channelId) {
       logEvent('warn', 'submission_notifier_disabled_missing_channel');
       return;
@@ -109,6 +107,7 @@ export class SubmissionNotifier {
   }
 
   private async pollOnce() {
+    if (!liveConfig.submissionNotifierEnabled) return;
     if (this.polling || !this.config.channelId) {
       return;
     }

@@ -31,6 +31,17 @@ import {
   isHuntConsequenceButton,
   handleHuntConsequenceButton,
 } from './services/huntConsequenceMonitor';
+import { ConfigSyncWorker } from './services/configSyncWorker';
+import { liveConfig } from './liveConfig';
+
+// Seed liveConfig from .env values so services start with the correct initial state.
+liveConfig.reviewNotifierEnabled = config.reviewNotifierEnabled;
+liveConfig.submissionNotifierEnabled = config.submissionNotifierEnabled;
+liveConfig.autoPeriodCreatorEnabled = config.autoPeriodCreatorEnabled;
+liveConfig.autoPeriodCloserEnabled = config.autoPeriodCloserEnabled;
+liveConfig.claimReminderEnabled = config.claimReminderEnabled;
+liveConfig.passageOfTimeEnabled = config.passageOfTimeEnabled;
+liveConfig.huntConsequenceEnabled = config.huntConsequenceEnabled;
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   requestTimeoutMs: config.requestTimeoutMs,
@@ -127,6 +138,8 @@ const passageOfTimeService = new PassageOfTimeService(client, {
   ],
 });
 
+const configSyncWorker = new ConfigSyncWorker(adapter);
+
 // Build hunt consequence config, respecting test mode
 const huntConsequenceCfg = {
   enabled: config.huntConsequenceEnabled,
@@ -145,6 +158,7 @@ const huntConsequenceCfg = {
 client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
+  configSyncWorker.start();
   reviewNotifier.start();
   autoPeriodCreator.start();
   autoPeriodCloser.start();

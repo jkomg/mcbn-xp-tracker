@@ -9,6 +9,7 @@ import {
   type TextChannel,
 } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
+import { liveConfig } from '../liveConfig';
 
 // ── Charts ────────────────────────────────────────────────────────────────────
 
@@ -139,9 +140,8 @@ function buildPrompt(
 // ── Monitor startup ───────────────────────────────────────────────────────────
 
 export function startHuntConsequenceMonitor(client: Client, cfg: HuntConsequenceConfig): void {
-  if (!cfg.enabled) return;
-
   async function handleMessage(message: Message, isUpdate = false): Promise<void> {
+    if (!liveConfig.huntConsequenceEnabled) return;
     if (message.author.id !== cfg.eldestBotId) return;
     if (!cfg.monitorChannelIds.has(message.channelId)) return;
 

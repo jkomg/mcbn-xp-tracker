@@ -177,49 +177,76 @@ def index():
         },
     ]
 
-    # ── Bot feature flags (static reference — bot config is not accessible here) ──
+    # ── Bot feature flags (DB-backed; bot polls /api/bot-config) ──────────────
+    def _bot_flag_status(key, overrides):
+        record = overrides.get(key)
+        if record is None:
+            return {'db_set': False, 'enabled': False}
+        return {'db_set': True, 'enabled': record.value.lower() in ('true', '1', 'yes')}
+
     bot_flags = [
         {
             'label': 'Review Notifier',
+            'key': 'BOT_REVIEW_NOTIFIER_ENABLED',
             'env': 'REVIEW_NOTIFIER_ENABLED',
-            'description': 'Posts claim/spend approval and denial notices into character cubby channels.',
             'interval_env': 'REVIEW_NOTIFIER_INTERVAL_MS',
+            'description': 'Posts claim/spend approval and denial notices into character cubby channels.',
+            'editable': True,
+            **_bot_flag_status('BOT_REVIEW_NOTIFIER_ENABLED', overrides),
         },
         {
             'label': 'Submission Notifier',
+            'key': 'BOT_SUBMISSION_NOTIFIER_ENABLED',
             'env': 'SUBMISSION_NOTIFIER_ENABLED',
-            'description': 'Posts new claim and spend submissions to a staff channel.',
             'interval_env': 'SUBMISSION_NOTIFIER_INTERVAL_MS',
+            'description': 'Posts new claim and spend submissions to a staff channel.',
+            'editable': True,
+            **_bot_flag_status('BOT_SUBMISSION_NOTIFIER_ENABLED', overrides),
         },
         {
             'label': 'Auto-Create Periods',
+            'key': 'BOT_AUTO_PERIOD_CREATOR_ENABLED',
             'env': 'AUTO_PERIOD_CREATOR_ENABLED',
-            'description': 'Bot triggers web-side period creation on a schedule.',
             'interval_env': 'AUTO_PERIOD_CREATOR_INTERVAL_MS',
+            'description': 'Bot triggers web-side period creation on a schedule.',
+            'editable': True,
+            **_bot_flag_status('BOT_AUTO_PERIOD_CREATOR_ENABLED', overrides),
         },
         {
             'label': 'Auto-Close Periods',
+            'key': 'BOT_AUTO_PERIOD_CLOSER_ENABLED',
             'env': 'AUTO_PERIOD_CLOSER_ENABLED',
-            'description': 'Bot triggers web-side period close and sends DMs to non-submitters.',
             'interval_env': 'AUTO_PERIOD_CLOSER_INTERVAL_MS',
+            'description': 'Bot triggers web-side period close and sends DMs to non-submitters.',
+            'editable': True,
+            **_bot_flag_status('BOT_AUTO_PERIOD_CLOSER_ENABLED', overrides),
         },
         {
             'label': 'Claim Reminders',
+            'key': 'BOT_CLAIM_REMINDER_ENABLED',
             'env': 'CLAIM_REMINDER_ENABLED',
-            'description': 'DMs players with active characters who haven\'t filed a claim for the current period.',
             'interval_env': 'CLAIM_REMINDER_INTERVAL_MS',
+            'description': "DMs players with active characters who haven't filed a claim for the current period.",
+            'editable': True,
+            **_bot_flag_status('BOT_CLAIM_REMINDER_ENABLED', overrides),
         },
         {
             'label': 'Passage of Time',
+            'key': 'BOT_PASSAGE_OF_TIME_ENABLED',
             'env': 'PASSAGE_OF_TIME_ENABLED',
-            'description': 'Posts sunrise, sunset, and downtime messages on a fortnightly/bi-monthly cadence.',
             'interval_env': 'PASSAGE_OF_TIME_INTERVAL_MS',
+            'description': 'Posts sunrise, sunset, and downtime messages on a fortnightly/bi-monthly cadence.',
+            'editable': True,
+            **_bot_flag_status('BOT_PASSAGE_OF_TIME_ENABLED', overrides),
         },
         {
             'label': 'Hunt Consequence Monitor',
+            'key': 'BOT_HUNT_CONSEQUENCE_ENABLED',
             'env': 'HUNT_CONSEQUENCE_ENABLED',
-            'description': 'Monitors designated channels for hunt posts and routes consequence rolls to staff.',
             'interval_env': None,
+            'description': 'Monitors designated channels for hunt posts and routes consequence rolls to staff.',
+            'editable': True,
+            **_bot_flag_status('BOT_HUNT_CONSEQUENCE_ENABLED', overrides),
         },
     ]
 
@@ -253,13 +280,27 @@ def update():
         or session.get('discord_id', 'unknown')
     )
 
+    # Keys that are always boolean regardless of whether they appear in app.config.
+    _BOOL_KEYS = {
+        'AUTO_CREATE_PERIODS_ENABLED',
+        'AUTO_CLOSE_PERIODS_ENABLED',
+        'BOT_API_REPLAY_PROTECTION_ENABLED',
+        'BOT_REVIEW_NOTIFIER_ENABLED',
+        'BOT_SUBMISSION_NOTIFIER_ENABLED',
+        'BOT_AUTO_PERIOD_CREATOR_ENABLED',
+        'BOT_AUTO_PERIOD_CLOSER_ENABLED',
+        'BOT_CLAIM_REMINDER_ENABLED',
+        'BOT_PASSAGE_OF_TIME_ENABLED',
+        'BOT_HUNT_CONSEQUENCE_ENABLED',
+    }
+
     if action == 'reset':
         delete_app_setting(key)
         flash(f'{key} reset to environment default.', 'success')
     else:
         raw_value = request.form.get('value', '').strip()
         cfg_val = current_app.config.get(key)
-        if isinstance(cfg_val, bool):
+        if key in _BOOL_KEYS or isinstance(cfg_val, bool):
             coerced = raw_value.lower() in ('true', '1', 'yes', 'on')
             set_app_setting(key, str(coerced).lower(), updated_by)
         else:

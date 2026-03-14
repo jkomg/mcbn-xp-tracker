@@ -13,6 +13,16 @@ import type {
   XpSummary,
 } from '../types';
 
+export interface BotConfigResponse {
+  reviewNotifierEnabled: boolean | null;
+  submissionNotifierEnabled: boolean | null;
+  autoPeriodCreatorEnabled: boolean | null;
+  autoPeriodCloserEnabled: boolean | null;
+  claimReminderEnabled: boolean | null;
+  passageOfTimeEnabled: boolean | null;
+  huntConsequenceEnabled: boolean | null;
+}
+
 export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
@@ -39,6 +49,7 @@ export interface TrackerAdapter {
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
+  getBotConfig(): Promise<BotConfigResponse>;
 }
 
 const summarySchema = z.object({
@@ -432,6 +443,13 @@ export class WebAppAdapter implements TrackerAdapter {
       webApi,
       claimContext,
     };
+  }
+
+  async getBotConfig(): Promise<BotConfigResponse> {
+    const url = `${this.baseUrl}/api/bot-config`;
+    const res = await this.fetchWithTimeout(url, { headers: this.authHeaders() });
+    if (!res.ok) throw new Error(`bot-config fetch failed: ${res.status}`);
+    return res.json() as Promise<BotConfigResponse>;
   }
 
   private async post(path: string, body: unknown, successMessage: string) {
