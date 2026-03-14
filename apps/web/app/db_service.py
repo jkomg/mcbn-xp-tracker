@@ -350,6 +350,14 @@ class DBService:
         rows = DbXPClaim.query.order_by(DbXPClaim.id.asc()).all()
         return [_row_to_claim(r) for r in rows]
 
+    def get_reviewed_claims_since(self, since_date_str: str) -> list[XPClaim]:
+        """Return approved/denied claims with review_date >= since_date_str ('YYYYMMDD HH:MM:SS')."""
+        rows = DbXPClaim.query.filter(
+            func.lower(DbXPClaim.status).in_(['approved', 'denied']),
+            DbXPClaim.review_date >= since_date_str,
+        ).order_by(DbXPClaim.id.asc()).all()
+        return [_row_to_claim(r) for r in rows]
+
     def get_pending_claims(self) -> list[XPClaim]:
         rows = DbXPClaim.query.filter(
             func.lower(DbXPClaim.status) == 'pending'
@@ -455,6 +463,14 @@ class DBService:
 
     def get_all_spends(self) -> list[SpendRequest]:
         rows = DbSpendRequest.query.order_by(DbSpendRequest.id.asc()).all()
+        return [_row_to_spend(r) for r in rows]
+
+    def get_reviewed_spends_since(self, since_date_str: str) -> list[SpendRequest]:
+        """Return approved/denied spends with review_date >= since_date_str ('YYYYMMDD HH:MM:SS')."""
+        rows = DbSpendRequest.query.filter(
+            func.lower(DbSpendRequest.status).in_(['approved', 'denied']),
+            DbSpendRequest.review_date >= since_date_str,
+        ).order_by(DbSpendRequest.id.asc()).all()
         return [_row_to_spend(r) for r in rows]
 
     def get_pending_spends(self) -> list[SpendRequest]:

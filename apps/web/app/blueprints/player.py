@@ -4,7 +4,7 @@ from flask import (
     Blueprint, render_template, request, abort, flash, redirect, url_for,
     session,
 )
-from app import db_service, sheets_sync
+from app import db_service, sheets_sync, limiter
 from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
@@ -13,6 +13,12 @@ from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
 bp = Blueprint('player', __name__)
+
+
+def _limit(rule: str):
+    if limiter is None:
+        return lambda f: f
+    return limiter.limit(rule)
 
 
 @bp.route('/')
@@ -170,6 +176,7 @@ def character(name):
 
 @bp.route('/<name>/claim', methods=['POST'])
 @require_character_owner
+@_limit("10 per minute")
 def submit_claim(name):
     """Submit an XP claim for a play period."""
     char = db_service.get_character(name)
@@ -203,7 +210,7 @@ def submit_claim(name):
             categories[key] = link
     # Capture wildcard reason and amount if wildcard was checked
     if 'wildcard' in categories:
-        wildcard_reason = request.form.get('wildcard_reason', '').strip()
+        wildcard_reason = request.form.get('wildcard_reason', '').strip()[:500]
         if not wildcard_reason:
             flash('Please provide a reason for the wildcard XP claim.', 'danger')
             return redirect(url_for('player.character', name=name))
@@ -259,6 +266,7 @@ def submit_claim(name):
 
 @bp.route('/<name>/spend', methods=['POST'])
 @require_character_owner
+@_limit("10 per minute")
 def submit_spend(name):
     """Submit a spend request."""
     char = db_service.get_character(name)
@@ -267,7 +275,7 @@ def submit_spend(name):
 
     spend_category = request.form.get('spend_category', '').strip()
     trait_name = request.form.get('trait_name', '').strip()
-    justification = request.form.get('justification', '').strip()
+    justification = request.form.get('justification', '').strip()[:1000]
 
     if not spend_category or not trait_name:
         flash('Category and trait name are required.', 'danger')
