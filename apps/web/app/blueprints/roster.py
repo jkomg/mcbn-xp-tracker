@@ -132,6 +132,16 @@ def add():
     return redirect(url_for('roster.detail', name=name))
 
 
+@bp.route('/<name>/xp-audit')
+@require_staff
+def xp_audit(name):
+    """Unified XP audit trail — combined chronological timeline for a character."""
+    timeline = db_service.get_xp_timeline(name)
+    if not timeline:
+        abort(404)
+    return render_template('roster/xp_audit.html', **timeline)
+
+
 @bp.route('/<name>')
 @require_staff
 def detail(name):

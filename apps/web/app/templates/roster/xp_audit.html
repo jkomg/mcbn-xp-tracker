@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- ═══ Header ═══ -->
+  <div class="d-flex align-items-center gap-3 mb-1 flex-wrap">
+    <h2 class="mb-0">XP Audit — {{ character.character_name }}</h2>
+    {% if not character.active %}
+    <span class="badge bg-secondary">Inactive</span>
+    {% endif %}
+  </div>
+  <div class="d-flex gap-2 mb-4">
+    <a href="{{ url_for('roster.detail', name=character.character_name) }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Character Detail
+    </a>
+  </div>
+
+  <!-- ═══ XP Summary ═══ -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center">
+        <div class="card-body py-3">
+          <div class="fs-3 fw-bold">{{ creation_xp }}</div>
+          <div class="text-muted small">Creation XP</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center">
+        <div class="card-body py-3">
+          <div class="fs-3 fw-bold">{{ summary.total_xp }}</div>
+          <div class="text-muted small">Total XP</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center">
+        <div class="card-body py-3">
+          <div class="fs-3 fw-bold text-danger">{{ summary.total_spends + summary.ledger_spent }}</div>
+          <div class="text-muted small">Total Spent</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center">
+        <div class="card-body py-3">
+          <div class="fs-3 fw-bold {% if summary.available_xp > 0 %}text-success{% elif summary.available_xp < 0 %}text-danger{% endif %}">
+            {{ summary.available_xp }}
+          </div>
+          <div class="text-muted small">Available</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Approved Timeline ═══ -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">XP Timeline</h5>
+      <span class="badge bg-secondary">{{ events | length }} event{{ 's' if events | length != 1 }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover table-sm mb-0">
+          <thead>
+            <tr>
+              <th style="width:110px">Date</th>
+              <th style="width:70px">Type</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell">Detail</th>
+              <th class="text-end" style="width:70px">Delta</th>
+              <th class="text-end" style="width:80px">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {# Starting row: creation XP #}
+            {% set ns = namespace(balance=creation_xp) %}
+            <tr class="table-secondary text-muted">
+              <td><small>—</small></td>
+              <td><span class="badge bg-secondary">start</span></td>
+              <td><small>Character created</small></td>
+              <td class="d-none d-md-table-cell"></td>
+              <td class="text-end"><small class="text-success fw-semibold">+{{ creation_xp }}</small></td>
+              <td class="text-end fw-semibold">{{ ns.balance }}</td>
+            </tr>
+            {% for ev in events %}
+            {% set ns.balance = ns.balance + ev.delta %}
+            <tr>
+              <td class="text-nowrap"><small>{{ ev.date_display }}</small></td>
+              <td>
+                {% if ev.kind == 'claim' %}
+                  <span class="badge bg-primary">claim</span>
+                {% elif ev.kind == 'spend' %}
+                  <span class="badge bg-danger">spend</span>
+                {% else %}
+                  <span class="badge bg-info text-dark">ledger</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if ev.kind == 'claim' %}
+                  <a href="{{ url_for('claims.review', row_id=ev.row_id) }}" class="text-decoration-none">
+                    {{ ev.description }}
+                  </a>
+                {% elif ev.kind == 'spend' %}
+                  <a href="{{ url_for('spends.review', row_id=ev.row_id) }}" class="text-decoration-none">
+                    {{ ev.description }}
+                  </a>
+                {% else %}
+                  {{ ev.description }}
+                {% endif %}
+              </td>
+              <td class="d-none d-md-table-cell text-muted"><small>{{ ev.detail }}</small></td>
+              <td class="text-end">
+                {% if ev.delta > 0 %}
+                  <span class="text-success fw-semibold">+{{ ev.delta }}</span>
+                {% elif ev.delta < 0 %}
+                  <span class="text-danger fw-semibold">{{ ev.delta }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-semibold {% if ns.balance < 0 %}text-danger{% endif %}">
+                {{ ns.balance }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-muted text-center py-3">No approved XP events yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Pending Items ═══ -->
+  {% if pending_claims or pending_spends %}
+  <div class="card mb-4 border-warning">
+    <div class="card-header border-warning">
+      <h5 class="mb-0 text-warning"><i class="bi bi-hourglass-split me-1"></i>Pending Review</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Description</th>
+              <th class="text-end">XP</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in pending_claims %}
+            <tr>
+              <td><span class="badge bg-primary">claim</span></td>
+              <td>XP Claim — {{ c.play_period }}</td>
+              <td class="text-end text-success">+{{ c.xp_claimed }}</td>
+              <td><a href="{{ url_for('claims.review', row_id=c.row_index) }}" class="btn btn-sm btn-outline-secondary py-0">Review</a></td>
+            </tr>
+            {% endfor %}
+            {% for s in pending_spends %}
+            <tr>
+              <td><span class="badge bg-danger">spend</span></td>
+              <td>{{ s.trait_name }} ({{ s.current_dots }}→{{ s.new_dots }}) — {{ s.spend_category }}</td>
+              <td class="text-end text-danger">−{{ s.xp_cost }}</td>
+              <td><a href="{{ url_for('spends.review', row_id=s.row_index) }}" class="btn btn-sm btn-outline-secondary py-0">Review</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ Denied / Amended Items ═══ -->
+  {% if other_claims or other_spends %}
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0 text-muted">Denied / Amended</h5>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              data-bs-toggle="collapse" data-bs-target="#denied-panel">
+        Show / Hide
+      </button>
+    </div>
+    <div class="collapse" id="denied-panel">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th class="d-none d-md-table-cell">Reviewed By</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in other_claims %}
+              <tr>
+                <td><span class="badge bg-primary">claim</span></td>
+                <td>XP Claim — {{ c.play_period }}</td>
+                <td>
+                  {% if c.status | lower == 'denied' %}
+                    <span class="badge bg-danger">Denied</span>
+                  {% elif c.status | lower == 'amend' %}
+                    <span class="badge bg-info text-dark">Amend</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ c.status }}</span>
+                  {% endif %}
+                </td>
+                <td class="d-none d-md-table-cell text-muted"><small>{{ c.reviewed_by or '—' }}</small></td>
+                <td><a href="{{ url_for('claims.review', row_id=c.row_index) }}" class="btn btn-sm btn-outline-secondary py-0">View</a></td>
+              </tr>
+              {% endfor %}
+              {% for s in other_spends %}
+              <tr>
+                <td><span class="badge bg-danger">spend</span></td>
+                <td>{{ s.trait_name }} — {{ s.spend_category }}</td>
+                <td><span class="badge bg-danger">Denied</span></td>
+                <td class="d-none d-md-table-cell text-muted"><small>{{ s.reviewed_by or '—' }}</small></td>
+                <td><a href="{{ url_for('spends.review', row_id=s.row_index) }}" class="btn btn-sm btn-outline-secondary py-0">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
