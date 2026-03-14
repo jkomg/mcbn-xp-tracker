@@ -12,6 +12,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from functools import wraps
+from app.app_settings import get_app_setting
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -105,7 +106,7 @@ def require_bot_scope(required_scope: str):
 
 
 def _enforce_replay_protection():
-    if not current_app.config.get('BOT_API_REPLAY_PROTECTION_ENABLED', False):
+    if not get_app_setting('BOT_API_REPLAY_PROTECTION_ENABLED', False):
         return None
 
     ts_header = request.headers.get('X-Request-Timestamp', '').strip()
@@ -120,14 +121,14 @@ def _enforce_replay_protection():
         return jsonify({'error': 'Invalid X-Request-Timestamp'}), 400
 
     now = int(time.time())
-    window = int(current_app.config.get('BOT_API_REPLAY_WINDOW_SECONDS', 300))
+    window = get_app_setting('BOT_API_REPLAY_WINDOW_SECONDS', 300)
     if abs(now - req_ts) > window:
         return jsonify({'error': 'Request timestamp outside allowed window'}), 400
 
     if len(nonce) > 128:
         return jsonify({'error': 'Invalid X-Request-Nonce'}), 400
 
-    ttl = int(current_app.config.get('BOT_API_NONCE_TTL_SECONDS', 600))
+    ttl = get_app_setting('BOT_API_NONCE_TTL_SECONDS', 600)
     max_cache = int(current_app.config.get('BOT_API_NONCE_CACHE_SIZE', 10000))
     expiry = now + ttl
 
@@ -548,13 +549,13 @@ def auto_create_period():
     if backend:
         return backend
 
-    if not current_app.config.get('AUTO_CREATE_PERIODS_ENABLED', False):
+    if not get_app_setting('AUTO_CREATE_PERIODS_ENABLED', False):
         return jsonify({'created': False, 'reason': 'disabled'}), 200
 
     result = db_service.auto_create_next_period_if_due(
-        open_lead_days=current_app.config.get('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', 1),
-        default_length_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', 14),
-        default_gap_days=current_app.config.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', 0),
+        open_lead_days=get_app_setting('AUTO_CREATE_PERIODS_OPEN_LEAD_DAYS', 1),
+        default_length_days=get_app_setting('AUTO_CREATE_PERIODS_DEFAULT_LENGTH_DAYS', 14),
+        default_gap_days=get_app_setting('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', 0),
     )
     period = result.get('period')
     if result.get('created') and period:
@@ -598,7 +599,7 @@ def auto_close_period():
     if backend:
         return backend
 
-    if not current_app.config.get('AUTO_CLOSE_PERIODS_ENABLED', False):
+    if not get_app_setting('AUTO_CLOSE_PERIODS_ENABLED', False):
         return jsonify({'closed': False, 'reason': 'disabled'}), 200
 
     result = db_service.auto_close_period_if_due()

@@ -101,6 +101,12 @@ def is_allowed_discord_user(discord_id: str) -> bool:
     return str(discord_id) in current_app.config['ALLOWED_DISCORD_IDS']
 
 
+def is_settings_admin() -> bool:
+    """Check if the current session user may edit Settings."""
+    discord_id = session.get('discord_id', '')
+    return bool(discord_id) and str(discord_id) in current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
+
+
 def is_staff() -> bool:
     """Check if the current session user is staff."""
     if session.get('authenticated'):
