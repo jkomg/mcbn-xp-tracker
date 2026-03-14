@@ -114,6 +114,7 @@ def _row_to_spend(row: DbSpendRequest) -> SpendRequest:
         reviewed_by=row.reviewed_by or '',
         review_date=row.review_date or '',
         st_notes=row.st_notes or '',
+        depends_on=row.depends_on or 0,
     )
 
 
@@ -566,10 +567,18 @@ class DBService:
         row.st_notes = notes
         db.session.commit()
 
+    def get_spend_dependents(self, row_index: int) -> list[SpendRequest]:
+        """Return pending spends that declare they depend on row_index."""
+        rows = DbSpendRequest.query.filter(
+            DbSpendRequest.depends_on == row_index,
+            func.lower(DbSpendRequest.status) == 'pending',
+        ).order_by(DbSpendRequest.id.asc()).all()
+        return [_row_to_spend(r) for r in rows]
+
     def submit_spend_request(self, character_name: str, spend_category: str,
                              trait_name: str, current_dots: int,
                              new_dots: int, is_in_clan: bool,
-                             justification: str) -> int:
+                             justification: str, depends_on: int = 0) -> int:
         """Submit a new spend request. Returns the calculated XP cost.
 
         Raises ValueError if the cost calculation fails.
@@ -592,6 +601,7 @@ class DBService:
             reviewed_by='',
             review_date='',
             st_notes='',
+            depends_on=depends_on if depends_on else None,
         )
         db.session.add(row)
         db.session.commit()

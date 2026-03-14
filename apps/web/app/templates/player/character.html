@@ -298,6 +298,24 @@
                                       placeholder="Explain the in-character reason for this purchase..." required></textarea>
                         </div>
 
+                        <!-- Dependency queue -->
+                        {% if pending_spends_list %}
+                        <div class="mb-3">
+                            <label for="depends_on" class="form-label fw-bold">
+                                Queue after <small class="text-muted fw-normal">(optional)</small>
+                            </label>
+                            <select class="form-select form-select-sm" name="depends_on" id="depends_on">
+                                <option value="">— submit independently —</option>
+                                {% for ps in pending_spends_list %}
+                                <option value="{{ ps.row_index }}">
+                                    {{ ps.trait_name }} ({{ ps.current_dots }}→{{ ps.new_dots }}, {{ ps.xp_cost }} XP) — pending
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Use this to submit the next dot upgrade before the first one is approved.</div>
+                        </div>
+                        {% endif %}
+
                         <div class="text-end">
                             <button type="submit" class="btn btn-danger">
                                 <i class="bi bi-send"></i> Submit Spend Request
