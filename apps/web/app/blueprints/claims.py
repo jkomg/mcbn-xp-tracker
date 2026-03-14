@@ -49,7 +49,7 @@ def approve(row_id):
     if approved_xp < 0 or approved_xp > 50:
         flash('Approved XP must be between 0 and 50.', 'danger')
         return redirect(url_for('claims.review', row_id=row_id))
-    notes = request.form.get('notes', '')
+    notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
     db_service.approve_claim(row_id, approved_xp, staff, notes)
@@ -115,7 +115,7 @@ def deny(row_id):
               f'is already denied.', 'warning')
         return redirect(url_for('claims.pending'))
 
-    notes = request.form.get('notes', '')
+    notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
     db_service.deny_claim(row_id, staff, notes)

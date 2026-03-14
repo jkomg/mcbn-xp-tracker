@@ -36,6 +36,9 @@ class DbPlayPeriod(db.Model):
 
 class DbXPClaim(db.Model):
     __tablename__ = 'xp_claims'
+    __table_args__ = (
+        db.Index('ix_xp_claims_char_period', 'character_name', 'play_period'),
+    )
     id = db.Column(Integer, primary_key=True)
     timestamp = db.Column(String(20), default='')
     character_name = db.Column(String(200), nullable=False, index=True)

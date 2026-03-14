@@ -175,7 +175,7 @@ def add_ledger_entry(name):
     date_raw = request.form.get('date', '').strip()
     awarded = int(request.form.get('awarded', 0) or 0)
     spent = int(request.form.get('spent', 0) or 0)
-    reason = request.form.get('reason', '').strip()
+    reason = request.form.get('reason', '').strip()[:500]
 
     if not date_raw or not reason:
         flash('Date and reason are required.', 'danger')
@@ -409,7 +409,7 @@ def adjust_xp(name):
 
     adjustment_type = request.form.get('adjustment_type', '')
     xp_amount = int(request.form.get('xp_amount', 0))
-    reason = request.form.get('reason', '').strip()
+    reason = request.form.get('reason', '').strip()[:500]
 
     if not reason:
         flash('A reason is required for all XP adjustments.', 'danger')

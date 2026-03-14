@@ -373,31 +373,25 @@ def review_events():
 
     # Build character-name → Discord-ID lookup for player pings.
     discord_by_name: dict[str, str] = {}
-    get_characters = getattr(db_service, 'get_all_characters', None)
-    if callable(get_characters):
-        characters_for_lookup = get_characters()
-    else:
-        # Backward-compatible fallback for simplified test doubles.
-        characters_for_lookup = db_service.get_active_characters()
-
-    for char in characters_for_lookup:
+    for char in db_service.get_all_characters():
         if char.player_discord:
             discord_by_name[char.character_name.lower()] = char.player_discord
 
+    # Convert since_epoch to the stored date format so filtering happens in the DB.
+    since_date_str = (
+        datetime.fromtimestamp(since_epoch, tz=timezone.utc).strftime('%Y%m%d %H:%M:%S')
+        if since_epoch > 0 else ''
+    )
+
     events = []
 
-    for claim in db_service.get_all_claims():
+    for claim in db_service.get_reviewed_claims_since(since_date_str):
         status = str(claim.status or '').strip().lower()
-        if status not in {'approved', 'denied'}:
-            continue
         reviewed_epoch = _parse_review_date_epoch(claim.review_date)
         event_key = f'claim:{claim.row_index}:{status}:{reviewed_epoch}'
-        if reviewed_epoch < since_epoch:
-            continue
+        # Handle exact-epoch boundary: skip events at or before the cursor.
         if reviewed_epoch == since_epoch:
-            if not since_event_key:
-                continue
-            if event_key <= since_event_key:
+            if not since_event_key or event_key <= since_event_key:
                 continue
         events.append(
             {
@@ -419,18 +413,13 @@ def review_events():
             }
         )
 
-    for spend in db_service.get_all_spends():
+    for spend in db_service.get_reviewed_spends_since(since_date_str):
         status = str(spend.status or '').strip().lower()
-        if status not in {'approved', 'denied'}:
-            continue
         reviewed_epoch = _parse_review_date_epoch(spend.review_date)
         event_key = f'spend:{spend.row_index}:{status}:{reviewed_epoch}'
-        if reviewed_epoch < since_epoch:
-            continue
+        # Handle exact-epoch boundary: skip events at or before the cursor.
         if reviewed_epoch == since_epoch:
-            if not since_event_key:
-                continue
-            if event_key <= since_event_key:
+            if not since_event_key or event_key <= since_event_key:
                 continue
         events.append(
             {

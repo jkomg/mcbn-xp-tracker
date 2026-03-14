@@ -87,8 +87,8 @@ def require_character_owner(f):
         # Player access — verify character ownership
         name = kwargs.get('name')
         if name:
-            from app import sheets_client
-            char = sheets_client.get_character(name)
+            from app import db_service
+            char = db_service.get_character(name)
             if not char or char.player_discord != session['discord_id']:
                 abort(404)
 

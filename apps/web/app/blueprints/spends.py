@@ -71,7 +71,7 @@ def approve(row_id):
     if verified_cost < 0 or verified_cost > 200:
         flash('Verified cost must be between 0 and 200.', 'danger')
         return redirect(url_for('spends.review', row_id=row_id))
-    notes = request.form.get('notes', '')
+    notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
     db_service.approve_spend(row_id, verified_cost, staff, notes)
@@ -127,7 +127,7 @@ def deny(row_id):
         flash('This spend request has already been denied.', 'warning')
         return redirect(url_for('spends.pending'))
 
-    notes = request.form.get('notes', '')
+    notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
     db_service.deny_spend(row_id, staff, notes)
