@@ -22,6 +22,14 @@ export interface TrackerAdapter {
     limit?: number;
   }): Promise<{ events: ReviewEvent[]; hasMore: boolean }>;
   autoCreatePeriod(): Promise<{ ok: boolean; created: boolean; reason?: string; periodLabel?: string }>;
+  autoClosePeriod(): Promise<{
+    ok: boolean;
+    closed: boolean;
+    reason?: string;
+    periodLabel?: string;
+    nightNumber?: number;
+    reminderTargets?: Array<{ discordId: string; characterName: string }>;
+  }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -96,6 +104,16 @@ const autoCreatePeriodSchema = z.object({
   created: z.boolean(),
   reason: z.string().optional(),
   periodLabel: z.string().optional(),
+});
+
+const autoClosePeriodSchema = z.object({
+  closed: z.boolean(),
+  reason: z.string().optional(),
+  periodLabel: z.string().optional(),
+  nightNumber: z.number().optional(),
+  reminderTargets: z
+    .array(z.object({ discordId: z.string(), characterName: z.string() }))
+    .optional(),
 });
 
 type AdapterOptions = {
@@ -243,6 +261,45 @@ export class WebAppAdapter implements TrackerAdapter {
       created: parsed.created,
       reason: parsed.reason,
       periodLabel: parsed.periodLabel,
+    };
+  }
+
+  async autoClosePeriod(): Promise<{
+    ok: boolean;
+    closed: boolean;
+    reason?: string;
+    periodLabel?: string;
+    nightNumber?: number;
+    reminderTargets?: Array<{ discordId: string; characterName: string }>;
+  }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/periods/auto-close`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.authHeaders(),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+
+    if (!resp) {
+      return { ok: false, closed: false, reason: 'unreachable' };
+    }
+    if (!resp.ok) {
+      return { ok: false, closed: false, reason: `http_${resp.status}` };
+    }
+    const raw = await resp.json();
+    const parsed = autoClosePeriodSchema.parse(raw);
+    return {
+      ok: true,
+      closed: parsed.closed,
+      reason: parsed.reason,
+      periodLabel: parsed.periodLabel,
+      nightNumber: parsed.nightNumber,
+      reminderTargets: parsed.reminderTargets,
     };
   }
 
