@@ -229,6 +229,41 @@ Returns `created: false, reason: "disabled"` if `AUTO_CREATE_PERIODS_ENABLED` is
 
 ---
 
+## POST /api/periods/auto-close
+
+**Scope:** write | **Rate limit:** 10/min | **Replay protection required**
+
+Closes submissions for the most recent open period if its `end_date` has passed (day after end date). Returns the list of players who had not submitted a claim, so the bot can send close notifications.
+
+Returns `closed: false` (not an error) if close is disabled or not yet due.
+
+**Body:** empty / no body required
+
+**Response 200** (period closed):
+```json
+{
+  "closed": true,
+  "reason": "closed",
+  "periodLabel": "Night 77 - 3/1 - 3/15",
+  "nightNumber": 77,
+  "reminderTargets": [
+    { "discordId": "111111111111111111", "characterName": "Bob" }
+  ]
+}
+```
+
+**Response 200** (no action needed):
+```json
+{
+  "closed": false,
+  "reason": "not_due_yet"
+}
+```
+
+Returns `closed: false, reason: "disabled"` if `AUTO_CLOSE_PERIODS_ENABLED` is not `true`.
+
+---
+
 ## POST /api/claims
 
 **Scope:** write | **Rate limit:** 20/min | **Replay protection required**

@@ -502,6 +502,45 @@ def auto_create_period():
     ), 200
 
 
+@bp.route('/periods/auto-close', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("10 per minute")
+def auto_close_period():
+    backend = _require_db()
+    if backend:
+        return backend
+
+    if not current_app.config.get('AUTO_CLOSE_PERIODS_ENABLED', False):
+        return jsonify({'closed': False, 'reason': 'disabled'}), 200
+
+    result = db_service.auto_close_period_if_due()
+    period = result.get('period')
+    if result.get('closed') and period:
+        db_service.log_action(
+            staff_user='bot-api:auto-period',
+            action_type='auto_close_period',
+            target=period.period_label,
+            details=f'Automatically closed submissions for {period.period_label}',
+        )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user='bot-api:auto-period',
+                action_type='auto_close_period',
+                target=period.period_label,
+                details=f'Automatically closed submissions for {period.period_label}',
+            )
+        return jsonify({
+            'closed': True,
+            'reason': 'closed',
+            'periodLabel': period.period_label,
+            'nightNumber': period.night_number,
+            'reminderTargets': result.get('reminder_targets', []),
+        }), 200
+
+    return jsonify({'closed': False, 'reason': result.get('reason', 'skipped')}), 200
+
+
 @bp.route('/claims', methods=['POST'])
 @require_bot_scope('write')
 @require_replay_protection

@@ -345,6 +345,61 @@ class DBService:
         self.create_period(next_period)
         return {'created': True, 'reason': 'created', 'period': next_period}
 
+    def auto_close_period_if_due(self, *, now: Optional[datetime] = None) -> dict:
+        """Close submissions for the most recent open period if its end_date has passed.
+
+        Returns:
+            {
+              'closed': bool,
+              'reason': str,
+              'period': PlayPeriod | None,
+              'reminder_targets': list[dict]   # [{discordId, characterName}] of unclaimed players
+            }
+        """
+        periods = self.get_all_periods()
+        open_periods = [
+            p for p in periods
+            if p.submissions_open and p.active and p.end_date
+        ]
+        if not open_periods:
+            return {'closed': False, 'reason': 'no_open_period', 'period': None, 'reminder_targets': []}
+
+        open_periods.sort(key=lambda p: p.night_number)
+        target = open_periods[-1]
+
+        end_dt = _parse_yyyymmdd(target.end_date)
+        if not end_dt:
+            return {'closed': False, 'reason': 'invalid_end_date', 'period': None, 'reminder_targets': []}
+
+        now_dt = now or datetime.now()
+        # Close once end_date day has passed (i.e. now is strictly after end_date day)
+        if now_dt.date() <= end_dt.date():
+            return {'closed': False, 'reason': 'not_due_yet', 'period': None, 'reminder_targets': []}
+
+        # Collect reminder targets before closing
+        active_chars = self.get_active_characters()
+        all_claims = self.get_all_claims()
+        submitted = {
+            str(c.character_name).strip().lower()
+            for c in all_claims
+            if str(c.play_period).strip() == target.period_label
+            and str(c.status).strip().lower() != 'denied'
+        }
+        reminder_targets = [
+            {'discordId': str(c.player_discord or '').strip(), 'characterName': c.character_name}
+            for c in active_chars
+            if c.player_discord
+            and c.character_name.strip().lower() not in submitted
+        ]
+
+        self.update_period(target.period_label, {'submissions_open': 'FALSE'})
+        return {
+            'closed': True,
+            'reason': 'closed',
+            'period': target,
+            'reminder_targets': reminder_targets,
+        }
+
     # ── XP Claims ────────────────────────────────────────────────────────────
 
     def get_all_claims(self) -> list[XPClaim]:

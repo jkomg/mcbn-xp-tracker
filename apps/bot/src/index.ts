@@ -6,6 +6,7 @@ import { initClientCommandCollection, registerCommands } from './registerCommand
 import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
 import { AutoPeriodCreator } from './services/autoPeriodCreator';
+import { AutoPeriodCloser } from './services/autoPeriodCloser';
 import { ClaimReminderService } from './services/claimReminderService';
 import path from 'node:path';
 import {
@@ -54,6 +55,12 @@ const reviewNotifier = new ReviewNotifier(client, adapter, {
 const autoPeriodCreator = new AutoPeriodCreator(adapter, {
   enabled: config.autoPeriodCreatorEnabled,
   intervalMs: config.autoPeriodCreatorIntervalMs,
+});
+
+const autoPeriodCloser = new AutoPeriodCloser(client, adapter, {
+  enabled: config.autoPeriodCloserEnabled,
+  guildId: config.autoPeriodCloserGuildId,
+  intervalMs: config.autoPeriodCloserIntervalMs,
 });
 
 const claimReminderService = new ClaimReminderService(client, adapter, {
@@ -132,6 +139,7 @@ client.once('ready', async () => {
   await registerCommands(client);
   reviewNotifier.start();
   autoPeriodCreator.start();
+  autoPeriodCloser.start();
   claimReminderService.start();
   passageOfTimeService.start();
   startCubbyChannelMonitor(client);
