@@ -1,0 +1,121 @@
+{% extends "player/base.html" %}
+
+{% block title %}Amend Claim — {{ char.character_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a href="{{ url_for('player.character', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+    <div>
+        <h2 class="mb-0 d-inline">Amend Claim</h2>
+        <span class="badge bg-secondary ms-2">{{ char.character_name }}</span>
+        <span class="badge bg-info text-dark ms-1">{{ claim.play_period }}</span>
+    </div>
+</div>
+
+{% if claim.st_notes %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-chat-left-text"></i>
+    <strong>Staff note:</strong> {{ claim.st_notes }}
+</div>
+{% endif %}
+
+<div class="card border-info">
+    <div class="card-header bg-info bg-opacity-25">
+        <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Your Evidence</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-4">Update your evidence links below and resubmit. The original period cannot be changed.</p>
+
+        <form method="POST" action="{{ url_for('player.amend_claim', name=char.character_name, claim_id=claim.row_index) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Play Period</label>
+                <p class="form-control-plaintext text-light">{{ claim.play_period }}</p>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">XP Categories <small class="text-muted">(1 XP each, 7 max)</small></label>
+
+                {% set cats = [
+                    ('posted_once', 'Posted at least once during this play period', claim.posted_once, claim.posted_once_link),
+                    ('hunting_awakening', 'Posted a Hunting and/or Awakening scene', claim.hunting_awakening, claim.hunting_awakening_link),
+                    ('scene_with_another', 'Participated in a scene with another character', claim.scene_with_another, claim.scene_with_another_link),
+                    ('conflict', 'Engaged in conflict with another character', claim.conflict, claim.conflict_link),
+                    ('combat', 'Engaged in combat with another character', claim.combat, claim.combat_link),
+                    ('unmitigated_stain', 'Took an unmitigated Stain', claim.unmitigated_stain, claim.unmitigated_stain_link),
+                ] %}
+
+                {% for key, label, was_checked, old_link in cats %}
+                <div class="card bg-dark mb-2">
+                    <div class="card-body py-2 px-3">
+                        <div class="form-check">
+                            <input class="form-check-input claim-cat-check" type="checkbox"
+                                   name="{{ key }}" id="{{ key }}" value="1"
+                                   data-link-target="{{ key }}_link_group"
+                                   {% if was_checked %}checked{% endif %}>
+                            <label class="form-check-label" for="{{ key }}">{{ label }}</label>
+                        </div>
+                        <div class="mt-2 {% if not was_checked %}d-none{% endif %}" id="{{ key }}_link_group">
+                            <input type="url" class="form-control form-control-sm claim-link-input"
+                                   name="{{ key }}_link"
+                                   value="{{ old_link or '' }}"
+                                   placeholder="Discord post link (required)"
+                                   pattern="https?://.*">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Wildcard -->
+                <div class="card bg-dark mb-2">
+                    <div class="card-body py-2 px-3">
+                        <div class="form-check">
+                            <input class="form-check-input claim-cat-check" type="checkbox"
+                                   name="wildcard" id="wildcard" value="1"
+                                   data-link-target="wildcard_link_group"
+                                   {% if claim.wildcard %}checked{% endif %}>
+                            <label class="form-check-label" for="wildcard">Wildcard / Special XP</label>
+                        </div>
+                        <div class="mt-2 {% if not claim.wildcard %}d-none{% endif %}" id="wildcard_link_group">
+                            <input type="url" class="form-control form-control-sm mb-2"
+                                   name="wildcard_link"
+                                   value="{{ claim.wildcard_link or '' }}"
+                                   placeholder="Discord post link (required)"
+                                   pattern="https?://.*">
+                            <input type="text" class="form-control form-control-sm mb-2"
+                                   name="wildcard_reason"
+                                   value="{{ claim.wildcard_reason or '' }}"
+                                   placeholder="Reason (required)"
+                                   maxlength="500">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="form-label mb-0 small">Amount:</label>
+                                <input type="number" class="form-control form-control-sm" style="width:80px;"
+                                       name="wildcard_amount"
+                                       value="{{ claim.wildcard_amount or 1 }}"
+                                       min="1" max="10">
+                                <span class="text-muted small">XP (1–10)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-info w-100" data-loading-text="Submitting…">
+                <i class="bi bi-send"></i> Resubmit Amended Claim
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.claim-cat-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        var target = document.getElementById(this.dataset.linkTarget);
+        if (target) target.classList.toggle('d-none', !this.checked);
+    });
+});
+</script>
+{% endblock %}

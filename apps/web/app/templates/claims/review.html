@@ -11,8 +11,9 @@
         <span class="badge ms-1
             {% if claim.status|trim|lower == 'pending' %}bg-warning text-dark
             {% elif claim.status|trim|lower == 'approved' %}bg-success
+            {% elif claim.status|trim|lower == 'amend' %}bg-info text-dark
             {% else %}bg-danger{% endif %}">
-            {{ claim.status | capitalize }}
+            {% if claim.status|trim|lower == 'amend' %}Awaiting Amendment{% else %}{{ claim.status | capitalize }}{% endif %}
         </span>
     </div>
     <div class="ms-auto text-muted small">
@@ -113,6 +114,35 @@
                             <i class="bi bi-x-lg"></i> Deny
                         </button>
                     </form>
+                </div>
+            </div>
+            {% elif claim.status|trim|lower == 'denied' %}
+            <!-- Re-open for Amendment -->
+            <div class="card border-info">
+                <div class="card-header bg-info bg-opacity-25">
+                    <h6 class="mb-0"><i class="bi bi-arrow-counterclockwise"></i> Re-open for Amendment</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">The player will be able to edit their evidence links and resubmit. The claim will return to the pending queue.</p>
+                    <form method="POST" action="{{ url_for('claims.reopen', row_id=claim.row_index) }}">
+                        <div class="mb-3">
+                            <label for="reopen-notes" class="form-label small">Notes for player <span class="text-muted">(optional)</span></label>
+                            <textarea class="form-control" id="reopen-notes" name="notes" rows="2"
+                                      placeholder="e.g. wrong link on posted_once, please resubmit"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100" data-loading-text="Reopening…">
+                            <i class="bi bi-arrow-counterclockwise"></i> Re-open for Amendment
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="card border-secondary mt-3">
+                <div class="card-body text-center text-muted py-3">
+                    <i class="bi bi-lock" style="font-size:1.5rem;opacity:0.4;"></i>
+                    <p class="mb-0 mt-2 small">This claim was denied.</p>
+                    {% if claim.st_notes %}
+                    <p class="mb-0 mt-1 small fst-italic">"{{ claim.st_notes }}"</p>
+                    {% endif %}
                 </div>
             </div>
             {% else %}
