@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-03-14] Bulk Approvals, Claim Amendment, and Spend Queue
+
+### Bulk Claim Approval
+
+Staff can now approve multiple pending XP claims in a single action. The pending claims list has a checkbox on every row and a select-all in the header. Checking any claim reveals a sticky bar at the bottom showing how many are selected and the total XP. Clicking "Approve Selected" opens a confirmation modal listing each claim (character, period, XP amount) with an optional shared notes field. All selected claims are approved at their requested XP in one submit — individual review is still available when an amount needs adjusting.
+
+### Claim Amendment
+
+Staff can re-open a denied claim for player correction instead of asking them to re-submit from scratch. On the denied claim's review page, a "Re-open for Amendment" card lets staff write an optional note explaining what to fix (e.g. "wrong link on the posted_once category"). The claim enters a new *Awaiting Amendment* state.
+
+On the player's character page, a blue alert appears for each claim awaiting amendment, showing the staff's note inline with an "Edit & Resubmit" button. That button opens a pre-filled form with all the original evidence links — the player fixes what was wrong and resubmits. The original record is updated in place (no duplicate created), review fields are cleared, and the claim returns to the pending queue for re-review.
+
+### Spend Queue Dependency Tracking
+
+Players can now submit the full upgrade chain for a trait upfront without waiting for each step to be approved first. On the spend form, a "Queue after" dropdown appears when the character has pending spends — selecting one marks the new request as depending on that one.
+
+On the staff spend review page, a dependency chain card shows which spend this one is waiting on (with its current approval status and a direct link) and which spends are queued behind it. Dependencies are informational — staff can approve in any order — but the chain gives full context at a glance and eliminates the back-and-forth of "approve this, now submit the next one."
+
+---
+
 ## [2026-03-14] Turso DB Migration, Security Hardening, and Developer Practices
 
 ### Breaking Changes
