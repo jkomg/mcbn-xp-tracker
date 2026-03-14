@@ -142,6 +142,7 @@ def character(name):
     pending_spends = [
         s for s in spends if s.status.lower() == 'pending'
     ]
+    pending_spends_list = pending_spends  # passed to template for dependency dropdown
 
     ledger = db_service.get_ledger_for_character(name)
 
@@ -170,6 +171,7 @@ def character(name):
         approved_spends=approved_spends,
         amend_claims=amend_claims,
         pending_claims_count=len(pending_claims),
+        pending_spends_list=pending_spends_list,
         pending_spends_count=len(pending_spends),
         ledger=ledger,
         open_periods=open_periods,
@@ -298,6 +300,11 @@ def submit_spend(name):
 
     is_in_clan = bool(request.form.get('is_in_clan'))
 
+    try:
+        depends_on = int(request.form.get('depends_on', 0) or 0)
+    except (ValueError, TypeError):
+        depends_on = 0
+
     if not justification:
         flash('Please provide a justification for your spend request.', 'danger')
         return redirect(url_for('player.character', name=name))
@@ -315,6 +322,7 @@ def submit_spend(name):
             new_dots=new_dots,
             is_in_clan=is_in_clan,
             justification=justification,
+            depends_on=depends_on,
         )
         if sheets_sync:
             sheets_sync.sync_add_spend(

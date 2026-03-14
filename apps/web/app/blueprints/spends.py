@@ -43,11 +43,17 @@ def review(row_id):
     )
     available_xp = char_data['available_xp'] if char_data else 0
 
+    # Dependency chain context
+    depends_on_spend = db_service.get_spend_by_row(spend.depends_on) if spend.depends_on else None
+    dependents = db_service.get_spend_dependents(spend.row_index)
+
     return render_template(
         'spends/review.html',
         spend=spend,
         validation=validation,
         available_xp=available_xp,
+        depends_on_spend=depends_on_spend,
+        dependents=dependents,
     )
 
 

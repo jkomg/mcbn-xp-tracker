@@ -127,6 +127,7 @@ class SpendRequest:
     reviewed_by: str = ''
     review_date: str = ''
     st_notes: str = ''
+    depends_on: int = 0        # ID of spend that must be approved first (0 = none)
 
 
 @dataclass
