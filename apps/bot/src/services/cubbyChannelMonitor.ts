@@ -1,7 +1,7 @@
 import { ChannelType, type AnyThreadChannel, type Client, type NonThreadGuildBasedChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 
-const CUBBY_CATEGORY_KEYWORD = 'character cubbies';
+const CUBBY_CATEGORY_KEYWORDS = ['character cubbies', 'character tickets'];
 
 const CUBBY_PERMISSION_PATCH = {
   ViewChannel: true,
@@ -15,15 +15,18 @@ const CUBBY_PERMISSION_PATCH = {
  * Returns true if the given channel or thread lives under a category whose
  * name contains "character cubbies" (case-insensitive).
  */
+function matchesCubbyCategory(name: string): boolean {
+  const lower = name.toLowerCase();
+  return CUBBY_CATEGORY_KEYWORDS.some(kw => lower.includes(kw));
+}
+
 function isInCubbyCategory(channel: NonThreadGuildBasedChannel | AnyThreadChannel): boolean {
-  // Direct text/forum channel: check its parent category.
   if ('parent' in channel && channel.parent) {
-    if (channel.parent.name.toLowerCase().includes(CUBBY_CATEGORY_KEYWORD)) {
+    if (matchesCubbyCategory(channel.parent.name)) {
       return true;
     }
-    // Thread inside a channel: check the channel's parent category.
     if ('parent' in channel.parent && channel.parent.parent) {
-      return channel.parent.parent.name.toLowerCase().includes(CUBBY_CATEGORY_KEYWORD);
+      return matchesCubbyCategory(channel.parent.parent.name);
     }
   }
   return false;
@@ -43,7 +46,7 @@ export function startCubbyChannelMonitor(client: Client): void {
     }
 
     const parent = channel.parent;
-    if (!parent || !parent.name.toLowerCase().includes(CUBBY_CATEGORY_KEYWORD)) {
+    if (!parent || !matchesCubbyCategory(parent.name)) {
       return;
     }
 
