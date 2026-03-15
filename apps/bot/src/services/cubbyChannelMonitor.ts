@@ -1,4 +1,4 @@
-import { ChannelType, type Client, type NonThreadGuildBasedChannel } from 'discord.js';
+import { ChannelType, type AnyThreadChannel, type Client, type NonThreadGuildBasedChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 
 const CUBBY_CATEGORY_KEYWORD = 'character cubbies';
@@ -12,13 +12,31 @@ const CUBBY_PERMISSION_PATCH = {
 } as const;
 
 /**
- * Listens for channelCreate events. When a new text channel appears under
- * a category whose name contains "character cubbies" (case-insensitive),
- * the bot immediately adds its own permission overwrite so it can post
- * claim reminders and review notifications without needing a manual
- * /xp sync-cubby-access run.
+ * Returns true if the given channel or thread lives under a category whose
+ * name contains "character cubbies" (case-insensitive).
+ */
+function isInCubbyCategory(channel: NonThreadGuildBasedChannel | AnyThreadChannel): boolean {
+  // Direct text/forum channel: check its parent category.
+  if ('parent' in channel && channel.parent) {
+    if (channel.parent.name.toLowerCase().includes(CUBBY_CATEGORY_KEYWORD)) {
+      return true;
+    }
+    // Thread inside a channel: check the channel's parent category.
+    if ('parent' in channel.parent && channel.parent.parent) {
+      return channel.parent.parent.name.toLowerCase().includes(CUBBY_CATEGORY_KEYWORD);
+    }
+  }
+  return false;
+}
+
+/**
+ * Listens for channelCreate (new text channels) and threadCreate (tickets /
+ * forum posts) events. When a new channel or thread appears under a category
+ * whose name contains "character cubbies", the bot grants itself access or
+ * joins the thread so it can post claim reminders and review notifications.
  */
 export function startCubbyChannelMonitor(client: Client): void {
+  // New text channel created directly under the cubbies category.
   client.on('channelCreate', async (channel: NonThreadGuildBasedChannel) => {
     if (channel.type !== ChannelType.GuildText) {
       return;
@@ -49,6 +67,30 @@ export function startCubbyChannelMonitor(client: Client): void {
         guildId: guild.id,
         channelId: channel.id,
         channelName: channel.name,
+        error: errorToMessage(error),
+      });
+    }
+  });
+
+  // New thread (ticket or forum post) created under the cubbies category.
+  client.on('threadCreate', async (thread: AnyThreadChannel) => {
+    if (!isInCubbyCategory(thread)) {
+      return;
+    }
+
+    try {
+      await thread.join();
+      logEvent('info', 'cubby_monitor_thread_joined', {
+        guildId: thread.guildId,
+        threadId: thread.id,
+        threadName: thread.name,
+        parentId: thread.parentId,
+      });
+    } catch (error) {
+      logEvent('warn', 'cubby_monitor_thread_join_failed', {
+        guildId: thread.guildId,
+        threadId: thread.id,
+        threadName: thread.name,
         error: errorToMessage(error),
       });
     }
