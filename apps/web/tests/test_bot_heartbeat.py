@@ -1,7 +1,5 @@
 """Tests for POST/GET /api/bot-heartbeat endpoints."""
 
-import json
-
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
