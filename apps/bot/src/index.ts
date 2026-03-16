@@ -32,6 +32,7 @@ import {
   handleHuntConsequenceButton,
 } from './services/huntConsequenceMonitor';
 import { ConfigSyncWorker } from './services/configSyncWorker';
+import { BotHeartbeatService } from './services/botHeartbeatService';
 import { liveConfig } from './liveConfig';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
@@ -139,6 +140,7 @@ const passageOfTimeService = new PassageOfTimeService(client, {
 });
 
 const configSyncWorker = new ConfigSyncWorker(adapter);
+const botHeartbeatService = new BotHeartbeatService(adapter);
 
 // Build hunt consequence config, respecting test mode
 const huntConsequenceCfg = {
@@ -159,6 +161,7 @@ client.once('ready', async () => {
   logEvent('info', 'bot_ready', { userTag: client.user?.tag });
   await registerCommands(client);
   configSyncWorker.start();
+  botHeartbeatService.start();
   reviewNotifier.start();
   autoPeriodCreator.start();
   autoPeriodCloser.start();
