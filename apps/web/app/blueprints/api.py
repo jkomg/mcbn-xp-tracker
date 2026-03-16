@@ -565,6 +565,45 @@ def bot_config():
     return jsonify(result)
 
 
+@bp.route('/bot-heartbeat', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def bot_heartbeat_post():
+    from datetime import datetime, timezone
+    from app.db import AppSetting, db
+    ts = datetime.now(timezone.utc).isoformat()
+    record = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    if record:
+        record.value = ts
+        record.updated_at = datetime.now(timezone.utc)
+        record.updated_by = 'bot'
+    else:
+        record = AppSetting(key='BOT_LAST_HEARTBEAT', value=ts, updated_by='bot')
+        db.session.add(record)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/bot-heartbeat', methods=['GET'])
+@require_bot_scope('read')
+@_limit('60 per minute')
+def bot_heartbeat_get():
+    from datetime import datetime, timezone
+    from app.db import AppSetting
+    record = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    if not record:
+        return jsonify({'last_heartbeat': None, 'age_seconds': None})
+    ts = record.value
+    try:
+        last = datetime.fromisoformat(ts)
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        age = int((datetime.now(timezone.utc) - last).total_seconds())
+    except ValueError:
+        age = None
+    return jsonify({'last_heartbeat': ts, 'age_seconds': age})
+
+
 @bp.route('/periods/auto-create', methods=['POST'])
 @require_bot_scope('write')
 @require_replay_protection

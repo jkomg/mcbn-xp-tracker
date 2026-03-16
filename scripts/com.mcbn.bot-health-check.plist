@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MCbN Bot Health Check — macOS LaunchAgent
+  Runs check-bot-health.sh every 5 minutes.
+
+  Install:
+    1. Replace __REPO_ROOT__ with the absolute path to this repo, e.g.:
+         sed "s|__REPO_ROOT__|${HOME}/Projects/mcbn-xp-tracker|g" \
+           scripts/com.mcbn.bot-health-check.plist \
+           > ~/Library/LaunchAgents/com.mcbn.bot-health-check.plist
+    2. Load it:
+         launchctl load ~/Library/LaunchAgents/com.mcbn.bot-health-check.plist
+    3. To unload:
+         launchctl unload ~/Library/LaunchAgents/com.mcbn.bot-health-check.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mcbn.bot-health-check</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_ROOT__/scripts/check-bot-health.sh</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/mcbn-bot-health.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/mcbn-bot-health.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

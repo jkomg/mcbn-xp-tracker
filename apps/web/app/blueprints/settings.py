@@ -250,6 +250,22 @@ def index():
         },
     ]
 
+    # ── Bot heartbeat ───────────────────────────────────────────────────────
+    from datetime import datetime, timezone
+    from app.db import AppSetting
+    _hb = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    bot_heartbeat_age = None
+    bot_heartbeat_ts = None
+    if _hb:
+        try:
+            _last = datetime.fromisoformat(_hb.value)
+            if _last.tzinfo is None:
+                _last = _last.replace(tzinfo=timezone.utc)
+            bot_heartbeat_age = int((datetime.now(timezone.utc) - _last).total_seconds())
+            bot_heartbeat_ts = _hb.value
+        except ValueError:
+            pass
+
     return render_template(
         'settings/index.html',
         web_flags=web_flags,
@@ -257,6 +273,8 @@ def index():
         integrations=integrations,
         bot_flags=bot_flags,
         can_edit=can_edit,
+        bot_heartbeat_age=bot_heartbeat_age,
+        bot_heartbeat_ts=bot_heartbeat_ts,
     )
 
 
