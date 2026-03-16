@@ -58,6 +58,38 @@ No authentication required. Liveness check.
 
 ---
 
+## POST /api/bot-heartbeat
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Called by the bot on startup and every 60 seconds to record a liveness timestamp.
+The web app stores the timestamp in `AppSetting` under key `BOT_LAST_HEARTBEAT`.
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
+## GET /api/bot-heartbeat
+
+**Scope:** read | **Rate limit:** 60/min
+
+Returns the time of the last bot heartbeat and its age in seconds.
+
+**Response 200:**
+```json
+{
+  "last_heartbeat": "2026-03-16T22:11:52.000000+00:00",
+  "age_seconds": 47
+}
+```
+
+`last_heartbeat` and `age_seconds` are `null` if no heartbeat has been received yet.
+
+---
+
 ## GET /api/meta/claim-context
 
 **Scope:** read | **Rate limit:** 60/min

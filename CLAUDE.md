@@ -123,4 +123,5 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - `docs/RUN_WEB_DOCKER.md` — web Docker runbook
 - `docs/RUN_BOT_DOCKER.md` — bot Docker runbook with audit log instructions
 - `docs/INSTALL_LITE.md` / `docs/INSTALL_REGULAR.md` — install guides
-- `docs/RELEASE_2026-03-13_TURSO_DB_MIGRATION.md` — latest release notes
+- `docs/RELEASE_2026-03-13_TURSO_DB_MIGRATION.md` — Turso DB migration release notes
+- `docs/RELEASE_2026-03-16_BOT_HEALTH_AND_FIXES.md` — latest release notes (bot health monitoring, cubby monitor fix, sidebar pin, Docker ARM64 fixes)
