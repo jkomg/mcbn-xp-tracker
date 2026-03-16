@@ -15,7 +15,10 @@ WEB_ENV="${REPO_ROOT}/apps/web/.env"
 
 DOCKER_SOCKET="${HOME}/.docker/run/docker.sock"
 CONTAINER_NAME="lasombra-bot"
-WEB_URL="http://127.0.0.1:5001"
+# Use the bot's own WEB_APP_BASE_URL so heartbeat checks hit the same web app
+# the bot actually talks to (prod). Falls back to local dev if not set.
+WEB_URL="$(grep -E '^WEB_APP_BASE_URL=' "${BOT_ENV}" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '\r')"
+WEB_URL="${WEB_URL:-http://127.0.0.1:5001}"
 ALERT_COOLDOWN_FILE="/tmp/mcbn-health-last-alert"
 ALERT_COOLDOWN_SECONDS=600   # 10 min between repeat alerts
 HEARTBEAT_STALE_SECONDS=300  # 5 min = bot is considered frozen
@@ -90,7 +93,7 @@ fi
 ok "Web app healthy"
 
 # 4. Bot heartbeat freshness
-API_TOKEN=$(parse_env "$WEB_ENV" "WEB_APP_API_TOKEN")
+API_TOKEN=$(parse_env "$BOT_ENV" "WEB_APP_API_TOKEN")
 if [[ -n "$API_TOKEN" ]]; then
   HB_RESPONSE=$(curl -sf "${WEB_URL}/api/bot-heartbeat" \
     -H "Authorization: Bearer ${API_TOKEN}" \
