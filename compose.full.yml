@@ -36,7 +36,6 @@ services:
       - apps/bot/.env
     environment:
       NODE_ENV: production
-      WEB_APP_BASE_URL: http://web:5001
       TZ: ${TZ:-America/Chicago}
     depends_on:
       - web
