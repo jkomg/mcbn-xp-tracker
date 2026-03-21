@@ -1,7 +1,7 @@
 import { ChannelType, type Guild, type GuildBasedChannel } from 'discord.js';
 
 export type NotificationChannel = GuildBasedChannel & {
-  send: (payload: { content: string; components?: unknown[] }) => Promise<unknown>;
+  send: (payload: { content: string; components?: unknown[]; allowedMentions?: { parse?: string[] } }) => Promise<unknown>;
 };
 
 export function normalizeChannelName(value: string): string {
