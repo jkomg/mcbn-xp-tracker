@@ -32,11 +32,6 @@ The bootstrap script handles this default for new setups:
 ./scripts/bootstrap-local.sh web+bot
 ```
 
-**Optional bot env vars:**
-
-| Var | Description |
-|-----|-------------|
-| `HEALTH_ALERT_WEBHOOK` | Discord webhook URL for bot health alert notifications. Used by `scripts/check-bot-health.sh`. |
 
 ## Optional GCP Secret Import Path (Web Production)
 

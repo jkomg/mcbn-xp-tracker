@@ -21,7 +21,7 @@
 
 **macOS LaunchAgent health check script** (`scripts/`)
 - `scripts/check-bot-health.sh` — runs four checks: Docker socket, bot container state, web app `/api/health`, heartbeat freshness (stale > 5 min).
-- Sends macOS notification + Discord webhook (`HEALTH_ALERT_WEBHOOK` in `apps/bot/.env`) on failure.
+- Sends a macOS notification on failure.
 - 10-minute alert cooldown via `/tmp/mcbn-health-last-alert` lockfile.
 - `scripts/com.mcbn.bot-health-check.plist` — LaunchAgent plist, `StartInterval: 300`, `RunAtLoad: true`.
 
@@ -62,6 +62,5 @@ launchctl load ~/Library/LaunchAgents/com.mcbn.bot-health-check.plist
 ## Upgrade notes
 
 - **LaunchAgent**: Install once per machine (see above). No action needed if already installed.
-- **`HEALTH_ALERT_WEBHOOK`**: Optional. Set in `apps/bot/.env` to receive Discord alerts from the health check script.
 - **Bot container**: Rebuild required to pick up `BotHeartbeatService`. Run `docker compose build bot` or rebuild manually.
 - No DB schema changes. No migration required.

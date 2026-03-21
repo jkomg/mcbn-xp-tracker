@@ -1,7 +1,7 @@
 #!/bin/bash
 # MCbN Bot Health Check
 # Checks Docker socket, bot container, web app, and bot heartbeat.
-# Sends macOS notification and Discord webhook alert on failure.
+# Sends a macOS notification on failure.
 # Designed to run as a macOS LaunchAgent every 5 minutes.
 #
 # Install: see scripts/com.mcbn.bot-health-check.plist
@@ -41,23 +41,12 @@ notify() {
   osascript -e "display notification \"${msg}\" with title \"${title}\" sound name \"Basso\"" 2>/dev/null || true
 }
 
-post_webhook() {
-  local webhook="$1" msg="$2"
-  [[ -z "$webhook" ]] && return 0
-  curl -s -X POST "$webhook" \
-    -H "Content-Type: application/json" \
-    -d "{\"content\": \"🚨 **MCbN Bot Health Alert**\\n${msg}\"}" \
-    --max-time 10 >/dev/null 2>&1 || true
-}
 
 alert() {
   local msg="$1"
   in_cooldown && return 0
   touch "$ALERT_COOLDOWN_FILE"
   notify "MCbN Bot Alert" "$msg"
-  local webhook
-  webhook=$(parse_env "$BOT_ENV" "HEALTH_ALERT_WEBHOOK")
-  post_webhook "$webhook" "$msg"
   echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ALERT: $msg"
 }
 
