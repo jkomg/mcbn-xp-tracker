@@ -79,7 +79,8 @@ def create_app():
 
         def _turso_creator():
             return _LibSQLConn(libsql.connect(turso_url, auth_token=turso_token))
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'creator': _turso_creator}
+        from sqlalchemy.pool import NullPool  # noqa: PLC0415
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'creator': _turso_creator, 'poolclass': NullPool}
     db.init_app(app)
     from flask_migrate import Migrate
     Migrate(app, db)
