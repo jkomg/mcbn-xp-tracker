@@ -208,7 +208,10 @@ export class ReviewNotifier {
           }
 
           try {
-            await channel.send({ content: buildReviewNotificationMessage(event) });
+            await channel.send({
+              content: buildReviewNotificationMessage(event),
+              allowedMentions: { parse: ['users'] },
+            });
           } catch (error) {
             logEvent('warn', 'review_notifier_send_failed', {
               eventKey: event.eventKey,
