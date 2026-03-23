@@ -130,6 +130,7 @@ const envSchema = z.object({
   HUNT_CONSEQUENCE_STAFF_ROLE_ID: z.string().optional(),
   HUNT_CONSEQUENCE_TEST_MODE: z.string().optional(),
   HUNT_CONSEQUENCE_TEST_CHANNEL_ID: z.string().optional(),
+  COMBAT_SYSTEM_HELPER_ROLE_ID: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -291,6 +292,7 @@ export const config = {
   huntConsequenceStaffRoleId: env.HUNT_CONSEQUENCE_STAFF_ROLE_ID ?? '',
   huntConsequenceTestMode: (env.HUNT_CONSEQUENCE_TEST_MODE ?? 'false').toLowerCase() === 'true',
   huntConsequenceTestChannelId: env.HUNT_CONSEQUENCE_TEST_CHANNEL_ID ?? '',
+  combatSystemHelperRoleId: env.COMBAT_SYSTEM_HELPER_ROLE_ID,
 };
 
 if (config.testRequesterDiscordId) {
