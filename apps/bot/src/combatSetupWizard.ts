@@ -1,25 +1,34 @@
 import {
   ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ModalBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextInputBuilder,
   TextInputStyle,
+  type ButtonInteraction,
   type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
 } from 'discord.js';
 import { config } from './config';
 import { logEvent, errorToMessage } from './logger';
 
-const PARTICIPANTS_SELECT_ID = 'combat:participants';
+export const PARTICIPANTS_SELECT_ID = 'combat:participants';
+export const PAGE_PREV_ID = 'combat:page:prev';
+export const PAGE_NEXT_ID = 'combat:page:next';
+export const CONTINUE_ID = 'combat:continue';
 const SETUP_MODAL_ID = 'combat:setup';
 const TYPE_INPUT_ID = 'combat:setup:type';
 const CONSENT_INPUT_ID = 'combat:setup:consent';
 
+const PAGE_SIZE = 25;
 const SESSION_TTL_MS = 15 * 60 * 1000;
 
 type CombatSession = {
-  participants: string[];
+  allCharacters: string[];
+  selectedNames: Set<string>;
+  currentPage: number;
   createdAt: number;
 };
 
@@ -34,19 +43,86 @@ function cleanupExpiredSessions() {
   }
 }
 
-export function buildParticipantSelectMenu(characters: string[]): ActionRowBuilder<StringSelectMenuBuilder> {
-  const options = characters.slice(0, 25).map((name) =>
-    new StringSelectMenuOptionBuilder().setLabel(name).setValue(name),
+function pageCount(characters: string[]): number {
+  return Math.max(1, Math.ceil(characters.length / PAGE_SIZE));
+}
+
+function pageSlice(characters: string[], page: number): string[] {
+  const start = page * PAGE_SIZE;
+  return characters.slice(start, start + PAGE_SIZE);
+}
+
+function truncateLabel(s: string, max = 100): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
+export function initCombatSession(userId: string, characters: string[]): CombatSession {
+  cleanupExpiredSessions();
+  const session: CombatSession = {
+    allCharacters: characters,
+    selectedNames: new Set(),
+    currentPage: 0,
+    createdAt: Date.now(),
+  };
+  sessions.set(userId, session);
+  return session;
+}
+
+export function buildCombatUI(session: CombatSession): {
+  content: string;
+  components: ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[];
+} {
+  const totalPages = pageCount(session.allCharacters);
+  const pageChars = pageSlice(session.allCharacters, session.currentPage);
+  const selectedCount = session.selectedNames.size;
+
+  const options = pageChars.map((name) =>
+    new StringSelectMenuOptionBuilder()
+      .setLabel(truncateLabel(name))
+      .setValue(name)
+      .setDefault(session.selectedNames.has(name)),
   );
 
-  const menu = new StringSelectMenuBuilder()
+  const selectMenu = new StringSelectMenuBuilder()
     .setCustomId(PARTICIPANTS_SELECT_ID)
-    .setPlaceholder('Select all combatants (minimum 2)')
-    .setMinValues(2)
-    .setMaxValues(Math.min(options.length, 25))
+    .setPlaceholder(
+      totalPages > 1
+        ? `Page ${session.currentPage + 1}/${totalPages} — select combatants`
+        : 'Select combatants (minimum 2)',
+    )
+    .setMinValues(0)
+    .setMaxValues(options.length)
     .addOptions(options);
 
-  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
+  const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+  const pagerRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(PAGE_PREV_ID)
+      .setLabel('◀ Prev')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(session.currentPage <= 0),
+    new ButtonBuilder()
+      .setCustomId(PAGE_NEXT_ID)
+      .setLabel('Next ▶')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(session.currentPage >= totalPages - 1),
+    new ButtonBuilder()
+      .setCustomId(CONTINUE_ID)
+      .setLabel(selectedCount >= 2 ? `Continue (${selectedCount} selected)` : 'Continue (need 2+)')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(selectedCount < 2),
+  );
+
+  const selectedSummary =
+    selectedCount > 0
+      ? `Selected: ${[...session.selectedNames].sort().join(', ')}`
+      : 'No combatants selected yet.';
+
+  return {
+    content: `**Start Combat** — choose participants across pages, then click Continue.\n${selectedSummary}`,
+    components: [selectRow, pagerRow],
+  };
 }
 
 function buildSetupModal(): ModalBuilder {
@@ -98,8 +174,62 @@ export async function handleCombatParticipantSelect(interaction: StringSelectMen
     return false;
   }
 
-  cleanupExpiredSessions();
-  sessions.set(interaction.user.id, { participants: interaction.values, createdAt: Date.now() });
+  const session = sessions.get(interaction.user.id);
+  if (!session) {
+    await interaction.reply({
+      content: 'Your combat setup session expired. Please run `/combat start` again.',
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  // Replace this page's selections: remove all page chars, then add newly selected ones.
+  const pageChars = pageSlice(session.allCharacters, session.currentPage);
+  for (const name of pageChars) session.selectedNames.delete(name);
+  for (const name of interaction.values) session.selectedNames.add(name);
+
+  const ui = buildCombatUI(session);
+  await interaction.update({ content: ui.content, components: ui.components });
+  return true;
+}
+
+export function isCombatButton(customId: string): boolean {
+  return customId === PAGE_PREV_ID || customId === PAGE_NEXT_ID || customId === CONTINUE_ID;
+}
+
+export async function handleCombatButton(interaction: ButtonInteraction): Promise<boolean> {
+  if (!isCombatButton(interaction.customId)) {
+    return false;
+  }
+
+  const session = sessions.get(interaction.user.id);
+  if (!session) {
+    await interaction.reply({
+      content: 'Your combat setup session expired. Please run `/combat start` again.',
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  if (interaction.customId === PAGE_PREV_ID) {
+    session.currentPage = Math.max(0, session.currentPage - 1);
+    const ui = buildCombatUI(session);
+    await interaction.update({ content: ui.content, components: ui.components });
+    return true;
+  }
+
+  if (interaction.customId === PAGE_NEXT_ID) {
+    session.currentPage = Math.min(pageCount(session.allCharacters) - 1, session.currentPage + 1);
+    const ui = buildCombatUI(session);
+    await interaction.update({ content: ui.content, components: ui.components });
+    return true;
+  }
+
+  // CONTINUE_ID
+  if (session.selectedNames.size < 2) {
+    await interaction.reply({ content: 'Please select at least 2 combatants.', ephemeral: true });
+    return true;
+  }
 
   await interaction.showModal(buildSetupModal());
   return true;
@@ -155,7 +285,8 @@ export async function handleCombatSetupModal(interaction: ModalSubmitInteraction
           ? 'Gritty (crippling injuries active)'
           : 'Social-only';
 
-    const participantList = session.participants.map((p) => `• ${p}`).join('\n');
+    const participants = [...session.selectedNames].sort();
+    const participantList = participants.map((p) => `• ${p}`).join('\n');
 
     const announcement = [
       `${helperPing}⚔️ **Combat has begun!**`,
@@ -180,7 +311,7 @@ export async function handleCombatSetupModal(interaction: ModalSubmitInteraction
       channelId: interaction.channelId,
       combatType,
       consentLevel,
-      participantCount: session.participants.length,
+      participantCount: participants.length,
     });
   } catch (error) {
     logEvent('error', 'combat_setup_failed', {

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import type { CommandContext } from '../discord';
-import { buildParticipantSelectMenu } from '../combatSetupWizard';
+import { buildCombatUI, initCombatSession } from '../combatSetupWizard';
 import { errorToMessage, logEvent } from '../logger';
 
 export const name = 'combat';
@@ -17,20 +17,20 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const claimContext = await ctx.adapter.getClaimContext({
-      requesterDiscordId: interaction.user.id,
-      requesterDiscordName: interaction.user.username,
-    });
+    const roster = await ctx.adapter.getActiveRoster();
+    const characters = roster.characters;
 
-    const characters = claimContext.activeCharacters;
     if (characters.length < 2) {
       await interaction.editReply('No registered characters found. At least two are needed to start combat.');
       return;
     }
 
+    const session = initCombatSession(interaction.user.id, characters);
+    const ui = buildCombatUI(session);
+
     await interaction.editReply({
-      content: 'Select all combatants:',
-      components: [buildParticipantSelectMenu(characters)],
+      content: ui.content,
+      components: ui.components,
     });
 
     logEvent('info', 'combat_participant_select_shown', { userId: interaction.user.id });

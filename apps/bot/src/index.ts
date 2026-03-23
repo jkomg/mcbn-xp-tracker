@@ -24,7 +24,7 @@ import {
   handleClaimWizardModal,
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
-import { handleCombatParticipantSelect, handleCombatSetupModal } from './combatSetupWizard';
+import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {
@@ -208,6 +208,11 @@ client.on('interactionCreate', async (interaction) => {
       if (isHuntConsequenceButton(interaction.customId)) {
         await handleHuntConsequenceButton(interaction, huntConsequenceCfg);
         logEvent('info', 'interaction_handled_hunt_consequence', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isCombatButton(interaction.customId)) {
+        await handleCombatButton(interaction);
+        logEvent('info', 'interaction_handled_combat_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
       const reminderHandled = await handleClaimReminderButton(interaction);

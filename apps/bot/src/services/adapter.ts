@@ -26,6 +26,7 @@ export interface BotConfigResponse {
 export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
+  getActiveRoster(): Promise<{ characters: string[] }>;
   getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
   getReviewEvents(opts?: {
     sinceEpoch?: number;
@@ -106,6 +107,10 @@ const reviewEventSchema = z.discriminatedUnion('kind', [
 const reviewEventsSchema = z.object({
   events: z.array(reviewEventSchema),
   hasMore: z.boolean().optional(),
+});
+
+const activeRosterSchema = z.object({
+  characters: z.array(z.string()),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -234,6 +239,20 @@ export class WebAppAdapter implements TrackerAdapter {
   async getClaimContext(requester: RequesterContext, opts: { forceRefresh?: boolean } = {}): Promise<ClaimContext> {
     const result = await this.getClaimContextResult(requester, opts.forceRefresh === true);
     return result.context;
+  }
+
+  async getActiveRoster(): Promise<{ characters: string[] }> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster`, {
+      headers: this.authHeaders(),
+    }).catch(() => null);
+    if (!resp) {
+      throw new Error('Unable to reach web app active-roster API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app active-roster API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    return activeRosterSchema.parse(raw);
   }
 
   async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {

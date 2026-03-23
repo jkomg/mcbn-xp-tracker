@@ -320,6 +320,18 @@ def claim_reminder_targets():
     return jsonify({'currentNight': current.period_label, 'targets': targets})
 
 
+@bp.route('/meta/active-roster', methods=['GET'])
+@require_bot_scope('read')
+@_limit("60 per minute")
+def active_roster():
+    backend = _require_db()
+    if backend:
+        return backend
+    characters = db_service.get_active_characters()
+    characters.sort(key=lambda c: c.character_name.lower())
+    return jsonify({'characters': [c.character_name for c in characters]})
+
+
 @bp.route('/characters/<string:name>/summary', methods=['GET'])
 @require_bot_scope('read')
 @_limit("60 per minute")
