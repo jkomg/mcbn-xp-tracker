@@ -14,7 +14,6 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       TZ: ${TZ:-America/Chicago}
-      DATABASE_URL: sqlite:///data/db.sqlite
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
