@@ -5,6 +5,7 @@ import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import { findCubbyChannel } from './cubbyChannels';
 import { liveConfig } from '../liveConfig';
+import { config } from '../config';
 
 export const CLAIM_REMINDER_BUTTON_PREFIX = 'xp:claim-reminder:';
 export const CLAIM_REMINDER_ACTION_START = 'start';
@@ -31,7 +32,10 @@ type ClaimReminderServiceConfig = {
 const BOT_ROOT = path.resolve(__dirname, '..', '..');
 const PREFS_PATH = path.join(BOT_ROOT, 'data', 'claim-reminder-preferences.json');
 
-export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string): string {
+export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string, webUrl?: string): string {
+  const callToAction = webUrl
+    ? `Submit your claim at ${webUrl} or use \`/xp submit\` in Discord.`
+    : 'Use `/xp submit` in Discord when ready.';
   return [
     `Hey <@${discordId}>`,
     '',
@@ -39,7 +43,7 @@ export function buildClaimReminderText(currentNight: string, characterName: stri
     '',
     `Please submit your XP claim for **${characterName}**.`,
     '',
-    'Use `/xp submit` (wizard) or `/xp claim` when ready.',
+    callToAction,
   ].join('\n');
 }
 
@@ -251,7 +255,7 @@ export class ClaimReminderService {
           }
           const actionRow = buildClaimReminderActionRow(target.discordId);
           await channel.send({
-            content: buildClaimReminderText(snapshot.currentNight, target.characterName, target.discordId),
+            content: buildClaimReminderText(snapshot.currentNight, target.characterName, target.discordId, config.playerWebUrl),
             components: [actionRow],
           });
           sent += 1;

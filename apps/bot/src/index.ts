@@ -24,6 +24,7 @@ import {
   handleClaimWizardModal,
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
+import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {
@@ -191,6 +192,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isStringSelectMenu()) {
+      const combatHandled = await handleCombatParticipantSelect(interaction);
+      if (combatHandled) {
+        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardSelect(interaction);
       if (handled) {
         logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
@@ -202,6 +208,11 @@ client.on('interactionCreate', async (interaction) => {
       if (isHuntConsequenceButton(interaction.customId)) {
         await handleHuntConsequenceButton(interaction, huntConsequenceCfg);
         logEvent('info', 'interaction_handled_hunt_consequence', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isCombatButton(interaction.customId)) {
+        await handleCombatButton(interaction);
+        logEvent('info', 'interaction_handled_combat_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
       const reminderHandled = await handleClaimReminderButton(interaction);
@@ -217,6 +228,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
+      const combatHandled = await handleCombatSetupModal(interaction);
+      if (combatHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardModal(interaction);
       if (handled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });

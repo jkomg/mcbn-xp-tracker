@@ -461,7 +461,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     const row = buildClaimReminderActionRow(targetUser.id);
     try {
       await channel.send({
-        content: buildClaimReminderText(currentNight, character, targetUser.id),
+        content: buildClaimReminderText(currentNight, character, targetUser.id, config.playerWebUrl),
         components: [row],
       });
     } catch (error) {
