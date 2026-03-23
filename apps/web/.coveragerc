@@ -1,0 +1,4 @@
+[run]
+omit =
+    # Network adapter — requires mocked HTTP; covered by integration tests
+    app/turso_http.py
