@@ -63,23 +63,13 @@ def create_app():
 
     turso_url = app.config.get('TURSO_CONNECT_URL', '')
     if turso_url:
-        import libsql_experimental as libsql  # noqa: PLC0415
+        from .turso_http import connect as _turso_connect  # noqa: PLC0415
+        from sqlalchemy.pool import NullPool  # noqa: PLC0415
         turso_token = app.config.get('TURSO_AUTH_TOKEN', '')
 
-        class _LibSQLConn:
-            """Proxy that adds a no-op create_function so pysqlite dialect is happy."""
-            def __init__(self, conn):
-                self._c = conn
-            def __getattr__(self, name):
-                return getattr(self._c, name)
-            def create_function(self, *a, **kw):
-                pass
-            def cursor(self, *a, **kw):
-                return self._c.cursor(*a, **kw)
-
         def _turso_creator():
-            return _LibSQLConn(libsql.connect(turso_url, auth_token=turso_token))
-        from sqlalchemy.pool import NullPool  # noqa: PLC0415
+            return _turso_connect(turso_url, auth_token=turso_token)
+
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'creator': _turso_creator, 'poolclass': NullPool}
     db.init_app(app)
     from flask_migrate import Migrate

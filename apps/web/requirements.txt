@@ -10,4 +10,3 @@ python-dotenv==1.*
 gunicorn==25.*
 pytest==9.*
 pytest-cov==7.*
-libsql-experimental==0.*

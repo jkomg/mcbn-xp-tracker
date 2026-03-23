@@ -4,8 +4,6 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        INSTALL_LIBSQL: "false"
     restart: unless-stopped
     env_file:
       - apps/web/.env
@@ -16,7 +14,6 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       TZ: ${TZ:-America/Chicago}
-      # INSTALL_LIBSQL=false means no Turso driver; force SQLite for local dev
       DATABASE_URL: sqlite:///data/db.sqlite
     ports:
       - "127.0.0.1:5001:5001"
