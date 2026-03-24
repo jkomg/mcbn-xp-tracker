@@ -592,6 +592,30 @@ def bot_heartbeat_post():
     else:
         record = AppSetting(key='BOT_LAST_HEARTBEAT', value=ts, updated_by='bot')
         db.session.add(record)
+
+    # Store live flag state reported by the bot so the settings page can show
+    # what the bot is actually doing, regardless of DB overrides or .env defaults.
+    LIVE_FLAG_KEYS = {
+        'reviewNotifierEnabled': 'BOT_LIVE_REVIEW_NOTIFIER_ENABLED',
+        'submissionNotifierEnabled': 'BOT_LIVE_SUBMISSION_NOTIFIER_ENABLED',
+        'autoPeriodCreatorEnabled': 'BOT_LIVE_AUTO_PERIOD_CREATOR_ENABLED',
+        'autoPeriodCloserEnabled': 'BOT_LIVE_AUTO_PERIOD_CLOSER_ENABLED',
+        'claimReminderEnabled': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
+        'passageOfTimeEnabled': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
+        'huntConsequenceEnabled': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
+    }
+    body = request.get_json(silent=True) or {}
+    live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(LIVE_FLAG_KEYS.values())).all()}
+    for field, db_key in LIVE_FLAG_KEYS.items():
+        if field not in body:
+            continue
+        val = 'true' if body[field] else 'false'
+        if db_key in live_records:
+            live_records[db_key].value = val
+            live_records[db_key].updated_by = 'bot'
+        else:
+            db.session.add(AppSetting(key=db_key, value=val, updated_by='bot'))
+
     db.session.commit()
     return jsonify({'ok': True})
 

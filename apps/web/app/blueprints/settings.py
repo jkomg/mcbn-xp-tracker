@@ -178,11 +178,39 @@ def index():
     ]
 
     # ── Bot feature flags (DB-backed; bot polls /api/bot-config) ──────────────
+    LIVE_KEY_MAP = {
+        'BOT_REVIEW_NOTIFIER_ENABLED': 'BOT_LIVE_REVIEW_NOTIFIER_ENABLED',
+        'BOT_SUBMISSION_NOTIFIER_ENABLED': 'BOT_LIVE_SUBMISSION_NOTIFIER_ENABLED',
+        'BOT_AUTO_PERIOD_CREATOR_ENABLED': 'BOT_LIVE_AUTO_PERIOD_CREATOR_ENABLED',
+        'BOT_AUTO_PERIOD_CLOSER_ENABLED': 'BOT_LIVE_AUTO_PERIOD_CLOSER_ENABLED',
+        'BOT_CLAIM_REMINDER_ENABLED': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
+        'BOT_PASSAGE_OF_TIME_ENABLED': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
+        'BOT_HUNT_CONSEQUENCE_ENABLED': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
+    }
+    from app.db import AppSetting
+    live_keys = list(LIVE_KEY_MAP.values())
+    live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(live_keys)).all()}
+
     def _bot_flag_status(key, overrides):
-        record = overrides.get(key)
-        if record is None:
-            return {'db_set': False, 'enabled': False}
-        return {'db_set': True, 'enabled': record.value.lower() in ('true', '1', 'yes')}
+        db_record = overrides.get(key)
+        live_key = LIVE_KEY_MAP.get(key)
+        live_record = live_records.get(live_key) if live_key else None
+        live_enabled = live_record.value.lower() in ('true', '1', 'yes') if live_record else None
+        if db_record is None:
+            # No DB override — show the bot's actual reported live state.
+            return {
+                'db_set': False,
+                'enabled': live_enabled if live_enabled is not None else False,
+                'live_known': live_enabled is not None,
+                'using_env': live_enabled is None,
+            }
+        db_enabled = db_record.value.lower() in ('true', '1', 'yes')
+        return {
+            'db_set': True,
+            'enabled': db_enabled,
+            'live_known': live_enabled is not None,
+            'using_env': False,
+        }
 
     bot_flags = [
         {
