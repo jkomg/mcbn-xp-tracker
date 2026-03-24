@@ -10,7 +10,8 @@ Status updates (approve/deny) are NOT mirrored to Sheets in this phase.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import re
+from datetime import date as _date_type, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
@@ -22,6 +23,57 @@ from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry
 def _now_str() -> str:
     """Return current UTC timestamp in YYYYMMDD HH:MM:SS format."""
     return datetime.utcnow().strftime('%Y%m%d %H:%M:%S')
+
+
+def _parse_ledger_date(date_str: str) -> _date_type:
+    """Parse a ledger date string into a date for sorting.
+
+    Handles the inconsistent formats that exist in migrated data:
+      YYYYMMDD        → 20260324
+      M/D or MM/DD    → 9/7, 11/30  (no year; infer most recent past occurrence)
+      M-D-YY          → 2-22-26, 12-30-25
+      M-D-YYYY        → 2-22-2026
+    Falls back to 1970-01-01 for anything unparseable.
+    """
+    s = (date_str or '').strip()
+
+    # YYYYMMDD
+    if re.fullmatch(r'\d{8}', s):
+        try:
+            return _date_type(int(s[:4]), int(s[4:6]), int(s[6:8]))
+        except ValueError:
+            pass
+
+    # M-D-YYYY or MM-DD-YYYY (4-digit year, dash separator)
+    m = re.fullmatch(r'(\d{1,2})-(\d{1,2})-(\d{4})', s)
+    if m:
+        try:
+            return _date_type(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        except ValueError:
+            pass
+
+    # M-D-YY or MM-DD-YY (2-digit year, dash separator)
+    m = re.fullmatch(r'(\d{1,2})-(\d{1,2})-(\d{2})', s)
+    if m:
+        try:
+            return _date_type(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        except ValueError:
+            pass
+
+    # M/D or MM/DD (no year — pick most recent past occurrence)
+    m = re.fullmatch(r'(\d{1,2})/(\d{1,2})', s)
+    if m:
+        month, day = int(m.group(1)), int(m.group(2))
+        today = _date_type.today()
+        for year in (today.year, today.year - 1, today.year - 2):
+            try:
+                d = _date_type(year, month, day)
+                if d <= today:
+                    return d
+            except ValueError:
+                continue
+
+    return _date_type(1970, 1, 1)
 
 
 def _parse_yyyymmdd(value: str) -> Optional[datetime]:
@@ -797,8 +849,7 @@ class DBService:
             func.lower(DbLedgerEntry.character_name) == name.lower()
         ).all()
         entries = [_row_to_ledger(r) for r in rows]
-        # Sort by date descending (newest first)
-        entries.sort(key=lambda e: e.date, reverse=True)
+        entries.sort(key=lambda e: _parse_ledger_date(e.date), reverse=True)
         return entries
 
     def add_ledger_entry(self, character_name: str, date: str,

@@ -1,4 +1,5 @@
 import { logEvent } from '../logger';
+import { liveConfig } from '../liveConfig';
 import type { TrackerAdapter } from './adapter';
 
 export class BotHeartbeatService {
@@ -12,7 +13,15 @@ export class BotHeartbeatService {
 
   async beat(): Promise<void> {
     try {
-      await this.adapter.postHeartbeat();
+      await this.adapter.postHeartbeat({
+        reviewNotifierEnabled: liveConfig.reviewNotifierEnabled,
+        submissionNotifierEnabled: liveConfig.submissionNotifierEnabled,
+        autoPeriodCreatorEnabled: liveConfig.autoPeriodCreatorEnabled,
+        autoPeriodCloserEnabled: liveConfig.autoPeriodCloserEnabled,
+        claimReminderEnabled: liveConfig.claimReminderEnabled,
+        passageOfTimeEnabled: liveConfig.passageOfTimeEnabled,
+        huntConsequenceEnabled: liveConfig.huntConsequenceEnabled,
+      });
     } catch (err) {
       logEvent('warn', 'heartbeat_failed', { error: String(err) });
     }

@@ -199,25 +199,27 @@
                   <input type="hidden" name="key" value="{{ f.key }}">
                   <input type="hidden" name="action" value="set">
                   <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
-                  <button type="submit" class="btn btn-sm {% if f.db_set and f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
-                    {% if f.db_set and f.enabled %}<i class="bi bi-toggle-on"></i> ON{% elif f.db_set %}<i class="bi bi-toggle-off"></i> OFF{% else %}<i class="bi bi-toggle-off"></i> OFF{% endif %}
+                  <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
+                    {% if f.enabled %}<i class="bi bi-toggle-on"></i> ON{% else %}<i class="bi bi-toggle-off"></i> OFF{% endif %}
                   </button>
+                  {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1" title="No DB override — bot is using its .env value">ENV</span>{% endif %}
+                  {% if f.using_env %}<span class="badge bg-warning text-dark ms-1" title="Bot has not reported its state yet">?</span>{% endif %}
                   {% if f.db_set %}
                   </form>
                   <form method="POST" action="{{ url_for('settings.update') }}">
                     <input type="hidden" name="key" value="{{ f.key }}">
                     <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to bot config default" style="font-size:.75rem">reset</button>
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to bot .env default" style="font-size:.75rem">reset</button>
                   {% endif %}
                 </form>
               {% else %}
-                {% if f.db_set and f.enabled %}
+                {% if f.enabled %}
                   <span class="badge bg-success">Enabled</span>
-                {% elif f.db_set %}
-                  <span class="badge bg-secondary">Disabled</span>
                 {% else %}
-                  <span class="text-muted small fst-italic">Bot default</span>
+                  <span class="badge bg-secondary">Disabled</span>
                 {% endif %}
+                {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1">ENV</span>{% endif %}
+                {% if f.using_env %}<span class="badge bg-warning text-dark ms-1">?</span>{% endif %}
               {% endif %}
             </td>
             <td class="text-muted small">{{ f.description }}</td>

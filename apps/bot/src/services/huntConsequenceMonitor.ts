@@ -277,6 +277,14 @@ export async function handleHuntConsequenceButton(
   const prefix = isNegate ? BUTTON_NEGATE : BUTTON_ROLL;
   const messageId = interaction.customId.slice(prefix.length);
 
+  if (!liveConfig.huntConsequenceEnabled) {
+    await interaction.reply({
+      content: 'Hunt consequence tracking is currently paused. Please contact staff directly.',
+      ephemeral: true,
+    });
+    return;
+  }
+
   const entry = pending.get(messageId);
   if (!entry) {
     await interaction.reply({

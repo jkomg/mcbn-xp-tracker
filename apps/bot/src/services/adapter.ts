@@ -51,7 +51,7 @@ export interface TrackerAdapter {
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
-  postHeartbeat(): Promise<void>;
+  postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
 }
 
 const summarySchema = z.object({
@@ -472,11 +472,12 @@ export class WebAppAdapter implements TrackerAdapter {
     return res.json() as Promise<BotConfigResponse>;
   }
 
-  async postHeartbeat(): Promise<void> {
+  async postHeartbeat(liveState?: Record<string, boolean>): Promise<void> {
     const url = `${this.baseUrl}/api/bot-heartbeat`;
     const res = await this.fetchWithTimeout(url, {
       method: 'POST',
-      headers: this.authHeaders(),
+      headers: { ...this.authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(liveState ?? {}),
     });
     if (!res.ok) throw new Error(`heartbeat POST failed: ${res.status}`);
   }
