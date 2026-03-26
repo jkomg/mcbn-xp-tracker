@@ -83,7 +83,12 @@ Players log in via Discord OAuth at `/player`. The portal is scoped to their Dis
 
 ### My Characters
 
-The landing page lists all characters associated with the player's Discord account. Each character shows its name, clan, and available XP. Clicking a character opens its detail view.
+The landing page (`/player`) for players after Discord login. Layout:
+
+- **Claims open banner** — green banner listing all currently open play periods (e.g. "Night 57 - 3/24 - 4/5") with the prompt "Submit XP claims from your character page."
+- **Your Characters** — cards for each character linked to the player's Discord account, showing the character name, clan badge, and clan icon. Clicking a card opens the character detail view.
+- **Link another character** — button to associate an additional character with the player's Discord account.
+- **Chronicle Calendar** — shows the currently active night ("Now Active: Night 57, Mar 24 – Apr 5, 10 days left") highlighted in a dark card, with past and upcoming nights and downtime periods listed chronologically. A "Show full calendar" link expands the full schedule.
 
 ### Character View
 
