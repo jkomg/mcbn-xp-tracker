@@ -182,17 +182,8 @@ export class SubmissionNotifier {
             continue;
           }
 
-          try {
-            await channel.send({ content: buildSubmissionNotificationMessage(event) });
-          } catch (error) {
-            logEvent('warn', 'submission_notifier_send_failed', {
-              eventKey: event.eventKey,
-              channelId: channel.id,
-              error: errorToMessage(error),
-            });
-            continue;
-          }
-
+          // Advance cursor before sending so a crash between send and save
+          // causes a missed notification rather than a duplicate.
           this.seenEventKeys.add(event.eventKey);
           if (this.seenEventKeys.size > 5000) {
             const first = this.seenEventKeys.values().next().value;
@@ -203,6 +194,17 @@ export class SubmissionNotifier {
           this.cursorEpoch = event.submittedAtEpoch;
           this.cursorEventKey = event.eventKey;
           saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
+
+          try {
+            await channel.send({ content: buildSubmissionNotificationMessage(event) });
+          } catch (error) {
+            logEvent('warn', 'submission_notifier_send_failed', {
+              eventKey: event.eventKey,
+              channelId: channel.id,
+              error: errorToMessage(error),
+            });
+            continue;
+          }
 
           logEvent('info', 'submission_notifier_posted', {
             eventKey: event.eventKey,

@@ -207,6 +207,19 @@ export class ReviewNotifier {
             continue;
           }
 
+          // Advance cursor before sending so a crash between send and save
+          // causes a missed notification rather than a duplicate.
+          this.seenEventKeys.add(event.eventKey);
+          if (this.seenEventKeys.size > 5000) {
+            const first = this.seenEventKeys.values().next().value;
+            if (first) {
+              this.seenEventKeys.delete(first);
+            }
+          }
+          this.cursorEpoch = event.reviewedAtEpoch;
+          this.cursorEventKey = event.eventKey;
+          saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
+
           try {
             await channel.send({
               content: buildReviewNotificationMessage(event),
@@ -220,17 +233,6 @@ export class ReviewNotifier {
             });
             continue;
           }
-
-          this.seenEventKeys.add(event.eventKey);
-          if (this.seenEventKeys.size > 5000) {
-            const first = this.seenEventKeys.values().next().value;
-            if (first) {
-              this.seenEventKeys.delete(first);
-            }
-          }
-          this.cursorEpoch = event.reviewedAtEpoch;
-          this.cursorEventKey = event.eventKey;
-          saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
 
           logEvent('info', 'review_notifier_posted', {
             eventKey: event.eventKey,
