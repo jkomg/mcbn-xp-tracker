@@ -136,7 +136,7 @@
   </div>
 
   <!-- ═══ Pending Items ═══ -->
-  {% if pending_claims or pending_spends %}
+  {% if pending_claim_list or pending_spend_list %}
   <div class="card mb-4 border-warning">
     <div class="card-header border-warning">
       <h5 class="mb-0 text-warning"><i class="bi bi-hourglass-split me-1"></i>Pending Review</h5>
@@ -153,7 +153,7 @@
             </tr>
           </thead>
           <tbody>
-            {% for c in pending_claims %}
+            {% for c in pending_claim_list %}
             <tr>
               <td><span class="badge bg-primary">claim</span></td>
               <td>XP Claim — {{ c.play_period }}</td>
@@ -161,7 +161,7 @@
               <td><a href="{{ url_for('claims.review', row_id=c.row_index) }}" class="btn btn-sm btn-outline-secondary py-0">Review</a></td>
             </tr>
             {% endfor %}
-            {% for s in pending_spends %}
+            {% for s in pending_spend_list %}
             <tr>
               <td><span class="badge bg-danger">spend</span></td>
               <td>{{ s.trait_name }} ({{ s.current_dots }}→{{ s.new_dots }}) — {{ s.spend_category }}</td>

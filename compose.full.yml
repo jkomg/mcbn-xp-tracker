@@ -14,11 +14,13 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       TZ: ${TZ:-America/Chicago}
+      WEB_LOG_DIR: /run/logs
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
       - ./apps/web:/app
       - ./packages:/app/packages:ro
+      - ./.run/logs:/run/logs
     command: python -m flask run --host 0.0.0.0 --port 5001
 
   bot:
