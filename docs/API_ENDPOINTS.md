@@ -90,6 +90,44 @@ Returns the time of the last bot heartbeat and its age in seconds.
 
 ---
 
+## GET /api/bot-config
+
+**Scope:** read | **Rate limit:** 10/min
+
+Returns the current value of each bot feature flag as stored in the web app's settings database. The bot's `configSyncWorker` polls this endpoint to pick up runtime flag changes without restarting.
+
+**Response 200:**
+```json
+{
+  "reviewNotifierEnabled": true,
+  "submissionNotifierEnabled": false,
+  "autoPeriodCreatorEnabled": false,
+  "autoPeriodCloserEnabled": false,
+  "claimReminderEnabled": true,
+  "passageOfTimeEnabled": false,
+  "huntConsequenceEnabled": false
+}
+```
+
+Each field is `true`, `false`, or `null` (if the flag has never been set in the database).
+
+---
+
+## GET /api/meta/active-roster
+
+**Scope:** read | **Rate limit:** 60/min
+
+Returns the names of all active characters, sorted alphabetically. Used by the bot for character name autocomplete.
+
+**Response 200:**
+```json
+{
+  "characters": ["Alice", "Bob", "Carol"]
+}
+```
+
+---
+
 ## GET /api/meta/claim-context
 
 **Scope:** read | **Rate limit:** 60/min
