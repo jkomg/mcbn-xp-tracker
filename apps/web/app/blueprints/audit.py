@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -11,9 +12,13 @@ from app import db_service
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
-_parents = Path(__file__).resolve().parents
-PROJECT_ROOT = _parents[min(4, len(_parents) - 1)]
-LOG_DIR = PROJECT_ROOT / '.run' / 'logs'
+
+def _default_log_dir() -> Path:
+    _parents = Path(__file__).resolve().parents
+    project_root = _parents[min(4, len(_parents) - 1)]
+    return project_root / '.run' / 'logs'
+
+LOG_DIR = Path(os.environ['WEB_LOG_DIR']) if os.environ.get('WEB_LOG_DIR') else _default_log_dir()
 ERROR_LOG_FILES = ('bot.err.log', 'web.err.log')
 
 

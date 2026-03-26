@@ -139,6 +139,10 @@ def xp_audit(name):
     timeline = db_service.get_xp_timeline(name)
     if not timeline:
         abort(404)
+    # Rename pending_claims/pending_spends to avoid colliding with the integer
+    # navbar context variables of the same name in base.html.
+    timeline['pending_claim_list'] = timeline.pop('pending_claims')
+    timeline['pending_spend_list'] = timeline.pop('pending_spends')
     return render_template('roster/xp_audit.html', **timeline)
 
 

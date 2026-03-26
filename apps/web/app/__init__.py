@@ -1,7 +1,9 @@
 """MCbN XP Tracker — Flask application factory."""
 
+import json
+import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -142,6 +144,31 @@ def create_app():
             'current_discord_name': session.get('discord_name', ''),
             'current_discord_id': session.get('discord_id', ''),
         }
+
+    # JSON error log file — only active when WEB_LOG_DIR is set (local Docker dev)
+    _web_log_dir = os.environ.get('WEB_LOG_DIR', '')
+    if _web_log_dir:
+        _log_path = Path(_web_log_dir) / 'web.err.log'
+        _log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        class _JsonFormatter(logging.Formatter):
+            def format(self, record: logging.LogRecord) -> str:
+                level = 'warn' if record.levelno == logging.WARNING else 'error'
+                entry: dict = {
+                    'ts': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
+                    'level': level,
+                    'event': record.name,
+                }
+                msg = record.getMessage()
+                if record.exc_info:
+                    msg = self.formatException(record.exc_info) if not msg else f'{msg}\n{self.formatException(record.exc_info)}'
+                entry['error'] = msg
+                return json.dumps(entry, ensure_ascii=False)
+
+        _fh = logging.FileHandler(_log_path, encoding='utf-8')
+        _fh.setLevel(logging.WARNING)
+        _fh.setFormatter(_JsonFormatter())
+        logging.getLogger().addHandler(_fh)
 
     if app.config.get('LOCAL_STATUS_ENABLED', False):
         access_log_file = Path(app.config.get('LOCAL_STATUS_ACCESS_LOG_FILE', '.run/logs/access.log'))
