@@ -20,6 +20,8 @@ The landing page for staff after login. Displays:
 - **Stat cards** — Active Characters count, Pending Claims count (with "View Claims" button), Pending Spends count (with "View Spends" button).
 - **Character table** — filterable by All / Active / No Claims tabs. Columns: Character Name (linked to detail page), Clan (colored badge), Creation XP, Earned XP, Total XP, Spends, Available XP, Last Submission. Available XP is highlighted in orange/yellow when positive and red when negative.
 
+![Dashboard](screenshots/dashboard.png)
+
 ### XP Claims
 
 Lists all pending XP claim submissions. Staff review each claim, verify the Discord evidence links for each category checked, and either approve (optionally adjusting the XP amount) or deny (with a note). After review the claim moves out of the pending queue and the audit log is updated.
@@ -28,11 +30,15 @@ Lists all pending XP claim submissions. Staff review each claim, verify the Disc
 
 Lists pending spend requests. Columns: Character, Category (e.g. "Advantage (Merit/Background)", "Discipline (Out-of-Clan)"), Trait, Dots (current → new), XP Cost (shown as a red badge), Submitted timestamp, Actions (Review button). A History button in the top-right shows previously reviewed spends. The system auto-calculates the verified XP cost from V5 rules for comparison against the requested cost.
 
+![XP Spends](screenshots/xp-spends.png)
+
 ### Character Roster
 
 Searchable, filterable list of all characters. Filters: Show (Active / Inactive / All), Clan, Sect. Columns: Name (linked), Clan (colored badge), Age (Fledgling / Childer / Neonate / Ancilla), Sect (Camarilla / Anarch / Autarkis / Voivode / Hecata), Active (Yes badge), Available XP (red when negative). Add Character button top-right.
 
 Each character's detail page shows their full XP history — all claims, spends, and ledger entries — and provides an Adjust XP button for manual corrections.
+
+![Character Roster](screenshots/roster.png)
 
 ### Play Periods
 
@@ -40,11 +46,15 @@ Manages the two-week play periods (called "nights"). Columns: Night number, Peri
 
 Staff can open and close submission windows, hide old periods from player-facing dropdowns, and import periods from an external Google Sheet. The + New Period button creates a period manually. Auto-creation and auto-closing can be delegated to the bot (see Settings).
 
+![Play Periods](screenshots/play-period.png)
+
 ### Audit Log
 
 A full history of every staff action. Filterable by Action Type, Character, and Staff Member. Columns: Timestamp, Staff (Discord name), Action (colored badge), Character (linked), Details.
 
 Action badge types include: `approve_spend` (green), `deny_spend` (red), `approve_claim` (green), `deny_claim` (red), `player_spend_submitted` (grey), `player_claim_submitted` (grey), and others.
+
+![Audit Log](screenshots/audit-log.png)
 
 ### Settings
 
@@ -77,18 +87,22 @@ Three sections:
 | Session lifetime | 43200 s | Staff session cookie lifetime |
 | Sheets cache TTL | 30 s | How long Sheets reads are cached |
 
+![Settings](screenshots/settings.png)
+
 ## Player Portal
 
 Players log in via Discord OAuth at `/player`. The portal is scoped to their Discord account — they can only see characters linked to their Discord ID.
 
 ### My Characters
 
-The landing page (`/player`) for players after Discord login. Layout:
+The landing page for players after Discord login. Layout:
 
 - **Claims open banner** — green banner listing all currently open play periods (e.g. "Night 57 - 3/24 - 4/5") with the prompt "Submit XP claims from your character page."
 - **Your Characters** — cards for each character linked to the player's Discord account, showing the character name, clan badge, and clan icon. Clicking a card opens the character detail view.
 - **Link another character** — button to associate an additional character with the player's Discord account.
 - **Chronicle Calendar** — shows the currently active night ("Now Active: Night 57, Mar 24 – Apr 5, 10 days left") highlighted in a dark card, with past and upcoming nights and downtime periods listed chronologically. A "Show full calendar" link expands the full schedule.
+
+![My Characters](screenshots/player-my-characters.png)
 
 ### Character View
 
@@ -99,6 +113,8 @@ The character detail page has a header card showing:
 - A "← My Characters" back link
 
 Below the header are two side-by-side action panels:
+
+![Character Detail](screenshots/player-character-detail.png)
 
 **Claim XP (left panel)**
 
@@ -125,6 +141,10 @@ To request a spend:
 3. Set Current Dots and New Dots — the **Estimated Cost** updates automatically using V5 XP rules.
 4. Write a Justification / RP Rationale explaining the in-character reason.
 5. Click **Submit Spend Request**.
+
+Both panels open simultaneously, as shown below:
+
+![Claim and Spend panels open](screenshots/play-spend-claim.png)
 
 Both submissions go into the pending queue for staff review. Players receive a Discord notification in their character's cubby channel when the review is complete.
 
