@@ -73,6 +73,8 @@ const envSchema = z.object({
   BOT_TESTER_IDS: z.string().optional(),
   WEB_APP_BASE_URL: z.string().default('http://127.0.0.1:5001').transform(validateBaseUrl),
   WEB_APP_API_TOKEN: z.string().min(1).optional(),
+  WEB_APP_API_READ_TOKEN: z.string().min(1).optional(),
+  WEB_APP_API_WRITE_TOKEN: z.string().min(1).optional(),
   REQUEST_TIMEOUT_MS: z.string().optional(),
   CLAIM_CONTEXT_CACHE_TTL_MS: z.string().optional(),
   CLAIM_CONTEXT_STALE_IF_ERROR_MS: z.string().optional(),
@@ -155,6 +157,8 @@ export const config = {
   testerDiscordIds: parseCsvIds(env.BOT_TESTER_IDS),
   webAppBaseUrl: env.WEB_APP_BASE_URL,
   webAppApiToken: env.WEB_APP_API_TOKEN,
+  webAppApiReadToken: env.WEB_APP_API_READ_TOKEN,
+  webAppApiWriteToken: env.WEB_APP_API_WRITE_TOKEN,
   requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, 10_000, 'REQUEST_TIMEOUT_MS'),
   claimContextCacheTtlMs: parsePositiveInt(
     env.CLAIM_CONTEXT_CACHE_TTL_MS,
@@ -180,7 +184,7 @@ export const config = {
   reviewNotifierGuildId: env.REVIEW_NOTIFIER_GUILD_ID,
   reviewNotifierIntervalMs: parsePositiveInt(
     env.REVIEW_NOTIFIER_INTERVAL_MS,
-    60_000,
+    120_000,
     'REVIEW_NOTIFIER_INTERVAL_MS',
   ),
   reviewNotifierLookbackSeconds: parsePositiveInt(
@@ -277,7 +281,7 @@ export const config = {
   submissionNotifierChannelId: env.SUBMISSION_NOTIFIER_CHANNEL_ID,
   submissionNotifierIntervalMs: parsePositiveInt(
     env.SUBMISSION_NOTIFIER_INTERVAL_MS,
-    60_000,
+    120_000,
     'SUBMISSION_NOTIFIER_INTERVAL_MS',
   ),
   submissionNotifierLookbackSeconds: parsePositiveInt(

@@ -87,8 +87,10 @@ upsert_secret "mcbn-discord-client-secret" "$(_env_val DISCORD_CLIENT_SECRET)"
 upsert_secret "mcbn-discord-allowed-ids"   "$(_env_val ALLOWED_DISCORD_IDS)"
 upsert_secret "mcbn-settings-admin-ids"   "$(_env_val SETTINGS_ADMIN_DISCORD_IDS)"
 
-# Bot API token
-upsert_secret "mcbn-web-app-api-token"     "$(_env_val WEB_APP_API_TOKEN)"
+# Bot API tokens
+upsert_secret "mcbn-web-app-api-token"      "$(_env_val WEB_APP_API_TOKEN)"
+upsert_secret "mcbn-web-app-api-read-token" "$(_env_val WEB_APP_API_READ_TOKEN)"
+upsert_secret "mcbn-web-app-api-write-token" "$(_env_val WEB_APP_API_WRITE_TOKEN)"
 
 # Database (Turso)
 upsert_secret "mcbn-database-url"          "$(_env_val DATABASE_URL)"
@@ -102,7 +104,8 @@ SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 for SECRET in mcbn-flask-secret mcbn-google-creds \
               mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids mcbn-settings-admin-ids \
-              mcbn-web-app-api-token mcbn-database-url mcbn-turso-auth-token; do
+              mcbn-web-app-api-token mcbn-web-app-api-read-token mcbn-web-app-api-write-token \
+              mcbn-database-url mcbn-turso-auth-token; do
   gcloud secrets add-iam-policy-binding "${SECRET}" \
     --member="serviceAccount:${SA_EMAIL}" \
     --role="roles/secretmanager.secretAccessor" \

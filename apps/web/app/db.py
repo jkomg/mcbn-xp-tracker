@@ -40,6 +40,8 @@ class DbXPClaim(db.Model):
     __tablename__ = 'xp_claims'
     __table_args__ = (
         db.Index('ix_xp_claims_char_period', 'character_name', 'play_period'),
+        db.Index('ix_xp_claims_status_timestamp', 'status', 'timestamp'),
+        db.Index('ix_xp_claims_status_review_date', 'status', 'review_date'),
     )
     id = db.Column(Integer, primary_key=True)
     timestamp = db.Column(String(20), default='')
@@ -71,6 +73,10 @@ class DbXPClaim(db.Model):
 
 class DbSpendRequest(db.Model):
     __tablename__ = 'spend_requests'
+    __table_args__ = (
+        db.Index('ix_spend_requests_status_timestamp', 'status', 'timestamp'),
+        db.Index('ix_spend_requests_status_review_date', 'status', 'review_date'),
+    )
     id = db.Column(Integer, primary_key=True)
     timestamp = db.Column(String(20), default='')
     character_name = db.Column(String(200), nullable=False, index=True)

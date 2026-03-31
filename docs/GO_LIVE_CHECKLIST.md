@@ -16,8 +16,10 @@ Use this checklist when promoting the merged web + bot setup to production.
   - [ ] `CLIENT_ID` (numeric Discord application snowflake)
   - [ ] `TEST_GUILD_ID` (for controlled command registration)
   - [ ] `WEB_APP_BASE_URL` (prod URL, HTTPS)
-  - [ ] `WEB_APP_API_TOKEN` (if protected bot->web endpoints are used)
+  - [ ] `WEB_APP_API_READ_TOKEN` and `WEB_APP_API_WRITE_TOKEN` (preferred)
+  - [ ] `WEB_APP_API_TOKEN` unset unless intentionally using legacy fallback
 - [ ] Web app prod secrets are set in GCP Secret Manager / Cloud Run env.
+- [ ] `BOT_API_REPLAY_PROTECTION_ENABLED=true` in production.
 
 ## 3) Web Application Production Validation
 - [ ] Deploy latest release commit to Cloud Run.
@@ -35,6 +37,10 @@ Use this checklist when promoting the merged web + bot setup to production.
 - [ ] Startup test:
   - [ ] `npm run dev` logs `bot_ready`
   - [ ] command registration succeeds for `TEST_GUILD_ID`
+- [ ] Config sync health:
+  - [ ] `/api/bot-config` returns expected flag payload
+- [ ] Heartbeat health:
+  - [ ] `/api/bot-heartbeat` age remains within expected range after startup
 - [ ] Process supervisor configured (`systemd` or `pm2`) with auto-restart.
 - [ ] Logs are persisted and rotated.
 

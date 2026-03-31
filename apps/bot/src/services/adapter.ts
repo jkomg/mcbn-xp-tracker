@@ -172,6 +172,8 @@ const submissionEventsSchema = z.object({
 });
 
 type AdapterOptions = {
+  readToken?: string;
+  writeToken?: string;
   requestTimeoutMs?: number;
   claimContextCacheTtlMs?: number;
   claimContextStaleIfErrorMs?: number;
@@ -191,7 +193,9 @@ export class WebAppAdapter implements TrackerAdapter {
   private claimContextCache = new Map<string, { value: ClaimContext; fetchedAt: number }>();
   private claimContextInFlight = new Map<string, Promise<ClaimContextResult>>();
   private readonly baseUrl: string;
-  private readonly apiToken?: string;
+  private readonly legacyToken?: string;
+  private readonly readToken?: string;
+  private readonly writeToken?: string;
   private readonly requestTimeoutMs: number;
   private readonly claimContextCacheTtlMs: number;
   private readonly claimContextStaleIfErrorMs: number;
@@ -200,7 +204,9 @@ export class WebAppAdapter implements TrackerAdapter {
 
   constructor(baseUrl: string, apiToken?: string, opts: AdapterOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
-    this.apiToken = apiToken;
+    this.legacyToken = apiToken;
+    this.readToken = opts.readToken;
+    this.writeToken = opts.writeToken;
     this.requestTimeoutMs = opts.requestTimeoutMs ?? 10_000;
     this.claimContextCacheTtlMs = opts.claimContextCacheTtlMs ?? 30_000;
     this.claimContextStaleIfErrorMs = opts.claimContextStaleIfErrorMs ?? 300_000;
@@ -221,7 +227,7 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const url = `${this.baseUrl}/api/characters/${encodeURIComponent(characterName)}/summary?${params.toString()}`;
     const resp = await this.fetchWithTimeout(url, {
-      headers: this.authHeaders(),
+      headers: this.readAuthHeaders(),
     }).catch(() => null);
 
     if (!resp || resp.status === 404) {
@@ -243,7 +249,7 @@ export class WebAppAdapter implements TrackerAdapter {
 
   async getActiveRoster(): Promise<{ characters: string[] }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster`, {
-      headers: this.authHeaders(),
+      headers: this.readAuthHeaders(),
     }).catch(() => null);
     if (!resp) {
       throw new Error('Unable to reach web app active-roster API.');
@@ -257,7 +263,7 @@ export class WebAppAdapter implements TrackerAdapter {
 
   async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-reminder-targets`, {
-      headers: this.authHeaders(),
+      headers: this.readAuthHeaders(),
     }).catch(() => null);
     if (!resp) {
       throw new Error('Unable to reach web app claim-reminder-targets API.');
@@ -288,7 +294,7 @@ export class WebAppAdapter implements TrackerAdapter {
     const query = params.toString();
     const url = `${this.baseUrl}/api/submission-events${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
-      headers: this.authHeaders(),
+      headers: this.readAuthHeaders(),
     }).catch(() => null);
 
     if (!resp) {
@@ -322,7 +328,7 @@ export class WebAppAdapter implements TrackerAdapter {
     const query = params.toString();
     const url = `${this.baseUrl}/api/review-events${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
-      headers: this.authHeaders(),
+      headers: this.readAuthHeaders(),
     }).catch(() => null);
 
     if (!resp) {
@@ -346,7 +352,7 @@ export class WebAppAdapter implements TrackerAdapter {
         'Content-Type': 'application/json',
         'X-Request-Timestamp': requestTimestamp,
         'X-Request-Nonce': requestNonce,
-        ...this.authHeaders(),
+        ...this.writeAuthHeaders(),
       },
       body: JSON.stringify({}),
     }).catch(() => null);
@@ -383,7 +389,7 @@ export class WebAppAdapter implements TrackerAdapter {
         'Content-Type': 'application/json',
         'X-Request-Timestamp': requestTimestamp,
         'X-Request-Nonce': requestNonce,
-        ...this.authHeaders(),
+        ...this.writeAuthHeaders(),
       },
       body: JSON.stringify({}),
     }).catch(() => null);
@@ -421,7 +427,7 @@ export class WebAppAdapter implements TrackerAdapter {
 
     try {
       const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/health`, {
-        headers: this.authHeaders(),
+        headers: this.readAuthHeaders(),
       });
       webApi = {
         ok: resp.ok,
@@ -467,7 +473,7 @@ export class WebAppAdapter implements TrackerAdapter {
 
   async getBotConfig(): Promise<BotConfigResponse> {
     const url = `${this.baseUrl}/api/bot-config`;
-    const res = await this.fetchWithTimeout(url, { headers: this.authHeaders() });
+    const res = await this.fetchWithTimeout(url, { headers: this.readAuthHeaders() });
     if (!res.ok) throw new Error(`bot-config fetch failed: ${res.status}`);
     return res.json() as Promise<BotConfigResponse>;
   }
@@ -476,7 +482,7 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/bot-heartbeat`;
     const res = await this.fetchWithTimeout(url, {
       method: 'POST',
-      headers: { ...this.authHeaders(), 'Content-Type': 'application/json' },
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(liveState ?? {}),
     });
     if (!res.ok) throw new Error(`heartbeat POST failed: ${res.status}`);
@@ -491,7 +497,7 @@ export class WebAppAdapter implements TrackerAdapter {
         'Content-Type': 'application/json',
         'X-Request-Timestamp': requestTimestamp,
         'X-Request-Nonce': requestNonce,
-        ...this.authHeaders(),
+        ...this.writeAuthHeaders(),
       },
       body: JSON.stringify(body),
     }).catch(() => null);
@@ -587,7 +593,7 @@ export class WebAppAdapter implements TrackerAdapter {
           params.set('testAsDiscordId', requester.testAsDiscordId);
         }
         const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-context?${params.toString()}`, {
-          headers: this.authHeaders(),
+          headers: this.readAuthHeaders(),
         });
 
         if (!resp.ok) {
@@ -633,8 +639,14 @@ export class WebAppAdapter implements TrackerAdapter {
     throw new Error(lastError || 'Unable to reach web app API.');
   }
 
-  private authHeaders(): Record<string, string> {
-    return this.apiToken ? { Authorization: `Bearer ${this.apiToken}` } : {};
+  private readAuthHeaders(): Record<string, string> {
+    const token = this.readToken ?? this.legacyToken ?? this.writeToken;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  private writeAuthHeaders(): Record<string, string> {
+    const token = this.writeToken ?? this.legacyToken;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

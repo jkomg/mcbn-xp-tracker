@@ -1,6 +1,6 @@
 # Bot Memory (Audit Snapshot)
 
-Last updated: 2026-03-26
+Last updated: 2026-03-30
 Scope: `apps/bot` in `mcbn-xp-tracker`
 
 ## What This Bot Does
@@ -94,8 +94,9 @@ Scope: `apps/bot` in `mcbn-xp-tracker`
 
 ## Current Audit Findings
 1. No critical or high-severity code defects found in the audited bot paths.
-2. Automated coverage is strong on command/adapter/rules paths, but limited for scheduled services and Discord posting side effects.
+2. Automated coverage is strong on command/adapter/rules paths, but still thinner for scheduler side effects (reminder cadence, passage windows, and cross-restart dedupe behavior).
 3. JSON state files are path-resolved from `process.cwd()`; service launch working directory must remain `apps/bot`.
+4. Docs had drift around claim-reminder defaults (template noon vs code fallback 08:00); normalized in `docs/BOT.md` and `docs/ENV_AND_SECRETS.md`.
 
 ## Invariants to Preserve
 - Evidence links for claims must remain validated as Discord message links in the same guild.

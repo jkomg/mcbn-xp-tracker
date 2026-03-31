@@ -1,5 +1,7 @@
 # Environment Variables and Secrets
 
+For production-safe defaults and rollout order, see [PRODUCTION_ENV_PROFILE.md](PRODUCTION_ENV_PROFILE.md).
+
 ## Web App Env Vars (`apps/web/.env`)
 
 Copy the template before editing:
@@ -101,7 +103,9 @@ cp apps/bot/.env.example apps/bot/.env
 | `BOT_TOKEN` | Yes | — | Discord bot token from the Developer Portal. |
 | `CLIENT_ID` | Yes (for registration) | — | Discord application client ID. Required to register slash commands. |
 | `WEB_APP_BASE_URL` | No | `http://127.0.0.1:5001` | Base URL of the web app. Use `http://web:5001` in Docker full-stack mode. |
-| `WEB_APP_API_TOKEN` | Yes | — | Bearer token matching `WEB_APP_API_TOKEN` on the web app. |
+| `WEB_APP_API_TOKEN` | Conditional | — | Legacy all-scope bearer token (fallback when scoped tokens are not set). |
+| `WEB_APP_API_READ_TOKEN` | No | — | Preferred read-scoped token (maps to web `WEB_APP_API_READ_TOKEN`). |
+| `WEB_APP_API_WRITE_TOKEN` | No | — | Preferred write-scoped token (maps to web `WEB_APP_API_WRITE_TOKEN`). |
 | `TEST_GUILD_ID` | No | — | Guild ID for guild-scoped command registration during development. |
 | `BOT_TESTER_IDS` | No | — | Comma-separated Discord IDs allowed to use staff-only bot commands. |
 | `TEST_REQUESTER_DISCORD_ID` | No | — | Additional Discord ID added to `BOT_TESTER_IDS` at runtime. |
@@ -122,7 +126,7 @@ cp apps/bot/.env.example apps/bot/.env
 |-----|----------|---------|-------------|
 | `REVIEW_NOTIFIER_ENABLED` | No | `false` | Enable posting approve/deny notifications to character cubbies. |
 | `REVIEW_NOTIFIER_GUILD_ID` | Conditional | — | Guild ID where cubby channels live. Required when enabled. |
-| `REVIEW_NOTIFIER_INTERVAL_MS` | No | `60000` | Poll interval (ms). |
+| `REVIEW_NOTIFIER_INTERVAL_MS` | No | `120000` | Poll interval (ms). |
 | `REVIEW_NOTIFIER_LOOKBACK_SECONDS` | No | `86400` | How far back to look for review events on (re)start. |
 
 ### Submission Notifier
@@ -131,7 +135,7 @@ cp apps/bot/.env.example apps/bot/.env
 |-----|----------|---------|-------------|
 | `SUBMISSION_NOTIFIER_ENABLED` | No | `false` | Enable staff-channel alerts for new claim/spend submissions. |
 | `SUBMISSION_NOTIFIER_CHANNEL_ID` | Conditional | — | Staff channel ID to post to. Required when enabled. |
-| `SUBMISSION_NOTIFIER_INTERVAL_MS` | No | `60000` | Poll interval (ms). |
+| `SUBMISSION_NOTIFIER_INTERVAL_MS` | No | `120000` | Poll interval (ms). |
 | `SUBMISSION_NOTIFIER_LOOKBACK_SECONDS` | No | `86400` | How far back to look on (re)start. |
 
 ### Auto-Period Creator
@@ -157,7 +161,7 @@ cp apps/bot/.env.example apps/bot/.env
 | `CLAIM_REMINDER_GUILD_ID` | Conditional | — | Guild ID. Required when enabled. |
 | `CLAIM_REMINDER_INTERVAL_MS` | No | `900000` | How often to check the schedule (ms). |
 | `CLAIM_REMINDER_WEEKDAY_LOCAL` | No | `0` (Sunday) | Weekday to send reminders (0=Sun … 6=Sat). |
-| `CLAIM_REMINDER_HOUR_LOCAL` | No | `8` | Hour to send (0–23, local timezone). |
+| `CLAIM_REMINDER_HOUR_LOCAL` | No | `12` (template) / `8` (code fallback) | Hour to send (0–23, local timezone). |
 | `CLAIM_REMINDER_MINUTE_LOCAL` | No | `0` | Minute to send (0–59). |
 | `CLAIM_REMINDER_TIMEZONE` | No | `America/Chicago` | IANA timezone for reminder scheduling. |
 | `CLAIM_REMINDER_SNOOZE_HOURS` | No | `24` | How long a snooze lasts. |

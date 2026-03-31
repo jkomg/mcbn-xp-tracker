@@ -22,12 +22,14 @@ BOT_TOKEN=...
 CLIENT_ID=your-discord-application-id-numeric-snowflake
 TEST_GUILD_ID=your-discord-server-id
 WEB_APP_BASE_URL=https://mcbn.jkomg.us
-WEB_APP_API_TOKEN=...
+WEB_APP_API_TOKEN=... # optional legacy fallback
+WEB_APP_API_READ_TOKEN=... # preferred
+WEB_APP_API_WRITE_TOKEN=... # preferred
 
 # Optional reviewed-claim/spend notifier (issue #23)
 REVIEW_NOTIFIER_ENABLED=true
 REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
-REVIEW_NOTIFIER_INTERVAL_MS=60000
+REVIEW_NOTIFIER_INTERVAL_MS=120000
 REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 
 # Optional issue #22: auto-create next night when due

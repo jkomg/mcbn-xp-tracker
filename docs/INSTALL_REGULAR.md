@@ -58,12 +58,14 @@ CLIENT_ID=your-discord-application-id-numeric-snowflake
 TEST_GUILD_ID=your-discord-server-id
 
 WEB_APP_BASE_URL=http://127.0.0.1:5001
-WEB_APP_API_TOKEN=optional-if-web-api-token-enabled
+WEB_APP_API_TOKEN=optional-legacy-token
+WEB_APP_API_READ_TOKEN=preferred-read-token
+WEB_APP_API_WRITE_TOKEN=preferred-write-token
 
 # Optional: issue #23 cubby notifications for approved/denied claim/spend
 REVIEW_NOTIFIER_ENABLED=true
 REVIEW_NOTIFIER_GUILD_ID=your-discord-server-id
-REVIEW_NOTIFIER_INTERVAL_MS=60000
+REVIEW_NOTIFIER_INTERVAL_MS=120000
 REVIEW_NOTIFIER_LOOKBACK_SECONDS=86400
 
 # Optional issue #22: bot-triggered auto creation of next play period

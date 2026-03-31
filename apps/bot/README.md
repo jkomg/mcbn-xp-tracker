@@ -27,7 +27,9 @@ Optional:
 
 - `TEST_GUILD_ID` (register commands only to a test guild)
 - `WEB_APP_BASE_URL` (default: `http://127.0.0.1:5001`)
-- `WEB_APP_API_TOKEN`
+- `WEB_APP_API_TOKEN` (legacy fallback)
+- `WEB_APP_API_READ_TOKEN` (preferred)
+- `WEB_APP_API_WRITE_TOKEN` (preferred)
 - `REQUEST_TIMEOUT_MS` (default: `10000`)
 - `CLAIM_CONTEXT_CACHE_TTL_MS` (default: `30000`)
 - `CLAIM_CONTEXT_STALE_IF_ERROR_MS` (default: `300000`)

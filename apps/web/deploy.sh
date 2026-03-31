@@ -48,6 +48,16 @@ SERVICE_NAME="mcbn-xp-tracker"
 REPO="us-central1-docker.pkg.dev/${PROJECT_ID}/mcbn-repo"
 IMAGE="${REPO}/${SERVICE_NAME}:latest"
 SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+WEB_APP_API_READ_TOKEN_VALUE="${WEB_APP_API_READ_TOKEN:-$(grep '^WEB_APP_API_READ_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+WEB_APP_API_WRITE_TOKEN_VALUE="${WEB_APP_API_WRITE_TOKEN:-$(grep '^WEB_APP_API_WRITE_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+
+OPTIONAL_SECRET_ARGS=()
+if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest")
+fi
+if [ -n "${WEB_APP_API_WRITE_TOKEN_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest")
+fi
 
 if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
   echo "ERROR: SPREADSHEET_ID is required."
@@ -79,6 +89,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
   --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
+  --set-env-vars "BOT_API_REPLAY_PROTECTION_ENABLED=true" \
   --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
   --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
   --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
@@ -88,7 +99,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
   --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
   --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
-  --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest"
+  --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
+  "${OPTIONAL_SECRET_ARGS[@]}"
 
 echo "==> Routing 100% traffic to latest revision..."
 gcloud run services update-traffic "${SERVICE_NAME}" \
