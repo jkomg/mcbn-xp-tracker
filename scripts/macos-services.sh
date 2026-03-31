@@ -75,6 +75,14 @@ ensure_loaded() {
 }
 
 install_bot() {
+  # Warn if the Docker bot container is already running — both instances poll
+  # the same API and will send duplicate Discord notifications.
+  if docker inspect lasombra-bot --format '{{.State.Status}}' 2>/dev/null | grep -q "running"; then
+    echo "WARNING: Docker container 'lasombra-bot' is already running." >&2
+    echo "Running the launchd bot alongside Docker will cause duplicate notifications." >&2
+    echo "Stop the Docker container first, or use Docker exclusively." >&2
+    exit 1
+  fi
   ensure_dirs
   render_template "$BOT_TEMPLATE" "$BOT_PLIST" "$LOG_DIR/bot.out.log" "$LOG_DIR/bot.err.log"
   bootout_if_loaded "$BOT_LABEL"

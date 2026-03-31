@@ -105,4 +105,10 @@ if [[ -n "$API_TOKEN" ]]; then
   fi
 fi
 
+# 5. Duplicate bot process guard — checked last so it never blocks higher-priority alerts.
+# Running the launchd native bot alongside the Docker container causes duplicate notifications.
+if pgrep -f "node dist/index" >/dev/null 2>&1; then
+  alert "Duplicate bot detected: a native 'node dist/index' process is running alongside the Docker container. Stop it with: launchctl unload ~/Library/LaunchAgents/us.mcbn.tracker-bot.plist"
+fi
+
 exit 0

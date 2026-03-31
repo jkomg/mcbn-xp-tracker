@@ -26,7 +26,11 @@ Populate required keys in `apps/bot/.env`:
 - `CLIENT_ID`
 - `TEST_GUILD_ID` (or your target guild)
 - `WEB_APP_BASE_URL`
-- `WEB_APP_API_TOKEN` (if API auth is enabled)
+- `WEB_APP_API_READ_TOKEN` — preferred scoped read token
+- `WEB_APP_API_WRITE_TOKEN` — preferred scoped write token
+- `WEB_APP_API_TOKEN` — legacy all-scope fallback (omit when scoped tokens are set)
+
+See [`docs/PRODUCTION_ENV_PROFILE.md`](PRODUCTION_ENV_PROFILE.md) for token scope mapping and rollout order.
 
 Optional retention tuning:
 
