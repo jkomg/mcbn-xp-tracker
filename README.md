@@ -58,6 +58,8 @@ cd apps/web && ./setup-secrets.sh    # sync env values to GCP Secret Manager
 | [docs/BOT.md](docs/BOT.md) | Bot slash commands, background services, Docker ops |
 | [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md) | Bot-facing REST API reference |
 | [docs/ENV_AND_SECRETS.md](docs/ENV_AND_SECRETS.md) | All env vars, secrets flow, Docker notes |
+| [docs/PRODUCTION_ENV_PROFILE.md](docs/PRODUCTION_ENV_PROFILE.md) | Production-safe env baseline and rollout sequence |
+| [docs/CODEBASE_AUDIT_2026-03-30.md](docs/CODEBASE_AUDIT_2026-03-30.md) | Current cross-app audit snapshot + security/cost/UX improvement pointers |
 | [docs/RUN_WEB_DOCKER.md](docs/RUN_WEB_DOCKER.md) | Web Docker runbook |
 | [docs/RUN_BOT_DOCKER.md](docs/RUN_BOT_DOCKER.md) | Bot Docker runbook and audit log ops |
 | [docs/INSTALL_LITE.md](docs/INSTALL_LITE.md) | Install guide: web only |

@@ -46,6 +46,8 @@ liveConfig.passageOfTimeEnabled = config.passageOfTimeEnabled;
 liveConfig.huntConsequenceEnabled = config.huntConsequenceEnabled;
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
+  readToken: config.webAppApiReadToken,
+  writeToken: config.webAppApiWriteToken,
   requestTimeoutMs: config.requestTimeoutMs,
   claimContextCacheTtlMs: config.claimContextCacheTtlMs,
   claimContextStaleIfErrorMs: config.claimContextStaleIfErrorMs,

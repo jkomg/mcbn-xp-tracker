@@ -31,19 +31,19 @@ Staff-only commands are restricted to Discord IDs in `BOT_TESTER_IDS`.
 
 ### reviewNotifier
 
-Polls `GET /api/review-events` on a configurable interval (default 60 s). When a claim or spend is approved or denied, it posts a notification to the character's "cubby" channel or thread (a channel/thread whose name matches the character name). State is persisted to `data/review-notifier-cursor.json` so the bot does not re-post after a restart.
+Polls `GET /api/review-events` on a configurable interval (default 120 s). When a claim or spend is approved or denied, it posts a notification to the character's "cubby" channel or thread (a channel/thread whose name matches the character name). State is persisted to `data/review-notifier-cursor.json` so the bot does not re-post after a restart.
 
 Requires: `REVIEW_NOTIFIER_ENABLED=true`, `REVIEW_NOTIFIER_GUILD_ID`.
 
 ### submissionNotifier
 
-Polls `GET /api/submission-events` on a configurable interval (default 60 s). When new XP claims or spend requests arrive, it posts a summary to a designated staff channel so staff do not need to poll the dashboard. State is persisted to `data/submission-notifier-cursor.json`.
+Polls `GET /api/submission-events` on a configurable interval (default 120 s). When new XP claims or spend requests arrive, it posts a summary to a designated staff channel so staff do not need to poll the dashboard. State is persisted to `data/submission-notifier-cursor.json`.
 
 Requires: `SUBMISSION_NOTIFIER_ENABLED=true`, `SUBMISSION_NOTIFIER_CHANNEL_ID`.
 
 ### claimReminderService
 
-Sends DM reminders to players who have not yet submitted an XP claim for the current open play period. Runs on a configurable schedule (default: Sundays at 08:00 America/Chicago). Players can opt out or snooze via buttons in the DM. Opt-out/snooze state is persisted to `data/claim-reminder-preferences.json`.
+Sends DM reminders to players who have not yet submitted an XP claim for the current open play period. Runs on a configurable schedule (commonly Sunday 12:00 America/Chicago in project templates; code fallback default is Sunday 08:00 if env vars are omitted). Players can opt out or snooze via buttons in the DM. Opt-out/snooze state is persisted to `data/claim-reminder-preferences.json`.
 
 Requires: `CLAIM_REMINDER_ENABLED=true`, `CLAIM_REMINDER_GUILD_ID`.
 
