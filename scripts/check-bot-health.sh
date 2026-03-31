@@ -63,12 +63,7 @@ if ! curl -sf --unix-socket "${DOCKER_SOCKET}" "http://localhost/version" >/dev/
 fi
 ok "Docker socket responsive"
 
-# 2. Duplicate bot process guard — native launchd bot + Docker container = duplicate notifications
-if pgrep -f "node dist/index" >/dev/null 2>&1; then
-  alert "Duplicate bot detected: a native 'node dist/index' process is running alongside the Docker container. Stop it with: launchctl unload ~/Library/LaunchAgents/us.mcbn.tracker-bot.plist"
-fi
-
-# 3. Bot container running
+# 2. Bot container running
 CONTAINER_STATE=$(curl -sf --unix-socket "${DOCKER_SOCKET}" \
   "http://localhost/containers/${CONTAINER_NAME}/json" 2>/dev/null \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['State']['Status'])" 2>/dev/null || echo "missing")
@@ -108,6 +103,12 @@ if [[ -n "$API_TOKEN" ]]; then
       ok "Bot heartbeat fresh (${AGE}s ago)"
     fi
   fi
+fi
+
+# 5. Duplicate bot process guard — checked last so it never blocks higher-priority alerts.
+# Running the launchd native bot alongside the Docker container causes duplicate notifications.
+if pgrep -f "node dist/index" >/dev/null 2>&1; then
+  alert "Duplicate bot detected: a native 'node dist/index' process is running alongside the Docker container. Stop it with: launchctl unload ~/Library/LaunchAgents/us.mcbn.tracker-bot.plist"
 fi
 
 exit 0
