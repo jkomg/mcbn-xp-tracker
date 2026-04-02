@@ -430,7 +430,13 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       lines.push('*No approved spends yet.*');
     }
 
-    await interaction.reply({ content: lines.join('\n'), ephemeral: true });
+    const DISCORD_LIMIT = 2000;
+    const TRUNCATION_NOTE = '\n*…(truncated)*';
+    let content = lines.join('\n');
+    if (content.length > DISCORD_LIMIT) {
+      content = content.slice(0, DISCORD_LIMIT - TRUNCATION_NOTE.length) + TRUNCATION_NOTE;
+    }
+    await interaction.reply({ content, ephemeral: true });
     return;
   }
 
