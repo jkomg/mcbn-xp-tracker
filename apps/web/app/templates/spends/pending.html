@@ -16,6 +16,14 @@
     </div>
 </div>
 {% else %}
+{# Build a set of row_indexes that are depended upon by another pending spend #}
+{% set has_dependents_ids = namespace(ids=[]) %}
+{% for spend in spends %}
+  {% if spend.depends_on %}
+    {% set has_dependents_ids.ids = has_dependents_ids.ids + [spend.depends_on] %}
+  {% endif %}
+{% endfor %}
+
 <div class="table-responsive">
     <table class="table table-dark table-striped table-hover">
         <thead>
@@ -25,6 +33,7 @@
                 <th>Trait</th>
                 <th class="d-none d-sm-table-cell">Dots</th>
                 <th>XP Cost</th>
+                <th class="d-none d-sm-table-cell">Queue</th>
                 <th class="d-none d-sm-table-cell">Submitted</th>
                 <th class="text-end">Actions</th>
             </tr>
@@ -37,6 +46,17 @@
                 <td>{{ spend.trait_name }}</td>
                 <td class="d-none d-sm-table-cell"><span class="text-muted">{{ spend.current_dots }} → {{ spend.new_dots }}</span></td>
                 <td><span class="badge bg-danger">{{ spend.xp_cost }} XP</span></td>
+                <td class="d-none d-sm-table-cell">
+                    {% if spend.depends_on %}
+                    <span class="badge bg-secondary" title="Blocked — must approve a prior spend first">
+                        <i class="bi bi-arrow-up-circle"></i> Blocked
+                    </span>
+                    {% elif spend.row_index in has_dependents_ids.ids %}
+                    <span class="badge bg-info text-dark" title="Other pending spends are queued after this one">
+                        <i class="bi bi-arrow-down-circle"></i> Has queue
+                    </span>
+                    {% endif %}
+                </td>
                 <td class="d-none d-sm-table-cell"><small class="text-muted">{{ spend.timestamp }}</small></td>
                 <td class="text-end">
                     <a href="{{ url_for('spends.review', row_id=spend.row_index) }}"
@@ -49,5 +69,11 @@
         </tbody>
     </table>
 </div>
+<script>
+document.querySelectorAll('tr[data-href]').forEach(function (row) {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', function () { window.location = row.dataset.href; });
+});
+</script>
 {% endif %}
 {% endblock %}
