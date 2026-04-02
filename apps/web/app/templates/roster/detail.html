@@ -302,6 +302,38 @@
     </div>
   </div>
 
+  <!-- ═══ Rename Character ═══ -->
+  <div class="card border-warning mt-4 mb-4">
+    <div class="card-header bg-warning bg-opacity-10 text-warning fw-semibold">
+      <i class="bi bi-pencil-square me-1"></i> Rename Character
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Updates the character name across all claims, spends, ledger entries, and audit log entries.
+        The player's portal link will update automatically.
+      </p>
+      <button class="btn btn-outline-warning btn-sm" type="button"
+              data-bs-toggle="collapse" data-bs-target="#rename-panel">
+        <i class="bi bi-input-cursor-text me-1"></i> Rename…
+      </button>
+      <div class="collapse mt-3" id="rename-panel">
+        <form method="POST" action="{{ url_for('roster.rename', name=char.character_name) }}">
+          <div class="d-flex gap-2 align-items-end flex-wrap">
+            <div class="flex-grow-1">
+              <label class="form-label small fw-semibold mb-1">New character name</label>
+              <input type="text" name="new_name" class="form-control form-control-sm"
+                     placeholder="New name…" autocomplete="off" maxlength="200" required>
+            </div>
+            <button type="submit" class="btn btn-warning btn-sm text-nowrap"
+                    data-confirm="Rename {{ char.character_name }}? This updates all XP records.">
+              <i class="bi bi-check2 me-1"></i> Save Rename
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ Danger Zone (inactive characters only) ═══ -->
   {% if not char.active %}
   <hr class="border-danger mt-4">

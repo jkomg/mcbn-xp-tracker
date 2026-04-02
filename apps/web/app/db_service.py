@@ -280,6 +280,33 @@ class DBService:
         db.session.delete(row)
         db.session.commit()
 
+    def rename_character(self, old_name: str, new_name: str) -> None:
+        """Rename a character and update all related records atomically."""
+        char_row = DbCharacter.query.filter(
+            func.lower(DbCharacter.character_name) == old_name.lower()
+        ).first()
+        if not char_row:
+            raise ValueError(f'Character not found: {old_name}')
+        if DbCharacter.query.filter(
+            func.lower(DbCharacter.character_name) == new_name.lower()
+        ).first():
+            raise ValueError(f'A character named "{new_name}" already exists.')
+
+        char_row.character_name = new_name
+        DbXPClaim.query.filter(
+            func.lower(DbXPClaim.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbSpendRequest.query.filter(
+            func.lower(DbSpendRequest.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbLedgerEntry.query.filter(
+            func.lower(DbLedgerEntry.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbAuditLog.query.filter(
+            func.lower(DbAuditLog.target_character) == old_name.lower()
+        ).update({'target_character': new_name}, synchronize_session=False)
+        db.session.commit()
+
     # ── Play Periods ─────────────────────────────────────────────────────────
 
     def get_all_periods(self) -> list[PlayPeriod]:
