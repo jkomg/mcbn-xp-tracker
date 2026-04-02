@@ -76,6 +76,27 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((s) =>
     s
+      .setName('history')
+      .setDescription('Show recent approved XP claims and spends for a character')
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
+      .addBooleanOption((o) =>
+        o.setName('test').setDescription('Staff only: simulate player-scoped visibility').setRequired(false),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('test_as_discord_id')
+          .setDescription('Staff only: player Discord ID to emulate (snowflake)')
+          .setRequired(false),
+      ),
+  )
+  .addSubcommand((s) =>
+    s
       .setName('claim')
       .setDescription('Submit a simple XP claim via adapter')
       .addStringOption((o) =>
@@ -291,7 +312,7 @@ async function suggestCubbyNames(
 export async function autocomplete(interaction: AutocompleteInteraction, { adapter }: CommandContext) {
   const option = interaction.options.getFocused(true);
   const sub = interaction.options.getSubcommand(false) ?? '';
-  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'claim', 'spend', 'test-reminder']);
+  const supportsCharacterAutocomplete = new Set(['submit', 'summary', 'history', 'claim', 'spend', 'test-reminder']);
   const supportsPeriodAutocomplete = new Set(['submit', 'claim']);
   const isCharacterLookup = supportsCharacterAutocomplete.has(sub) && option.name === 'character';
   const isPeriodLookup = supportsPeriodAutocomplete.has(sub) && option.name === 'play_period';
@@ -374,6 +395,45 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     return;
   }
 
+  if (sub === 'history') {
+    const character = interaction.options.getString('character', true);
+    logEvent('info', 'xp_history_start', { ...meta, character });
+    const summary = await adapter.getSummary(character, requester, { includeHistory: true });
+    if (!summary) {
+      await interaction.reply({ content: `No character found: ${character}.`, ephemeral: true });
+      return;
+    }
+
+    const lines: string[] = [
+      `**${summary.characterName}** — XP History`,
+      `Total XP: ${summary.totalXp} | Spent: ${summary.totalSpends} | Available: ${summary.availableXp}`,
+      '',
+    ];
+
+    if (summary.recentClaims && summary.recentClaims.length > 0) {
+      lines.push('**Recent Approved Claims**');
+      for (const c of summary.recentClaims) {
+        lines.push(`• ${c.playPeriod} → +${c.approvedXp} XP`);
+      }
+      lines.push('');
+    } else {
+      lines.push('*No approved claims yet.*');
+      lines.push('');
+    }
+
+    if (summary.recentSpends && summary.recentSpends.length > 0) {
+      lines.push('**Recent Approved Spends**');
+      for (const s of summary.recentSpends) {
+        lines.push(`• ${s.traitName} (${s.dots}) — −${s.verifiedCost} XP`);
+      }
+    } else {
+      lines.push('*No approved spends yet.*');
+    }
+
+    await interaction.reply({ content: lines.join('\n'), ephemeral: true });
+    return;
+  }
+
   if (sub === 'claim') {
     await interaction.reply({
       content: `XP claims are now submitted through the player portal — the bot wizard is temporarily offline.\n👉 ${config.playerWebUrl}`,
@@ -414,6 +474,7 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
       '- `/xp claim`: quick claim (1-6 category/link pairs in one submission)',
       '- `/xp spend`: submit an XP spend request',
       '- `/xp summary`: show your character XP totals',
+      '- `/xp history`: show recent approved claims and spends',
       '- `/xp spend-cost`: preview spend XP cost',
       '',
       `Web player interface: ${config.playerWebUrl}`,
