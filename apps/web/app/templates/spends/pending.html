@@ -16,11 +16,16 @@
     </div>
 </div>
 {% else %}
-{# Build a set of row_indexes that are depended upon by another pending spend #}
-{% set has_dependents_ids = namespace(ids=[]) %}
+{# Build sets for Queue column logic #}
+{# pending_ids: row_indexes of all spends currently in this list #}
+{# blocked_by_ids: depends_on values that point to a still-pending spend #}
+{% set ns = namespace(pending_ids=[], blocked_by_ids=[]) %}
 {% for spend in spends %}
-  {% if spend.depends_on %}
-    {% set has_dependents_ids.ids = has_dependents_ids.ids + [spend.depends_on] %}
+  {% set ns.pending_ids = ns.pending_ids + [spend.row_index] %}
+{% endfor %}
+{% for spend in spends %}
+  {% if spend.depends_on and spend.depends_on in ns.pending_ids %}
+    {% set ns.blocked_by_ids = ns.blocked_by_ids + [spend.depends_on] %}
   {% endif %}
 {% endfor %}
 
@@ -47,11 +52,11 @@
                 <td class="d-none d-sm-table-cell"><span class="text-muted">{{ spend.current_dots }} → {{ spend.new_dots }}</span></td>
                 <td><span class="badge bg-danger">{{ spend.xp_cost }} XP</span></td>
                 <td class="d-none d-sm-table-cell">
-                    {% if spend.depends_on %}
+                    {% if spend.depends_on and spend.depends_on in ns.pending_ids %}
                     <span class="badge bg-secondary" title="Blocked — must approve a prior spend first">
                         <i class="bi bi-arrow-up-circle"></i> Blocked
                     </span>
-                    {% elif spend.row_index in has_dependents_ids.ids %}
+                    {% elif spend.row_index in ns.blocked_by_ids %}
                     <span class="badge bg-info text-dark" title="Other pending spends are queued after this one">
                         <i class="bi bi-arrow-down-circle"></i> Has queue
                     </span>
