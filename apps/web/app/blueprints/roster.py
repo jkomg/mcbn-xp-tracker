@@ -1,7 +1,10 @@
 """Character roster management routes."""
 
+import csv
+import io
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, abort
+    Blueprint, render_template, request, redirect, url_for, flash, abort,
+    Response,
 )
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
@@ -621,3 +624,85 @@ def delete(name):
 
     flash(f'{name} has been permanently deleted.', 'danger')
     return redirect(url_for('roster.list_characters'))
+
+
+@bp.route('/<name>/export.csv')
+@require_staff
+def export_xp_csv(name):
+    """Download full XP transaction history as CSV (staff view — all statuses)."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    claims = db_service.get_claims_for_character(name)
+    spends = db_service.get_spends_for_character(name)
+    ledger = db_service.get_ledger_for_character(name)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['Type', 'Date', 'Description', 'XP Change', 'Status', 'Staff', 'Notes'])
+
+    for c in sorted(claims, key=lambda x: x.timestamp or ''):
+        if c.status.lower() == 'approved':
+            writer.writerow([
+                'Claim', c.review_date or c.timestamp,
+                f'XP Claim: {c.play_period}',
+                f'+{c.approved_xp}', 'Approved',
+                c.reviewed_by or '', c.st_notes or '',
+            ])
+        elif c.status.lower() == 'denied':
+            writer.writerow([
+                'Claim', c.review_date or c.timestamp,
+                f'XP Claim: {c.play_period}',
+                '0', 'Denied',
+                c.reviewed_by or '', c.st_notes or '',
+            ])
+        else:
+            writer.writerow([
+                'Claim', c.timestamp,
+                f'XP Claim: {c.play_period}',
+                '?', c.status, '', '',
+            ])
+
+    for s in sorted(spends, key=lambda x: x.timestamp or ''):
+        if s.status.lower() == 'approved':
+            writer.writerow([
+                'Spend', s.review_date or s.timestamp,
+                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                f'-{s.verified_cost}', 'Approved',
+                s.reviewed_by or '', s.st_notes or '',
+            ])
+        elif s.status.lower() == 'denied':
+            writer.writerow([
+                'Spend', s.review_date or s.timestamp,
+                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                '0', 'Denied',
+                s.reviewed_by or '', s.st_notes or '',
+            ])
+        else:
+            writer.writerow([
+                'Spend', s.timestamp,
+                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                f'-{s.xp_cost} (pending)', s.status, '', '',
+            ])
+
+    for e in sorted(ledger, key=lambda x: x.date or ''):
+        if e.awarded != 0:
+            sign = '+' if e.awarded > 0 else ''
+            writer.writerow([
+                'Ledger', e.date, e.reason or 'Manual award',
+                f'{sign}{e.awarded}', 'Applied', e.entered_by or '', '',
+            ])
+        if e.spent != 0:
+            sign = '-' if e.spent > 0 else '+'
+            writer.writerow([
+                'Ledger', e.date, e.reason or 'Manual spend',
+                f'{sign}{abs(e.spent)}', 'Applied', e.entered_by or '', '',
+            ])
+
+    safe_name = ''.join(c for c in name if c.isalnum() or c in ' _-').strip().replace(' ', '_')
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{safe_name}_xp_history.csv"'},
+    )
