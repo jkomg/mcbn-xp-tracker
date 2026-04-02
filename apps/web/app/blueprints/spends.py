@@ -195,6 +195,14 @@ def bulk_approve():
         if not spend or spend.status.lower() != 'pending':
             continue
 
+        if spend.depends_on:
+            parent = db_service.get_spend_by_row(spend.depends_on)
+            if not parent or parent.status.lower() != 'approved':
+                skipped.append(
+                    f'{spend.character_name} / {spend.trait_name} (dependency not yet approved)'
+                )
+                continue
+
         validation = validate_spend_request(
             category=spend.spend_category,
             current_dots=spend.current_dots,

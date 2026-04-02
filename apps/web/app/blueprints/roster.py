@@ -12,6 +12,16 @@ from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
 
 bp = Blueprint('roster', __name__)
 
+_CSV_INJECTION_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
+
+
+def _csv_safe(value: str) -> str:
+    """Prefix formula-injection characters so Excel/Sheets won't execute them."""
+    s = str(value)
+    if s and s[0] in _CSV_INJECTION_PREFIXES:
+        return "'" + s
+    return s
+
 
 def _parse_creation_xp(raw_value: str | None) -> int:
     """Parse Creation/Audit XP from forms; blank means reset to 0."""
@@ -646,21 +656,21 @@ def export_xp_csv(name):
         if c.status.lower() == 'approved':
             writer.writerow([
                 'Claim', c.review_date or c.timestamp,
-                f'XP Claim: {c.play_period}',
+                _csv_safe(f'XP Claim: {c.play_period}'),
                 f'+{c.approved_xp}', 'Approved',
-                c.reviewed_by or '', c.st_notes or '',
+                _csv_safe(c.reviewed_by or ''), _csv_safe(c.st_notes or ''),
             ])
         elif c.status.lower() == 'denied':
             writer.writerow([
                 'Claim', c.review_date or c.timestamp,
-                f'XP Claim: {c.play_period}',
+                _csv_safe(f'XP Claim: {c.play_period}'),
                 '0', 'Denied',
-                c.reviewed_by or '', c.st_notes or '',
+                _csv_safe(c.reviewed_by or ''), _csv_safe(c.st_notes or ''),
             ])
         else:
             writer.writerow([
                 'Claim', c.timestamp,
-                f'XP Claim: {c.play_period}',
+                _csv_safe(f'XP Claim: {c.play_period}'),
                 '?', c.status, '', '',
             ])
 
@@ -668,21 +678,21 @@ def export_xp_csv(name):
         if s.status.lower() == 'approved':
             writer.writerow([
                 'Spend', s.review_date or s.timestamp,
-                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                _csv_safe(f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})'),
                 f'-{s.verified_cost}', 'Approved',
-                s.reviewed_by or '', s.st_notes or '',
+                _csv_safe(s.reviewed_by or ''), _csv_safe(s.st_notes or ''),
             ])
         elif s.status.lower() == 'denied':
             writer.writerow([
                 'Spend', s.review_date or s.timestamp,
-                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                _csv_safe(f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})'),
                 '0', 'Denied',
-                s.reviewed_by or '', s.st_notes or '',
+                _csv_safe(s.reviewed_by or ''), _csv_safe(s.st_notes or ''),
             ])
         else:
             writer.writerow([
                 'Spend', s.timestamp,
-                f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})',
+                _csv_safe(f'{s.spend_category}: {s.trait_name} ({s.current_dots}→{s.new_dots})'),
                 f'-{s.xp_cost} (pending)', s.status, '', '',
             ])
 
@@ -690,14 +700,14 @@ def export_xp_csv(name):
         if e.awarded != 0:
             sign = '+' if e.awarded > 0 else ''
             writer.writerow([
-                'Ledger', e.date, e.reason or 'Manual award',
-                f'{sign}{e.awarded}', 'Applied', e.entered_by or '', '',
+                'Ledger', e.date, _csv_safe(e.reason or 'Manual award'),
+                f'{sign}{e.awarded}', 'Applied', _csv_safe(e.entered_by or ''), '',
             ])
         if e.spent != 0:
             sign = '-' if e.spent > 0 else '+'
             writer.writerow([
-                'Ledger', e.date, e.reason or 'Manual spend',
-                f'{sign}{abs(e.spent)}', 'Applied', e.entered_by or '', '',
+                'Ledger', e.date, _csv_safe(e.reason or 'Manual spend'),
+                f'{sign}{abs(e.spent)}', 'Applied', _csv_safe(e.entered_by or ''), '',
             ])
 
     safe_name = ''.join(c for c in name if c.isalnum() or c in ' _-').strip().replace(' ', '_')
