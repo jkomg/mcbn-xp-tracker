@@ -350,15 +350,49 @@ def character_summary(name: str):
         return jsonify({'error': 'Character not found'}), 404
 
     totals = db_service.get_xp_totals(name)
-    return jsonify(
-        {
-            'characterName': char.character_name,
-            'earnedXp': totals['earned_xp'],
-            'totalXp': totals['total_xp'],
-            'totalSpends': totals['total_spends'] + totals['ledger_spent'],
-            'availableXp': totals['available_xp'],
-        }
-    )
+    payload = {
+        'characterName': char.character_name,
+        'earnedXp': totals['earned_xp'],
+        'totalXp': totals['total_xp'],
+        'totalSpends': totals['total_spends'] + totals['ledger_spent'],
+        'availableXp': totals['available_xp'],
+    }
+
+    if request.args.get('include_history') == '1':
+        claims = db_service.get_claims_for_character(name)
+        spends = db_service.get_spends_for_character(name)
+
+        approved_claims = sorted(
+            [c for c in claims if c.status.lower() == 'approved'],
+            key=lambda c: c.review_date or c.timestamp or '',
+            reverse=True,
+        )[:10]
+        approved_spends = sorted(
+            [s for s in spends if s.status.lower() == 'approved'],
+            key=lambda s: s.review_date or s.timestamp or '',
+            reverse=True,
+        )[:10]
+
+        payload['recentClaims'] = [
+            {
+                'playPeriod': c.play_period,
+                'approvedXp': c.approved_xp,
+                'reviewDate': c.review_date or c.timestamp,
+            }
+            for c in approved_claims
+        ]
+        payload['recentSpends'] = [
+            {
+                'traitName': s.trait_name,
+                'category': s.spend_category,
+                'dots': f'{s.current_dots}→{s.new_dots}',
+                'verifiedCost': s.verified_cost,
+                'reviewDate': s.review_date or s.timestamp,
+            }
+            for s in approved_spends
+        ]
+
+    return jsonify(payload)
 
 
 @bp.route('/submission-events', methods=['GET'])
