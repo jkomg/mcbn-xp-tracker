@@ -5,7 +5,10 @@ are not mirrored in this phase.
 """
 
 import logging
+import threading
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -15,6 +18,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='sheets-sync')
 
+_sync_errors: deque = deque(maxlen=50)
+_sync_errors_lock = threading.Lock()
+
+
+def get_recent_sync_errors() -> list[dict]:
+    """Return a snapshot of recent Sheets sync errors, newest first."""
+    with _sync_errors_lock:
+        return list(reversed(_sync_errors))
+
 
 def _run(fn, *args, **kwargs):
     """Submit a Sheets write to the background executor. Failures are logged only."""
@@ -23,6 +35,13 @@ def _run(fn, *args, **kwargs):
             fn(*args, **kwargs)
         except Exception as exc:
             logger.warning('sheets_sync_failed: %s — %s', fn.__name__, exc)
+            entry = {
+                'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'operation': fn.__name__,
+                'error': str(exc),
+            }
+            with _sync_errors_lock:
+                _sync_errors.append(entry)
     _executor.submit(task)
 
 

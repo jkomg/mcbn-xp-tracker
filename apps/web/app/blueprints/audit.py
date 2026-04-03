@@ -9,6 +9,7 @@ from pathlib import Path
 
 from flask import Blueprint, render_template, request
 from app import db_service
+import app.sheets_sync as _sheets_sync_mod
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
@@ -146,6 +147,8 @@ def errors():
         key = e['event']
         event_counts[key] = event_counts.get(key, 0) + 1
 
+    sync_errors = _sheets_sync_mod.get_recent_sync_errors()
+
     return render_template(
         'audit/errors.html',
         now=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -156,4 +159,5 @@ def errors():
         event_filter=event_filter,
         max_lines=max_lines,
         log_dir=str(LOG_DIR),
+        sync_errors=sync_errors,
     )
