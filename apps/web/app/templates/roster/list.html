@@ -4,7 +4,12 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Character Roster</h2>
-    <a href="{{ url_for('roster.add_form') }}" class="btn btn-danger">Add Character</a>
+    <div>
+      <a href="{{ url_for('roster.import_csv') }}" class="btn btn-outline-secondary me-1">
+        <i class="bi bi-upload"></i> Import CSV
+      </a>
+      <a href="{{ url_for('roster.add_form') }}" class="btn btn-danger">Add Character</a>
+    </div>
   </div>
 
   <!-- Filter Row -->
