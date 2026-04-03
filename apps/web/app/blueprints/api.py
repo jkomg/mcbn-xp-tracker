@@ -918,7 +918,7 @@ def submit_spend():
 
 
 @bp.route('/reminder-prefs', methods=['GET'])
-@require_token
+@require_bot_scope('read')
 def get_reminder_prefs():
     """Return all reminder preferences (for the bot to load on startup)."""
     prefs = db_service.get_all_reminder_prefs()
@@ -926,7 +926,7 @@ def get_reminder_prefs():
 
 
 @bp.route('/reminder-prefs/<discord_id>', methods=['PUT'])
-@require_token
+@require_bot_scope('write')
 def set_reminder_pref(discord_id):
     """Upsert reminder preference for a Discord user."""
     if not discord_id or not discord_id.isdigit():
