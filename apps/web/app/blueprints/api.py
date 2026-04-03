@@ -914,3 +914,25 @@ def submit_spend():
         return jsonify({'error': str(exc)}), 400
 
     return jsonify({'ok': True, 'message': 'Spend request submitted', 'xpCost': xp_cost}), 201
+
+
+
+@bp.route('/reminder-prefs', methods=['GET'])
+@require_bot_scope('read')
+def get_reminder_prefs():
+    """Return all reminder preferences (for the bot to load on startup)."""
+    prefs = db_service.get_all_reminder_prefs()
+    return jsonify({'preferences': prefs})
+
+
+@bp.route('/reminder-prefs/<discord_id>', methods=['PUT'])
+@require_bot_scope('write')
+def set_reminder_pref(discord_id):
+    """Upsert reminder preference for a Discord user."""
+    if not discord_id or not discord_id.isdigit():
+        return jsonify({'error': 'Invalid discord_id'}), 400
+    data = request.get_json(silent=True) or {}
+    opt_out = bool(data.get('optOut', False))
+    snooze_until_epoch = int(data.get('snoozeUntilEpoch', 0))
+    db_service.set_reminder_pref(discord_id, opt_out, snooze_until_epoch)
+    return jsonify({'ok': True})

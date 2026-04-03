@@ -123,3 +123,11 @@ class AppSetting(db.Model):
     value = db.Column(String(256), nullable=False)
     updated_by = db.Column(String(100), nullable=False, default='')
     updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class DbReminderPreference(db.Model):
+    __tablename__ = 'reminder_preferences'
+    discord_id = db.Column(String(30), primary_key=True)
+    opt_out = db.Column(Boolean, default=False, nullable=False)
+    snooze_until_epoch = db.Column(Integer, default=0, nullable=False)
+    updated_at = db.Column(String(20), default='')
