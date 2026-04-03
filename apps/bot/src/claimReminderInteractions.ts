@@ -1,5 +1,6 @@
 import type { ButtonInteraction } from 'discord.js';
 import { config } from './config';
+import type { TrackerAdapter } from './services/adapter';
 import {
   CLAIM_REMINDER_ACTION_NOT_NOW,
   CLAIM_REMINDER_ACTION_OPT_OUT,
@@ -9,7 +10,7 @@ import {
   setClaimReminderSnooze,
 } from './services/claimReminderService';
 
-export async function handleClaimReminderButton(interaction: ButtonInteraction) {
+export async function handleClaimReminderButton(interaction: ButtonInteraction, adapter: TrackerAdapter) {
   if (!interaction.customId.startsWith(CLAIM_REMINDER_BUTTON_PREFIX)) {
     return false;
   }
@@ -35,7 +36,7 @@ export async function handleClaimReminderButton(interaction: ButtonInteraction) 
 
   if (action === CLAIM_REMINDER_ACTION_NOT_NOW) {
     const snoozeHours = config.claimReminderSnoozeHours;
-    setClaimReminderSnooze(allowedUserId || interaction.user.id, snoozeHours);
+    await setClaimReminderSnooze(allowedUserId || interaction.user.id, snoozeHours, adapter);
     await interaction.reply({
       content: `Okay — snoozed for ${snoozeHours} hours.`,
       ephemeral: true,
@@ -44,7 +45,7 @@ export async function handleClaimReminderButton(interaction: ButtonInteraction) 
   }
 
   if (action === CLAIM_REMINDER_ACTION_OPT_OUT) {
-    setClaimReminderOptOut(allowedUserId || interaction.user.id, true);
+    await setClaimReminderOptOut(allowedUserId || interaction.user.id, true, adapter);
     await interaction.reply({
       content: 'Understood. You are opted out of sunrise claim reminders.',
       ephemeral: true,

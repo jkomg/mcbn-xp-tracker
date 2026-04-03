@@ -16,7 +16,7 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from app.db import db, DbCharacter, DbPlayPeriod, DbXPClaim, DbSpendRequest, DbLedgerEntry, DbAuditLog
+from app.db import db, DbCharacter, DbPlayPeriod, DbXPClaim, DbSpendRequest, DbLedgerEntry, DbAuditLog, DbReminderPreference
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 
 
@@ -1132,3 +1132,33 @@ class DBService:
             'other_spends': other_spends,
             'summary': xp,
         }
+
+    # ── Reminder Preferences ──────────────────────────────────────────────────
+
+    def get_all_reminder_prefs(self) -> dict:
+        """Return all reminder preferences as a dict keyed by discord_id."""
+        rows = DbReminderPreference.query.all()
+        return {
+            r.discord_id: {
+                'optOut': r.opt_out,
+                'snoozeUntilEpoch': r.snooze_until_epoch,
+            }
+            for r in rows
+        }
+
+    def set_reminder_pref(self, discord_id: str, opt_out: bool, snooze_until_epoch: int) -> None:
+        """Upsert reminder preference for a Discord user."""
+        row = DbReminderPreference.query.filter_by(discord_id=discord_id).first()
+        if row:
+            row.opt_out = opt_out
+            row.snooze_until_epoch = snooze_until_epoch
+            row.updated_at = _now_str()
+        else:
+            row = DbReminderPreference(
+                discord_id=discord_id,
+                opt_out=opt_out,
+                snooze_until_epoch=snooze_until_epoch,
+                updated_at=_now_str(),
+            )
+            db.session.add(row)
+        db.session.commit()
