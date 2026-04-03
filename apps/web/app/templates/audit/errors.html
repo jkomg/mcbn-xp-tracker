@@ -5,6 +5,37 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-exclamation-triangle"></i> Error Alerts</h2>
 
+{% if sync_errors %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong>
+            <small class="fw-normal ms-1">(in-memory, resets on restart)</small>
+        </span>
+        <span class="badge bg-dark">{{ sync_errors|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-dark mb-0">
+            <thead>
+                <tr>
+                    <th>Time (UTC)</th>
+                    <th>Operation</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in sync_errors %}
+                <tr>
+                    <td class="text-muted small text-nowrap">{{ e.timestamp }}</td>
+                    <td><code>{{ e.operation }}</code></td>
+                    <td class="text-warning small">{{ e.error }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <div class="card bg-dark border-secondary mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
