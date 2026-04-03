@@ -1,7 +1,9 @@
 """Play period management routes."""
 
+from datetime import datetime, timedelta
+
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash
+    Blueprint, render_template, request, redirect, url_for, flash, Response
 )
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
@@ -177,3 +179,57 @@ def toggle_active(label):
     status = 'activated' if new_value == 'TRUE' else 'deactivated'
     flash(f'{label} {status} in form dropdowns.', 'success')
     return redirect(url_for('periods.list_periods'))
+
+
+@bp.route('/export.ics')
+@require_staff
+def export_ical():
+    """Download all play periods as an iCalendar file."""
+    periods = db_service.get_all_periods()
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//MCbN XP Tracker//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'X-WR-CALNAME:MCbN Play Periods',
+    ]
+
+    for p in sorted(periods, key=lambda x: x.night_number):
+        start_raw = (p.start_date or '').replace('-', '')
+        end_raw = (p.end_date or '').replace('-', '')
+
+        try:
+            dtstart = datetime.strptime(start_raw, '%Y%m%d') if len(start_raw) == 8 else None
+        except ValueError:
+            dtstart = None
+
+        if dtstart is None:
+            continue
+
+        try:
+            dtend = datetime.strptime(end_raw, '%Y%m%d') + timedelta(days=1) if len(end_raw) == 8 else dtstart + timedelta(days=1)
+        except ValueError:
+            dtend = dtstart + timedelta(days=1)
+
+        summary = p.period_label
+        if p.session_number:
+            summary = f'{summary} (Session {p.session_number})'
+
+        lines += [
+            'BEGIN:VEVENT',
+            f'DTSTART;VALUE=DATE:{dtstart.strftime("%Y%m%d")}',
+            f'DTEND;VALUE=DATE:{dtend.strftime("%Y%m%d")}',
+            f'SUMMARY:{summary}',
+            f'UID:mcbn-night-{p.night_number}@mcbn-xp-tracker',
+            'END:VEVENT',
+        ]
+
+    lines.append('END:VCALENDAR')
+
+    return Response(
+        '\r\n'.join(lines) + '\r\n',
+        mimetype='text/calendar',
+        headers={'Content-Disposition': 'attachment; filename="mcbn-play-periods.ics"'},
+    )
