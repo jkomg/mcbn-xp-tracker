@@ -636,6 +636,48 @@ def delete(name):
     return redirect(url_for('roster.list_characters'))
 
 
+@bp.route('/<name>/rename', methods=['POST'])
+@require_staff
+def rename(name):
+    """Rename a character and migrate all related records."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    new_name = request.form.get('new_name', '').strip()
+    if not new_name:
+        flash('New name is required.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    if new_name.lower() == name.lower():
+        flash('New name is the same as the current name.', 'warning')
+        return redirect(url_for('roster.detail', name=name))
+
+    staff = get_staff_user()
+    try:
+        db_service.rename_character(name, new_name)
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    db_service.log_action(
+        staff_user=staff,
+        action_type='rename_character',
+        target=new_name,
+        details=f'Renamed character: "{name}" → "{new_name}"',
+    )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='rename_character',
+            target=new_name,
+            details=f'Renamed character: "{name}" → "{new_name}"',
+        )
+
+    flash(f'Character renamed from "{name}" to "{new_name}". All XP records updated.', 'success')
+    return redirect(url_for('roster.detail', name=new_name))
+
+
 @bp.route('/<name>/export.csv')
 @require_staff
 def export_xp_csv(name):

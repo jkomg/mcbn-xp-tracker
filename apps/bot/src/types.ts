@@ -14,6 +14,8 @@ export type XpSummary = {
   totalXp: number;
   totalSpends: number;
   availableXp: number;
+  recentClaims?: Array<{ playPeriod: string; approvedXp: number; reviewDate?: string | null }>;
+  recentSpends?: Array<{ traitName: string; category: string; dots: string; verifiedCost: number; reviewDate?: string | null }>;
 };
 
 export type ClaimContext = {

@@ -280,6 +280,45 @@ class DBService:
         db.session.delete(row)
         db.session.commit()
 
+    def rename_character(self, old_name: str, new_name: str) -> None:
+        """Rename a character and update all related records atomically."""
+        char_row = DbCharacter.query.filter(
+            func.lower(DbCharacter.character_name) == old_name.lower()
+        ).first()
+        if not char_row:
+            raise ValueError(f'Character not found: {old_name}')
+        if DbCharacter.query.filter(
+            func.lower(DbCharacter.character_name) == new_name.lower()
+        ).first():
+            raise ValueError(f'A character named "{new_name}" already exists.')
+
+        char_row.character_name = new_name
+        DbXPClaim.query.filter(
+            func.lower(DbXPClaim.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbSpendRequest.query.filter(
+            func.lower(DbSpendRequest.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbLedgerEntry.query.filter(
+            func.lower(DbLedgerEntry.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        _character_action_types = {
+            'add_character', 'edit_character', 'activate_character',
+            'deactivate_character', 'delete_character', 'rename_character',
+            'approve_claim', 'deny_claim', 'reopen_claim',
+            'approve_spend', 'deny_spend',
+            'xp_adjustment', 'spend_adjustment',
+            'ledger_entry', 'delete_ledger_entry',
+            'bot_claim_submitted', 'bot_spend_submitted',
+            'player_claim_submitted', 'player_claim_amended',
+            'player_spend_submitted', 'player_link_character',
+        }
+        DbAuditLog.query.filter(
+            func.lower(DbAuditLog.target_character) == old_name.lower(),
+            DbAuditLog.action_type.in_(_character_action_types),
+        ).update({'target_character': new_name}, synchronize_session=False)
+        db.session.commit()
+
     # ── Play Periods ─────────────────────────────────────────────────────────
 
     def get_all_periods(self) -> list[PlayPeriod]:

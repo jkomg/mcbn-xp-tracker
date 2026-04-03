@@ -24,7 +24,7 @@ export interface BotConfigResponse {
 }
 
 export interface TrackerAdapter {
-  getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null>;
+  getSummary(characterName: string, requester: RequesterContext, opts?: { includeHistory?: boolean }): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getActiveRoster(): Promise<{ characters: string[] }>;
   getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
@@ -60,6 +60,26 @@ const summarySchema = z.object({
   totalXp: z.number(),
   totalSpends: z.number(),
   availableXp: z.number(),
+  recentClaims: z
+    .array(
+      z.object({
+        playPeriod: z.string(),
+        approvedXp: z.number(),
+        reviewDate: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
+  recentSpends: z
+    .array(
+      z.object({
+        traitName: z.string(),
+        category: z.string(),
+        dots: z.string(),
+        verifiedCost: z.number(),
+        reviewDate: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
 });
 
 const claimContextSchema = z.object({
@@ -214,7 +234,7 @@ export class WebAppAdapter implements TrackerAdapter {
     this.claimContextRetryBaseMs = opts.claimContextRetryBaseMs ?? 250;
   }
 
-  async getSummary(characterName: string, requester: RequesterContext): Promise<XpSummary | null> {
+  async getSummary(characterName: string, requester: RequesterContext, opts: { includeHistory?: boolean } = {}): Promise<XpSummary | null> {
     const params = new URLSearchParams({ requesterDiscordId: requester.requesterDiscordId });
     if (requester.requesterDiscordName) {
       params.set('requesterDiscordName', requester.requesterDiscordName);
@@ -224,6 +244,9 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     if (requester.testAsDiscordId) {
       params.set('testAsDiscordId', requester.testAsDiscordId);
+    }
+    if (opts.includeHistory) {
+      params.set('include_history', '1');
     }
     const url = `${this.baseUrl}/api/characters/${encodeURIComponent(characterName)}/summary?${params.toString()}`;
     const resp = await this.fetchWithTimeout(url, {
