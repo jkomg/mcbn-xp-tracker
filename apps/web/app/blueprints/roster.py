@@ -678,6 +678,78 @@ def rename(name):
     return redirect(url_for('roster.detail', name=new_name))
 
 
+@bp.route('/import-csv', methods=['GET', 'POST'])
+@require_staff
+def import_csv():
+    """Bulk-import characters from a CSV file."""
+    if request.method == 'GET':
+        return render_template('roster/import_csv.html')
+
+    file = request.files.get('csv_file')
+    if not file or not file.filename:
+        flash('Please select a CSV file.', 'danger')
+        return redirect(url_for('roster.import_csv'))
+
+    try:
+        content = file.read().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        flash('Could not read file — please use UTF-8 encoding.', 'danger')
+        return redirect(url_for('roster.import_csv'))
+
+    reader = csv.DictReader(io.StringIO(content))
+    if 'character_name' not in (reader.fieldnames or []):
+        flash('CSV must have a "character_name" column.', 'danger')
+        return redirect(url_for('roster.import_csv'))
+
+    existing = {c.character_name.lower() for c in db_service.get_all_characters()}
+    staff = get_staff_user()
+    created = 0
+    skipped = 0
+
+    for row in reader:
+        name = (row.get('character_name') or '').strip()
+        if not name:
+            continue
+        if name.lower() in existing:
+            skipped += 1
+            continue
+
+        try:
+            creation_xp = int(row.get('creation_xp') or 0)
+        except (ValueError, TypeError):
+            creation_xp = 0
+
+        char = Character(
+            character_name=name,
+            clan=(row.get('clan') or '').strip(),
+            age_category=(row.get('age_category') or '').strip(),
+            sect=(row.get('sect') or '').strip(),
+            creation_xp=creation_xp,
+            player_discord=(row.get('player_discord') or '').strip(),
+            notes=(row.get('notes') or '').strip(),
+        )
+        db_service.add_character(char)
+        db_service.log_action(
+            staff_user=staff,
+            action_type='add_character',
+            target=name,
+            details='Imported via CSV',
+        )
+        existing.add(name.lower())
+        created += 1
+
+    parts = []
+    if created:
+        parts.append(f'Imported {created} character{"s" if created != 1 else ""}.')
+    if skipped:
+        parts.append(f'Skipped {skipped} already existing.')
+    flash(
+        ' '.join(parts) or 'No new characters found in CSV.',
+        'success' if created else 'warning',
+    )
+    return redirect(url_for('roster.list_characters'))
+
+
 @bp.route('/<name>/export.csv')
 @require_staff
 def export_xp_csv(name):
