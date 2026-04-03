@@ -1,6 +1,5 @@
 """Tests for CSV injection sanitisation and spend request validation."""
 
-import pytest
 from app.blueprints.player import _csv_safe
 from app.xp_rules import validate_spend_request
 
