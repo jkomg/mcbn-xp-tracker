@@ -6,6 +6,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-calendar-week"></i> Play Periods</h2>
     <div>
+        <a href="{{ url_for('periods.export_ical') }}" class="btn btn-outline-secondary me-1">
+            <i class="bi bi-calendar-event"></i> Export iCal
+        </a>
         <a href="{{ url_for('periods.import_periods') }}" class="btn btn-outline-info me-1">
             <i class="bi bi-cloud-arrow-down"></i> Import from Sheet
         </a>
