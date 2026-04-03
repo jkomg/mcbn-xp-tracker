@@ -729,6 +729,8 @@ def import_csv():
             notes=(row.get('notes') or '').strip(),
         )
         db_service.add_character(char)
+        if sheets_sync:
+            sheets_sync.sync_add_character(char)
         db_service.log_action(
             staff_user=staff,
             action_type='add_character',
