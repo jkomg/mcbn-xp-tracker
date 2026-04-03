@@ -52,6 +52,8 @@ export interface TrackerAdapter {
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
+  getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
+  setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
 }
 
 const summarySchema = z.object({
@@ -509,6 +511,37 @@ export class WebAppAdapter implements TrackerAdapter {
       body: JSON.stringify(liveState ?? {}),
     });
     if (!res.ok) throw new Error(`heartbeat POST failed: ${res.status}`);
+  }
+
+  async getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>> {
+    const schema = z.object({
+      preferences: z.record(
+        z.string(),
+        z.object({ optOut: z.boolean(), snoozeUntilEpoch: z.number() }),
+      ),
+    });
+    try {
+      const res = await this.fetchWithTimeout(`${this.baseUrl}/api/reminder-prefs`, {
+        headers: this.readAuthHeaders(),
+      });
+      if (!res.ok) return {};
+      const parsed = schema.safeParse(await res.json());
+      return parsed.success ? parsed.data.preferences : {};
+    } catch {
+      return {};
+    }
+  }
+
+  async setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void> {
+    try {
+      await this.fetchWithTimeout(`${this.baseUrl}/api/reminder-prefs/${discordId}`, {
+        method: 'PUT',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optOut: prefs.optOut, snoozeUntilEpoch: prefs.snoozeUntilEpoch }),
+      });
+    } catch {
+      // best-effort
+    }
   }
 
   private async post(path: string, body: unknown, successMessage: string) {
