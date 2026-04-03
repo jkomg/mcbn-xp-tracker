@@ -29,10 +29,24 @@
   {% endif %}
 {% endfor %}
 
+<form method="POST" action="{{ url_for('spends.bulk_approve') }}" id="bulk-spend-form">
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex align-items-center gap-2">
+        <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="select-all-spends">
+            <label class="form-check-label text-muted small" for="select-all-spends">Select all</label>
+        </div>
+        <button type="submit" class="btn btn-sm btn-success" id="bulk-approve-btn" disabled>
+            <i class="bi bi-check2-all"></i> Bulk Approve Selected
+        </button>
+    </div>
+    <small class="text-muted">Bulk approval uses system-calculated XP costs. Spends with unknown categories are skipped.</small>
+</div>
 <div class="table-responsive">
     <table class="table table-dark table-striped table-hover">
         <thead>
             <tr>
+                <th style="width:2rem;"></th>
                 <th>Character</th>
                 <th class="d-none d-md-table-cell">Category</th>
                 <th>Trait</th>
@@ -46,6 +60,10 @@
         <tbody>
             {% for spend in spends %}
             <tr data-href="{{ url_for('spends.review', row_id=spend.row_index) }}">
+                <td onclick="event.stopPropagation()">
+                    <input class="form-check-input spend-checkbox" type="checkbox"
+                           name="spend_ids" value="{{ spend.row_index }}">
+                </td>
                 <td><strong>{{ spend.character_name }}</strong></td>
                 <td class="d-none d-md-table-cell">{{ spend.spend_category }}</td>
                 <td>{{ spend.trait_name }}</td>
@@ -63,9 +81,9 @@
                     {% endif %}
                 </td>
                 <td class="d-none d-sm-table-cell"><small class="text-muted">{{ spend.timestamp }}</small></td>
-                <td class="text-end">
+                <td class="text-end" onclick="event.stopPropagation()">
                     <a href="{{ url_for('spends.review', row_id=spend.row_index) }}"
-                       class="btn btn-sm btn-outline-light" onclick="event.stopPropagation()">
+                       class="btn btn-sm btn-outline-light">
                         <i class="bi bi-pencil-square"></i> Review
                     </a>
                 </td>
@@ -74,11 +92,39 @@
         </tbody>
     </table>
 </div>
+</form>
+
 <script>
-document.querySelectorAll('tr[data-href]').forEach(function (row) {
-    row.style.cursor = 'pointer';
-    row.addEventListener('click', function () { window.location = row.dataset.href; });
-});
+(function () {
+    var selectAll = document.getElementById('select-all-spends');
+    var checkboxes = document.querySelectorAll('.spend-checkbox');
+    var bulkBtn = document.getElementById('bulk-approve-btn');
+
+    function updateBtn() {
+        var any = Array.from(checkboxes).some(function (cb) { return cb.checked; });
+        bulkBtn.disabled = !any;
+    }
+
+    selectAll.addEventListener('change', function () {
+        checkboxes.forEach(function (cb) { cb.checked = selectAll.checked; });
+        updateBtn();
+    });
+
+    checkboxes.forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            selectAll.checked = Array.from(checkboxes).every(function (c) { return c.checked; });
+            updateBtn();
+        });
+    });
+
+    // Row-click navigation (skip checkbox column)
+    document.querySelectorAll('tr[data-href]').forEach(function (row) {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function () {
+            window.location = row.dataset.href;
+        });
+    });
+}());
 </script>
 {% endif %}
 {% endblock %}

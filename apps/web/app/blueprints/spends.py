@@ -170,6 +170,98 @@ def deny(row_id):
     return redirect(url_for('spends.pending'))
 
 
+@bp.route('/bulk-approve', methods=['POST'])
+@require_staff
+def bulk_approve():
+    """Approve multiple spend requests at once using validated XP costs."""
+    row_ids_raw = request.form.getlist('spend_ids')
+    if not row_ids_raw:
+        flash('No spend requests selected.', 'warning')
+        return redirect(url_for('spends.pending'))
+
+    row_ids = []
+    for raw in row_ids_raw:
+        try:
+            row_ids.append(int(raw))
+        except (ValueError, TypeError):
+            pass
+
+    staff = get_staff_user()
+    approved_count = 0
+    skipped = []
+
+    for row_id in row_ids:
+        spend = db_service.get_spend_by_row(row_id)
+        if not spend or spend.status.lower() != 'pending':
+            continue
+
+        if spend.depends_on:
+            parent = db_service.get_spend_by_row(spend.depends_on)
+            if not parent or parent.status.lower() != 'approved':
+                skipped.append(
+                    f'{spend.character_name} / {spend.trait_name} (dependency not yet approved)'
+                )
+                continue
+
+        validation = validate_spend_request(
+            category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            player_cost=spend.xp_cost,
+        )
+        if not validation.get('valid', False):
+            skipped.append(f'{spend.character_name} / {spend.trait_name}')
+            continue
+
+        verified_cost = validation['correct_cost']
+
+        db_service.approve_spend(row_id, verified_cost, staff, '')
+        db_service.log_action(
+            staff_user=staff,
+            action_type='approve_spend',
+            target=spend.character_name,
+            details=(
+                f'Bulk approved spend: {spend.trait_name} '
+                f'({spend.current_dots}→{spend.new_dots}) '
+                f'for {verified_cost} XP'
+            ),
+        )
+        if sheets_sync:
+            sheets_sync.sync_approve_spend(
+                character_name=spend.character_name,
+                trait_name=spend.trait_name,
+                spend_category=spend.spend_category,
+                current_dots=spend.current_dots,
+                new_dots=spend.new_dots,
+                verified_cost=verified_cost,
+                reviewer=staff,
+                notes='',
+            )
+            sheets_sync.sync_log_action(
+                staff_user=staff,
+                action_type='approve_spend',
+                target=spend.character_name,
+                details=(
+                    f'Bulk approved spend: {spend.trait_name} '
+                    f'({spend.current_dots}→{spend.new_dots}) '
+                    f'for {verified_cost} XP'
+                ),
+            )
+        approved_count += 1
+
+    if approved_count:
+        flash(f'Approved {approved_count} spend request{"s" if approved_count != 1 else ""}.', 'success')
+    if skipped:
+        flash(
+            f'Skipped {len(skipped)} spend{"s" if len(skipped) != 1 else ""} with '
+            f'cost validation issues (review individually): '
+            + ', '.join(skipped),
+            'warning',
+        )
+
+    return redirect(url_for('spends.pending'))
+
+
 @bp.route('/history')
 @require_staff
 def history():
