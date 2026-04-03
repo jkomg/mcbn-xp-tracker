@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
@@ -13,11 +11,9 @@ export const CLAIM_REMINDER_ACTION_NOT_NOW = 'not-now';
 export const CLAIM_REMINDER_ACTION_OPT_OUT = 'opt-out';
 
 type ReminderPrefs = {
-  optOut?: boolean;
-  snoozeUntilEpoch?: number;
+  optOut: boolean;
+  snoozeUntilEpoch: number;
 };
-
-type PrefStore = Record<string, ReminderPrefs>;
 
 type ClaimReminderServiceConfig = {
   enabled: boolean;
@@ -28,9 +24,6 @@ type ClaimReminderServiceConfig = {
   minuteLocal: number;
   timezone: string;
 };
-
-const BOT_ROOT = path.resolve(__dirname, '..', '..');
-const PREFS_PATH = path.join(BOT_ROOT, 'data', 'claim-reminder-preferences.json');
 
 export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string, webUrl?: string): string {
   const callToAction = webUrl
@@ -68,42 +61,19 @@ export function buildClaimReminderActionRow(targetDiscordId: string) {
   );
 }
 
-function ensurePrefsDir() {
-  fs.mkdirSync(path.dirname(PREFS_PATH), { recursive: true });
-}
-
-function readPrefs(): PrefStore {
-  try {
-    const raw = fs.readFileSync(PREFS_PATH, 'utf8');
-    const parsed = JSON.parse(raw) as PrefStore;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writePrefs(prefs: PrefStore) {
-  ensurePrefsDir();
-  fs.writeFileSync(PREFS_PATH, JSON.stringify(prefs, null, 2));
-}
-
-export function setClaimReminderSnooze(discordId: string, snoozeHours: number) {
-  const prefs = readPrefs();
-  const current = prefs[discordId] ?? {};
+export async function setClaimReminderSnooze(discordId: string, snoozeHours: number, adapter: TrackerAdapter): Promise<void> {
+  const prefs = await adapter.getAllReminderPrefs();
+  const current: ReminderPrefs = prefs[discordId] ?? { optOut: false, snoozeUntilEpoch: 0 };
   current.snoozeUntilEpoch = Math.floor(Date.now() / 1000) + Math.max(1, Math.floor(snoozeHours)) * 3600;
-  prefs[discordId] = current;
-  writePrefs(prefs);
+  await adapter.setReminderPref(discordId, current);
 }
 
-export function setClaimReminderOptOut(discordId: string, optOut: boolean) {
-  const prefs = readPrefs();
-  const current = prefs[discordId] ?? {};
+export async function setClaimReminderOptOut(discordId: string, optOut: boolean, adapter: TrackerAdapter): Promise<void> {
+  const prefs = await adapter.getAllReminderPrefs();
+  const current: ReminderPrefs = prefs[discordId] ?? { optOut: false, snoozeUntilEpoch: 0 };
   current.optOut = optOut;
-  if (!optOut) {
-    current.snoozeUntilEpoch = 0;
-  }
-  prefs[discordId] = current;
-  writePrefs(prefs);
+  if (!optOut) current.snoozeUntilEpoch = 0;
+  await adapter.setReminderPref(discordId, current);
 }
 
 function dayHourMinuteInZone(
@@ -228,14 +198,14 @@ export class ClaimReminderService {
       }
 
       const nowEpoch = Math.floor(Date.now() / 1000);
-      const prefs = readPrefs();
+      const prefs = await this.adapter.getAllReminderPrefs();
       let sent = 0;
       let skippedOptOut = 0;
       let skippedSnooze = 0;
 
       for (const target of snapshot.targets) {
         try {
-          const pref = prefs[target.discordId] ?? {};
+          const pref = prefs[target.discordId] ?? { optOut: false, snoozeUntilEpoch: 0 };
           if (pref.optOut) {
             skippedOptOut += 1;
             continue;

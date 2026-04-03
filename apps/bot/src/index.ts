@@ -217,7 +217,7 @@ client.on('interactionCreate', async (interaction) => {
         logEvent('info', 'interaction_handled_combat_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
-      const reminderHandled = await handleClaimReminderButton(interaction);
+      const reminderHandled = await handleClaimReminderButton(interaction, adapter);
       if (reminderHandled) {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
         return;
