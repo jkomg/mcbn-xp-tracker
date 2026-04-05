@@ -21,7 +21,21 @@ export class ConfigSyncWorker {
       if (cfg.claimReminderEnabled !== null) liveConfig.claimReminderEnabled = cfg.claimReminderEnabled;
       if (cfg.passageOfTimeEnabled !== null) liveConfig.passageOfTimeEnabled = cfg.passageOfTimeEnabled;
       if (cfg.huntConsequenceEnabled !== null) liveConfig.huntConsequenceEnabled = cfg.huntConsequenceEnabled;
+      liveConfig.passageOfTimeIntervalMs = cfg.passageOfTimeIntervalMs ?? null;
+      liveConfig.reviewNotifierIntervalMs = cfg.reviewNotifierIntervalMs ?? null;
+      liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs ?? null;
+      liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs ?? null;
       logEvent('debug', 'config_sync_done', { liveConfig });
+
+      if (cfg.restartRequested) {
+        logEvent('info', 'config_sync_restart_requested', {});
+        try {
+          await this.adapter.ackBotRestart();
+        } catch (ackErr) {
+          logEvent('warn', 'config_sync_restart_ack_failed', { error: String(ackErr) });
+        }
+        process.exit(0);
+      }
     } catch (err) {
       logEvent('warn', 'config_sync_failed', { error: String(err) });
     }

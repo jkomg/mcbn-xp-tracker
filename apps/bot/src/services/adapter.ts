@@ -21,6 +21,11 @@ export interface BotConfigResponse {
   claimReminderEnabled: boolean | null;
   passageOfTimeEnabled: boolean | null;
   huntConsequenceEnabled: boolean | null;
+  restartRequested: boolean | null;
+  passageOfTimeIntervalMs: number | null;
+  reviewNotifierIntervalMs: number | null;
+  submissionNotifierIntervalMs: number | null;
+  claimReminderIntervalMs: number | null;
 }
 
 export interface TrackerAdapter {
@@ -51,6 +56,7 @@ export interface TrackerAdapter {
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
+  ackBotRestart(): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
   setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
@@ -501,6 +507,15 @@ export class WebAppAdapter implements TrackerAdapter {
     const res = await this.fetchWithTimeout(url, { headers: this.readAuthHeaders() });
     if (!res.ok) throw new Error(`bot-config fetch failed: ${res.status}`);
     return res.json() as Promise<BotConfigResponse>;
+  }
+
+  async ackBotRestart(): Promise<void> {
+    const url = `${this.baseUrl}/api/bot-restart-ack`;
+    const res = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: this.writeAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`bot-restart-ack POST failed: ${res.status}`);
   }
 
   async postHeartbeat(liveState?: Record<string, boolean>): Promise<void> {

@@ -62,121 +62,137 @@ const client = new Client({
 
 initClientCommandCollection(client);
 
-const reviewNotifier = new ReviewNotifier(client, adapter, {
-  enabled: config.reviewNotifierEnabled,
-  guildId: config.reviewNotifierGuildId,
-  intervalMs: config.reviewNotifierIntervalMs,
-  lookbackSeconds: config.reviewNotifierLookbackSeconds,
-});
+// Fetch DB-backed config overrides before constructing services so interval
+// overrides set in the web UI take effect immediately on this startup.
+async function applyStartupConfigOverrides(): Promise<void> {
+  try {
+    const cfg = await adapter.getBotConfig();
+    if (cfg.passageOfTimeIntervalMs !== null) liveConfig.passageOfTimeIntervalMs = cfg.passageOfTimeIntervalMs;
+    if (cfg.reviewNotifierIntervalMs !== null) liveConfig.reviewNotifierIntervalMs = cfg.reviewNotifierIntervalMs;
+    if (cfg.submissionNotifierIntervalMs !== null) liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs;
+    if (cfg.claimReminderIntervalMs !== null) liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs;
+    logEvent('info', 'startup_config_loaded', { liveConfig });
+  } catch (err) {
+    logEvent('warn', 'startup_config_fetch_failed', { error: errorToMessage(err) });
+  }
+}
 
-const autoPeriodCreator = new AutoPeriodCreator(adapter, {
-  enabled: config.autoPeriodCreatorEnabled,
-  intervalMs: config.autoPeriodCreatorIntervalMs,
-});
+void applyStartupConfigOverrides().then(() => {
+  const reviewNotifier = new ReviewNotifier(client, adapter, {
+    enabled: config.reviewNotifierEnabled,
+    guildId: config.reviewNotifierGuildId,
+    intervalMs: liveConfig.reviewNotifierIntervalMs ?? config.reviewNotifierIntervalMs,
+    lookbackSeconds: config.reviewNotifierLookbackSeconds,
+  });
 
-const autoPeriodCloser = new AutoPeriodCloser(client, adapter, {
-  enabled: config.autoPeriodCloserEnabled,
-  guildId: config.autoPeriodCloserGuildId,
-  intervalMs: config.autoPeriodCloserIntervalMs,
-});
+  const autoPeriodCreator = new AutoPeriodCreator(adapter, {
+    enabled: config.autoPeriodCreatorEnabled,
+    intervalMs: config.autoPeriodCreatorIntervalMs,
+  });
 
-const submissionNotifier = new SubmissionNotifier(client, adapter, {
-  enabled: config.submissionNotifierEnabled,
-  channelId: config.submissionNotifierChannelId,
-  intervalMs: config.submissionNotifierIntervalMs,
-  lookbackSeconds: config.submissionNotifierLookbackSeconds,
-});
+  const autoPeriodCloser = new AutoPeriodCloser(client, adapter, {
+    enabled: config.autoPeriodCloserEnabled,
+    guildId: config.autoPeriodCloserGuildId,
+    intervalMs: config.autoPeriodCloserIntervalMs,
+  });
 
-const claimReminderService = new ClaimReminderService(client, adapter, {
-  enabled: config.claimReminderEnabled,
-  guildId: config.claimReminderGuildId,
-  intervalMs: config.claimReminderIntervalMs,
-  weekdayLocal: config.claimReminderWeekdayLocal,
-  hourLocal: config.claimReminderHourLocal,
-  minuteLocal: config.claimReminderMinuteLocal,
-  timezone: config.claimReminderTimezone,
-});
+  const submissionNotifier = new SubmissionNotifier(client, adapter, {
+    enabled: config.submissionNotifierEnabled,
+    channelId: config.submissionNotifierChannelId,
+    intervalMs: liveConfig.submissionNotifierIntervalMs ?? config.submissionNotifierIntervalMs,
+    lookbackSeconds: config.submissionNotifierLookbackSeconds,
+  });
 
-const passageOfTimeService = new PassageOfTimeService(client, {
-  enabled: config.passageOfTimeEnabled,
-  guildId: config.passageOfTimeGuildId,
-  channelId: config.passageOfTimeChannelId,
-  testMode: config.passageOfTimeTestMode,
-  testChannelId: config.passageOfTimeTestChannelId,
-  intervalMs: config.passageOfTimeIntervalMs,
-  timezone: config.passageOfTimeTimezone,
-  mentionRoleIds: [
-    config.passageOfTimeKindredRoleId ?? '',
-    config.passageOfTimeGhoulRoleId ?? '',
-    config.passageOfTimeMortalRoleId ?? '',
-  ],
-  events: [
-    {
-      name: 'sunrise',
-      weekdayLocal: config.passageSunriseWeekdayLocal,
-      hourLocal: config.passageSunriseHourLocal,
-      minuteLocal: config.passageSunriseMinuteLocal,
-      anchorDate: config.passageSunriseAnchorDate,
-      cadenceWeeks: 2,
-      body: PASSAGE_SUNRISE_MESSAGE,
-      imageFile: path.join(ASSETS_DIR, 'sunrise-rising-sun.gif'),
-    },
-    {
-      name: 'sunset',
-      weekdayLocal: config.passageSunsetWeekdayLocal,
-      hourLocal: config.passageSunsetHourLocal,
-      minuteLocal: config.passageSunsetMinuteLocal,
-      anchorDate: config.passageSunsetAnchorDate,
-      cadenceWeeks: 2,
-      body: PASSAGE_SUNSET_MESSAGE,
-      imageFile: path.join(ASSETS_DIR, 'Nashville_at_Night.gif'),
-    },
-    {
-      name: 'downtime',
-      weekdayLocal: config.passageDowntimeWeekdayLocal,
-      hourLocal: config.passageDowntimeHourLocal,
-      minuteLocal: config.passageDowntimeMinuteLocal,
-      anchorDate: config.passageDowntimeAnchorDate,
-      cadenceWeeks: 8,
-      body: PASSAGE_DOWNTIME_MESSAGE,
-    },
-  ],
-});
+  const claimReminderService = new ClaimReminderService(client, adapter, {
+    enabled: config.claimReminderEnabled,
+    guildId: config.claimReminderGuildId,
+    intervalMs: liveConfig.claimReminderIntervalMs ?? config.claimReminderIntervalMs,
+    weekdayLocal: config.claimReminderWeekdayLocal,
+    hourLocal: config.claimReminderHourLocal,
+    minuteLocal: config.claimReminderMinuteLocal,
+    timezone: config.claimReminderTimezone,
+  });
 
-const configSyncWorker = new ConfigSyncWorker(adapter);
-const botHeartbeatService = new BotHeartbeatService(adapter);
+  const passageOfTimeService = new PassageOfTimeService(client, {
+    enabled: config.passageOfTimeEnabled,
+    guildId: config.passageOfTimeGuildId,
+    channelId: config.passageOfTimeChannelId,
+    testMode: config.passageOfTimeTestMode,
+    testChannelId: config.passageOfTimeTestChannelId,
+    intervalMs: liveConfig.passageOfTimeIntervalMs ?? config.passageOfTimeIntervalMs,
+    timezone: config.passageOfTimeTimezone,
+    mentionRoleIds: [
+      config.passageOfTimeKindredRoleId ?? '',
+      config.passageOfTimeGhoulRoleId ?? '',
+      config.passageOfTimeMortalRoleId ?? '',
+    ],
+    events: [
+      {
+        name: 'sunrise',
+        weekdayLocal: config.passageSunriseWeekdayLocal,
+        hourLocal: config.passageSunriseHourLocal,
+        minuteLocal: config.passageSunriseMinuteLocal,
+        anchorDate: config.passageSunriseAnchorDate,
+        cadenceWeeks: 2,
+        body: PASSAGE_SUNRISE_MESSAGE,
+        imageFile: path.join(ASSETS_DIR, 'sunrise-rising-sun.gif'),
+      },
+      {
+        name: 'sunset',
+        weekdayLocal: config.passageSunsetWeekdayLocal,
+        hourLocal: config.passageSunsetHourLocal,
+        minuteLocal: config.passageSunsetMinuteLocal,
+        anchorDate: config.passageSunsetAnchorDate,
+        cadenceWeeks: 2,
+        body: PASSAGE_SUNSET_MESSAGE,
+        imageFile: path.join(ASSETS_DIR, 'Nashville_at_Night.gif'),
+      },
+      {
+        name: 'downtime',
+        weekdayLocal: config.passageDowntimeWeekdayLocal,
+        hourLocal: config.passageDowntimeHourLocal,
+        minuteLocal: config.passageDowntimeMinuteLocal,
+        anchorDate: config.passageDowntimeAnchorDate,
+        cadenceWeeks: 8,
+        body: PASSAGE_DOWNTIME_MESSAGE,
+      },
+    ],
+  });
 
-// Build hunt consequence config, respecting test mode
-const huntConsequenceCfg = {
-  enabled: config.huntConsequenceEnabled,
-  eldestBotId: config.huntConsequenceEldestBotId,
-  monitorChannelIds: new Set(
-    config.huntConsequenceTestMode
-      ? [config.huntConsequenceTestChannelId].filter(Boolean)
-      : config.huntConsequenceChannelIds,
-  ),
-  staffChannelId: config.huntConsequenceTestMode
-    ? config.huntConsequenceTestChannelId
-    : config.huntConsequenceStaffChannelId,
-  staffRoleId: config.huntConsequenceStaffRoleId,
-};
+  const configSyncWorker = new ConfigSyncWorker(adapter);
+  const botHeartbeatService = new BotHeartbeatService(adapter);
 
-client.once('ready', async () => {
-  logEvent('info', 'bot_ready', { userTag: client.user?.tag });
-  await registerCommands(client);
-  configSyncWorker.start();
-  botHeartbeatService.start();
-  reviewNotifier.start();
-  autoPeriodCreator.start();
-  autoPeriodCloser.start();
-  submissionNotifier.start();
-  claimReminderService.start();
-  passageOfTimeService.start();
-  startCubbyChannelMonitor(client);
-  startHuntConsequenceMonitor(client, huntConsequenceCfg);
-});
+  // Build hunt consequence config, respecting test mode
+  const huntConsequenceCfg = {
+    enabled: config.huntConsequenceEnabled,
+    eldestBotId: config.huntConsequenceEldestBotId,
+    monitorChannelIds: new Set(
+      config.huntConsequenceTestMode
+        ? [config.huntConsequenceTestChannelId].filter(Boolean)
+        : config.huntConsequenceChannelIds,
+    ),
+    staffChannelId: config.huntConsequenceTestMode
+      ? config.huntConsequenceTestChannelId
+      : config.huntConsequenceStaffChannelId,
+    staffRoleId: config.huntConsequenceStaffRoleId,
+  };
 
-client.on('interactionCreate', async (interaction) => {
+  client.once('ready', async () => {
+    logEvent('info', 'bot_ready', { userTag: client.user?.tag });
+    await registerCommands(client);
+    configSyncWorker.start();
+    botHeartbeatService.start();
+    reviewNotifier.start();
+    autoPeriodCreator.start();
+    autoPeriodCloser.start();
+    submissionNotifier.start();
+    claimReminderService.start();
+    passageOfTimeService.start();
+    startCubbyChannelMonitor(client);
+    startHuntConsequenceMonitor(client, huntConsequenceCfg);
+  });
+
+  client.on('interactionCreate', async (interaction) => {
   const baseMeta = {
     interactionId: interaction.id,
     interactionType: interaction.type,
@@ -280,6 +296,7 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.reply({ content: 'Command failed.', ephemeral: true });
   }
-});
+  });
 
-client.login(config.botToken);
+  client.login(config.botToken);
+});
