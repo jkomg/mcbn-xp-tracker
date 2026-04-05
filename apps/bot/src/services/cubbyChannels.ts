@@ -54,3 +54,30 @@ export async function findCubbyChannel(guild: Guild, characterName: string): Pro
 
   return null;
 }
+
+/**
+ * Fetch all channels and active threads once, returning a map of
+ * normalized-name → NotificationChannel.  Use this instead of calling
+ * findCubbyChannel in a loop to avoid one API round-trip per character.
+ */
+export async function buildCubbyChannelMap(guild: Guild): Promise<Map<string, NotificationChannel>> {
+  const map = new Map<string, NotificationChannel>();
+
+  const channels = await guild.channels.fetch();
+  for (const channel of channels.values()) {
+    if (isNotificationChannel(channel)) {
+      map.set(normalizeChannelName(channel.name), channel);
+    }
+  }
+
+  const activeThreads = await guild.channels.fetchActiveThreads().catch(() => null);
+  if (activeThreads) {
+    for (const thread of activeThreads.threads.values()) {
+      if (isNotificationChannel(thread)) {
+        map.set(normalizeChannelName(thread.name), thread);
+      }
+    }
+  }
+
+  return map;
+}

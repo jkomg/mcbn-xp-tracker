@@ -8,7 +8,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
-import { findCubbyChannel } from '../services/cubbyChannels';
+import { buildCubbyChannelMap, normalizeChannelName } from '../services/cubbyChannels';
 import { errorToMessage, logEvent } from '../logger';
 
 export const name = 'lasombra';
@@ -126,14 +126,24 @@ export async function handleBroadcastModal(
     let sent = 0;
     let missing = 0;
 
+    let channelMap: Map<string, import('../services/cubbyChannels').NotificationChannel>;
+    try {
+      channelMap = await buildCubbyChannelMap(guild);
+    } catch (err) {
+      logEvent('warn', 'broadcast_channel_map_failed', { error: errorToMessage(err) });
+      results.push('⚠️ Failed to fetch channel list — cubbies not sent.');
+      await interaction.editReply(results.join('\n'));
+      return true;
+    }
+
     for (const characterName of characters) {
+      const channel = channelMap.get(normalizeChannelName(characterName));
+      if (!channel) {
+        missing += 1;
+        logEvent('warn', 'broadcast_cubby_missing', { characterName });
+        continue;
+      }
       try {
-        const channel = await findCubbyChannel(guild, characterName);
-        if (!channel) {
-          missing += 1;
-          logEvent('warn', 'broadcast_cubby_missing', { characterName });
-          continue;
-        }
         await channel.send({ content: message });
         sent += 1;
       } catch (err) {
