@@ -25,7 +25,7 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
-import { handleBroadcastModal } from './commands/staff';
+import { handleBroadcastModal } from './commands/lasombra';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {

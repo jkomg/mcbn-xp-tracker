@@ -11,16 +11,16 @@ import { config } from '../config';
 import { findCubbyChannel } from '../services/cubbyChannels';
 import { errorToMessage, logEvent } from '../logger';
 
-export const name = 'staff';
+export const name = 'lasombra';
 
 export const data = new SlashCommandBuilder()
-  .setName('staff')
+  .setName('lasombra')
   .setDescription('Staff-only commands')
   .addSubcommand((s) =>
     s.setName('broadcast').setDescription('Send a message to #announcements, all active character cubbies, or both'),
   );
 
-const BROADCAST_MODAL_ID = 'staff:broadcast:modal';
+const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
 
 export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
   const sub = interaction.options.getSubcommand();
