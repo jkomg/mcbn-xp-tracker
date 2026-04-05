@@ -606,7 +606,10 @@ def bot_config():
         'BOT_SUBMISSION_NOTIFIER_INTERVAL_MS': 'submissionNotifierIntervalMs',
         'BOT_CLAIM_REMINDER_INTERVAL_MS': 'claimReminderIntervalMs',
     }
-    all_keys = list(BOOL_KEYS) + list(INT_KEYS)
+    STR_KEYS = {
+        'BOT_ANNOUNCEMENTS_CHANNEL_ID': 'announcementsChannelId',
+    }
+    all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting
     records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(all_keys)).all()}
     result = {}
@@ -622,6 +625,9 @@ def bot_config():
                 result[api_key] = int(record.value)
             except (ValueError, TypeError):
                 result[api_key] = None
+    for db_key, api_key in STR_KEYS.items():
+        record = records.get(db_key)
+        result[api_key] = record.value.strip() if record else None
     return jsonify(result)
 
 

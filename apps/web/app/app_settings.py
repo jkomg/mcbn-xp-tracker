@@ -27,6 +27,8 @@ EDITABLE_KEYS = {
     'BOT_HUNT_CONSEQUENCE_ENABLED',
     # Bot restart signal
     'BOT_RESTART_REQUESTED',
+    # Bot channel IDs (polled by bot via /api/bot-config; take effect after restart)
+    'BOT_ANNOUNCEMENTS_CHANNEL_ID',
     # Bot tuning (polled by bot via /api/bot-config; take effect after restart)
     'BOT_PASSAGE_OF_TIME_INTERVAL_MS',
     'BOT_REVIEW_NOTIFIER_INTERVAL_MS',

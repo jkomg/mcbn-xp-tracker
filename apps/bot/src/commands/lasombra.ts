@@ -8,6 +8,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
+import { liveConfig } from '../liveConfig';
 import { buildCubbyChannelMap, normalizeChannelName } from '../services/cubbyChannels';
 import { errorToMessage, logEvent } from '../logger';
 
@@ -92,7 +93,7 @@ export async function handleBroadcastModal(
   const results: string[] = [];
 
   if (sendToAnnouncements) {
-    const channelId = config.announcementsChannelId;
+    const channelId = liveConfig.announcementsChannelId ?? config.announcementsChannelId;
     if (!channelId) {
       results.push('⚠️ `ANNOUNCEMENTS_CHANNEL_ID` is not configured — skipped #announcements.');
     } else {

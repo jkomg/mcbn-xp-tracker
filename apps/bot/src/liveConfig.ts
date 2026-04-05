@@ -12,4 +12,6 @@ export const liveConfig = {
   reviewNotifierIntervalMs: null as number | null,
   submissionNotifierIntervalMs: null as number | null,
   claimReminderIntervalMs: null as number | null,
+  /** DB-override channel IDs (null = use .env default). Applied on next bot restart. */
+  announcementsChannelId: null as string | null,
 };

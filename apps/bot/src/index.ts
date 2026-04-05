@@ -71,6 +71,7 @@ async function applyStartupConfigOverrides(): Promise<void> {
     if (cfg.reviewNotifierIntervalMs !== null) liveConfig.reviewNotifierIntervalMs = cfg.reviewNotifierIntervalMs;
     if (cfg.submissionNotifierIntervalMs !== null) liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs;
     if (cfg.claimReminderIntervalMs !== null) liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs;
+    if (cfg.announcementsChannelId) liveConfig.announcementsChannelId = cfg.announcementsChannelId;
     logEvent('info', 'startup_config_loaded', { liveConfig });
   } catch (err) {
     logEvent('warn', 'startup_config_fetch_failed', { error: errorToMessage(err) });

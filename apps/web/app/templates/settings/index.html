@@ -183,6 +183,64 @@
     </div>
   </div>
 
+  {# ═══ Bot — Channel IDs ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Channel IDs</h5>
+  <p class="text-muted small mb-2">
+    Stored in the database. Click <strong>Restart Bot</strong> above to apply. Leave blank to use the bot's <code>.env</code> value.
+  </p>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th style="width:220px">Channel</th>
+            <th style="width:{% if can_edit %}280px{% else %}180px{% endif %}">ID</th>
+            <th>Description</th>
+            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in bot_channels %}
+          <tr>
+            <td class="fw-semibold">
+              {{ c.label }}
+              {% if c.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+            </td>
+            <td>
+              {% if can_edit and c.editable %}
+                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
+                  <input type="hidden" name="key" value="{{ c.key }}">
+                  <input type="hidden" name="action" value="set">
+                  <input type="text" name="value" value="{{ c.value or '' }}"
+                    placeholder="{{ c.placeholder }}"
+                    pattern="\d{17,20}" title="Discord snowflake (17–20 digits)"
+                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:160px">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+                {% if c.overridden %}
+                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                  <input type="hidden" name="key" value="{{ c.key }}">
+                  <input type="hidden" name="action" value="reset">
+                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
+                </form>
+                {% endif %}
+              {% else %}
+                {% if c.value %}
+                  <span class="badge bg-dark border border-secondary font-monospace">{{ c.value }}</span>
+                {% else %}
+                  <span class="text-muted small">env default</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ c.description }}</td>
+            <td class="d-none d-md-table-cell"><code class="small text-info">{{ c.env }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   {# ═══ Bot — Tuning ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Tuning</h5>
   <p class="text-muted small mb-2">

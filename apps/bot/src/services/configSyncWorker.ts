@@ -25,6 +25,7 @@ export class ConfigSyncWorker {
       liveConfig.reviewNotifierIntervalMs = cfg.reviewNotifierIntervalMs ?? null;
       liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs ?? null;
       liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs ?? null;
+      liveConfig.announcementsChannelId = cfg.announcementsChannelId ?? null;
       logEvent('debug', 'config_sync_done', { liveConfig });
 
       if (cfg.restartRequested) {
