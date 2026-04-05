@@ -25,6 +25,7 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
+import { handleBroadcastModal } from './commands/staff';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {
@@ -230,6 +231,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
+      const broadcastHandled = await handleBroadcastModal(interaction, { client, adapter });
+      if (broadcastHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const combatHandled = await handleCombatSetupModal(interaction);
       if (combatHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
