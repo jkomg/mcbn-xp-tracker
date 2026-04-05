@@ -278,6 +278,24 @@ def index():
         },
     ]
 
+    # ── Bot channel IDs (DB-backed; take effect after bot restart) ────────
+    def _eff_str(key):
+        record = overrides.get(key)
+        return record.value.strip() if record else None
+
+    bot_channels = [
+        {
+            'label': 'Announcements channel',
+            'key': 'BOT_ANNOUNCEMENTS_CHANNEL_ID',
+            'env': 'ANNOUNCEMENTS_CHANNEL_ID',
+            'value': _eff_str('BOT_ANNOUNCEMENTS_CHANNEL_ID'),
+            'placeholder': 'Discord channel ID (18–19 digits)',
+            'overridden': 'BOT_ANNOUNCEMENTS_CHANNEL_ID' in overrides,
+            'editable': True,
+            'description': 'Channel ID for /lasombra broadcast → announcements target.',
+        },
+    ]
+
     # ── Bot tuning (DB-backed; take effect after bot restart) ─────────────
     bot_tuning = [
         {
@@ -346,6 +364,7 @@ def index():
         web_tuning=web_tuning,
         integrations=integrations,
         bot_flags=bot_flags,
+        bot_channels=bot_channels,
         bot_tuning=bot_tuning,
         can_edit=can_edit,
         bot_heartbeat_age=bot_heartbeat_age,
@@ -391,6 +410,11 @@ def update():
         or session.get('discord_id', 'unknown')
     )
 
+    # Keys that store raw strings (no type coercion).
+    _STR_KEYS = {
+        'BOT_ANNOUNCEMENTS_CHANNEL_ID',
+    }
+
     # Keys that are always boolean regardless of whether they appear in app.config.
     _BOOL_KEYS = {
         'AUTO_CREATE_PERIODS_ENABLED',
@@ -412,7 +436,9 @@ def update():
     else:
         raw_value = request.form.get('value', '').strip()
         cfg_val = current_app.config.get(key)
-        if key in _BOOL_KEYS or isinstance(cfg_val, bool):
+        if key in _STR_KEYS:
+            set_app_setting(key, raw_value, updated_by)
+        elif key in _BOOL_KEYS or isinstance(cfg_val, bool):
             coerced = raw_value.lower() in ('true', '1', 'yes', 'on')
             set_app_setting(key, str(coerced).lower(), updated_by)
         else:

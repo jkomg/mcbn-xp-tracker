@@ -26,6 +26,7 @@ export interface BotConfigResponse {
   reviewNotifierIntervalMs: number | null;
   submissionNotifierIntervalMs: number | null;
   claimReminderIntervalMs: number | null;
+  announcementsChannelId: string | null;
 }
 
 export interface TrackerAdapter {
