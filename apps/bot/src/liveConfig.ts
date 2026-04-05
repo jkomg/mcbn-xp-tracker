@@ -7,4 +7,9 @@ export const liveConfig = {
   claimReminderEnabled: false,
   passageOfTimeEnabled: false,
   huntConsequenceEnabled: false,
+  /** DB-override intervals (null = use .env default). Applied on next bot restart. */
+  passageOfTimeIntervalMs: null as number | null,
+  reviewNotifierIntervalMs: null as number | null,
+  submissionNotifierIntervalMs: null as number | null,
+  claimReminderIntervalMs: null as number | null,
 };

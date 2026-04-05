@@ -278,6 +278,50 @@ def index():
         },
     ]
 
+    # ── Bot tuning (DB-backed; take effect after bot restart) ─────────────
+    bot_tuning = [
+        {
+            'label': 'Passage of Time interval',
+            'key': 'BOT_PASSAGE_OF_TIME_INTERVAL_MS',
+            'env': 'PASSAGE_OF_TIME_INTERVAL_MS',
+            'value': _eff_int('BOT_PASSAGE_OF_TIME_INTERVAL_MS', None),
+            'placeholder': 300000,
+            'overridden': 'BOT_PASSAGE_OF_TIME_INTERVAL_MS' in overrides,
+            'editable': True,
+            'description': 'How often the bot checks passage-of-time events (ms). Recommended: 300000.',
+        },
+        {
+            'label': 'Review Notifier interval',
+            'key': 'BOT_REVIEW_NOTIFIER_INTERVAL_MS',
+            'env': 'REVIEW_NOTIFIER_INTERVAL_MS',
+            'value': _eff_int('BOT_REVIEW_NOTIFIER_INTERVAL_MS', None),
+            'placeholder': 120000,
+            'overridden': 'BOT_REVIEW_NOTIFIER_INTERVAL_MS' in overrides,
+            'editable': True,
+            'description': 'How often the bot polls for newly reviewed claims/spends (ms).',
+        },
+        {
+            'label': 'Submission Notifier interval',
+            'key': 'BOT_SUBMISSION_NOTIFIER_INTERVAL_MS',
+            'env': 'SUBMISSION_NOTIFIER_INTERVAL_MS',
+            'value': _eff_int('BOT_SUBMISSION_NOTIFIER_INTERVAL_MS', None),
+            'placeholder': 120000,
+            'overridden': 'BOT_SUBMISSION_NOTIFIER_INTERVAL_MS' in overrides,
+            'editable': True,
+            'description': 'How often the bot polls for new XP/spend submissions (ms).',
+        },
+        {
+            'label': 'Claim Reminder interval',
+            'key': 'BOT_CLAIM_REMINDER_INTERVAL_MS',
+            'env': 'CLAIM_REMINDER_INTERVAL_MS',
+            'value': _eff_int('BOT_CLAIM_REMINDER_INTERVAL_MS', None),
+            'placeholder': 900000,
+            'overridden': 'BOT_CLAIM_REMINDER_INTERVAL_MS' in overrides,
+            'editable': True,
+            'description': 'How often the bot checks whether it is time to send claim reminders (ms).',
+        },
+    ]
+
     # ── Bot heartbeat ───────────────────────────────────────────────────────
     from datetime import datetime, timezone
     from app.db import AppSetting
@@ -294,16 +338,37 @@ def index():
         except ValueError:
             pass
 
+    _restart_pending = 'BOT_RESTART_REQUESTED' in overrides and overrides['BOT_RESTART_REQUESTED'].value.lower() in ('true', '1', 'yes')
+
     return render_template(
         'settings/index.html',
         web_flags=web_flags,
         web_tuning=web_tuning,
         integrations=integrations,
         bot_flags=bot_flags,
+        bot_tuning=bot_tuning,
         can_edit=can_edit,
         bot_heartbeat_age=bot_heartbeat_age,
         bot_heartbeat_ts=bot_heartbeat_ts,
+        bot_restart_pending=_restart_pending,
     )
+
+
+@bp.route('/request-restart', methods=['POST'])
+@require_staff
+def request_restart():
+    if not is_settings_admin():
+        flash('You do not have permission to restart the bot.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    updated_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+    set_app_setting('BOT_RESTART_REQUESTED', 'true', updated_by)
+    flash('Restart requested. The bot will exit cleanly within ~60 seconds and Docker will restart it.', 'success')
+    return redirect(url_for('settings.index'))
 
 
 @bp.route('/update', methods=['POST'])
@@ -338,6 +403,7 @@ def update():
         'BOT_CLAIM_REMINDER_ENABLED',
         'BOT_PASSAGE_OF_TIME_ENABLED',
         'BOT_HUNT_CONSEQUENCE_ENABLED',
+        'BOT_RESTART_REQUESTED',
     }
 
     if action == 'reset':

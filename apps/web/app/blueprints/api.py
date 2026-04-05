@@ -590,7 +590,7 @@ def review_events():
 @require_bot_scope('read')
 @_limit('10 per minute')
 def bot_config():
-    BOT_KEYS = {
+    BOOL_KEYS = {
         'BOT_REVIEW_NOTIFIER_ENABLED': 'reviewNotifierEnabled',
         'BOT_SUBMISSION_NOTIFIER_ENABLED': 'submissionNotifierEnabled',
         'BOT_AUTO_PERIOD_CREATOR_ENABLED': 'autoPeriodCreatorEnabled',
@@ -598,17 +598,44 @@ def bot_config():
         'BOT_CLAIM_REMINDER_ENABLED': 'claimReminderEnabled',
         'BOT_PASSAGE_OF_TIME_ENABLED': 'passageOfTimeEnabled',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
+        'BOT_RESTART_REQUESTED': 'restartRequested',
     }
+    INT_KEYS = {
+        'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
+        'BOT_REVIEW_NOTIFIER_INTERVAL_MS': 'reviewNotifierIntervalMs',
+        'BOT_SUBMISSION_NOTIFIER_INTERVAL_MS': 'submissionNotifierIntervalMs',
+        'BOT_CLAIM_REMINDER_INTERVAL_MS': 'claimReminderIntervalMs',
+    }
+    all_keys = list(BOOL_KEYS) + list(INT_KEYS)
     from app.db import AppSetting
-    records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(BOT_KEYS)).all()}
+    records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(all_keys)).all()}
     result = {}
-    for db_key, api_key in BOT_KEYS.items():
+    for db_key, api_key in BOOL_KEYS.items():
+        record = records.get(db_key)
+        result[api_key] = None if record is None else record.value.lower() in ('true', '1', 'yes')
+    for db_key, api_key in INT_KEYS.items():
         record = records.get(db_key)
         if record is None:
             result[api_key] = None
         else:
-            result[api_key] = record.value.lower() in ('true', '1', 'yes')
+            try:
+                result[api_key] = int(record.value)
+            except (ValueError, TypeError):
+                result[api_key] = None
     return jsonify(result)
+
+
+@bp.route('/bot-restart-ack', methods=['POST'])
+@require_bot_scope('write')
+@_limit('10 per minute')
+def bot_restart_ack():
+    """Bot calls this to clear the restart-requested flag just before exiting."""
+    from app.db import AppSetting, db
+    record = AppSetting.query.get('BOT_RESTART_REQUESTED')
+    if record:
+        db.session.delete(record)
+        db.session.commit()
+    return jsonify({'ok': True})
 
 
 @bp.route('/bot-heartbeat', methods=['POST'])

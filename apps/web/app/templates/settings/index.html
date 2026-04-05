@@ -149,8 +149,22 @@
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Status</h5>
   <!-- Bot Heartbeat Status -->
   <div class="card bg-dark border-secondary mb-4">
-    <div class="card-header border-secondary">
+    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
       <h6 class="mb-0 text-light"><i class="bi bi-heart-pulse"></i> Bot Status</h6>
+      {% if can_edit %}
+        <form method="POST" action="{{ url_for('settings.request_restart') }}" class="mb-0">
+          {% if bot_restart_pending %}
+            <button type="submit" class="btn btn-sm btn-warning" disabled>
+              <i class="bi bi-arrow-clockwise"></i> Restart Pending…
+            </button>
+          {% else %}
+            <button type="submit" class="btn btn-sm btn-outline-warning"
+              onclick="return confirm('Request bot restart? It will exit cleanly within ~60s and Docker will restart it.')">
+              <i class="bi bi-arrow-clockwise"></i> Restart Bot
+            </button>
+          {% endif %}
+        </form>
+      {% endif %}
     </div>
     <div class="card-body">
       {% if bot_heartbeat_ts is none %}
@@ -166,6 +180,64 @@
         <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Offline</span>
         <small class="text-muted ms-2">Last seen {{ (bot_heartbeat_age // 60) if bot_heartbeat_age else '?' }}m ago</small>
       {% endif %}
+    </div>
+  </div>
+
+  {# ═══ Bot — Tuning ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Tuning</h5>
+  <p class="text-muted small mb-2">
+    Interval overrides are stored in the database. Click <strong>Restart Bot</strong> above to apply them.
+    Leave blank to use the value from the bot's <code>.env</code> file.
+  </p>
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-dark table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th style="width:220px">Parameter</th>
+            <th style="width:{% if can_edit %}220px{% else %}120px{% endif %}">Value</th>
+            <th>Description</th>
+            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in bot_tuning %}
+          <tr>
+            <td class="fw-semibold">
+              {{ t.label }}
+              {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+            </td>
+            <td>
+              {% if can_edit and t.editable %}
+                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
+                  <input type="hidden" name="key" value="{{ t.key }}">
+                  <input type="hidden" name="action" value="set">
+                  <input type="number" name="value" value="{{ t.value if t.value is not none else '' }}"
+                    placeholder="{{ t.placeholder }}"
+                    class="form-control form-control-sm bg-dark text-light border-secondary" style="width:100px">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+                {% if t.overridden %}
+                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                  <input type="hidden" name="key" value="{{ t.key }}">
+                  <input type="hidden" name="action" value="reset">
+                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
+                </form>
+                {% endif %}
+              {% else %}
+                {% if t.value is not none %}
+                  <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
+                {% else %}
+                  <span class="text-muted small">env default</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ t.description }}</td>
+            <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 
