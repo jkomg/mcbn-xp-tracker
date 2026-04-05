@@ -232,7 +232,7 @@ export const config = {
   passageOfTimeTestChannelId: env.PASSAGE_OF_TIME_TEST_CHANNEL_ID,
   passageOfTimeIntervalMs: parsePositiveInt(
     env.PASSAGE_OF_TIME_INTERVAL_MS,
-    900_000,
+    300_000,
     'PASSAGE_OF_TIME_INTERVAL_MS',
   ),
   passageOfTimeTimezone: env.PASSAGE_OF_TIME_TIMEZONE ?? 'America/Chicago',
