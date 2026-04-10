@@ -1,13 +1,13 @@
 """Tests for POST /api/sheets/reconcile endpoint."""
 
-import app as app_module
+from unittest.mock import patch
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
 from app.db import db
 
 
-def _app(sheets_sync_obj=None):
+def _app():
     application = Flask(__name__)
     application.config['TESTING'] = True
     application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
@@ -20,7 +20,6 @@ def _app(sheets_sync_obj=None):
     application.register_blueprint(api_bp, url_prefix='/api')
     with application.app_context():
         db.create_all()
-        app_module.sheets_sync = sheets_sync_obj
     return application
 
 
@@ -39,11 +38,12 @@ def test_reconcile_requires_write_scope():
 
 
 def test_reconcile_returns_503_when_sheets_not_configured():
-    app = _app(sheets_sync_obj=None)
-    with app.test_client() as client:
-        res = client.post('/api/sheets/reconcile', headers={'Authorization': 'Bearer write-token'})
-        assert res.status_code == 503
-        assert 'error' in res.get_json()
+    app = _app()
+    with patch('app.blueprints.api.sheets_sync', None):
+        with app.test_client() as client:
+            res = client.post('/api/sheets/reconcile', headers={'Authorization': 'Bearer write-token'})
+            assert res.status_code == 503
+            assert 'error' in res.get_json()
 
 
 def test_reconcile_calls_reconcile_and_returns_summary():
@@ -61,11 +61,12 @@ def test_reconcile_calls_reconcile_and_returns_summary():
                 'errors': [],
             }
 
-    app = _app(sheets_sync_obj=FakeSync())
-    with app.test_client() as client:
-        res = client.post('/api/sheets/reconcile', headers={'Authorization': 'Bearer write-token'})
-        assert res.status_code == 200
-        data = res.get_json()
-        assert data['claims_appended'] == 1
-        assert data['ledger_appended'] == 2
-        assert data['errors'] == []
+    app = _app()
+    with patch('app.blueprints.api.sheets_sync', FakeSync()):
+        with app.test_client() as client:
+            res = client.post('/api/sheets/reconcile', headers={'Authorization': 'Bearer write-token'})
+            assert res.status_code == 200
+            data = res.get_json()
+            assert data['claims_appended'] == 1
+            assert data['ledger_appended'] == 2
+            assert data['errors'] == []
