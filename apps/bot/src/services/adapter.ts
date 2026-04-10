@@ -61,6 +61,19 @@ export interface TrackerAdapter {
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
   setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
+  triggerSheetsReconcile(): Promise<SheetsReconcileSummary>;
+}
+
+export interface SheetsReconcileSummary {
+  started_at: string;
+  finished_at?: string;
+  claims_appended: number;
+  claims_status_updated: number;
+  spends_appended: number;
+  spends_status_updated: number;
+  ledger_appended: number;
+  characters_appended: number;
+  errors: string[];
 }
 
 const summarySchema = z.object({
@@ -558,6 +571,16 @@ export class WebAppAdapter implements TrackerAdapter {
     } catch {
       // best-effort
     }
+  }
+
+  async triggerSheetsReconcile(): Promise<SheetsReconcileSummary> {
+    const url = `${this.baseUrl}/api/sheets/reconcile`;
+    const res = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: this.writeAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`sheets/reconcile POST failed: ${res.status}`);
+    return res.json() as Promise<SheetsReconcileSummary>;
   }
 
   private async post(path: string, body: unknown, successMessage: string) {

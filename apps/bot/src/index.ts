@@ -15,6 +15,7 @@ import {
   PASSAGE_SUNRISE_MESSAGE,
   PASSAGE_SUNSET_MESSAGE,
 } from './services/passageOfTimeService';
+import { SheetsReconcileService } from './services/sheetsReconcileService';
 
 const ASSETS_DIR = path.resolve(__dirname, '..', 'assets');
 import { errorToMessage, logEvent } from './logger';
@@ -160,6 +161,14 @@ void applyStartupConfigOverrides().then(() => {
     ],
   });
 
+  const sheetsReconcileService = new SheetsReconcileService(adapter, {
+    enabled: config.sheetsReconcileEnabled,
+    hourLocal: config.sheetsReconcileHourLocal,
+    minuteLocal: config.sheetsReconcileMinuteLocal,
+    timezone: config.sheetsReconcileTimezone,
+    intervalMs: config.sheetsReconcileIntervalMs,
+  });
+
   const configSyncWorker = new ConfigSyncWorker(adapter);
   const botHeartbeatService = new BotHeartbeatService(adapter);
 
@@ -189,6 +198,7 @@ void applyStartupConfigOverrides().then(() => {
     submissionNotifier.start();
     claimReminderService.start();
     passageOfTimeService.start();
+    sheetsReconcileService.start();
     startCubbyChannelMonitor(client);
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
   });
