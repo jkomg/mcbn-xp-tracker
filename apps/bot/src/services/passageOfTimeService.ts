@@ -287,11 +287,16 @@ export class PassageOfTimeService {
         if (parts.weekday !== event.weekdayLocal) {
           continue;
         }
-        // Fire if the target time falls in the window (prevTick, now] — works regardless of tick alignment
+        // Fire if the target time falls in the window (prevTick, now].
+        // When the tick spans midnight the window wraps: (prevMin, 1440) ∪ [0, nowMin].
         const targetMin = event.hourLocal * 60 + event.minuteLocal;
         const nowMin = parts.hour * 60 + parts.minute;
         const prevMin = prevParts.hour * 60 + prevParts.minute;
-        if (nowMin < targetMin || prevMin >= targetMin) {
+        const crossesMidnight = prevParts.dateKey !== parts.dateKey;
+        const inWindow = crossesMidnight
+          ? targetMin > prevMin || targetMin <= nowMin
+          : targetMin > prevMin && targetMin <= nowMin;
+        if (!inWindow) {
           continue;
         }
         if (!isCadenceDate(parts.dateKey, event.anchorDate, event.cadenceWeeks)) {
