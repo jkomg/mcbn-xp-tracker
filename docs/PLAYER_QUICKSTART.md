@@ -1,6 +1,6 @@
 # Player Quickstart (Web + Bot)
 
-Use either the web interface or Discord bot. Both submit into the same XP workflow.
+Use the web player portal for claim/spend submissions. Discord bot commands are still available for summaries and cost checks.
 
 ## 1) Web Interface (Recommended)
 
@@ -17,23 +17,23 @@ Use either the web interface or Discord bot. Both submit into the same XP workfl
 Run `/xp help` in Discord anytime for the same summary.
 
 - `/xp submit`
-  - Guided wizard for claims (recommended bot flow).
+  - Redirects you to the player portal claim flow.
 - `/xp claim`
-  - Quick one-category claim.
-  - `play_period` is autocomplete from active nights.
+  - Redirects you to the player portal claim flow.
 - `/xp spend`
-  - Submit an XP spend request.
+  - Redirects you to the player portal spend flow.
 - `/xp summary`
   - View current XP totals for your character.
+- `/xp history`
+  - View recent approved claims/spends for your character.
 - `/xp spend-cost`
   - Preview the calculated XP cost.
 
 ## 3) Tips To Avoid Errors
 
 - Always pick your character from autocomplete.
-- Always pick night/period from autocomplete.
-- For `/xp claim`, paste a valid Discord message link from this server.
-- If you are unsure, use `/xp submit` instead of `/xp claim`.
+- Submit claims/spends in the web portal (`/player`), not in Discord command payloads.
+- Use `/xp spend-cost` before submitting a spend if you want a quick cost sanity check.
 
 ## 4) Staff Review
 

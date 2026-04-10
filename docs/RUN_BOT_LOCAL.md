@@ -84,7 +84,7 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - At configured local day/time, bot pulls reminder targets for the current open night.
 - For each eligible character, bot posts in that character's cubby channel/thread.
 - Message mentions linked player (`player_discord`) and includes quick actions:
-  - `Start Claim` (use `/xp submit` or `/xp claim`)
+  - `Start Claim` (opens the player portal URL)
   - `Not Now` (snoozes reminders)
   - `Stop Reminders` (opt-out)
 - Buttons are locked to the linked player for that reminder post.
@@ -105,11 +105,11 @@ For first-time setup, follow [INSTALL_REGULAR.md](INSTALL_REGULAR.md).
 - Recommended command for full UI/button test:
   - `/xp test-reminder character:"Dummy One" target_user:@you current_night:"Night TEST"`
 - Then click:
-  - `Start Claim`: confirms manual claim path.
+  - `Start Claim`: confirms player-portal jump path.
   - `Not Now`: writes a snooze preference.
   - `Stop Reminders`: writes opt-out preference.
-- Preference state file (local bot host):
-  - `apps/bot/data/claim-reminder-preferences.json`
+- Preference state persistence:
+  - Stored via web API (`/api/reminder-prefs`) in the web app database.
 
 ### Bulk grant bot access to all cubbies
 

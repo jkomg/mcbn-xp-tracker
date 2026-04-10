@@ -27,8 +27,8 @@ type ClaimReminderServiceConfig = {
 
 export function buildClaimReminderText(currentNight: string, characterName: string, discordId: string, webUrl?: string): string {
   const callToAction = webUrl
-    ? `Submit your claim at ${webUrl} or use \`/xp submit\` in Discord.`
-    : 'Use `/xp submit` in Discord when ready.';
+    ? `Submit your claim at ${webUrl}.`
+    : 'Open the player portal to submit your claim.';
   return [
     `Hey <@${discordId}>`,
     '',
