@@ -150,14 +150,14 @@ cp apps/bot/.env.example apps/bot/.env
 | Var | Required | Default | Description |
 |-----|----------|---------|-------------|
 | `AUTO_PERIOD_CLOSER_ENABLED` | No | `false` | Enable bot-side trigger. Also requires `AUTO_CLOSE_PERIODS_ENABLED=true` on web. |
-| `AUTO_PERIOD_CLOSER_GUILD_ID` | No | falls back to `REVIEW_NOTIFIER_GUILD_ID` | Guild ID for close DM sends. |
+| `AUTO_PERIOD_CLOSER_GUILD_ID` | No | falls back to `REVIEW_NOTIFIER_GUILD_ID` | Guild ID for close notifications in character cubby channels. |
 | `AUTO_PERIOD_CLOSER_INTERVAL_MS` | No | `3600000` | Poll interval (ms). |
 
 ### Claim Reminder Service
 
 | Var | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `CLAIM_REMINDER_ENABLED` | No | `false` | Enable scheduled DM reminders to players who haven't claimed. |
+| `CLAIM_REMINDER_ENABLED` | No | `false` | Enable scheduled reminder posts in character cubby channels for players who haven't claimed. |
 | `CLAIM_REMINDER_GUILD_ID` | Conditional | — | Guild ID. Required when enabled. |
 | `CLAIM_REMINDER_INTERVAL_MS` | No | `900000` | How often to check the schedule (ms). |
 | `CLAIM_REMINDER_WEEKDAY_LOCAL` | No | `0` (Sunday) | Weekday to send reminders (0=Sun … 6=Sat). |
