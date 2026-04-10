@@ -28,7 +28,7 @@ export async function handleClaimReminderButton(interaction: ButtonInteraction, 
 
   if (action === CLAIM_REMINDER_ACTION_START) {
     await interaction.reply({
-      content: 'Use `/xp submit` (wizard) or `/xp claim` when you are ready.',
+      content: `Open the player portal to submit your claim: ${config.playerWebUrl}`,
       ephemeral: true,
     });
     return true;
