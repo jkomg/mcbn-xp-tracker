@@ -201,10 +201,12 @@ export class PassageOfTimeService {
   private readonly config: PassageOfTimeConfig;
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private lastTickTime: Date;
 
   constructor(client: Client, config: PassageOfTimeConfig) {
     this.client = client;
     this.config = config;
+    this.lastTickTime = new Date(Date.now() - config.intervalMs);
   }
 
   start() {
@@ -272,9 +274,10 @@ export class PassageOfTimeService {
 
       const now = new Date();
       const parts = localParts(now, this.config.timezone);
+      const prevParts = localParts(this.lastTickTime, this.config.timezone);
+      this.lastTickTime = now;
       const state = readState();
       const posted = new Set(state.postedKeys);
-      const minuteWindow = Math.max(1, Math.ceil(this.config.intervalMs / 60_000));
       let postedCount = 0;
 
       for (const event of this.config.events) {
@@ -284,10 +287,11 @@ export class PassageOfTimeService {
         if (parts.weekday !== event.weekdayLocal) {
           continue;
         }
-        if (parts.hour !== event.hourLocal) {
-          continue;
-        }
-        if (parts.minute < event.minuteLocal || parts.minute >= event.minuteLocal + minuteWindow) {
+        // Fire if the target time falls in the window (prevTick, now] — works regardless of tick alignment
+        const targetMin = event.hourLocal * 60 + event.minuteLocal;
+        const nowMin = parts.hour * 60 + parts.minute;
+        const prevMin = prevParts.hour * 60 + prevParts.minute;
+        if (nowMin < targetMin || prevMin >= targetMin) {
           continue;
         }
         if (!isCadenceDate(parts.dateKey, event.anchorDate, event.cadenceWeeks)) {
