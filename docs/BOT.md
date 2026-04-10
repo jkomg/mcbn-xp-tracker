@@ -13,19 +13,63 @@ The bot calls the web app's REST API (`/api/*`) using a bearer token. It never w
 | Command | Who Can Use | Description |
 |---------|-------------|-------------|
 | `/ping` | Everyone | Basic liveness check |
-| `/xp submit` | Players | Interactive multi-step wizard to submit an XP claim |
-| `/xp claim` | Players | Submit an XP claim directly |
-| `/xp spend` | Players | Submit an XP spend request |
+| `/xp submit` | Players | Redirect to the web player portal claim flow |
+| `/xp claim` | Players | Redirect to the web player portal claim flow |
+| `/xp spend` | Players | Redirect to the web player portal spend flow |
 | `/xp spend-cost` | Everyone | Calculate the XP cost of a potential spend without submitting |
 | `/xp summary` | Players | Show a character's XP totals (earned, spent, available) |
+| `/xp history` | Players | Show recent approved claims and spends |
 | `/xp health` | Everyone | Check bot and web app connectivity status |
 | `/xp help` | Everyone | Show player help and links |
-| `/xp test-reminder` | Staff only | Trigger a claim reminder DM for testing |
+| `/xp test-reminder` | Staff only | Trigger a claim reminder post in a cubby channel for testing |
 | `/xp test-passage` | Staff only | Trigger a passage-of-time announcement for testing |
 | `/xp sync-cubby-access` | Staff only | Resync channel access for character cubbies |
-| `/combat` | Players / Staff | Combat setup wizard (initiates multi-step modal flow) |
+| `/lasombra broadcast` | Staff only | Send a message to announcements, all cubbies, a single cubby, or any channel in the cubby categories. Supports optional role and player @mentions. See [Staff Broadcast](#staff-broadcast-lasombra-broadcast) below. |
+| `/combat start` | Players / Staff | Combat setup wizard (initiates multi-step modal flow) |
 
 Staff-only commands are restricted to Discord IDs in `BOT_TESTER_IDS`.
+
+## Staff Broadcast (`/lasombra broadcast`)
+
+Sends a freeform staff message to one or more destinations. The command accepts options first, then presents a modal for the message body.
+
+### Options
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `target` | Yes | Where to send. Autocomplete offers static targets and dynamic character/channel choices (see below). |
+| `mention-kindred` | No | Prepend `@Kindred` to the message. |
+| `mention-ghouls` | No | Prepend `@Ghouls` to the message. |
+| `mention-mortals` | No | Prepend `@Mortals` to the message. |
+| `mention-character` | No | Prepend a ping to a specific character's player. Autocomplete shows active characters that have a Discord ID on file. |
+
+### Target autocomplete
+
+| What you see | What it does |
+|---|---|
+| `All cubbies` | Posts to every active character's cubby channel |
+| `Announcements channel` | Posts to the configured `ANNOUNCEMENTS_CHANNEL_ID` |
+| `Cubbies + announcements` | Posts to all cubbies and announcements |
+| `Cubby: <CharacterName>` | Posts to a single character's cubby only |
+| `#<channel-name>` | Posts to a specific channel inside one of the four cubby categories |
+
+The four cubby categories searched for individual channel targets are:
+- Ancilla Character Cubbies
+- Neonate Character Cubbies
+- Fledgeling Character Cubbies
+- Mortal Character Cubbies
+
+### Mention behaviour
+
+All selected mentions are prepended to the message body, separated by spaces, followed by a blank line:
+
+```
+@Kindred @Ghouls <@PlayerDiscordId>
+
+Your message here...
+```
+
+Role IDs are read from `PASSAGE_OF_TIME_KINDRED_ROLE_ID`, `PASSAGE_OF_TIME_GHOUL_ROLE_ID`, and `PASSAGE_OF_TIME_MORTAL_ROLE_ID`.
 
 ## Background Services
 
@@ -43,7 +87,7 @@ Requires: `SUBMISSION_NOTIFIER_ENABLED=true`, `SUBMISSION_NOTIFIER_CHANNEL_ID`.
 
 ### claimReminderService
 
-Sends DM reminders to players who have not yet submitted an XP claim for the current open play period. Runs on a configurable schedule (commonly Sunday 12:00 America/Chicago in project templates; code fallback default is Sunday 08:00 if env vars are omitted). Players can opt out or snooze via buttons in the DM. Opt-out/snooze state is persisted to `data/claim-reminder-preferences.json`.
+Sends reminder posts in each character's cubby channel for players who have not yet submitted an XP claim for the current open play period. Runs on a configurable schedule (commonly Sunday 12:00 America/Chicago in project templates; code fallback default is Sunday 08:00 if env vars are omitted). Players can open the player portal, snooze reminders, or opt out via buttons on the reminder post. Opt-out/snooze state is persisted via the web API (`/api/reminder-prefs`) in the web database.
 
 Requires: `CLAIM_REMINDER_ENABLED=true`, `CLAIM_REMINDER_GUILD_ID`.
 
@@ -61,7 +105,7 @@ Requires: `AUTO_PERIOD_CREATOR_ENABLED=true` (bot side) and `AUTO_CREATE_PERIODS
 
 ### autoPeriodCloser
 
-Periodically calls `POST /api/periods/auto-close` (default every 60 min). When the web app closes a period, it returns the list of players who had not submitted a claim; the bot DMs those players a close notification.
+Periodically calls `POST /api/periods/auto-close` (default every 60 min). When the web app closes a period, it returns the list of players who had not submitted a claim; the bot posts close notifications in those characters' cubby channels.
 
 Requires: `AUTO_PERIOD_CLOSER_ENABLED=true` (bot side) and `AUTO_CLOSE_PERIODS_ENABLED=true` (web side).
 
@@ -81,7 +125,7 @@ POSTs to `POST /api/bot-heartbeat` on a 60-second interval. The web app records 
 
 ### cubbyChannelMonitor
 
-Monitors channel creation and deletion events in the guild and keeps the internal cubby-channel lookup cache up to date. Used by `reviewNotifier` to find the correct channel or thread for each character.
+Monitors new channels/threads in cubby categories. On channel creation it grants the bot required send/read permissions; on thread creation it joins the thread so review/reminder posts work without manual intervention.
 
 ## Persistent State Files
 
@@ -91,8 +135,9 @@ All state files are written relative to the bot's working directory (`apps/bot/`
 |------|---------|----------|
 | `data/review-notifier-cursor.json` | reviewNotifier | Last processed review event epoch and event key |
 | `data/submission-notifier-cursor.json` | submissionNotifier | Last processed submission event epoch and event key |
-| `data/claim-reminder-preferences.json` | claimReminderService | Per-user opt-out and snooze state |
 | `data/passage-of-time-state.json` | passageOfTimeService | Dedupe keys for posted cadence messages |
+
+Claim reminder preferences are stored in the web app DB (via `/api/reminder-prefs`), not a bot-local file.
 
 ## Docker Ops
 
