@@ -1,5 +1,12 @@
 import { ChannelType, type Guild, type GuildBasedChannel } from 'discord.js';
 
+export const CUBBY_CATEGORY_NAMES = [
+  'ancilla character cubbies',
+  'neonate character cubbies',
+  'fledgeling character cubbies',
+  'mortal character cubbies',
+] as const;
+
 export type NotificationChannel = GuildBasedChannel & {
   send: (payload: { content: string; components?: unknown[]; allowedMentions?: { parse?: string[] } }) => Promise<unknown>;
 };
@@ -80,4 +87,31 @@ export async function buildCubbyChannelMap(guild: Guild): Promise<Map<string, No
   }
 
   return map;
+}
+
+/**
+ * Returns all text channels whose parent category is one of the four cubby
+ * category sections, suitable for use in autocomplete.
+ */
+export async function getChannelsInCubbyCategories(guild: Guild): Promise<Array<{ id: string; name: string }>> {
+  const channels = await guild.channels.fetch();
+
+  const cubbyParentIds = new Set<string>();
+  for (const channel of channels.values()) {
+    if (channel && channel.type === ChannelType.GuildCategory) {
+      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+        cubbyParentIds.add(channel.id);
+      }
+    }
+  }
+
+  const result: Array<{ id: string; name: string }> = [];
+  for (const channel of channels.values()) {
+    if (!channel || channel.type !== ChannelType.GuildText) continue;
+    if (channel.parentId && cubbyParentIds.has(channel.parentId)) {
+      result.push({ id: channel.id, name: channel.name });
+    }
+  }
+  result.sort((a, b) => a.name.localeCompare(b.name));
+  return result;
 }

@@ -329,6 +329,16 @@ def active_roster():
         return backend
     characters = db_service.get_active_characters()
     characters.sort(key=lambda c: c.character_name.lower())
+    if request.args.get('includeDiscordIds') == '1':
+        return jsonify({
+            'characters': [
+                {
+                    'name': c.character_name,
+                    'discordId': str(c.player_discord).strip() if c.player_discord else None,
+                }
+                for c in characters
+            ]
+        })
     return jsonify({'characters': [c.character_name for c in characters]})
 
 
