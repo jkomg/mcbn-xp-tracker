@@ -33,6 +33,7 @@ export interface TrackerAdapter {
   getSummary(characterName: string, requester: RequesterContext, opts?: { includeHistory?: boolean }): Promise<XpSummary | null>;
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getActiveRoster(): Promise<{ characters: string[] }>;
+  getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }>;
   getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
   getReviewEvents(opts?: {
     sinceEpoch?: number;
@@ -140,6 +141,10 @@ const reviewEventsSchema = z.object({
 
 const activeRosterSchema = z.object({
   characters: z.array(z.string()),
+});
+
+const activeRosterWithIdsSchema = z.object({
+  characters: z.array(z.object({ name: z.string(), discordId: z.string().nullable() })),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -291,6 +296,20 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     return activeRosterSchema.parse(raw);
+  }
+
+  async getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster?includeDiscordIds=1`, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp) {
+      throw new Error('Unable to reach web app active-roster API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app active-roster API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    return activeRosterWithIdsSchema.parse(raw);
   }
 
   async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {
