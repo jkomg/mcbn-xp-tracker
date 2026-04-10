@@ -34,7 +34,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('submit')
-      .setDescription('Open interactive XP claim wizard with live character/night context')
+      .setDescription('Open the player portal to submit an XP claim')
       .addStringOption((o) =>
         o
           .setName('character')
@@ -98,7 +98,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('claim')
-      .setDescription('Submit a simple XP claim via adapter')
+      .setDescription('Open the player portal to submit an XP claim')
       .addStringOption((o) =>
         o
           .setName('character')
@@ -174,7 +174,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('spend')
-      .setDescription('Submit an XP spend request via adapter')
+      .setDescription('Open the player portal to submit an XP spend request')
       .addStringOption((o) =>
         o
           .setName('character')
@@ -476,9 +476,9 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
   if (sub === 'help') {
     const lines = [
       '**XP Quick Help**',
-      '- `/xp submit`: guided XP claim wizard (recommended)',
-      '- `/xp claim`: quick claim (1-6 category/link pairs in one submission)',
-      '- `/xp spend`: submit an XP spend request',
+      '- `/xp submit`: opens the player portal claim flow',
+      '- `/xp claim`: opens the player portal claim flow',
+      '- `/xp spend`: opens the player portal spend flow',
       '- `/xp summary`: show your character XP totals',
       '- `/xp history`: show recent approved claims and spends',
       '- `/xp spend-cost`: preview spend XP cost',

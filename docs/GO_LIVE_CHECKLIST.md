@@ -48,8 +48,8 @@ Use this checklist when promoting the merged web + bot setup to production.
 - [ ] `/ping` works.
 - [ ] `/xp health` reports web adapter as healthy.
 - [ ] `/xp summary` returns expected character data.
-- [ ] `/xp claim` submits successfully.
-- [ ] `/xp spend` computes/creates requests using current XP rules.
+- [ ] `/xp submit` / `/xp claim` / `/xp spend` redirect to the player portal URL.
+- [ ] Player portal claim and spend submissions succeed end-to-end.
 - [ ] Web UI and bot show consistent XP totals after a test claim/spend.
 
 ## 6) Cost Guardrails (Free-Tier Focus)
