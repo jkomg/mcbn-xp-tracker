@@ -134,7 +134,7 @@ describe('xp claim command validation', () => {
     expect(reply).toHaveBeenCalledTimes(1);
     const payload = reply.mock.calls[0][0] as { content: string; ephemeral: boolean };
     expect(payload.ephemeral).toBe(true);
-    expect(payload.content).toContain('`/xp submit`');
+    expect(payload.content).toContain('player portal');
     expect(payload.content).toContain('Full player guide: https://discord.com/channels/1/2/3');
 
     vi.unstubAllEnvs();
