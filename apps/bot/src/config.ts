@@ -139,6 +139,9 @@ const envSchema = z.object({
   SHEETS_RECONCILE_MINUTE_LOCAL: z.string().optional(),
   SHEETS_RECONCILE_TIMEZONE: z.string().optional(),
   SHEETS_RECONCILE_INTERVAL_MS: z.string().optional(),
+  NOTION_TOKEN: z.string().optional(),
+  NOTION_SYNC_MSG_LIMIT: z.string().optional(),
+  DISCORD_GUILD_ID: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -313,6 +316,9 @@ export const config = {
     300_000,
     'SHEETS_RECONCILE_INTERVAL_MS',
   ),
+  notionToken: env.NOTION_TOKEN ?? '',
+  notionSyncMsgLimit: parsePositiveInt(env.NOTION_SYNC_MSG_LIMIT, 200, 'NOTION_SYNC_MSG_LIMIT'),
+  discordGuildId: env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {

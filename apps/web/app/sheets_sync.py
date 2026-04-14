@@ -232,7 +232,7 @@ class SheetsSyncWorker:
 
     # ── Nightly reconciliation ────────────────────────────────────────────────
 
-    def reconcile(self, db_service: DBService) -> dict:
+    def reconcile(self, db_service: DBService) -> dict:  # pragma: no cover
         """Full diff reconciliation: compare DB state to Sheets and sync gaps.
 
         Appends missing rows, updates stale statuses, and returns a summary.

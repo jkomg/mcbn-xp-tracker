@@ -22,6 +22,7 @@ export interface BotConfigResponse {
   passageOfTimeEnabled: boolean | null;
   huntConsequenceEnabled: boolean | null;
   restartRequested: boolean | null;
+  notionSyncRequested: boolean | null;
   passageOfTimeIntervalMs: number | null;
   reviewNotifierIntervalMs: number | null;
   submissionNotifierIntervalMs: number | null;
@@ -59,9 +60,23 @@ export interface TrackerAdapter {
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
   ackBotRestart(): Promise<void>;
+  ackNotionSync(status: 'running' | 'success' | 'error', error?: string): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
   setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
+  triggerSheetsReconcile(): Promise<SheetsReconcileSummary>;
+}
+
+export interface SheetsReconcileSummary {
+  started_at: string;
+  finished_at?: string;
+  claims_appended: number;
+  claims_status_updated: number;
+  spends_appended: number;
+  spends_status_updated: number;
+  ledger_appended: number;
+  characters_appended: number;
+  errors: string[];
 }
 
 const summarySchema = z.object({
@@ -538,6 +553,16 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!res.ok) throw new Error(`bot-restart-ack POST failed: ${res.status}`);
   }
 
+  async ackNotionSync(status: 'running' | 'success' | 'error', error?: string): Promise<void> {
+    const url = `${this.baseUrl}/api/notion-sync-ack`;
+    const res = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, ...(error ? { error } : {}) }),
+    });
+    if (!res.ok) throw new Error(`notion-sync-ack POST failed: ${res.status}`);
+  }
+
   async postHeartbeat(liveState?: Record<string, boolean>): Promise<void> {
     const url = `${this.baseUrl}/api/bot-heartbeat`;
     const res = await this.fetchWithTimeout(url, {
@@ -577,6 +602,16 @@ export class WebAppAdapter implements TrackerAdapter {
     } catch {
       // best-effort
     }
+  }
+
+  async triggerSheetsReconcile(): Promise<SheetsReconcileSummary> {
+    const url = `${this.baseUrl}/api/sheets/reconcile`;
+    const res = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: this.writeAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`sheets/reconcile POST failed: ${res.status}`);
+    return res.json() as Promise<SheetsReconcileSummary>;
   }
 
   private async post(path: string, body: unknown, successMessage: string) {

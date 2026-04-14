@@ -335,6 +335,8 @@ def active_roster():
                 {
                     'name': c.character_name,
                     'discordId': str(c.player_discord).strip() if c.player_discord else None,
+                    'clan': c.clan or None,
+                    'sect': c.sect or None,
                 }
                 for c in characters
             ]
@@ -609,6 +611,7 @@ def bot_config():
         'BOT_PASSAGE_OF_TIME_ENABLED': 'passageOfTimeEnabled',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
         'BOT_RESTART_REQUESTED': 'restartRequested',
+        'BOT_NOTION_SYNC_REQUESTED': 'notionSyncRequested',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -978,6 +981,45 @@ def set_reminder_pref(discord_id):
     opt_out = bool(data.get('optOut', False))
     snooze_until_epoch = int(data.get('snoozeUntilEpoch', 0))
     db_service.set_reminder_pref(discord_id, opt_out, snooze_until_epoch)
+    return jsonify({'ok': True})
+
+
+@bp.route('/notion-sync-ack', methods=['POST'])
+@require_bot_scope('write')
+@_limit('30 per minute')
+def notion_sync_ack():
+    """Bot calls this to report Notion sync status."""
+    from datetime import datetime, timezone
+    from app.db import AppSetting, db
+    data = request.get_json(silent=True) or {}
+    status = data.get('status')
+    if status not in ('running', 'success', 'error'):
+        return jsonify({'error': 'status must be running, success, or error'}), 400
+    now = datetime.now(timezone.utc).isoformat()
+
+    def upsert(key, value):
+        rec = AppSetting.query.get(key)
+        if rec:
+            rec.value = value
+            rec.updated_at = datetime.now(timezone.utc)
+            rec.updated_by = 'bot'
+        else:
+            db.session.add(AppSetting(key=key, value=value, updated_by='bot'))
+
+    if status == 'running':
+        req = AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED')
+        if req:
+            db.session.delete(req)
+        upsert('BOT_NOTION_SYNC_STATUS', 'running')
+        upsert('BOT_NOTION_SYNC_STARTED_AT', now)
+    elif status == 'success':
+        upsert('BOT_NOTION_SYNC_STATUS', 'success')
+        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
+    else:
+        upsert('BOT_NOTION_SYNC_STATUS', 'error')
+        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
+        upsert('BOT_NOTION_SYNC_ERROR', data.get('error', 'unknown error'))
+    db.session.commit()
     return jsonify({'ok': True})
 
 

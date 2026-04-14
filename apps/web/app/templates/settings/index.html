@@ -183,6 +183,60 @@
     </div>
   </div>
 
+  {# ═══ Bot — Notion Sync ═══ #}
+  <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+      <h6 class="mb-0 text-light"><i class="bi bi-database-up"></i> Notion Sync</h6>
+      {% if can_edit %}
+        <form method="POST" action="{{ url_for('settings.request_notion_sync') }}" class="mb-0">
+          {% if notion_sync.requested or notion_sync.status == 'running' %}
+            <button type="submit" class="btn btn-sm btn-info" disabled>
+              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              {% if notion_sync.status == 'running' %}Running…{% else %}Queued…{% endif %}
+            </button>
+          {% else %}
+            <button type="submit" class="btn btn-sm btn-outline-info"
+              onclick="return confirm('Run Discord → Notion sync? This may take several minutes.')">
+              <i class="bi bi-arrow-repeat"></i> Run Notion Sync
+            </button>
+          {% endif %}
+        </form>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-2">
+        Reads Discord channels and populates the Nashville by Night Notion page
+        (PC Tracker, SPC Tracker, Location DB, Hunting Sites, Session &amp; Post Log).
+        Requires <code>NOTION_TOKEN</code> and <code>DISCORD_GUILD_ID</code> in the bot's <code>.env</code>.
+      </p>
+      {% if notion_sync.status == 'running' %}
+        <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Running</span>
+        {% if notion_sync.started_at %}
+          <small class="text-muted ms-2">Started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC</small>
+        {% endif %}
+      {% elif notion_sync.status == 'success' %}
+        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Success</span>
+        {% if notion_sync.finished_at %}
+          <small class="text-muted ms-2">Completed {{ notion_sync.finished_at[:19] | replace('T', ' ') }} UTC</small>
+        {% endif %}
+      {% elif notion_sync.status == 'error' %}
+        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Error</span>
+        {% if notion_sync.error %}
+          <small class="text-danger ms-2">{{ notion_sync.error }}</small>
+        {% endif %}
+        {% if notion_sync.started_at %}
+          <small class="text-muted ms-2">(started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC)</small>
+        {% endif %}
+      {% elif notion_sync.requested %}
+        <span class="badge bg-secondary">Queued</span>
+        <small class="text-muted ms-2">Waiting for the bot to pick it up…</small>
+      {% else %}
+        <span class="badge bg-secondary">Never run</span>
+        <small class="text-muted ms-2">Click <strong>Run Notion Sync</strong> to populate the Notion page from Discord.</small>
+      {% endif %}
+    </div>
+  </div>
+
   {# ═══ Bot — Channel IDs ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Channel IDs</h5>
   <p class="text-muted small mb-2">
