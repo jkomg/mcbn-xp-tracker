@@ -105,7 +105,13 @@ Returns the current value of each bot feature flag as stored in the web app's se
   "autoPeriodCloserEnabled": false,
   "claimReminderEnabled": true,
   "passageOfTimeEnabled": false,
-  "huntConsequenceEnabled": false
+  "huntConsequenceEnabled": false,
+  "restartRequested": false,
+  "passageOfTimeIntervalMs": 300000,
+  "reviewNotifierIntervalMs": 120000,
+  "submissionNotifierIntervalMs": 120000,
+  "claimReminderIntervalMs": 900000,
+  "announcementsChannelId": "123456789012345678"
 }
 ```
 
@@ -113,16 +119,47 @@ Each field is `true`, `false`, or `null` (if the flag has never been set in the 
 
 ---
 
+## POST /api/bot-restart-ack
+
+**Scope:** write | **Rate limit:** 10/min | **Replay protection:** exempt
+
+Bot shutdown handshake endpoint. Called just before bot process exit when
+`restartRequested=true` is seen from `/api/bot-config`.
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
 ## GET /api/meta/active-roster
 
 **Scope:** read | **Rate limit:** 60/min
 
-Returns the names of all active characters, sorted alphabetically. Used by the bot for character name autocomplete.
+Returns all active characters sorted alphabetically.
 
-**Response 200:**
+**Query params:**
+
+| Param | Description |
+|-------|-------------|
+| `includeDiscordIds=1` | Return objects with `name` and `discordId` instead of plain strings. Used by the staff broadcast command for player @mention autocomplete. |
+
+**Response 200 (default):**
 ```json
 {
   "characters": ["Alice", "Bob", "Carol"]
+}
+```
+
+**Response 200 (`includeDiscordIds=1`):**
+```json
+{
+  "characters": [
+    { "name": "Alice", "discordId": "123456789012345678" },
+    { "name": "Bob", "discordId": null },
+    { "name": "Carol", "discordId": "987654321098765432" }
+  ]
 }
 ```
 
@@ -155,7 +192,7 @@ Staff see all active characters; players see only their own.
 **Scope:** read | **Rate limit:** 20/min
 
 Returns players who have not yet submitted an XP claim for the current open period.
-Used by the bot to send reminder DMs.
+Used by the bot to post claim reminders in character cubby channels.
 
 No requester params needed.
 
@@ -182,7 +219,11 @@ staff can access any.
 
 **Path params:** `name` — character name (case-insensitive)
 
-**Query params:** common requester params
+**Query params:** common requester params plus:
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `include_history` | `1`/omitted | omitted | Include `recentClaims` and `recentSpends` arrays (up to 10 each, approved only). |
 
 **Response 200:**
 ```json
@@ -421,8 +462,8 @@ Submits an XP claim on behalf of a player character.
 | `combat` | Discord post URL | 1 XP |
 | `unmitigated_stain` | Discord post URL | 1 XP |
 | `wildcard` | Discord post URL | Amount from `wildcard_amount` |
-| `wildcard_reason` | String ≤500 chars | Required with `wildcard` |
-| `wildcard_amount` | Integer string 1–10 | Required with `wildcard` |
+| `wildcard_reason` | String ≤500 chars | Optional API field; player portal requires it when wildcard is used |
+| `wildcard_amount` | Integer string 1–10 | Optional API field; defaults to `1` if omitted/invalid |
 
 **Response 201:**
 ```json
@@ -467,9 +508,80 @@ Submits an XP spend request on behalf of a player character.
 }
 ```
 
-`xpCost` is the calculated cost based on dot rating and in-clan status.
+`xpCost` is calculated from category + dot transition using shared XP rules.
 
 **Response 400:** Validation error (character not found, inactive, invalid category/dots, etc.)
+
+---
+
+## GET /api/reminder-prefs
+
+**Scope:** read
+
+Returns persisted claim-reminder preferences keyed by Discord user ID.
+
+**Response 200:**
+```json
+{
+  "preferences": {
+    "111111111111111111": {
+      "optOut": false,
+      "snoozeUntilEpoch": 0
+    }
+  }
+}
+```
+
+---
+
+## PUT /api/reminder-prefs/{discord_id}
+
+**Scope:** write
+
+Upserts claim-reminder preference state for one Discord user.
+
+**Path params:** `discord_id` — numeric Discord ID
+
+**Body:**
+```json
+{
+  "optOut": true,
+  "snoozeUntilEpoch": 0
+}
+```
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
+## POST /api/sheets/reconcile
+
+**Scope:** write | **Rate limit:** 5/hour
+
+Triggers a full Google Sheets reconciliation. Compares every DB record against
+Sheets and appends missing rows or updates stale statuses. Called by the bot
+once nightly via `SheetsReconcileService`. Returns 503 if Sheets is not
+configured on the web side.
+
+**Body:** empty / no body required
+
+**Response 200:**
+```json
+{
+  "started_at": "2026-04-10 03:00:00 UTC",
+  "finished_at": "2026-04-10 03:00:12 UTC",
+  "claims_appended": 0,
+  "claims_status_updated": 1,
+  "spends_appended": 0,
+  "spends_status_updated": 0,
+  "ledger_appended": 2,
+  "characters_appended": 0,
+  "errors": []
+}
+```
 
 ---
 

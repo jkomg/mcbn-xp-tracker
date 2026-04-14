@@ -16,7 +16,7 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from app.db import db, DbCharacter, DbPlayPeriod, DbXPClaim, DbSpendRequest, DbLedgerEntry, DbAuditLog, DbReminderPreference
+from app.db import db, DbCharacter, DbPlayPeriod, DbXPClaim, DbSpendRequest, DbLedgerEntry, DbAuditLog, DbReminderPreference, DbSheetsSyncError
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 
 
@@ -1162,3 +1162,27 @@ class DBService:
             )
             db.session.add(row)
         db.session.commit()
+
+    # ── Sheets sync error log ─────────────────────────────────────────────────
+
+    def get_all_ledger_entries(self) -> list[LedgerEntry]:
+        rows = DbLedgerEntry.query.order_by(DbLedgerEntry.id.asc()).all()
+        return [_row_to_ledger(r) for r in rows]
+
+    def log_sheets_sync_error(self, operation: str, error: str, details: str = '') -> None:
+        from datetime import timezone as _tz
+        row = DbSheetsSyncError(
+            timestamp=datetime.now(_tz.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+            operation=operation,
+            error=error,
+            details=details,
+        )
+        db.session.add(row)
+        db.session.commit()
+
+    def get_recent_sync_errors(self, limit: int = 100) -> list[dict]:
+        rows = DbSheetsSyncError.query.order_by(DbSheetsSyncError.id.desc()).limit(limit).all()
+        return [
+            {'timestamp': r.timestamp, 'operation': r.operation, 'error': r.error, 'details': r.details}
+            for r in rows
+        ]
