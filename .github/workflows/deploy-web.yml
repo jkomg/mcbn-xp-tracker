@@ -116,7 +116,7 @@ jobs:
             --format="value(status.url)"
 
       - name: Notify Discord
-        if: always() && secrets.DISCORD_DEPLOY_WEBHOOK != ''
+        if: always()
         continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
@@ -125,6 +125,8 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRIGGER: ${{ github.event_name }}
         run: |
+          [ -z "$WEBHOOK" ] && exit 0
+
           SHORT_SHA="${SHA:0:7}"
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
 
