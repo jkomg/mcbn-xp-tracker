@@ -1,6 +1,7 @@
 # Environment
 .env
 **/.env
+**/.env.*
 venv/
 .venv/
 **/venv/
@@ -32,6 +33,7 @@ Thumbs.db
 .run/
 apps/bot/data/*.json
 !apps/bot/data/.gitkeep
+apps/web/data/
 
 # Google Cloud SDK (installed locally, not part of the project)
 google-cloud-sdk/
