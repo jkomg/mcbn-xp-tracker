@@ -3,7 +3,7 @@
 from pathlib import Path
 from flask import Flask, Blueprint
 from flask_wtf.csrf import CSRFProtect
-from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _unique_slug, _RESERVED_SLUGS
+from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _RESERVED_SLUGS
 from app.blueprints.api import bp as api_bp
 from app.db import db, WikiPage
 
