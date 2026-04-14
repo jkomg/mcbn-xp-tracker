@@ -307,13 +307,37 @@ function wikiSlug(category: string, name: string): string {
   return `${prefix}-${slugify(name)}`;
 }
 
+/**
+ * Strip Discord-specific markdown extensions so content renders cleanly
+ * in standard Markdown (the wiki renderer).
+ *
+ * Handles:
+ *  - Spoilers: ||text|| → text  (reveal hidden content)
+ *  - Custom emoji: <:name:id> / <a:name:id> → removed
+ *  - User/role/channel mentions: <@id> <@!id> <#id> <@&id> → removed
+ *  - Timestamp tags: <t:123:F> → removed
+ *  - Unbalanced ** bold markers: if count is odd, close at end of block
+ */
+function sanitizeDiscordMarkdown(text: string): string {
+  let s = text
+    .replace(/\|\|([^|]*)\|\|/g, '$1')          // spoilers → plain text
+    .replace(/<a?:\w+:\d+>/g, '')                // custom emoji
+    .replace(/<[@#!&]?!?\d+>/g, '')              // mentions & channels
+    .replace(/<t:\d+(?::[tTdDfFR])?>/g, '');     // timestamp tags
+
+  // Close any unclosed bold markers (odd number of ** in the block)
+  if ((s.match(/\*\*/g) ?? []).length % 2 !== 0) s += '**';
+
+  return s.trim();
+}
+
 function messagesToMarkdown(messages: DiscordMessage[]): string {
   return messages
     .filter((m) => m.content.trim())
     .map((m) => {
       const author = m.author.global_name ?? m.author.username;
       const date = m.timestamp.slice(0, 10);
-      return `### ${author} · ${date}\n\n${m.content.trim()}`;
+      return `### ${author} · ${date}\n\n${sanitizeDiscordMarkdown(m.content.trim())}`;
     })
     .join('\n\n---\n\n');
 }
