@@ -69,7 +69,7 @@ case "${ACTION}" in
     if [[ "${PROFILE}" == "web+bot" ]]; then
       reconcile_named_container "lasombra-bot"
     fi
-    docker compose -f "${COMPOSE_FILE}" up -d --build
+    docker compose -f "${COMPOSE_FILE}" up -d --build --remove-orphans
     docker compose -f "${COMPOSE_FILE}" ps
     ;;
   down)
