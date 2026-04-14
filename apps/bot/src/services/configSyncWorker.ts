@@ -1,5 +1,6 @@
 import { liveConfig } from '../liveConfig';
 import { logEvent } from '../logger';
+import { config } from '../config';
 import type { TrackerAdapter } from './adapter';
 import { runNotionSync } from '../scripts/discord-notion-sync';
 
@@ -60,12 +61,12 @@ export class ConfigSyncWorker {
     }
     try {
       const result = await runNotionSync({
-        botToken: process.env.BOT_TOKEN ?? '',
-        guildId: process.env.DISCORD_GUILD_ID ?? process.env.TEST_GUILD_ID ?? '',
-        notionToken: process.env.NOTION_TOKEN ?? '',
-        webBase: process.env.WEB_APP_BASE_URL,
-        webReadToken: process.env.WEB_APP_API_READ_TOKEN ?? process.env.WEB_APP_API_TOKEN,
-        msgLimit: Number.parseInt(process.env.NOTION_SYNC_MSG_LIMIT ?? '200', 10),
+        botToken: config.botToken,
+        guildId: config.discordGuildId,
+        notionToken: config.notionToken,
+        webBase: config.webAppBaseUrl,
+        webReadToken: config.webAppApiReadToken ?? config.webAppApiToken,
+        msgLimit: config.notionSyncMsgLimit,
       });
       if (result.success) {
         logEvent('info', 'notion_sync_completed', {});

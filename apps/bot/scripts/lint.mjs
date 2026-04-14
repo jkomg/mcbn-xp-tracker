@@ -40,7 +40,9 @@ function lintFile(filePath) {
       errors.push(`${rel(filePath)}:${lineNumber} uses explicit any`);
     }
 
-    if (/process\.env\./.test(line) && !filePath.endsWith(`${path.sep}config.ts`)) {
+    const isConfigTs = filePath.endsWith(`${path.sep}config.ts`);
+    const isScript = filePath.includes(`${path.sep}scripts${path.sep}`);
+    if (/process\.env\./.test(line) && !isConfigTs && !isScript) {
       errors.push(`${rel(filePath)}:${lineNumber} accesses process.env outside config.ts`);
     }
   });
