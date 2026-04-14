@@ -27,7 +27,7 @@ CATEGORIES: list[tuple[str, str, str]] = [
 CATEGORY_DISPLAY: dict[str, str] = {s: n for s, n, _ in CATEGORIES}
 
 # Slugs reserved by static wiki routes — these can never be used as page slugs.
-_RESERVED_SLUGS = frozenset({'new', 'edit', 'category'})
+_RESERVED_SLUGS = frozenset({'new', 'edit', 'category', 'search'})
 
 
 @bp.context_processor
@@ -157,6 +157,54 @@ def index():
     counts = {s: WikiPage.query.filter_by(category=s, published=True).count()
               for s, _, _ in CATEGORIES}
     return render_template('wiki/index.html', recent=recent, counts=counts)
+
+
+@bp.route('/search')
+def search():
+    q = request.args.get('q', '').strip()
+    results = []
+    if q:
+        visible = [WikiPage.published == True]  # noqa: E712
+        if _is_staff():
+            visible = []
+        pattern = f'%{q}%'
+        pages = (WikiPage.query
+                 .filter(*visible)
+                 .filter(
+                     db.or_(
+                         WikiPage.title.ilike(pattern),
+                         WikiPage.body_markdown.ilike(pattern),
+                     )
+                 )
+                 .order_by(WikiPage.title.asc())
+                 .limit(50)
+                 .all())
+        for p in pages:
+            results.append({
+                'page': p,
+                'excerpt': _excerpt(p.body_markdown or '', q),
+                'title_match': q.lower() in p.title.lower(),
+            })
+        results.sort(key=lambda r: (not r['title_match'], r['page'].title.lower()))
+    return render_template('wiki/search.html', q=q, results=results)
+
+
+def _excerpt(body: str, query: str, context: int = 160) -> str:
+    """Return a plain-text excerpt around the first match of query in body."""
+    # Strip markdown syntax for a cleaner snippet
+    plain = re.sub(r'[#*_`\[\]!]', '', body).replace('\n', ' ')
+    lower = plain.lower()
+    idx = lower.find(query.lower())
+    if idx == -1:
+        return plain[:context].strip() + ('…' if len(plain) > context else '')
+    start = max(0, idx - context // 2)
+    end = min(len(plain), idx + len(query) + context // 2)
+    snippet = plain[start:end].strip()
+    if start > 0:
+        snippet = '…' + snippet
+    if end < len(plain):
+        snippet = snippet + '…'
+    return snippet
 
 
 @bp.route('/category/<category>')

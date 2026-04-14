@@ -36,6 +36,16 @@
                     </li>
                     {% endfor %}
                 </ul>
+                <form class="d-flex me-2 mt-2 mt-md-0" method="get" action="{{ url_for('wiki.search') }}" role="search">
+                    <div class="input-group input-group-sm wiki-nav-search">
+                        <input type="search" name="q" class="form-control wiki-nav-search-input"
+                               placeholder="Search wiki…" autocomplete="off"
+                               value="{{ request.args.get('q', '') if request.endpoint == 'wiki.search' else '' }}">
+                        <button type="submit" class="btn wiki-nav-search-btn" aria-label="Search">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
                 <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
                     {% if is_staff %}
                     <a href="{{ url_for('wiki.new_page') }}" class="btn btn-sm wiki-btn-new"
