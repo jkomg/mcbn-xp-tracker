@@ -1,13 +1,12 @@
 name: Deploy Web to Cloud Run
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/web/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-web.yml'
+  # Trigger after CI completes on main — only deploy when CI passes
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Manual trigger (e.g. hotfix deploy without a code change)
   workflow_dispatch:
     inputs:
       reason:
@@ -20,18 +19,35 @@ jobs:
     name: Build & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Only run on the canonical repo (not forks), and only after CI passes on push
-    if: github.repository == 'jkomg/mcbn-xp-tracker'
+    # For workflow_run: only deploy when CI actually passed.
+    # For workflow_dispatch: always run.
+    if: |
+      github.repository == 'jkomg/mcbn-xp-tracker' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
 
     env:
-      PROJECT_ID: mcbn-xp-tracker
       REGION: us-central1
       SERVICE_NAME: mcbn-xp-tracker
-      IMAGE: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo/mcbn-xp-tracker:latest
+      REGISTRY: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo/mcbn-xp-tracker
 
     steps:
+      # workflow_run events check out the workflow repo, not the triggering commit.
+      # Resolve the correct SHA so we build exactly what passed CI.
+      - name: Resolve deploy SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -49,16 +65,19 @@ jobs:
           docker build \
             --platform linux/amd64 \
             -f apps/web/Dockerfile \
-            -t ${{ env.IMAGE }} \
+            -t ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
+            -t ${{ env.REGISTRY }}:latest \
             .
 
       - name: Push image to Artifact Registry
-        run: docker push ${{ env.IMAGE }}
+        run: |
+          docker push ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }}
+          docker push ${{ env.REGISTRY }}:latest
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ env.IMAGE }} \
+            --image ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
