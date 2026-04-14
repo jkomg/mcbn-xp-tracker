@@ -90,7 +90,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _ctx: Co
       .setLabel('Message')
       .setStyle(TextInputStyle.Paragraph)
       .setPlaceholder('Your announcement...')
-      .setMaxLength(1800)
+      .setMaxLength(2000)
       .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
@@ -207,14 +207,9 @@ export async function handleBroadcastModal(
     mentionParts.push(`<@${pending.mentionCharDiscordId}>`);
   }
 
-  const prefix = mentionParts.length > 0 ? `${mentionParts.join(' ')}\n\n` : '';
-  const fullMessage = `${prefix}${messageBody}`;
-  if (fullMessage.length > 2000) {
-    await interaction.editReply(
-      `Message is too long after adding mentions (${fullMessage.length}/2000 chars). Shorten the body and try again.`,
-    );
-    return true;
-  }
+  const fullMessage = mentionParts.length > 0
+    ? `${mentionParts.join(' ')}\n\n${messageBody}`
+    : messageBody;
 
   const guild = interaction.guild;
   if (!guild) {
@@ -336,13 +331,6 @@ export async function handleBroadcastModal(
       logEvent('warn', 'broadcast_channel_send_failed', { channelId: singleChannelId, error: errorToMessage(err) });
       results.push('⚠️ Failed to send to target channel.');
     }
-  }
-
-  if (results.length === 0) {
-    await interaction.editReply(
-      `⚠️ Unknown broadcast target \`${target}\`. Please re-run the command and choose a target from the autocomplete list.`,
-    );
-    return true;
   }
 
   await interaction.editReply(results.join('\n'));
