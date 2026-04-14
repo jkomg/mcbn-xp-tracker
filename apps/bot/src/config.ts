@@ -134,6 +134,11 @@ const envSchema = z.object({
   HUNT_CONSEQUENCE_TEST_CHANNEL_ID: z.string().optional(),
   COMBAT_SYSTEM_HELPER_ROLE_ID: z.string().optional(),
   ANNOUNCEMENTS_CHANNEL_ID: z.string().optional(),
+  SHEETS_RECONCILE_ENABLED: z.string().optional(),
+  SHEETS_RECONCILE_HOUR_LOCAL: z.string().optional(),
+  SHEETS_RECONCILE_MINUTE_LOCAL: z.string().optional(),
+  SHEETS_RECONCILE_TIMEZONE: z.string().optional(),
+  SHEETS_RECONCILE_INTERVAL_MS: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -299,6 +304,15 @@ export const config = {
   huntConsequenceTestChannelId: env.HUNT_CONSEQUENCE_TEST_CHANNEL_ID ?? '',
   combatSystemHelperRoleId: env.COMBAT_SYSTEM_HELPER_ROLE_ID,
   announcementsChannelId: env.ANNOUNCEMENTS_CHANNEL_ID ?? '',
+  sheetsReconcileEnabled: (env.SHEETS_RECONCILE_ENABLED ?? 'false').toLowerCase() === 'true',
+  sheetsReconcileHourLocal: parseHour(env.SHEETS_RECONCILE_HOUR_LOCAL, 3, 'SHEETS_RECONCILE_HOUR_LOCAL'),
+  sheetsReconcileMinuteLocal: parseMinute(env.SHEETS_RECONCILE_MINUTE_LOCAL, 0, 'SHEETS_RECONCILE_MINUTE_LOCAL'),
+  sheetsReconcileTimezone: env.SHEETS_RECONCILE_TIMEZONE ?? 'America/Chicago',
+  sheetsReconcileIntervalMs: parsePositiveInt(
+    env.SHEETS_RECONCILE_INTERVAL_MS,
+    300_000,
+    'SHEETS_RECONCILE_INTERVAL_MS',
+  ),
 };
 
 if (config.testRequesterDiscordId) {

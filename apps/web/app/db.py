@@ -125,6 +125,15 @@ class AppSetting(db.Model):
     updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class DbSheetsSyncError(db.Model):
+    __tablename__ = 'sheets_sync_errors'
+    id = db.Column(Integer, primary_key=True)
+    timestamp = db.Column(String(30), default='', index=True)
+    operation = db.Column(String(100), default='')
+    error = db.Column(Text, default='')
+    details = db.Column(Text, default='')
+
+
 class DbReminderPreference(db.Model):
     __tablename__ = 'reminder_preferences'
     discord_id = db.Column(String(30), primary_key=True)

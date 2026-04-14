@@ -103,7 +103,7 @@ def create_app():
     # Initialize DB service and Sheets sync worker
     db_service = DBService(sheets_client=sheets_client)
     if sheets_client:
-        sheets_sync = SheetsSyncWorker(sheets_client)
+        sheets_sync = SheetsSyncWorker(sheets_client, flask_app=app, db_service=db_service)
 
     # Create DB tables if they don't exist
     with app.app_context():

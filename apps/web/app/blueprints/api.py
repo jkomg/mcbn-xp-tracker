@@ -979,3 +979,23 @@ def set_reminder_pref(discord_id):
     snooze_until_epoch = int(data.get('snoozeUntilEpoch', 0))
     db_service.set_reminder_pref(discord_id, opt_out, snooze_until_epoch)
     return jsonify({'ok': True})
+
+
+@bp.route('/sheets/reconcile', methods=['POST'])
+@require_bot_scope('write')
+@_limit('5 per hour')
+def sheets_reconcile():
+    """Trigger a full Sheets reconciliation diff/repair.
+
+    Compares DB state to Google Sheets across all four data types (claims,
+    spends, ledger, characters) and appends/updates any gaps. Returns a
+    summary of what was changed. Intended to be called by the bot once
+    nightly.
+    """
+    if sheets_sync is None:
+        return jsonify({'error': 'Sheets sync not configured'}), 503
+    try:
+        summary = sheets_sync.reconcile(db_service)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+    return jsonify(summary)
