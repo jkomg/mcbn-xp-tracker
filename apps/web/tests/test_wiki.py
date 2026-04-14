@@ -3,13 +3,12 @@
 from pathlib import Path
 from flask import Flask, Blueprint
 from flask_wtf.csrf import CSRFProtect
-
-_TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
-_STATIC_DIR   = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
-
 from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _unique_slug, _RESERVED_SLUGS
 from app.blueprints.api import bp as api_bp
 from app.db import db, WikiPage
+
+_TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
+_STATIC_DIR   = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
 
 
 def _stub_bp(name: str, prefix: str, routes: dict) -> Blueprint:
