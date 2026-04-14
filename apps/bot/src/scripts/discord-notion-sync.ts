@@ -257,6 +257,17 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '');
 }
 
+/** Prefix slug with category abbreviation to prevent cross-category collisions. */
+function wikiSlug(category: string, name: string): string {
+  const prefixes: Record<string, string> = {
+    locations: 'loc',
+    characters: 'char',
+    lore: 'lore',
+  };
+  const prefix = prefixes[category] ?? category;
+  return `${prefix}-${slugify(name)}`;
+}
+
 function messagesToMarkdown(messages: DiscordMessage[]): string {
   return messages
     .filter((m) => m.content.trim())
@@ -639,7 +650,7 @@ async function main(opts: NotionSyncOptions) {
           }),
         );
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: slugify(locationName),
+          slug: wikiSlug('locations', locationName),
           title: locationName,
           category: 'locations',
           body_markdown: ch.topic ?? '',
@@ -725,7 +736,7 @@ async function main(opts: NotionSyncOptions) {
         );
         await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: slugify(name),
+          slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: messagesToMarkdown(messages),
@@ -763,7 +774,7 @@ async function main(opts: NotionSyncOptions) {
         );
         await appendBodyBlocks(notion, page.id, textToBlocks(msg.content));
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: slugify(name),
+          slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: msg.content.trim(),
@@ -818,7 +829,7 @@ async function main(opts: NotionSyncOptions) {
           playerName && `**Player:** ${playerName}`,
         ].filter(Boolean) as string[];
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: slugify(name),
+          slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: bodyParts.join('\n\n'),
@@ -877,7 +888,7 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
           await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-            slug: slugify(title),
+            slug: wikiSlug('lore', title),
             title,
             category: 'lore',
             body_markdown: messagesToMarkdown(messages),
@@ -915,7 +926,7 @@ async function main(opts: NotionSyncOptions) {
         );
         await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: `${slugify(chanName)}-archive`,
+          slug: wikiSlug('lore', `${chanName} archive`),
           title,
           category: 'lore',
           body_markdown: messagesToMarkdown(messages),
