@@ -47,7 +47,8 @@ import { Client as NotionClient } from '@notionhq/client';
 export interface NotionSyncOptions {
   botToken: string;
   guildId: string;
-  notionToken: string;
+  /** Notion integration token. If omitted, all Notion writes are skipped. */
+  notionToken?: string;
   webBase?: string;
   webReadToken?: string;
   /** Write token for Chronicle Wiki upsert API (WEB_APP_API_WRITE_TOKEN). */
@@ -61,7 +62,6 @@ export interface NotionSyncOptions {
 export async function runNotionSync(opts: NotionSyncOptions): Promise<{ success: boolean; error?: string }> {
   if (!opts.botToken) return { success: false, error: 'botToken is required' };
   if (!opts.guildId) return { success: false, error: 'guildId is required' };
-  if (!opts.notionToken) return { success: false, error: 'notionToken is required' };
   try {
     await main(opts);
     return { success: true };
@@ -119,7 +119,7 @@ if (require.main === module) {
   };
   if (!cliOpts.botToken) { console.error('BOT_TOKEN is required'); process.exit(1); }
   if (!cliOpts.guildId) { console.error('DISCORD_GUILD_ID (or TEST_GUILD_ID) is required'); process.exit(1); }
-  if (!cliOpts.notionToken) { console.error('NOTION_TOKEN is required'); process.exit(1); }
+  if (!cliOpts.notionToken) { console.log('NOTION_TOKEN not set — Notion sync disabled.'); }
   runNotionSync(cliOpts).then((result) => {
     if (!result.success) { console.error('Sync failed:', result.error); process.exit(1); }
   }).catch((err) => { console.error('Fatal:', err); process.exit(1); });
@@ -610,17 +610,19 @@ async function main(opts: NotionSyncOptions) {
   console.log(`discord-notion-sync${flags ? ` [${flags}]` : ''}`);
   console.log(`Guild: ${GUILD_ID} | Limit: ${MSG_LIMIT} messages/posts per source`);
 
+  const NOTION_ENABLED = !!opts.notionToken;
   const rest = new REST({ version: '10' }).setToken(opts.botToken);
-  const notion = new NotionClient({ auth: opts.notionToken, timeoutMs: 120_000 });
+  const notion = NOTION_ENABLED ? new NotionClient({ auth: opts.notionToken!, timeoutMs: 120_000 }) : null;
+  if (!NOTION_ENABLED) console.log('  Notion sync disabled — set NOTION_TOKEN to enable.');
 
   // ------------------------------------------------------------------
   // 0. Ensure Source property exists on all databases
   // ------------------------------------------------------------------
-  if (!DRY_RUN) {
+  if (!DRY_RUN && NOTION_ENABLED) {
     console.log('\n[0/7] Ensuring Source property exists on all databases…');
     for (const [dbName, dbId] of Object.entries(NOTION_DB)) {
       await notionCall(() =>
-        notion.databases.update({
+        notion!.databases.update({
           database_id: dbId,
           properties: {
             'Source': { select: {} },
@@ -631,8 +633,8 @@ async function main(opts: NotionSyncOptions) {
     }
   }
 
-  if (CLEANUP) {
-    await cleanupPreImportEntries(notion, DRY_RUN);
+  if (CLEANUP && NOTION_ENABLED) {
+    await cleanupPreImportEntries(notion!, DRY_RUN);
   }
 
   // ------------------------------------------------------------------
@@ -678,16 +680,18 @@ async function main(opts: NotionSyncOptions) {
       const locationName = toTitleCase(ch.name);
       console.log(`  → ${locationName}`);
       if (!DRY_RUN) {
-        await notionCall(() =>
-          notion.pages.create({
-            parent: { database_id: NOTION_DB.LOCATION_DB },
-            properties: {
-              'Location': { title: [{ text: { content: locationName } }] },
-              'Source': { select: { name: SOURCE_TAG } },
-              ...(ch.topic ? { 'Atmosphere Notes': { rich_text: [{ text: { content: truncate(ch.topic, 2000) } }] } } : {}),
-            },
-          }),
-        );
+        if (NOTION_ENABLED) {
+          await notionCall(() =>
+            notion!.pages.create({
+              parent: { database_id: NOTION_DB.LOCATION_DB },
+              properties: {
+                'Location': { title: [{ text: { content: locationName } }] },
+                'Source': { select: { name: SOURCE_TAG } },
+                ...(ch.topic ? { 'Atmosphere Notes': { rich_text: [{ text: { content: truncate(ch.topic, 2000) } }] } } : {}),
+              },
+            }),
+          );
+        }
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
           slug: wikiSlug('locations', locationName),
           title: locationName,
@@ -720,9 +724,9 @@ async function main(opts: NotionSyncOptions) {
       const siteName = truncate(firstLine || `Pin by ${pin.author.username}`, 200);
       const domain = mapDomain(toTitleCase(ch.name));
       console.log(`    → ${siteName}`);
-      if (!DRY_RUN) {
+      if (!DRY_RUN && NOTION_ENABLED) {
         await notionCall(() =>
-          notion.pages.create({
+          notion!.pages.create({
             parent: { database_id: NOTION_DB.HUNTING_SITES },
             properties: {
               'Site Name': { title: [{ text: { content: siteName } }] },
@@ -760,20 +764,22 @@ async function main(opts: NotionSyncOptions) {
         const bodyContent = messages.map((m) => m.content).filter(Boolean).join('\n\n');
         const spcType = inferSpcType(thread.name);
         const cover = firstImage(messages);
-        const page = await notionCall(() =>
-          notion.pages.create({
-            parent: { database_id: NOTION_DB.SPC_TRACKER },
-            ...(cover ? { cover: coverProp(cover) } : {}),
-            properties: {
-              'Name': { title: [{ text: { content: name } }] },
-              'Status': { select: { name: 'Active' } },
-              'Source': { select: { name: SOURCE_TAG } },
-              ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
-              'Relationship Notes': { rich_text: [{ text: { content: truncate(bodyContent, 2000) } }] },
-            },
-          }),
-        );
-        await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+        if (NOTION_ENABLED) {
+          const page = await notionCall(() =>
+            notion!.pages.create({
+              parent: { database_id: NOTION_DB.SPC_TRACKER },
+              ...(cover ? { cover: coverProp(cover) } : {}),
+              properties: {
+                'Name': { title: [{ text: { content: name } }] },
+                'Status': { select: { name: 'Active' } },
+                'Source': { select: { name: SOURCE_TAG } },
+                ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
+                'Relationship Notes': { rich_text: [{ text: { content: truncate(bodyContent, 2000) } }] },
+              },
+            }),
+          );
+          await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
+        }
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
           slug: wikiSlug('characters', name),
           title: name,
@@ -799,19 +805,21 @@ async function main(opts: NotionSyncOptions) {
       const spcType = inferSpcType(msg.content.split('\n')[0]);
       console.log(`  → ${name}`);
       if (!DRY_RUN) {
-        const page = await notionCall(() =>
-          notion.pages.create({
-            parent: { database_id: NOTION_DB.SPC_TRACKER },
-            properties: {
-              'Name': { title: [{ text: { content: name } }] },
-              'Status': { select: { name: 'Active' } },
-              'Source': { select: { name: SOURCE_TAG } },
-              ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
-              'Relationship Notes': { rich_text: [{ text: { content: truncate(msg.content, 2000) } }] },
-            },
-          }),
-        );
-        await appendBodyBlocks(notion, page.id, textToBlocks(msg.content));
+        if (NOTION_ENABLED) {
+          const page = await notionCall(() =>
+            notion!.pages.create({
+              parent: { database_id: NOTION_DB.SPC_TRACKER },
+              properties: {
+                'Name': { title: [{ text: { content: name } }] },
+                'Status': { select: { name: 'Active' } },
+                'Source': { select: { name: SOURCE_TAG } },
+                ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
+                'Relationship Notes': { rich_text: [{ text: { content: truncate(msg.content, 2000) } }] },
+              },
+            }),
+          );
+          await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
+        }
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
           slug: wikiSlug('characters', name),
           title: name,
@@ -855,19 +863,21 @@ async function main(opts: NotionSyncOptions) {
       const coterie = CHAR_TO_COTERIE.get(name.toLowerCase()) ?? null;
       console.log(`  → ${name}${playerName ? ` (${playerName})` : ''}${coterie ? ` [${coterie}]` : ''}`);
       if (!DRY_RUN) {
-        await notionCall(() =>
-          notion.pages.create({
-            parent: { database_id: NOTION_DB.PC_TRACKER },
-            properties: {
-              'Character Name': { title: [{ text: { content: name } }] },
-              'Source': { select: { name: SOURCE_TAG } },
-              ...(playerName ? { 'Player': { rich_text: [{ text: { content: playerName } }] } } : {}),
-              ...(clan ? { 'Clan': { select: { name: clan } } } : {}),
-              ...(sect ? { 'Sect': { select: { name: sect } } } : {}),
-              ...(coterie ? { 'Coterie': { rich_text: [{ text: { content: coterie } }] } } : {}),
-            },
-          }),
-        );
+        if (NOTION_ENABLED) {
+          await notionCall(() =>
+            notion!.pages.create({
+              parent: { database_id: NOTION_DB.PC_TRACKER },
+              properties: {
+                'Character Name': { title: [{ text: { content: name } }] },
+                'Source': { select: { name: SOURCE_TAG } },
+                ...(playerName ? { 'Player': { rich_text: [{ text: { content: playerName } }] } } : {}),
+                ...(clan ? { 'Clan': { select: { name: clan } } } : {}),
+                ...(sect ? { 'Sect': { select: { name: sect } } } : {}),
+                ...(coterie ? { 'Coterie': { rich_text: [{ text: { content: coterie } }] } } : {}),
+              },
+            }),
+          );
+        }
         const pcProfile = lookupPcProfile(pcProfileMap, name);
         const metaParts = [
           clan && `**Clan:** ${clan}`,
@@ -924,21 +934,23 @@ async function main(opts: NotionSyncOptions) {
           await sleep(200);
           const preview = truncate(messages[0]?.content ?? '', 500);
           const cover = firstImage(messages);
-          const sessionProps = {
-            'Session/Post Title': { title: [{ text: { content: title } }] },
-            'Status': { select: { name: 'Complete' } },
-            'Source': { select: { name: SOURCE_TAG } },
-            'Summary': { rich_text: [{ text: { content: preview } }] },
-            'Date': { date: { start: postDate } },
-          };
-          const page = await notionCall(() =>
-            notion.pages.create({
-              parent: { database_id: NOTION_DB.SESSION_LOG },
-              ...(cover ? { cover: coverProp(cover) } : {}),
-              properties: sessionProps,
-            }),
-          );
-          await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+          if (NOTION_ENABLED) {
+            const sessionProps = {
+              'Session/Post Title': { title: [{ text: { content: title } }] },
+              'Status': { select: { name: 'Complete' } },
+              'Source': { select: { name: SOURCE_TAG } },
+              'Summary': { rich_text: [{ text: { content: preview } }] },
+              'Date': { date: { start: postDate } },
+            };
+            const page = await notionCall(() =>
+              notion!.pages.create({
+                parent: { database_id: NOTION_DB.SESSION_LOG },
+                ...(cover ? { cover: coverProp(cover) } : {}),
+                properties: sessionProps,
+              }),
+            );
+            await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
+          }
           // children-of-the-night threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
           if (chanName !== 'children-of-the-night') {
@@ -970,17 +982,19 @@ async function main(opts: NotionSyncOptions) {
       console.log(`  → ${title} (${messages.length} messages, most recent: ${mostRecentDate})`);
 
       if (!DRY_RUN) {
-        const sessionProps = {
-          'Session/Post Title': { title: [{ text: { content: title } }] },
-          'Status': { select: { name: 'Complete' } },
-          'Source': { select: { name: SOURCE_TAG } },
-          'Summary': { rich_text: [{ text: { content: preview } }] },
-          'Date': { date: { start: mostRecentDate } },
-        };
-        const page = await notionCall(() =>
-          notion.pages.create({ parent: { database_id: NOTION_DB.SESSION_LOG }, properties: sessionProps }),
-        );
-        await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+        if (NOTION_ENABLED) {
+          const sessionProps = {
+            'Session/Post Title': { title: [{ text: { content: title } }] },
+            'Status': { select: { name: 'Complete' } },
+            'Source': { select: { name: SOURCE_TAG } },
+            'Summary': { rich_text: [{ text: { content: preview } }] },
+            'Date': { date: { start: mostRecentDate } },
+          };
+          const page = await notionCall(() =>
+            notion!.pages.create({ parent: { database_id: NOTION_DB.SESSION_LOG }, properties: sessionProps }),
+          );
+          await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
+        }
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
           slug: wikiSlug('lore', `${chanName} archive`),
           title,
