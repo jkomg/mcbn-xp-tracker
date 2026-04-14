@@ -358,6 +358,20 @@ def index():
 
     _restart_pending = 'BOT_RESTART_REQUESTED' in overrides and overrides['BOT_RESTART_REQUESTED'].value.lower() in ('true', '1', 'yes')
 
+    # ── Notion sync status ─────────────────────────────────────────────────
+    _notion_sync_requested = 'BOT_NOTION_SYNC_REQUESTED' in overrides and overrides['BOT_NOTION_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
+    _notion_status_rec = AppSetting.query.get('BOT_NOTION_SYNC_STATUS')
+    _notion_started_rec = AppSetting.query.get('BOT_NOTION_SYNC_STARTED_AT')
+    _notion_finished_rec = AppSetting.query.get('BOT_NOTION_SYNC_FINISHED_AT')
+    _notion_error_rec = AppSetting.query.get('BOT_NOTION_SYNC_ERROR')
+    notion_sync = {
+        'requested': _notion_sync_requested,
+        'status': _notion_status_rec.value if _notion_status_rec else None,
+        'started_at': _notion_started_rec.value if _notion_started_rec else None,
+        'finished_at': _notion_finished_rec.value if _notion_finished_rec else None,
+        'error': _notion_error_rec.value if _notion_error_rec else None,
+    }
+
     return render_template(
         'settings/index.html',
         web_flags=web_flags,
@@ -370,7 +384,25 @@ def index():
         bot_heartbeat_age=bot_heartbeat_age,
         bot_heartbeat_ts=bot_heartbeat_ts,
         bot_restart_pending=_restart_pending,
+        notion_sync=notion_sync,
     )
+
+
+@bp.route('/request-notion-sync', methods=['POST'])
+@require_staff
+def request_notion_sync():
+    if not is_settings_admin():
+        flash('You do not have permission to run the Notion sync.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    updated_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+    set_app_setting('BOT_NOTION_SYNC_REQUESTED', 'true', updated_by)
+    flash('Notion sync queued. The bot will start it within ~60 seconds.', 'success')
+    return redirect(url_for('settings.index'))
 
 
 @bp.route('/request-restart', methods=['POST'])

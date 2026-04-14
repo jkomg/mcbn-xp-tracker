@@ -17,7 +17,11 @@
     "ops:docker:usage-30d": "bash scripts/export-docker-usage-window.sh lasombra-bot",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build",
+    "notion-sync": "tsx src/scripts/discord-notion-sync.ts",
+    "notion-sync:dry-run": "tsx src/scripts/discord-notion-sync.ts --dry-run",
+    "notion-sync:cleanup": "tsx src/scripts/discord-notion-sync.ts --cleanup",
+    "notion-sync:cleanup:dry-run": "tsx src/scripts/discord-notion-sync.ts --cleanup --dry-run"
   },
   "keywords": [
     "discord",
@@ -32,6 +36,7 @@
     "node": ">=20.11"
   },
   "dependencies": {
+    "@notionhq/client": "^2.3.0",
     "discord.js": "^14.25.1",
     "dotenv": "^17.3.1",
     "zod": "^4.3.6"

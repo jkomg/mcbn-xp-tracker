@@ -1,10 +1,12 @@
 import { liveConfig } from '../liveConfig';
 import { logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
+import { runNotionSync } from '../scripts/discord-notion-sync';
 
 export class ConfigSyncWorker {
   private readonly adapter: TrackerAdapter;
   private readonly intervalMs: number;
+  private notionSyncRunning = false;
 
   constructor(adapter: TrackerAdapter, intervalMs = 60_000) {
     this.adapter = adapter;
@@ -37,8 +39,46 @@ export class ConfigSyncWorker {
         }
         process.exit(0);
       }
+
+      if (cfg.notionSyncRequested && !this.notionSyncRunning) {
+        void this.runNotionSyncBackground();
+      }
     } catch (err) {
       logEvent('warn', 'config_sync_failed', { error: String(err) });
+    }
+  }
+
+  private async runNotionSyncBackground(): Promise<void> {
+    this.notionSyncRunning = true;
+    logEvent('info', 'notion_sync_starting', {});
+    try {
+      await this.adapter.ackNotionSync('running');
+    } catch (err) {
+      logEvent('warn', 'notion_sync_ack_running_failed', { error: String(err) });
+      this.notionSyncRunning = false;
+      return;
+    }
+    try {
+      const result = await runNotionSync({
+        botToken: process.env.BOT_TOKEN ?? '',
+        guildId: process.env.DISCORD_GUILD_ID ?? process.env.TEST_GUILD_ID ?? '',
+        notionToken: process.env.NOTION_TOKEN ?? '',
+        webBase: process.env.WEB_APP_BASE_URL,
+        webReadToken: process.env.WEB_APP_API_READ_TOKEN ?? process.env.WEB_APP_API_TOKEN,
+        msgLimit: Number.parseInt(process.env.NOTION_SYNC_MSG_LIMIT ?? '200', 10),
+      });
+      if (result.success) {
+        logEvent('info', 'notion_sync_completed', {});
+        await this.adapter.ackNotionSync('success');
+      } else {
+        logEvent('warn', 'notion_sync_failed', { error: result.error });
+        await this.adapter.ackNotionSync('error', result.error);
+      }
+    } catch (err) {
+      logEvent('warn', 'notion_sync_error', { error: String(err) });
+      try { await this.adapter.ackNotionSync('error', String(err)); } catch { /* ignore */ }
+    } finally {
+      this.notionSyncRunning = false;
     }
   }
 
