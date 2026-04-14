@@ -117,6 +117,7 @@ jobs:
 
       - name: Notify Discord
         if: always() && secrets.DISCORD_DEPLOY_WEBHOOK != ''
+        continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
           STATUS: ${{ job.status }}
