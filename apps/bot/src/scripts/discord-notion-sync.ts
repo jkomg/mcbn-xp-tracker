@@ -520,6 +520,37 @@ for (const [coterie, members] of Object.entries(COTERIE_MEMBERS)) {
   for (const m of members) CHAR_TO_COTERIE.set(m, coterie);
 }
 
+// Factions: sect aliases for roster matching + associated lore channels
+interface FactionDef {
+  name: string;
+  /** Lowercase sect values from the active roster that map to this faction. */
+  sectAliases: string[];
+  /** Lore channel names whose archives are associated with this faction. */
+  loreChannels: string[];
+}
+const FACTIONS: FactionDef[] = [
+  {
+    name: 'Camarilla',
+    sectAliases: ['camarilla'],
+    loreChannels: ['camarilla-decrees'],
+  },
+  {
+    name: 'Anarchs',
+    sectAliases: ['anarch', 'anarchs'],
+    loreChannels: ['anarch-mandates'],
+  },
+  {
+    name: 'Voivode',
+    sectAliases: ['voivode', 'hecata', 'sabbat'],
+    loreChannels: ['hecata-notices'],
+  },
+  {
+    name: 'Autark',
+    sectAliases: ['autark', 'independent', 'unaligned'],
+    loreChannels: [],
+  },
+];
+
 // SPC type keywords: if thread/message name contains keyword → Type tag
 const SPC_TYPE_KEYWORDS: { keyword: string; tag: string }[] = [
   { keyword: 'haven',      tag: 'Haven' },
@@ -929,6 +960,45 @@ async function main(opts: NotionSyncOptions) {
     }, DRY_RUN);
   }
   console.log(`  Created ${Object.keys(COTERIE_MEMBERS).length} coterie pages.`);
+
+  // ------------------------------------------------------------------
+  // 6.6 Factions wiki pages (Camarilla, Anarchs, Voivode, Autark)
+  // ------------------------------------------------------------------
+  console.log('\n[6.6/7] Populating Factions wiki pages…');
+  for (const faction of FACTIONS) {
+    // Members: active roster entries whose sect matches this faction's aliases
+    const factionMembers = activeRoster.filter(
+      (c) => c.sect && faction.sectAliases.includes(c.sect.toLowerCase()),
+    );
+
+    const memberLines = factionMembers.map((c) => {
+      const coterie = CHAR_TO_COTERIE.get(c.name.toLowerCase());
+      return `- **${c.name}**${c.clan ? ` — ${c.clan}` : ''}${coterie ? ` *(${coterie})*` : ''}`;
+    });
+
+    const loreLinks = faction.loreChannels.map(
+      (ch) => `- [#${ch} archive](/wiki/${wikiSlug('lore', `${ch} archive`)})`,
+    );
+
+    const bodyParts = [
+      memberLines.length
+        ? `## Members\n\n${memberLines.join('\n')}`
+        : '## Members\n\n*No active members.*',
+      loreLinks.length
+        ? `## Faction Lore\n\n${loreLinks.join('\n')}`
+        : '',
+    ].filter(Boolean);
+
+    console.log(`  → ${faction.name} (${factionMembers.length} members)`);
+    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+      slug: wikiSlug('factions', faction.name),
+      title: faction.name,
+      category: 'factions',
+      body_markdown: bodyParts.join('\n\n'),
+      published: true,
+    }, DRY_RUN);
+  }
+  console.log(`  Created ${FACTIONS.length} faction pages.`);
 
   // ------------------------------------------------------------------
   // 7. Session & Post Log (lore channels)
