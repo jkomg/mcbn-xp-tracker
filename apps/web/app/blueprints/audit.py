@@ -147,7 +147,14 @@ def errors():
         key = e['event']
         event_counts[key] = event_counts.get(key, 0) + 1
 
-    sync_errors = _sheets_sync_mod.get_recent_sync_errors()
+    # Merge in-memory (real-time, current session) and DB (historical) sync errors
+    rt_errors = _sheets_sync_mod.get_recent_sync_errors()
+    db_errors = db_service.get_recent_sync_errors(limit=100)
+    # Deduplicate: prefer DB entries (they have an id); RT entries not yet flushed are additions
+    db_keys = {(e['timestamp'], e['operation'], e['error']) for e in db_errors}
+    rt_only = [e for e in rt_errors
+               if (e['timestamp'], e['operation'], e['error']) not in db_keys]
+    sync_errors = rt_only + db_errors
 
     return render_template(
         'audit/errors.html',
