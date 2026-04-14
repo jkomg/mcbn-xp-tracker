@@ -692,13 +692,7 @@ async function main(opts: NotionSyncOptions) {
             }),
           );
         }
-        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-          slug: wikiSlug('locations', locationName),
-          title: locationName,
-          category: 'locations',
-          body_markdown: ch.topic ?? '',
-          published: true,
-        }, DRY_RUN);
+        // Wiki upsert deferred to step 4 so hunting site pins can be included.
       }
     }
     console.log(`  Created ${cityChannels.length} location entries.`);
@@ -710,19 +704,21 @@ async function main(opts: NotionSyncOptions) {
   console.log('\n[4/7] Populating Hunting Sites from City of Nashville pins…');
   let huntingTotal = 0;
   for (const ch of cityChannels) {
+    const locationName = toTitleCase(ch.name);
     let pins: DiscordMessage[] = [];
     try { pins = await fetchPins(rest, ch.id); await sleep(200); }
     catch (err) { console.log(`  [warn] Pins fetch failed for #${ch.name}: ${err}`); continue; }
 
-    if (!pins.length) { console.log(`  #${ch.name}: no pins`); continue; }
-    console.log(`  #${ch.name}: ${pins.length} pin(s)`);
+    if (!pins.length) { console.log(`  #${ch.name}: no pins`); }
+    else { console.log(`  #${ch.name}: ${pins.length} pin(s)`); }
 
+    const pinSections: string[] = [];
     for (const pin of pins) {
       if (!pin.content.trim()) continue;
       const firstLine = pin.content.trim().split('\n')[0]
         .replace(/^\*+|\*+$/g, '').replace(/^#+\s*/, '').trim();
       const siteName = truncate(firstLine || `Pin by ${pin.author.username}`, 200);
-      const domain = mapDomain(toTitleCase(ch.name));
+      const domain = mapDomain(locationName);
       console.log(`    → ${siteName}`);
       if (!DRY_RUN && NOTION_ENABLED) {
         await notionCall(() =>
@@ -737,8 +733,22 @@ async function main(opts: NotionSyncOptions) {
           }),
         );
       }
+      pinSections.push(`### ${siteName}\n\n${pin.content.trim()}`);
       huntingTotal++;
     }
+
+    // Wiki upsert: topic as intro, pins as Hunting Sites section
+    const bodyParts = [
+      ch.topic ?? '',
+      pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
+    ].filter(Boolean);
+    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+      slug: wikiSlug('locations', locationName),
+      title: locationName,
+      category: 'locations',
+      body_markdown: bodyParts.join('\n\n---\n\n'),
+      published: true,
+    }, DRY_RUN);
   }
   console.log(`  Created ${huntingTotal} hunting site entries.`);
 
@@ -901,6 +911,24 @@ async function main(opts: NotionSyncOptions) {
     }
     console.log(`  Created ${activeRoster.length} PC entries.`);
   }
+
+  // ------------------------------------------------------------------
+  // 6.5 Coteries wiki pages (built from static COTERIE_MEMBERS map)
+  // ------------------------------------------------------------------
+  console.log('\n[6.5/7] Populating Coteries wiki pages…');
+  for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
+    const memberList = members.map((m) => `- ${toTitleCase(m)}`).join('\n');
+    const body = `## Members\n\n${memberList}`;
+    console.log(`  → ${coterieName} (${members.length} members)`);
+    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+      slug: wikiSlug('coteries', coterieName),
+      title: coterieName,
+      category: 'coteries',
+      body_markdown: body,
+      published: true,
+    }, DRY_RUN);
+  }
+  console.log(`  Created ${Object.keys(COTERIE_MEMBERS).length} coterie pages.`);
 
   // ------------------------------------------------------------------
   // 7. Session & Post Log (lore channels)
