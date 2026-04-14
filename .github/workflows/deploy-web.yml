@@ -1,0 +1,116 @@
+name: Deploy Web to Cloud Run
+
+on:
+  # Trigger after CI completes on main — only deploy when CI passes
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Manual trigger (e.g. hotfix deploy without a code change)
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deploy'
+        required: false
+        default: 'manual trigger'
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # For workflow_run: only deploy when CI actually passed.
+    # For workflow_dispatch: always run.
+    if: |
+      github.repository == 'jkomg/mcbn-xp-tracker' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
+
+    env:
+      REGION: us-central1
+      SERVICE_NAME: mcbn-xp-tracker
+      REGISTRY: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo/mcbn-xp-tracker
+
+    steps:
+      # workflow_run events check out the workflow repo, not the triggering commit.
+      # Resolve the correct SHA so we build exactly what passed CI.
+      - name: Resolve deploy SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build image (linux/amd64 for Cloud Run)
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -f apps/web/Dockerfile \
+            -t ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
+            -t ${{ env.REGISTRY }}:latest \
+            .
+
+      - name: Push image to Artifact Registry
+        run: |
+          docker push ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }}
+          docker push ${{ env.REGISTRY }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 256Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 2 \
+            --set-env-vars "FLASK_DEBUG=false" \
+            --set-env-vars "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" \
+            --set-env-vars "SHEETS_CACHE_TTL=30" \
+            --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
+            --set-env-vars "BOT_API_REPLAY_PROTECTION_ENABLED=true" \
+            --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
+            --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
+            --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
+            --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
+            --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
+            --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
+            --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
+            --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
+            --update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest" \
+            --update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest" \
+            --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
+            --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest"
+
+      - name: Route 100% traffic to latest revision
+        run: |
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --to-latest
+
+      - name: Print deployed URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format="value(status.url)"

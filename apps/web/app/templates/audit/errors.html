@@ -9,7 +9,7 @@
 <div class="card mb-4 border-warning">
     <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
         <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong>
-            <small class="fw-normal ms-1">(in-memory, resets on restart)</small>
+            <small class="fw-normal ms-1">(DB-persisted + current session)</small>
         </span>
         <span class="badge bg-dark">{{ sync_errors|length }}</span>
     </div>
