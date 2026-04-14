@@ -1,0 +1,74 @@
+{% extends "wiki/base.html" %}
+
+{% block title %}{% if q %}Search: {{ q }}{% else %}Search{% endif %} — Chronicle Wiki{% endblock %}
+
+{% block wiki_hero %}
+<div class="wiki-page-hero wiki-page-hero--plain">
+    <div class="container-xl px-3 px-md-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb wiki-breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('wiki.index') }}">Wiki</a></li>
+                <li class="breadcrumb-item active">Search</li>
+            </ol>
+        </nav>
+        <h1 class="wiki-page-title">Search</h1>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <!-- Search form -->
+        <form method="get" action="{{ url_for('wiki.search') }}" class="mb-4">
+            <div class="input-group wiki-search-bar">
+                <input type="search" name="q" value="{{ q }}" class="form-control wiki-search-input"
+                       placeholder="Search pages…" autofocus autocomplete="off">
+                <button type="submit" class="btn wiki-btn-search">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+            </div>
+        </form>
+
+        {% if q %}
+            {% if results %}
+            <p class="text-muted small mb-3">
+                {{ results|length }} result{{ 's' if results|length != 1 }} for <strong>{{ q }}</strong>
+            </p>
+            <div class="wiki-search-results">
+                {% for r in results %}
+                <a href="{{ url_for('wiki.page', slug=r.page.slug) }}" class="wiki-search-result text-decoration-none">
+                    <div class="d-flex align-items-start gap-2 mb-1">
+                        <h5 class="wiki-search-result-title mb-0">{{ r.page.title }}</h5>
+                        {% if r.page.category %}
+                        <span class="wiki-cat-badge flex-shrink-0">
+                            {{ wiki_category_display.get(r.page.category, r.page.category) }}
+                        </span>
+                        {% endif %}
+                        {% if not r.page.published %}
+                        <span class="badge bg-secondary flex-shrink-0">Draft</span>
+                        {% endif %}
+                    </div>
+                    {% if r.excerpt %}
+                    <p class="wiki-search-result-excerpt mb-0">{{ r.excerpt }}</p>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-search"></i>
+                <p>No pages found for <strong>{{ q }}</strong>.</p>
+            </div>
+            {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <p>Enter a search term above to find wiki pages.</p>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

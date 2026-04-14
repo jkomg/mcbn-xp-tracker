@@ -3,7 +3,7 @@
 from pathlib import Path
 from flask import Flask, Blueprint
 from flask_wtf.csrf import CSRFProtect
-from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _RESERVED_SLUGS
+from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _RESERVED_SLUGS, _excerpt
 from app.blueprints.api import bp as api_bp
 from app.db import db, WikiPage
 
@@ -81,6 +81,26 @@ def test_reserved_slugs():
     assert 'new' in _RESERVED_SLUGS
     assert 'edit' in _RESERVED_SLUGS
     assert 'category' in _RESERVED_SLUGS
+    assert 'search' in _RESERVED_SLUGS
+
+
+def test_excerpt_match():
+    body = 'The Camarilla controls the Elysium in downtown Nashville.'
+    result = _excerpt(body, 'Elysium')
+    assert 'Elysium' in result
+
+
+def test_excerpt_no_match():
+    body = 'Nothing relevant here.'
+    result = _excerpt(body, 'vampire')
+    assert result  # still returns something
+
+
+def test_excerpt_ellipsis():
+    body = 'x ' * 200 + 'TARGET' + ' x' * 200
+    result = _excerpt(body, 'TARGET')
+    assert 'TARGET' in result
+    assert result.startswith('…')
 
 
 # ── Route tests ───────────────────────────────────────────────────────────────
@@ -135,6 +155,53 @@ def test_wiki_draft_hidden_from_public():
     with app.test_client() as client:
         res = client.get('/wiki/draft-page')
         assert res.status_code == 404
+
+
+def test_wiki_search_empty_query():
+    app = _app()
+    with app.test_client() as client:
+        res = client.get('/wiki/search')
+        assert res.status_code == 200
+
+
+def test_wiki_search_finds_by_title():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='nashville-overview', title='Nashville Overview',
+                     body_markdown='A city of music.', published=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/search?q=Nashville')
+        assert res.status_code == 200
+        assert b'Nashville Overview' in res.data
+
+
+def test_wiki_search_finds_by_body():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='elysium-page', title='The Elysium',
+                     body_markdown='The kindred gather at the Elysium each full moon.',
+                     published=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/search?q=kindred')
+        assert res.status_code == 200
+        assert b'The Elysium' in res.data
+
+
+def test_wiki_search_hides_drafts():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='secret-page', title='Secret Draft',
+                     body_markdown='hidden content', published=False)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/search?q=hidden')
+        assert res.status_code == 200
+        assert b'Secret Draft' not in res.data
 
 
 def test_wiki_new_requires_staff():
