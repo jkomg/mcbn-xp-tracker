@@ -351,6 +351,21 @@ async function appendBodyBlocks(notion: NotionClient, pageId: string, blocks: ob
   }
 }
 
+function firstImage(messages: DiscordMessage[]): string | null {
+  for (const msg of messages) {
+    for (const a of msg.attachments ?? []) {
+      if (a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename)) {
+        return a.url;
+      }
+    }
+  }
+  return null;
+}
+
+function coverProp(url: string): { type: 'external'; external: { url: string } } {
+  return { type: 'external', external: { url } };
+}
+
 function imageBlock(url: string): object {
   return {
     object: 'block',
@@ -629,9 +644,11 @@ async function main(opts: NotionSyncOptions) {
         await sleep(200);
         const bodyContent = messages.map((m) => m.content).filter(Boolean).join('\n\n');
         const spcType = inferSpcType(thread.name);
+        const cover = firstImage(messages);
         const page = await notionCall(() =>
           notion.pages.create({
             parent: { database_id: NOTION_DB.SPC_TRACKER },
+            ...(cover ? { cover: coverProp(cover) } : {}),
             properties: {
               'Name': { title: [{ text: { content: name } }] },
               'Status': { select: { name: 'Active' } },
@@ -750,6 +767,7 @@ async function main(opts: NotionSyncOptions) {
           const messages = await fetchAllMessages(rest, thread.id, 100);
           await sleep(200);
           const preview = truncate(messages[0]?.content ?? '', 500);
+          const cover = firstImage(messages);
           const sessionProps = {
             'Session/Post Title': { title: [{ text: { content: title } }] },
             'Status': { select: { name: 'Complete' } },
@@ -758,7 +776,11 @@ async function main(opts: NotionSyncOptions) {
             'Date': { date: { start: postDate } },
           };
           const page = await notionCall(() =>
-            notion.pages.create({ parent: { database_id: NOTION_DB.SESSION_LOG }, properties: sessionProps }),
+            notion.pages.create({
+              parent: { database_id: NOTION_DB.SESSION_LOG },
+              ...(cover ? { cover: coverProp(cover) } : {}),
+              properties: sessionProps,
+            }),
           );
           await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
         }
