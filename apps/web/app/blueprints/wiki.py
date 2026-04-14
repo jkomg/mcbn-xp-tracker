@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import html as _html_mod
 import re
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 
 import markdown as md_lib
+from markupsafe import Markup
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
 )
@@ -23,6 +26,9 @@ CATEGORIES: list[tuple[str, str, str]] = [
 ]
 CATEGORY_DISPLAY: dict[str, str] = {s: n for s, n, _ in CATEGORIES}
 
+# Slugs reserved by static wiki routes — these can never be used as page slugs.
+_RESERVED_SLUGS = frozenset({'new', 'edit', 'category'})
+
 
 @bp.context_processor
 def _wiki_context():
@@ -36,20 +42,92 @@ def _slugify(text: str) -> str:
     return re.sub(r'-+', '-', text).strip('-')
 
 
-def _render_md(text: str) -> str:
-    return md_lib.markdown(
+_ALLOWED_TAGS = frozenset({
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'br', 'hr',
+    'ul', 'ol', 'li',
+    'strong', 'em', 'del', 's',
+    'a', 'img',
+    'blockquote', 'pre', 'code',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'div', 'span',
+})
+_ALLOWED_ATTRS: dict[str, list[str]] = {
+    'a':   ['href', 'title', 'rel'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+    '*':   ['class', 'id'],
+}
+_VOID_TAGS = frozenset({'br', 'hr', 'img'})
+_URL_ATTRS = frozenset({'href', 'src'})
+_JS_RE = re.compile(r'^\s*javascript:', re.I)
+
+
+class _HtmlSanitizer(HTMLParser):
+    """Allow-list HTML sanitizer using stdlib HTMLParser."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self._out: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag not in _ALLOWED_TAGS:
+            return
+        allowed = _ALLOWED_ATTRS.get(tag, []) + _ALLOWED_ATTRS['*']
+        safe = ''
+        for name, value in attrs:
+            name = name.lower()
+            if name not in allowed:
+                continue
+            value = value or ''
+            if name in _URL_ATTRS and _JS_RE.match(value):
+                continue
+            safe += f' {name}="{_html_mod.escape(value)}"'
+        if tag in _VOID_TAGS:
+            self._out.append(f'<{tag}{safe}>')
+        else:
+            self._out.append(f'<{tag}{safe}>')
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in _ALLOWED_TAGS and tag not in _VOID_TAGS:
+            self._out.append(f'</{tag}>')
+
+    def handle_data(self, data: str) -> None:
+        self._out.append(_html_mod.escape(data))
+
+    def handle_entityref(self, name: str) -> None:
+        self._out.append(f'&{name};')
+
+    def handle_charref(self, name: str) -> None:
+        self._out.append(f'&#{name};')
+
+    def get_output(self) -> str:
+        return ''.join(self._out)
+
+
+def _sanitize(html_str: str) -> str:
+    san = _HtmlSanitizer()
+    san.feed(html_str)
+    return san.get_output()
+
+
+def _render_md(text: str) -> Markup:
+    raw_html = md_lib.markdown(
         text or '',
         extensions=['extra', 'toc', 'nl2br'],
         output_format='html',
     )
+    return Markup(_sanitize(raw_html))
 
 
 def _unique_slug(base: str) -> str:
-    slug = base
+    # Start from -1 suffix if the base itself is reserved
+    slug = f'{base}-1' if base in _RESERVED_SLUGS else base
     i = 1
     while WikiPage.query.filter_by(slug=slug).first():
-        slug = f'{base}-{i}'
         i += 1
+        slug = f'{base}-{i}'
     return slug
 
 
