@@ -226,3 +226,14 @@ def edit_page(slug):
         flash(f'Page "{p.title}" saved.', 'success')
         return redirect(url_for('wiki.page', slug=slug))
     return render_template('wiki/edit.html', page=p)
+
+
+@bp.route('/delete/<slug>', methods=['POST'])
+@require_staff
+def delete_page(slug):
+    p = WikiPage.query.filter_by(slug=slug).first_or_404()
+    title = p.title
+    db.session.delete(p)
+    db.session.commit()
+    flash(f'Page "{title}" deleted.', 'success')
+    return redirect(url_for('wiki.index'))

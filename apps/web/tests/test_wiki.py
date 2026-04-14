@@ -145,6 +145,20 @@ def test_wiki_new_requires_staff():
         assert res.status_code in (302, 401)
 
 
+def test_wiki_delete_requires_staff():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='del-test', title='Delete Me', published=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.post('/wiki/delete/del-test')
+        assert res.status_code in (302, 401)
+    # Page must still exist — unauthenticated delete should not succeed
+    with app.app_context():
+        assert WikiPage.query.filter_by(slug='del-test').first() is not None
+
+
 # ── API upsert tests ──────────────────────────────────────────────────────────
 
 def test_api_wiki_page_create():

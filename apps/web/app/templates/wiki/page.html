@@ -111,6 +111,13 @@
                    class="btn btn-sm wiki-btn-edit">
                     <i class="bi bi-pencil-square me-1"></i>Edit Page
                 </a>
+                <form method="post" action="{{ url_for('wiki.delete_page', slug=page.slug) }}"
+                      onsubmit="return confirm('Delete \u00ab{{ page.title }}\u00bb? This cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                        <i class="bi bi-trash me-1"></i>Delete Page
+                    </button>
+                </form>
             </div>
             {% endif %}
 
