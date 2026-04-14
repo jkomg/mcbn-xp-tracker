@@ -257,6 +257,45 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '');
 }
 
+interface PcProfile { image: string | null; markdown: string; }
+
+/**
+ * Build a map of normalised character name → { image, markdown } by scanning
+ * forum threads in the PC background channel (children-of-the-night).
+ * Each thread is one PC's profile post.
+ */
+async function buildPcProfileMap(
+  rest: REST,
+  guildId: string,
+  channelByName: Map<string, DiscordChannel>,
+): Promise<Map<string, PcProfile>> {
+  const map = new Map<string, PcProfile>();
+  const ch = channelByName.get('children-of-the-night');
+  if (!ch || ch.type !== CH_FORUM) return map;
+  let threads: DiscordThread[] = [];
+  try { threads = await fetchForumThreads(rest, guildId, ch.id); }
+  catch { return map; }
+  for (const thread of threads) {
+    const msgs = await fetchAllMessages(rest, thread.id, 50);
+    await sleep(150);
+    map.set(thread.name.toLowerCase().trim(), {
+      image: firstImage(msgs),
+      markdown: messagesToMarkdown(msgs),
+    });
+  }
+  return map;
+}
+
+/** Best-effort profile lookup: exact match, then substring. */
+function lookupPcProfile(map: Map<string, PcProfile>, charName: string): PcProfile | null {
+  const key = charName.toLowerCase().trim();
+  if (map.has(key)) return map.get(key)!;
+  for (const [threadName, profile] of map) {
+    if (threadName.includes(key) || key.includes(threadName)) return profile;
+  }
+  return null;
+}
+
 /** Prefix slug with category abbreviation to prevent cross-category collisions. */
 function wikiSlug(category: string, name: string): string {
   const prefixes: Record<string, string> = {
@@ -787,6 +826,13 @@ async function main(opts: NotionSyncOptions) {
   }
 
   // ------------------------------------------------------------------
+  // 5.5 Build PC profile map from #children-of-the-night forum
+  // ------------------------------------------------------------------
+  console.log('\n[5.5/7] Building PC profile map from #children-of-the-night…');
+  const pcProfileMap = await buildPcProfileMap(rest, GUILD_ID, channelByName);
+  console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
+
+  // ------------------------------------------------------------------
   // 6. PC Tracker (active roster + player names)
   // ------------------------------------------------------------------
   console.log('\n[6/7] Populating PC Tracker…');
@@ -822,17 +868,23 @@ async function main(opts: NotionSyncOptions) {
             },
           }),
         );
-        const bodyParts = [
+        const pcProfile = lookupPcProfile(pcProfileMap, name);
+        const metaParts = [
           clan && `**Clan:** ${clan}`,
           sect && `**Sect:** ${sect}`,
           coterie && `**Coterie:** ${coterie}`,
           playerName && `**Player:** ${playerName}`,
         ].filter(Boolean) as string[];
+        const bodyMarkdown = [
+          metaParts.join('\n\n'),
+          pcProfile?.markdown,
+        ].filter(Boolean).join('\n\n---\n\n');
         await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
           slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
-          body_markdown: bodyParts.join('\n\n'),
+          body_markdown: bodyMarkdown,
+          cover_image_url: pcProfile?.image ?? undefined,
           published: true,
         }, DRY_RUN);
       }
@@ -887,14 +939,18 @@ async function main(opts: NotionSyncOptions) {
             }),
           );
           await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
-          await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
-            slug: wikiSlug('lore', title),
-            title,
-            category: 'lore',
-            body_markdown: messagesToMarkdown(messages),
-            cover_image_url: cover ?? undefined,
-            published: true,
-          }, DRY_RUN);
+          // children-of-the-night threads are PC profiles — merged into character
+          // pages in step 6, not duplicated as lore wiki pages.
+          if (chanName !== 'children-of-the-night') {
+            await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+              slug: wikiSlug('lore', title),
+              title,
+              category: 'lore',
+              body_markdown: messagesToMarkdown(messages),
+              cover_image_url: cover ?? undefined,
+              published: true,
+            }, DRY_RUN);
+          }
         }
       }
     } else {
