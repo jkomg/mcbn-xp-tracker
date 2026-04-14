@@ -66,6 +66,13 @@
     <div class="col-lg-3">
         <aside class="wiki-sidebar-panel">
 
+            {% if page.cover_image_url %}
+            <!-- Portrait / cover image -->
+            <div class="wiki-portrait-card mb-3">
+                <img src="{{ page.cover_image_url }}" alt="{{ page.title }}" class="wiki-portrait-img">
+            </div>
+            {% endif %}
+
             <!-- Page meta -->
             <div class="wiki-meta-card mb-3">
                 {% if page.category %}
