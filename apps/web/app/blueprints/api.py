@@ -1023,6 +1023,51 @@ def notion_sync_ack():
     return jsonify({'ok': True})
 
 
+@bp.route('/wiki/page', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def upsert_wiki_page():
+    """Create or update a wiki page (used by the Notion/Discord sync script)."""
+    from datetime import datetime, timezone
+    from app.db import db, WikiPage
+    data = request.get_json(silent=True) or {}
+    slug = (data.get('slug') or '').strip()
+    title = (data.get('title') or '').strip()
+    if not slug or not title:
+        return jsonify({'error': 'slug and title are required'}), 400
+
+    p = WikiPage.query.filter_by(slug=slug).first()
+    if p:
+        p.title = title
+        if 'body_markdown' in data:
+            p.body_markdown = data['body_markdown']
+        if 'category' in data:
+            p.category = data['category']
+        if 'cover_image_url' in data:
+            p.cover_image_url = data['cover_image_url']
+        if 'published' in data:
+            p.published = bool(data['published'])
+        p.source = data.get('source', p.source)
+        p.updated_by = data.get('updated_by', 'api-sync')
+        p.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'status': 'updated', 'slug': slug})
+
+    p = WikiPage(
+        slug=slug,
+        title=title,
+        body_markdown=data.get('body_markdown', ''),
+        category=data.get('category', ''),
+        cover_image_url=data.get('cover_image_url', ''),
+        source=data.get('source', 'api-sync'),
+        published=bool(data.get('published', True)),
+        updated_by=data.get('updated_by', 'api-sync'),
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify({'status': 'created', 'slug': slug}), 201
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

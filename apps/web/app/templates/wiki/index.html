@@ -1,0 +1,67 @@
+{% extends "wiki/base.html" %}
+
+{% block title %}Chronicle Wiki — Music City by Night{% endblock %}
+
+{% block wiki_hero %}
+<div class="wiki-index-hero">
+    <div class="container-xl px-3 px-md-4">
+        <h1 class="wiki-index-title">Chronicle Wiki</h1>
+        <p class="wiki-index-subtitle">The Requiem of Music City — Lore, Locations &amp; Kindred</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Category Cards -->
+<section class="mb-5">
+    <h2 class="wiki-section-heading mb-4">Browse by Category</h2>
+    <div class="row g-3">
+        {% for cat_slug, cat_name, cat_icon in wiki_categories %}
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('wiki.category', category=cat_slug) }}" class="wiki-category-card text-decoration-none">
+                <div class="cat-icon"><i class="bi {{ cat_icon }}"></i></div>
+                <h3>{{ cat_name }}</h3>
+                <div class="count">{{ counts.get(cat_slug, 0) }} page{{ 's' if counts.get(cat_slug, 0) != 1 }}</div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<hr class="wiki-sep">
+
+<!-- Recent Pages -->
+{% if recent %}
+<section class="mb-4">
+    <h2 class="wiki-section-heading mb-4">Recently Updated</h2>
+    <div class="row g-3">
+        {% for p in recent %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ url_for('wiki.page', slug=p.slug) }}" class="wiki-page-card text-decoration-none">
+                {% if p.cover_image_url %}
+                <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');"></div>
+                {% endif %}
+                <div class="wiki-card-body">
+                    {% if p.category %}
+                    <span class="wiki-cat-badge">{{ wiki_category_display.get(p.category, p.category) }}</span>
+                    {% endif %}
+                    <h5>{{ p.title }}</h5>
+                    <div class="meta">
+                        <i class="bi bi-clock me-1"></i>
+                        {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-journal-richtext"></i>
+    <p>The chronicle has yet to be written. {% if is_staff %}<a href="{{ url_for('wiki.new_page') }}">Create the first page.</a>{% endif %}</p>
+</div>
+{% endif %}
+
+{% endblock %}
