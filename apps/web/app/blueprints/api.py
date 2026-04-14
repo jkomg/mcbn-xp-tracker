@@ -1068,6 +1068,20 @@ def upsert_wiki_page():
     return jsonify({'status': 'created', 'slug': slug}), 201
 
 
+@bp.route('/wiki/page/<slug>', methods=['DELETE'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def delete_wiki_page(slug):
+    """Delete a wiki page by slug (used by the sync script for cleanup)."""
+    from app.db import db, WikiPage
+    p = WikiPage.query.filter_by(slug=slug).first()
+    if not p:
+        return jsonify({'status': 'not_found', 'slug': slug}), 404
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'status': 'deleted', 'slug': slug})
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

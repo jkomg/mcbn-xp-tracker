@@ -342,6 +342,26 @@ async function wikiUpsert(webBase: string, writeToken: string, data: WikiPageDat
   }
 }
 
+async function wikiDelete(webBase: string, writeToken: string, slug: string, dryRun: boolean): Promise<void> {
+  if (dryRun || !writeToken) { console.log(`  [wiki dry-run] would delete "${slug}"`); return; }
+  try {
+    const res = await fetch(`${webBase}/api/wiki/page/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${writeToken}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 404) {
+      console.log(`  [wiki] "${slug}" not found — already deleted or never created.`);
+    } else if (!res.ok) {
+      console.log(`  [wiki warn] delete "${slug}" → HTTP ${res.status}`);
+    } else {
+      console.log(`  [wiki] deleted "${slug}"`);
+    }
+  } catch (err) {
+    console.log(`  [wiki warn] delete "${slug}" failed: ${err}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Discord REST helpers
 // ---------------------------------------------------------------------------
@@ -861,6 +881,20 @@ async function main(opts: NotionSyncOptions) {
   console.log('\n[5.5/7] Building PC profile map from #children-of-the-night…');
   const pcProfileMap = await buildPcProfileMap(rest, GUILD_ID, channelByName);
   console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
+
+  // ------------------------------------------------------------------
+  // 5.6 Remove stale lore pages created from #children-of-the-night
+  //     (these were created by earlier syncs before PC profiles were
+  //     merged into character pages — delete them by slug)
+  // ------------------------------------------------------------------
+  console.log('\n[5.6/7] Removing stale PC lore pages…');
+  let deletedCount = 0;
+  for (const threadName of pcProfileMap.keys()) {
+    const slug = wikiSlug('lore', threadName);
+    await wikiDelete(WEB_BASE, WEB_WRITE_TOKEN, slug, DRY_RUN);
+    deletedCount++;
+  }
+  console.log(`  Processed ${deletedCount} potential stale page(s).`);
 
   // ------------------------------------------------------------------
   // 6. PC Tracker (active roster + player names)
