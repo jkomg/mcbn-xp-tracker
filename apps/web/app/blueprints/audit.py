@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Blueprint, render_template, request
 from app import db_service
-import app.sheets_sync as _sheets_sync_mod
+from app.sheets_sync import get_recent_sync_errors as _get_recent_sync_errors
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
@@ -148,7 +148,7 @@ def errors():
         event_counts[key] = event_counts.get(key, 0) + 1
 
     # Merge in-memory (real-time, current session) and DB (historical) sync errors
-    rt_errors = _sheets_sync_mod.get_recent_sync_errors()
+    rt_errors = _get_recent_sync_errors()
     db_errors = db_service.get_recent_sync_errors(limit=100)
     # Deduplicate: prefer DB entries (they have an id); RT entries not yet flushed are additions
     db_keys = {(e['timestamp'], e['operation'], e['error']) for e in db_errors}

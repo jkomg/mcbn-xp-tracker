@@ -134,6 +134,21 @@ class DbSheetsSyncError(db.Model):
     details = db.Column(Text, default='')
 
 
+class WikiPage(db.Model):
+    __tablename__ = 'wiki_pages'
+    id = db.Column(Integer, primary_key=True)
+    slug = db.Column(String(200), nullable=False, unique=True, index=True)
+    title = db.Column(String(300), nullable=False)
+    body_markdown = db.Column(Text, default='')
+    category = db.Column(String(100), default='', index=True)
+    cover_image_url = db.Column(Text, default='')
+    source = db.Column(String(50), default='')
+    published = db.Column(Boolean, default=True, index=True)
+    created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_by = db.Column(String(100), default='')
+
+
 class DbReminderPreference(db.Model):
     __tablename__ = 'reminder_preferences'
     discord_id = db.Column(String(30), primary_key=True)

@@ -1,0 +1,182 @@
+{% extends "wiki/base.html" %}
+
+{% block title %}{% if page %}Edit: {{ page.title }}{% else %}New Wiki Page{% endif %} — Chronicle Wiki{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<style>
+    .EasyMDEContainer .CodeMirror {
+        background: #0d1117;
+        color: #e0e0e0;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 0 0 6px 6px;
+        font-size: 0.9rem;
+        min-height: 420px;
+    }
+    .EasyMDEContainer .editor-toolbar {
+        background: #161b22;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+    }
+    .EasyMDEContainer .editor-toolbar button {
+        color: #9ca3af !important;
+    }
+    .EasyMDEContainer .editor-toolbar button:hover,
+    .EasyMDEContainer .editor-toolbar button.active {
+        color: #c5a55a !important;
+        background: rgba(197,165,90,0.1);
+    }
+    .EasyMDEContainer .editor-toolbar i.separator {
+        border-color: rgba(255,255,255,0.1);
+    }
+    .editor-preview, .editor-preview-side {
+        background: #1a1a2e !important;
+        color: #e0e0e0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block wiki_hero %}
+<div class="wiki-page-hero wiki-page-hero--plain">
+    <div class="container-xl px-3 px-md-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb wiki-breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('wiki.index') }}">Wiki</a></li>
+                {% if page %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('wiki.page', slug=page.slug) }}">{{ page.title }}</a>
+                </li>
+                <li class="breadcrumb-item active">Edit</li>
+                {% else %}
+                <li class="breadcrumb-item active">New Page</li>
+                {% endif %}
+            </ol>
+        </nav>
+        <h1 class="wiki-page-title">
+            {% if page %}Edit: {{ page.title }}{% else %}New Wiki Page{% endif %}
+        </h1>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row g-3 mb-4">
+                <!-- Title -->
+                <div class="col-md-8">
+                    <label class="form-label wiki-form-label" for="title">Page Title</label>
+                    <input type="text" class="form-control wiki-form-input" id="title" name="title"
+                           value="{{ page.title if page else '' }}"
+                           placeholder="e.g. The Elysium at the Hermitage Hotel"
+                           required>
+                </div>
+
+                <!-- Category -->
+                <div class="col-md-4">
+                    <label class="form-label wiki-form-label" for="category">Category</label>
+                    <select class="form-select wiki-form-input" id="category" name="category">
+                        <option value="">— Uncategorised —</option>
+                        {% for cat_slug, cat_name, _ in wiki_categories %}
+                        <option value="{{ cat_slug }}"
+                            {% if page and page.category == cat_slug %}selected{% endif %}>
+                            {{ cat_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Cover Image URL -->
+                <div class="col-12">
+                    <label class="form-label wiki-form-label" for="cover_image_url">
+                        Cover Image URL <span class="text-muted">(optional)</span>
+                    </label>
+                    <input type="url" class="form-control wiki-form-input" id="cover_image_url" name="cover_image_url"
+                           value="{{ page.cover_image_url if page else '' }}"
+                           placeholder="https://...">
+                    {% if page and page.cover_image_url %}
+                    <div class="mt-2">
+                        <img src="{{ page.cover_image_url }}" alt="Cover preview"
+                             class="wiki-cover-preview">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Published toggle -->
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="published" name="published" value="1"
+                               {% if page is none or page.published %}checked{% endif %}>
+                        <label class="form-check-label text-light" for="published">
+                            Published <span class="text-muted">(uncheck to save as draft)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="mb-4">
+                <label class="form-label wiki-form-label" for="body_markdown">Content</label>
+                <textarea id="body_markdown" name="body_markdown" class="d-none">{{ page.body_markdown if page else '' }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2 justify-content-end">
+                {% if page %}
+                <a href="{{ url_for('wiki.page', slug=page.slug) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>Cancel
+                </a>
+                {% else %}
+                <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>Cancel
+                </a>
+                {% endif %}
+                <button type="submit" class="btn wiki-btn-save">
+                    <i class="bi bi-check-lg me-1"></i>
+                    {% if page %}Save Changes{% else %}Create Page{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+    const easyMDE = new EasyMDE({
+        element: document.getElementById('body_markdown'),
+        spellChecker: false,
+        autosave: { enabled: true, uniqueId: 'wiki-editor-{{ page.slug if page else "new" }}' },
+        toolbar: [
+            'bold', 'italic', 'strikethrough', '|',
+            'heading-1', 'heading-2', 'heading-3', '|',
+            'quote', 'unordered-list', 'ordered-list', '|',
+            'link', 'image', 'table', 'horizontal-rule', '|',
+            'preview', 'side-by-side', 'fullscreen', '|',
+            'guide',
+        ],
+        renderingConfig: { codeSyntaxHighlighting: false },
+        placeholder: 'Write your page content in Markdown...',
+        status: ['autosave', 'lines', 'words'],
+    });
+    // Cover image live preview
+    const coverInput = document.getElementById('cover_image_url');
+    coverInput.addEventListener('change', function () {
+        let preview = document.querySelector('.wiki-cover-preview');
+        if (this.value) {
+            if (!preview) {
+                preview = document.createElement('img');
+                preview.className = 'wiki-cover-preview mt-2 d-block';
+                this.parentNode.appendChild(preview);
+            }
+            preview.src = this.value;
+        } else if (preview) {
+            preview.remove();
+        }
+    });
+</script>
+{% endblock %}

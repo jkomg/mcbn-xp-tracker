@@ -1,0 +1,70 @@
+{% extends "wiki/base.html" %}
+
+{% block title %}{{ category_name }} — Chronicle Wiki{% endblock %}
+
+{% block wiki_hero %}
+<div class="wiki-cat-hero">
+    <div class="container-xl px-3 px-md-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb wiki-breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('wiki.index') }}">Wiki</a></li>
+                <li class="breadcrumb-item active">{{ category_name }}</li>
+            </ol>
+        </nav>
+        {% for cat_slug, cat_name, cat_icon in wiki_categories %}
+        {% if cat_slug == active_category %}
+        <div class="d-flex align-items-center gap-3 mb-1">
+            <i class="bi {{ cat_icon }} wiki-cat-hero-icon"></i>
+            <h1 class="wiki-cat-hero-title mb-0">{{ category_name }}</h1>
+        </div>
+        {% endif %}
+        {% endfor %}
+        <p class="wiki-cat-hero-count text-muted mt-1">
+            {{ pages | length }} page{{ 's' if pages | length != 1 }}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if is_staff %}
+<div class="d-flex justify-content-end mb-4">
+    <a href="{{ url_for('wiki.new_page') }}" class="btn btn-sm wiki-btn-new">
+        <i class="bi bi-plus-circle me-1"></i>New Page
+    </a>
+</div>
+{% endif %}
+
+{% if pages %}
+<div class="row g-3">
+    {% for p in pages %}
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('wiki.page', slug=p.slug) }}" class="wiki-page-card text-decoration-none">
+            {% if p.cover_image_url %}
+            <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');"></div>
+            {% endif %}
+            <div class="wiki-card-body">
+                <h5>{{ p.title }}</h5>
+                <div class="meta">
+                    <i class="bi bi-clock me-1"></i>
+                    {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
+                    {% if not p.published %}
+                    <span class="badge bg-secondary ms-1">Draft</span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-journal-richtext"></i>
+    <p>No pages yet in {{ category_name }}.
+    {% if is_staff %}<a href="{{ url_for('wiki.new_page') }}">Write the first one.</a>{% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% endblock %}
