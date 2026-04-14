@@ -207,3 +207,37 @@ def test_api_wiki_page_missing_fields():
             headers={'Authorization': 'Bearer write-token'},
         )
         assert res.status_code == 400
+
+
+def test_api_wiki_page_delete():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='to-delete', title='Bye', published=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.delete(
+            '/api/wiki/page/to-delete',
+            headers={'Authorization': 'Bearer write-token'},
+        )
+        assert res.status_code == 200
+        assert res.get_json()['status'] == 'deleted'
+    with app.app_context():
+        assert WikiPage.query.filter_by(slug='to-delete').first() is None
+
+
+def test_api_wiki_page_delete_not_found():
+    app = _app()
+    with app.test_client() as client:
+        res = client.delete(
+            '/api/wiki/page/ghost-page',
+            headers={'Authorization': 'Bearer write-token'},
+        )
+        assert res.status_code == 404
+
+
+def test_api_wiki_page_delete_requires_auth():
+    app = _app()
+    with app.test_client() as client:
+        res = client.delete('/api/wiki/page/any-page')
+        assert res.status_code == 401
