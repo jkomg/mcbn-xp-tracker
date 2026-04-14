@@ -1328,6 +1328,20 @@ a.wiki-cat-badge:hover {
     top: 1rem;
 }
 
+.wiki-portrait-card {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(197, 165, 90, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.wiki-portrait-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
 .wiki-meta-card {
     background: #16213e;
     border: 1px solid rgba(197, 165, 90, 0.15);
