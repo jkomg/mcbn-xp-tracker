@@ -50,6 +50,8 @@ export interface NotionSyncOptions {
   notionToken: string;
   webBase?: string;
   webReadToken?: string;
+  /** Write token for Chronicle Wiki upsert API (WEB_APP_API_WRITE_TOKEN). */
+  webWriteToken?: string;
   msgLimit?: number;
   dryRun?: boolean;
   /** If true, archive all Notion pages that were NOT created by this sync before importing. */
@@ -110,6 +112,7 @@ if (require.main === module) {
     notionToken: process.env.NOTION_TOKEN ?? '',
     webBase: process.env.WEB_APP_BASE_URL,
     webReadToken: process.env.WEB_APP_API_READ_TOKEN ?? process.env.WEB_APP_API_TOKEN,
+    webWriteToken: process.env.WEB_APP_API_WRITE_TOKEN,
     msgLimit: Number.parseInt(process.env.NOTION_SYNC_MSG_LIMIT ?? '200', 10),
     dryRun: process.argv.includes('--dry-run'),
     cleanup: process.argv.includes('--cleanup'),
@@ -238,6 +241,66 @@ function heading3Block(content: string): object {
     type: 'heading_3',
     heading_3: { rich_text: [{ type: 'text', text: { content } }] },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Chronicle Wiki helpers
+// ---------------------------------------------------------------------------
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Prefix slug with category abbreviation to prevent cross-category collisions. */
+function wikiSlug(category: string, name: string): string {
+  const prefixes: Record<string, string> = {
+    locations: 'loc',
+    characters: 'char',
+    lore: 'lore',
+  };
+  const prefix = prefixes[category] ?? category;
+  return `${prefix}-${slugify(name)}`;
+}
+
+function messagesToMarkdown(messages: DiscordMessage[]): string {
+  return messages
+    .filter((m) => m.content.trim())
+    .map((m) => {
+      const author = m.author.global_name ?? m.author.username;
+      const date = m.timestamp.slice(0, 10);
+      return `### ${author} · ${date}\n\n${m.content.trim()}`;
+    })
+    .join('\n\n---\n\n');
+}
+
+interface WikiPageData {
+  slug: string;
+  title: string;
+  body_markdown?: string;
+  category?: string;
+  cover_image_url?: string;
+  published?: boolean;
+}
+
+async function wikiUpsert(webBase: string, writeToken: string, data: WikiPageData, dryRun: boolean): Promise<void> {
+  if (dryRun || !writeToken) return;
+  try {
+    const res = await fetch(`${webBase}/api/wiki/page`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) console.log(`  [wiki warn] upsert "${data.slug}" → HTTP ${res.status}`);
+  } catch (err) {
+    console.log(`  [wiki warn] upsert "${data.slug}" failed: ${err}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +560,12 @@ async function main(opts: NotionSyncOptions) {
   const CLEANUP = opts.cleanup ?? false;
   const WEB_BASE = (opts.webBase ?? 'http://127.0.0.1:5001').replace(/\/+$/, '');
   const WEB_READ_TOKEN = opts.webReadToken ?? '';
+  const WEB_WRITE_TOKEN = opts.webWriteToken ?? '';
+  if (WEB_WRITE_TOKEN) {
+    console.log('  Wiki sync enabled — pages will be upserted to Chronicle Wiki.');
+  } else {
+    console.log('  Wiki sync disabled — set WEB_APP_API_WRITE_TOKEN to enable.');
+  }
 
   const flags = [DRY_RUN && 'DRY RUN', CLEANUP && 'CLEANUP'].filter(Boolean).join(' + ');
   console.log(`discord-notion-sync${flags ? ` [${flags}]` : ''}`);
@@ -580,6 +649,13 @@ async function main(opts: NotionSyncOptions) {
             },
           }),
         );
+        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+          slug: wikiSlug('locations', locationName),
+          title: locationName,
+          category: 'locations',
+          body_markdown: ch.topic ?? '',
+          published: true,
+        }, DRY_RUN);
       }
     }
     console.log(`  Created ${cityChannels.length} location entries.`);
@@ -659,6 +735,14 @@ async function main(opts: NotionSyncOptions) {
           }),
         );
         await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+          slug: wikiSlug('characters', name),
+          title: name,
+          category: 'characters',
+          body_markdown: messagesToMarkdown(messages),
+          cover_image_url: cover ?? undefined,
+          published: true,
+        }, DRY_RUN);
       }
       count++;
     }
@@ -689,6 +773,13 @@ async function main(opts: NotionSyncOptions) {
           }),
         );
         await appendBodyBlocks(notion, page.id, textToBlocks(msg.content));
+        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+          slug: wikiSlug('characters', name),
+          title: name,
+          category: 'characters',
+          body_markdown: msg.content.trim(),
+          published: true,
+        }, DRY_RUN);
       }
       count++;
     }
@@ -731,6 +822,19 @@ async function main(opts: NotionSyncOptions) {
             },
           }),
         );
+        const bodyParts = [
+          clan && `**Clan:** ${clan}`,
+          sect && `**Sect:** ${sect}`,
+          coterie && `**Coterie:** ${coterie}`,
+          playerName && `**Player:** ${playerName}`,
+        ].filter(Boolean) as string[];
+        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+          slug: wikiSlug('characters', name),
+          title: name,
+          category: 'characters',
+          body_markdown: bodyParts.join('\n\n'),
+          published: true,
+        }, DRY_RUN);
       }
     }
     console.log(`  Created ${activeRoster.length} PC entries.`);
@@ -783,6 +887,14 @@ async function main(opts: NotionSyncOptions) {
             }),
           );
           await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+          await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+            slug: wikiSlug('lore', title),
+            title,
+            category: 'lore',
+            body_markdown: messagesToMarkdown(messages),
+            cover_image_url: cover ?? undefined,
+            published: true,
+          }, DRY_RUN);
         }
       }
     } else {
@@ -813,6 +925,13 @@ async function main(opts: NotionSyncOptions) {
           notion.pages.create({ parent: { database_id: NOTION_DB.SESSION_LOG }, properties: sessionProps }),
         );
         await appendBodyBlocks(notion, page.id, messagesToBlocks(messages));
+        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+          slug: wikiSlug('lore', `${chanName} archive`),
+          title,
+          category: 'lore',
+          body_markdown: messagesToMarkdown(messages),
+          published: true,
+        }, DRY_RUN);
       }
     }
   }
