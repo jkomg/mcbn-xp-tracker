@@ -114,3 +114,39 @@ jobs:
           gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format="value(status.url)"
+
+      - name: Notify Discord
+        if: always() && secrets.DISCORD_DEPLOY_WEBHOOK != ''
+        continue-on-error: true
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+          STATUS: ${{ job.status }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          SHORT_SHA="${SHA:0:7}"
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
+
+          if [ "$STATUS" = "success" ]; then
+            COLOR=3066993
+            ICON="✅"
+            TITLE="Web deployed"
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) is live on Cloud Run."
+          else
+            COLOR=15158332
+            ICON="❌"
+            TITLE="Deploy failed"
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) did not deploy. [View logs](${RUN_URL})."
+          fi
+
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${ICON} ${TITLE}\",
+                \"description\": \"${BODY}\",
+                \"color\": ${COLOR},
+                \"footer\": { \"text\": \"triggered by ${TRIGGER}\" }
+              }]
+            }"
