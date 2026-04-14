@@ -63,15 +63,23 @@ _JS_RE = re.compile(r'^\s*javascript:', re.I)
 
 
 class _HtmlSanitizer(HTMLParser):
-    """Allow-list HTML sanitizer using stdlib HTMLParser."""
+    """Allow-list HTML sanitizer using stdlib HTMLParser.
+
+    Tags not in _ALLOWED_TAGS are dropped along with all their content
+    (tracked via _skip_depth so nested disallowed tags work correctly).
+    """
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
         self._out: list[str] = []
+        self._skip_depth: int = 0  # >0 means we're inside a disallowed tag
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         if tag not in _ALLOWED_TAGS:
+            self._skip_depth += 1
+            return
+        if self._skip_depth:
             return
         allowed = _ALLOWED_ATTRS.get(tag, []) + _ALLOWED_ATTRS['*']
         safe = ''
@@ -83,24 +91,30 @@ class _HtmlSanitizer(HTMLParser):
             if name in _URL_ATTRS and _JS_RE.match(value):
                 continue
             safe += f' {name}="{_html_mod.escape(value)}"'
-        if tag in _VOID_TAGS:
-            self._out.append(f'<{tag}{safe}>')
-        else:
-            self._out.append(f'<{tag}{safe}>')
+        self._out.append(f'<{tag}{safe}>')
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
-        if tag in _ALLOWED_TAGS and tag not in _VOID_TAGS:
+        if tag not in _ALLOWED_TAGS:
+            if self._skip_depth:
+                self._skip_depth -= 1
+            return
+        if self._skip_depth:
+            return
+        if tag not in _VOID_TAGS:
             self._out.append(f'</{tag}>')
 
     def handle_data(self, data: str) -> None:
-        self._out.append(_html_mod.escape(data))
+        if not self._skip_depth:
+            self._out.append(_html_mod.escape(data))
 
     def handle_entityref(self, name: str) -> None:
-        self._out.append(f'&{name};')
+        if not self._skip_depth:
+            self._out.append(f'&{name};')
 
     def handle_charref(self, name: str) -> None:
-        self._out.append(f'&#{name};')
+        if not self._skip_depth:
+            self._out.append(f'&#{name};')
 
     def get_output(self) -> str:
         return ''.join(self._out)
