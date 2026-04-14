@@ -1,6 +1,6 @@
 # MCbN XP Tracker
 
-XP tracking and management for **Music City by Night** (MCbN), a Vampire: the Masquerade V5 chronicle based in Nashville, TN. The system handles XP earning and spending workflows for player characters — claims are submitted via Discord bot or web portal, reviewed by staff through an admin dashboard, and recorded in a Turso/SQLite database with Google Sheets as a backup mirror.
+XP tracking and management for **Music City by Night** (MCbN), a Vampire: the Masquerade V5 chronicle based in Nashville, TN. The system handles XP earning and spending workflows for player characters — claims are submitted via Discord bot or web portal, reviewed by staff through an admin dashboard, and persisted in a **Turso/SQLite database** (the authoritative store). Google Sheets can be configured as an optional background mirror.
 
 **Live:** [mcbn.jkomg.us](https://mcbn.jkomg.us) | **Dev:** `http://127.0.0.1:5001`
 
