@@ -127,8 +127,12 @@ def _sanitize(html_str: str) -> str:
 
 
 def _render_md(text: str) -> Markup:
+    # Pre-convert Discord/GitHub strikethrough ~~text~~ → <del>text</del>
+    # before the markdown parser runs, since the 'extra' extension doesn't
+    # include strikethrough natively but <del> is in our allowed-tag list.
+    text = re.sub(r'~~(.+?)~~', r'<del>\1</del>', text or '', flags=re.DOTALL)
     raw_html = md_lib.markdown(
-        text or '',
+        text,
         extensions=['extra', 'toc', 'nl2br'],
         output_format='html',
     )

@@ -61,6 +61,11 @@ def test_render_md_basic():
     assert '<strong>bold</strong>' in result
 
 
+def test_render_md_strikethrough():
+    result = str(_render_md('~~deleted~~'))
+    assert '<del>deleted</del>' in result
+
+
 def test_render_md_strips_script():
     result = str(_render_md('<script>alert(1)</script>\n\nSafe'))
     assert '<script>' not in result
