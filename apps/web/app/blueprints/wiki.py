@@ -126,11 +126,24 @@ def _sanitize(html_str: str) -> str:
     return san.get_output()
 
 
+_STRIKETHROUGH_RE = re.compile(r'~~(.+?)~~', re.DOTALL)
+_FENCED_CODE_RE = re.compile(r'(```[\s\S]*?```|`[^`\n]+`)', re.DOTALL)
+
+
+def _apply_strikethrough(text: str) -> str:
+    """Convert ~~text~~ to <del>text</del>, skipping inline/fenced code spans."""
+    # Split on code spans/blocks, only transform the non-code segments.
+    parts = _FENCED_CODE_RE.split(text)
+    for i, part in enumerate(parts):
+        if not _FENCED_CODE_RE.match(part):
+            parts[i] = _STRIKETHROUGH_RE.sub(r'<del>\1</del>', part)
+    return ''.join(parts)
+
+
 def _render_md(text: str) -> Markup:
     # Pre-convert Discord/GitHub strikethrough ~~text~~ → <del>text</del>
-    # before the markdown parser runs, since the 'extra' extension doesn't
-    # include strikethrough natively but <del> is in our allowed-tag list.
-    text = re.sub(r'~~(.+?)~~', r'<del>\1</del>', text or '', flags=re.DOTALL)
+    # before the markdown parser runs, skipping code spans/blocks.
+    text = _apply_strikethrough(text or '')
     raw_html = md_lib.markdown(
         text,
         extensions=['extra', 'toc', 'nl2br'],
