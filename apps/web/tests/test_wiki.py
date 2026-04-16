@@ -61,6 +61,22 @@ def test_render_md_basic():
     assert '<strong>bold</strong>' in result
 
 
+def test_render_md_strikethrough():
+    result = str(_render_md('~~deleted~~'))
+    assert '<del>deleted</del>' in result
+
+
+def test_render_md_strikethrough_skips_inline_code():
+    result = str(_render_md('`~~token~~`'))
+    assert '<del>' not in result
+    assert '~~token~~' in result
+
+
+def test_render_md_strikethrough_skips_fenced_code():
+    result = str(_render_md('```\n~~example~~\n```'))
+    assert '<del>' not in result
+
+
 def test_render_md_strips_script():
     result = str(_render_md('<script>alert(1)</script>\n\nSafe'))
     assert '<script>' not in result

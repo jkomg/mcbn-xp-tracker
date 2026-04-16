@@ -1,5 +1,9 @@
 # CLAUDE.md — mcbn-xp-tracker
 
+> **Database: Turso (libsql) is the primary production database — NOT Google Sheets.**
+> Google Sheets is a best-effort backup mirror only. The app never reads from Sheets for primary data.
+> See the [Database](#database) section for details.
+
 ## Project Overview
 
 Monorepo: Flask web app (Cloud Run) + Discord bot (Node/TypeScript, local) for managing XP and spend workflows for a game community.
