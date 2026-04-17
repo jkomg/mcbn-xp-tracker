@@ -35,15 +35,25 @@ def _parse_creation_xp(raw_value: str | None) -> int:
 @require_staff
 def list_characters():
     """List all characters with filtering."""
+    from app.db import WikiPage
     show = request.args.get('show', 'active')  # active, inactive, all
     clan_filter = request.args.get('clan', request.args.get('clan_filter', ''))
     sect_filter = request.args.get('sect', request.args.get('sect_filter', ''))
+    portrait_filter = request.args.get('portrait', '')  # '' | 'missing'
 
     characters = db_service.get_all_characters()
     xp_by_character = {
         row['character_name'].lower(): row['available_xp']
         for row in db_service.get_dashboard_data()
     }
+
+    # Build portrait status map: name.lower() → 'yes' | 'no' | 'none'
+    wiki_pages = {p.title.lower(): p for p in WikiPage.query.all()}
+    def _portrait_status(name: str) -> str:
+        page = wiki_pages.get(name.lower())
+        if page is None:
+            return 'none'
+        return 'yes' if page.cover_image_url else 'no'
 
     if show == 'active':
         characters = [c for c in characters if c.active]
@@ -56,13 +66,16 @@ def list_characters():
     if sect_filter:
         characters = [c for c in characters
                       if c.sect.lower() == sect_filter.lower()]
+    if portrait_filter == 'missing':
+        characters = [c for c in characters
+                      if _portrait_status(c.character_name) != 'yes']
 
-    # Compute available XP for each character
     char_data = []
     for c in characters:
         char_data.append({
             'char': c,
             'available_xp': xp_by_character.get(c.character_name.lower(), 0),
+            'portrait': _portrait_status(c.character_name),
         })
 
     return render_template(
@@ -71,6 +84,7 @@ def list_characters():
         show=show,
         clan_filter=clan_filter,
         sect_filter=sect_filter,
+        portrait_filter=portrait_filter,
         clans=CLANS,
         sects=SECTS,
     )

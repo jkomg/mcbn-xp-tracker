@@ -1072,6 +1072,21 @@ def upsert_wiki_page():
     if not slug or not title:
         return jsonify({'error': 'slug and title are required'}), 400
 
+    from app.gcs import mirror_to_gcs, is_discord_cdn_url
+    from flask import current_app as _app
+
+    def _resolve_cover(url: str, page_slug: str) -> str:
+        """Upload Discord CDN images to GCS; return permanent URL."""
+        if not url or not is_discord_cdn_url(url):
+            return url
+        return mirror_to_gcs(
+            url=url,
+            slug=page_slug,
+            bucket_name=_app.config.get('GCS_BUCKET_NAME', 'mcbn-wiki-images'),
+            credentials_json=_app.config.get('GOOGLE_CREDENTIALS_JSON', ''),
+            credentials_file=_app.config.get('GOOGLE_CREDENTIALS_FILE', ''),
+        )
+
     p = WikiPage.query.filter_by(slug=slug).first()
     if p:
         p.title = title
@@ -1080,7 +1095,7 @@ def upsert_wiki_page():
         if 'category' in data:
             p.category = data['category']
         if 'cover_image_url' in data:
-            p.cover_image_url = data['cover_image_url']
+            p.cover_image_url = _resolve_cover(data['cover_image_url'], slug)
         if 'published' in data:
             p.published = bool(data['published'])
         p.source = data.get('source', p.source)
@@ -1094,7 +1109,7 @@ def upsert_wiki_page():
         title=title,
         body_markdown=data.get('body_markdown', ''),
         category=data.get('category', ''),
-        cover_image_url=data.get('cover_image_url', ''),
+        cover_image_url=_resolve_cover(data.get('cover_image_url', ''), slug),
         source=data.get('source', 'api-sync'),
         published=bool(data.get('published', True)),
         updated_by=data.get('updated_by', 'api-sync'),
