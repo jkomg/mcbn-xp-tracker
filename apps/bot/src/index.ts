@@ -16,6 +16,7 @@ import {
   PASSAGE_SUNSET_MESSAGE,
 } from './services/passageOfTimeService';
 import { SheetsReconcileService } from './services/sheetsReconcileService';
+import { WikiSyncScheduler } from './services/wikiSyncScheduler';
 
 const ASSETS_DIR = path.resolve(__dirname, '..', 'assets');
 import { errorToMessage, logEvent } from './logger';
@@ -169,6 +170,14 @@ void applyStartupConfigOverrides().then(() => {
     intervalMs: config.sheetsReconcileIntervalMs,
   });
 
+  const wikiSyncScheduler = new WikiSyncScheduler(adapter, {
+    enabled: config.wikiSyncEnabled,
+    hourLocal: config.wikiSyncHourLocal,
+    minuteLocal: config.wikiSyncMinuteLocal,
+    timezone: config.wikiSyncTimezone,
+    intervalMs: config.wikiSyncIntervalMs,
+  });
+
   const configSyncWorker = new ConfigSyncWorker(adapter);
   const botHeartbeatService = new BotHeartbeatService(adapter);
 
@@ -199,6 +208,7 @@ void applyStartupConfigOverrides().then(() => {
     claimReminderService.start();
     passageOfTimeService.start();
     sheetsReconcileService.start();
+    wikiSyncScheduler.start();
     startCubbyChannelMonitor(client);
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
   });
