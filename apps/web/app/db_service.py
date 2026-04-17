@@ -99,6 +99,7 @@ def _row_to_character(row: DbCharacter) -> Character:
         age_category=row.age_category or '',
         sect=row.sect or '',
         active=bool(row.active),
+        status=row.status or 'active',
         creation_xp=row.creation_xp or 0,
         enemy=row.enemy or '',
         date_added=row.date_added or '',
@@ -268,8 +269,17 @@ class DBService:
             'player_discord_name': discord_name,
         })
 
+    def set_character_status(self, name: str, status: str) -> None:
+        """Set character status (active/deceased/retired) and sync active flag."""
+        if status not in ('active', 'deceased', 'retired'):
+            raise ValueError(f'Invalid status: {status}')
+        self.update_character(name, {
+            'status': status,
+            'active': 'TRUE' if status == 'active' else 'FALSE',
+        })
+
     def deactivate_character(self, name: str) -> None:
-        self.update_character(name, {'active': 'FALSE'})
+        self.update_character(name, {'active': 'FALSE', 'status': 'retired'})
 
     def delete_character(self, name: str) -> None:
         row = DbCharacter.query.filter(

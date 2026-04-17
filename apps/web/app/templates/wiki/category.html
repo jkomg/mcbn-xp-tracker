@@ -39,13 +39,24 @@
 {% if pages %}
 <div class="row g-3">
     {% for p in pages %}
+    {% set cstatus = char_statuses.get(p.title.lower(), 'active') if char_statuses is defined else 'active' %}
     <div class="col-md-6 col-lg-4">
-        <a href="{{ url_for('wiki.page', slug=p.slug) }}" class="wiki-page-card text-decoration-none">
+        <a href="{{ url_for('wiki.page', slug=p.slug) }}"
+           class="wiki-page-card text-decoration-none {% if cstatus != 'active' %}wiki-page-card--inactive{% endif %}">
             {% if p.cover_image_url %}
-            <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');"></div>
+            <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');
+                 {% if cstatus != 'active' %}filter: grayscale(60%) opacity(0.7);{% endif %}">
+            </div>
             {% endif %}
             <div class="wiki-card-body">
-                <h5>{{ p.title }}</h5>
+                <h5>
+                    {{ p.title }}
+                    {% if cstatus == 'deceased' %}
+                    <span class="wiki-card-status-badge wiki-card-status-badge--deceased">&#9760; Deceased</span>
+                    {% elif cstatus == 'retired' %}
+                    <span class="wiki-card-status-badge wiki-card-status-badge--retired">Retired</span>
+                    {% endif %}
+                </h5>
                 <div class="meta">
                     <i class="bi bi-clock me-1"></i>
                     {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}

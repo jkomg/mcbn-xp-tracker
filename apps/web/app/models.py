@@ -13,6 +13,7 @@ class Character:
     age_category: str = ''  # Fledgling, Neonate, Ancilla, Elder, Mortal
     sect: str = ''           # Camarilla, Anarch, Hecata, Autarkis
     active: bool = True
+    status: str = 'active'  # active | deceased | retired
     creation_xp: int = 0    # Audit baseline XP
     enemy: str = ''
     date_added: str = ''

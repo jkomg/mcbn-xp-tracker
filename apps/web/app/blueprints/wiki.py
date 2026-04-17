@@ -232,10 +232,30 @@ def category(category):
              .filter_by(category=category, published=True)
              .order_by(WikiPage.title.asc())
              .all())
+    # For the characters category, look up status for each page from DbCharacter
+    char_statuses: dict[str, str] = {}
+    if category == 'characters':
+        names = [p.title for p in pages]
+        if names:
+            rows = DbCharacter.query.filter(
+                db.func.lower(DbCharacter.character_name).in_(
+                    [n.lower() for n in names]
+                )
+            ).all()
+            for r in rows:
+                s = r.status or ('active' if r.active else 'retired')
+                char_statuses[r.character_name.lower()] = s
+        # Sort: active first, then retired, then deceased — all alphabetically within group
+        _order = {'active': 0, 'retired': 1, 'deceased': 2}
+        pages = sorted(pages, key=lambda p: (
+            _order.get(char_statuses.get(p.title.lower(), 'active'), 0),
+            p.title.lower()
+        ))
     return render_template('wiki/category.html',
                            active_category=category,
                            category_name=CATEGORY_DISPLAY[category],
-                           pages=pages)
+                           pages=pages,
+                           char_statuses=char_statuses)
 
 
 def _xp_snapshot(character_name: str) -> tuple[dict | None, list]:
@@ -293,11 +313,17 @@ def page(slug):
     if not p.published and not _is_staff():
         abort(404)
     body_html = _render_md(p.body_markdown)
-    xp_snapshot, approved_spends = None, []
+    xp_snapshot, approved_spends, char_status = None, [], None
     if p.category == 'characters':
         xp_snapshot, approved_spends = _xp_snapshot(p.title)
+        char_row = DbCharacter.query.filter(
+            db.func.lower(DbCharacter.character_name) == p.title.lower()
+        ).first()
+        if char_row:
+            char_status = char_row.status or ('active' if char_row.active else 'retired')
     return render_template('wiki/page.html', page=p, body_html=body_html,
-                           xp_snapshot=xp_snapshot, approved_spends=approved_spends)
+                           xp_snapshot=xp_snapshot, approved_spends=approved_spends,
+                           char_status=char_status)
 
 
 # ── Staff routes ───────────────────────────────────────────────────────────────

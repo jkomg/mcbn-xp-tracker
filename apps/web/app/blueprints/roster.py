@@ -580,7 +580,7 @@ def activate(name):
     if not char:
         abort(404)
 
-    db_service.update_character(name, {'active': 'TRUE'})
+    db_service.set_character_status(name, 'active')
 
     staff = get_staff_user()
     db_service.log_action(
@@ -594,6 +594,33 @@ def activate(name):
             staff_user=staff, action_type='activate_character',
             target=name, details=f'Re-activated {name}',
         )
+
+
+@bp.route('/<name>/set-status', methods=['POST'])
+@require_staff
+def set_status(name):
+    """Set a character's status to deceased or retired."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+    new_status = request.form.get('status', '').strip()
+    if new_status not in ('active', 'deceased', 'retired'):
+        flash('Invalid status.', 'danger')
+        return redirect(url_for('roster.detail', name=name))
+
+    db_service.set_character_status(name, new_status)
+
+    staff = get_staff_user()
+    db_service.log_action(
+        staff_user=staff,
+        action_type='set_character_status',
+        target=name,
+        details=f'Set status to {new_status}',
+    )
+
+    labels = {'active': 'reactivated', 'deceased': 'marked as deceased', 'retired': 'marked as retired'}
+    flash(f'{name} has been {labels[new_status]}.', 'warning' if new_status != 'active' else 'success')
+    return redirect(url_for('roster.detail', name=name))
 
     flash(f'{name} has been re-activated.', 'success')
     return redirect(url_for('roster.detail', name=name))

@@ -1068,6 +1068,28 @@ def upsert_wiki_page():
     return jsonify({'status': 'created', 'slug': slug}), 201
 
 
+@bp.route('/character/<name>/status', methods=['PUT'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def set_character_status(name):
+    """Set a character's status (active/deceased/retired) via the sync script."""
+    from app.db import db, DbCharacter
+    from sqlalchemy import func as _func
+    data = request.get_json(silent=True) or {}
+    new_status = data.get('status', '').strip().lower()
+    if new_status not in ('active', 'deceased', 'retired'):
+        return jsonify({'error': 'status must be active, deceased, or retired'}), 400
+    row = DbCharacter.query.filter(
+        _func.lower(DbCharacter.character_name) == name.lower()
+    ).first()
+    if not row:
+        return jsonify({'error': 'character not found'}), 404
+    row.status = new_status
+    row.active = (new_status == 'active')
+    db.session.commit()
+    return jsonify({'status': 'updated', 'character': row.character_name, 'new_status': new_status})
+
+
 @bp.route('/wiki/page/<slug>', methods=['DELETE'])
 @require_bot_scope('write')
 @_limit('120 per minute')
