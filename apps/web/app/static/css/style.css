@@ -1485,6 +1485,90 @@ a.wiki-cat-badge:hover {
 /* ── Wiki Search ──────────────────────────────────────────────────────────── */
 
 /* Navbar search box */
+/* ── Wiki XP snapshot ───────────────────────────────────────────────────── */
+
+.wiki-xp-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.wiki-xp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.wiki-xp-val {
+    font-family: 'Cinzel', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #d4c5a9;
+}
+
+.wiki-xp-lbl {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #666;
+    margin-top: 0.1rem;
+}
+
+.wiki-xp-toggle {
+    background: none;
+    border: none;
+    padding: 0.25rem 0;
+    font-size: 0.78rem;
+    color: #8888a8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+}
+
+.wiki-xp-toggle:hover { color: var(--vtm-gold); }
+
+.wiki-xp-chevron {
+    font-size: 0.65rem;
+    transition: transform 0.2s;
+}
+
+.wiki-xp-toggle:not(.collapsed) .wiki-xp-chevron {
+    transform: rotate(90deg);
+}
+
+.wiki-xp-list {
+    list-style: none;
+    padding: 0.4rem 0 0;
+    margin: 0;
+}
+
+.wiki-xp-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.8rem;
+}
+
+.wiki-xp-item:last-child { border-bottom: none; }
+
+.wiki-xp-trait { color: #b0a898; }
+
+.wiki-xp-cost {
+    color: #888;
+    white-space: nowrap;
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* ── Wiki search ────────────────────────────────────────────────────────── */
+
 .wiki-nav-search { width: 200px; }
 
 .wiki-nav-search-input {

@@ -13,7 +13,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
 )
 from app.auth import require_staff, get_staff_user, is_staff as _is_staff
-from app.db import db, WikiPage
+from app.db import db, WikiPage, DbCharacter, DbSpendRequest
 
 bp = Blueprint('wiki', __name__)
 
@@ -238,13 +238,66 @@ def category(category):
                            pages=pages)
 
 
+def _xp_snapshot(character_name: str) -> tuple[dict | None, list]:
+    """Return (xp_totals_dict, approved_spends) for a character, or (None, [])."""
+    from sqlalchemy import func as _func
+    from app.db import DbLedgerEntry
+    char = DbCharacter.query.filter(
+        _func.lower(DbCharacter.character_name) == character_name.lower()
+    ).first()
+    if not char:
+        return None, []
+
+    creation_xp = char.creation_xp or 0
+
+    spend_total = db.session.query(
+        _func.coalesce(_func.sum(DbSpendRequest.verified_cost), 0)
+    ).filter(
+        _func.lower(DbSpendRequest.character_name) == character_name.lower(),
+        _func.lower(DbSpendRequest.status) == 'approved',
+    ).scalar()
+    total_spends = int(spend_total or 0)
+
+    ledger = db.session.query(
+        _func.coalesce(_func.sum(DbLedgerEntry.awarded), 0).label('awarded'),
+        _func.coalesce(_func.sum(DbLedgerEntry.spent), 0).label('spent'),
+    ).filter(
+        _func.lower(DbLedgerEntry.character_name) == character_name.lower()
+    ).first()
+    ledger_awarded = int(ledger.awarded or 0)
+    ledger_spent = int(ledger.spent or 0)
+
+    total_xp = creation_xp + ledger_awarded
+    balance = total_xp - total_spends - ledger_spent
+
+    totals = {
+        'total_xp': total_xp,
+        'total_spends': total_spends + ledger_spent,
+        'balance': balance,
+    }
+
+    approved_spends = (DbSpendRequest.query
+                       .filter(
+                           _func.lower(DbSpendRequest.character_name) == character_name.lower(),
+                           _func.lower(DbSpendRequest.status) == 'approved',
+                       )
+                       .order_by(DbSpendRequest.review_date.desc(), DbSpendRequest.id.desc())
+                       .all())
+
+    return totals, approved_spends
+
+
 @bp.route('/<slug>')
 def page(slug):
     p = WikiPage.query.filter_by(slug=slug).first_or_404()
     if not p.published and not _is_staff():
         abort(404)
     body_html = _render_md(p.body_markdown)
-    return render_template('wiki/page.html', page=p, body_html=body_html)
+    xp_snapshot, approved_spends = None, []
+    if p.category == 'characters':
+        xp_snapshot, approved_spends = _xp_snapshot(p.title)
+    return render_template('wiki/page.html', page=p, body_html=body_html,
+                           xp_snapshot=xp_snapshot, approved_spends=approved_spends)
 
 
 # ── Staff routes ───────────────────────────────────────────────────────────────

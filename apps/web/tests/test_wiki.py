@@ -5,7 +5,7 @@ from flask import Flask, Blueprint
 from flask_wtf.csrf import CSRFProtect
 from app.blueprints.wiki import bp as wiki_bp, _slugify, _render_md, _RESERVED_SLUGS, _excerpt
 from app.blueprints.api import bp as api_bp
-from app.db import db, WikiPage
+from app.db import db, WikiPage, DbCharacter, DbSpendRequest
 
 _TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
 _STATIC_DIR   = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
@@ -324,3 +324,81 @@ def test_api_wiki_page_delete_requires_auth():
     with app.test_client() as client:
         res = client.delete('/api/wiki/page/any-page')
         assert res.status_code == 401
+
+
+# ── XP snapshot tests ─────────────────────────────────────────────────────────
+
+def test_character_page_shows_xp_snapshot():
+    """Character wiki page renders XP stats when a matching DbCharacter exists."""
+    app = _app()
+    with app.app_context():
+        char = DbCharacter(character_name='Evander Cole', clan='Ventrue',
+                           creation_xp=10, active=True)
+        db.session.add(char)
+        page = WikiPage(slug='char-evander-cole', title='Evander Cole',
+                        category='characters', published=True)
+        db.session.add(page)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/char-evander-cole')
+        assert res.status_code == 200
+        assert b'Earned' in res.data
+        assert b'Spent' in res.data
+        assert b'Balance' in res.data
+
+
+def test_character_page_xp_snapshot_reflects_spends():
+    """Approved spend history appears in the collapsible Purchases list."""
+    app = _app()
+    with app.app_context():
+        char = DbCharacter(character_name='Evander Cole', clan='Ventrue',
+                           creation_xp=20, active=True)
+        db.session.add(char)
+        spend = DbSpendRequest(
+            character_name='Evander Cole',
+            spend_category='Discipline',
+            trait_name='Dominate',
+            current_dots=2, new_dots=3,
+            xp_cost=9, verified_cost=9,
+            status='Approved',
+        )
+        db.session.add(spend)
+        page = WikiPage(slug='char-evander-cole', title='Evander Cole',
+                        category='characters', published=True)
+        db.session.add(page)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/char-evander-cole')
+        assert res.status_code == 200
+        assert b'Dominate' in res.data
+        assert b'9 XP' in res.data
+
+
+def test_non_character_page_no_xp_snapshot():
+    """Non-character wiki pages do not render the XP card."""
+    app = _app()
+    with app.app_context():
+        page = WikiPage(slug='loc-elysium', title='The Elysium',
+                        category='locations', published=True,
+                        body_markdown='A place.')
+        db.session.add(page)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/loc-elysium')
+        assert res.status_code == 200
+        assert b'wiki-xp-stats' not in res.data
+
+
+def test_character_page_no_xp_when_unmatched():
+    """Character page with no matching DbCharacter renders without XP card."""
+    app = _app()
+    with app.app_context():
+        page = WikiPage(slug='char-ghost', title='Ghost Character',
+                        category='characters', published=True,
+                        body_markdown='No DB record.')
+        db.session.add(page)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/char-ghost')
+        assert res.status_code == 200
+        assert b'wiki-xp-stats' not in res.data

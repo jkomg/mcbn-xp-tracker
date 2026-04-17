@@ -73,6 +73,46 @@
             </div>
             {% endif %}
 
+            {% if xp_snapshot %}
+            <!-- XP snapshot (characters only) -->
+            <div class="wiki-meta-card mb-3">
+                <h6 class="wiki-sidebar-heading">XP</h6>
+                <div class="wiki-xp-stats">
+                    <div class="wiki-xp-stat">
+                        <span class="wiki-xp-val">{{ xp_snapshot.total_xp }}</span>
+                        <span class="wiki-xp-lbl">Earned</span>
+                    </div>
+                    <div class="wiki-xp-stat">
+                        <span class="wiki-xp-val text-danger">{{ xp_snapshot.total_spends }}</span>
+                        <span class="wiki-xp-lbl">Spent</span>
+                    </div>
+                    <div class="wiki-xp-stat">
+                        <span class="wiki-xp-val {{ 'text-danger' if xp_snapshot.balance < 0 else 'text-success' }}">{{ xp_snapshot.balance }}</span>
+                        <span class="wiki-xp-lbl">Balance</span>
+                    </div>
+                </div>
+                {% if approved_spends %}
+                <div class="mt-2">
+                    <button class="wiki-xp-toggle collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#wiki-xp-purchases"
+                            aria-expanded="false">
+                        <i class="bi bi-chevron-right wiki-xp-chevron me-1"></i>Purchases
+                    </button>
+                    <div class="collapse" id="wiki-xp-purchases">
+                        <ul class="wiki-xp-list">
+                            {% for s in approved_spends %}
+                            <li class="wiki-xp-item">
+                                <span class="wiki-xp-trait">{{ s.trait_name }}</span>
+                                <span class="wiki-xp-cost">{{ s.verified_cost }} XP</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- Page meta -->
             <div class="wiki-meta-card mb-3">
                 {% if page.category %}
