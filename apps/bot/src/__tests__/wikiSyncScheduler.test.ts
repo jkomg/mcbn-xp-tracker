@@ -109,4 +109,23 @@ describe('WikiSyncScheduler orchestration', () => {
     expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled', firstRunId);
     expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'error', 'boom', 'scheduled', firstRunId);
   });
+
+  it('preserves runId on thrown scheduled sync errors', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-02T04:01:00.000Z'));
+    vi.mocked(runNotionSync).mockRejectedValueOnce(new Error('kaboom'));
+    const adapter = makeAdapter();
+    const scheduler = makeScheduler(adapter);
+    (scheduler as unknown as { lastTickTime: Date }).lastTickTime = new Date('2026-01-02T03:59:00.000Z');
+
+    await (scheduler as unknown as { tick: () => Promise<void> }).tick();
+
+    expect(adapter.ackNotionSync).toHaveBeenCalledTimes(2);
+    const firstRunId = vi.mocked(adapter.ackNotionSync).mock.calls[0][3];
+    const secondRunId = vi.mocked(adapter.ackNotionSync).mock.calls[1][3];
+    expect(firstRunId).toEqual(expect.any(String));
+    expect(secondRunId).toBe(firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled', firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'error', 'Error: kaboom', 'scheduled', firstRunId);
+  });
 });

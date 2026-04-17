@@ -88,6 +88,7 @@ export class WikiSyncScheduler {
     if (this.running) return;
     this.running = true;
     let lease: ReturnType<typeof tryAcquireWikiSync> | null = null;
+    let runId: string | undefined;
     try {
       const now = new Date();
       const parts = localParts(now, this.cfg.timezone);
@@ -118,7 +119,7 @@ export class WikiSyncScheduler {
       }
 
       logEvent('info', 'wiki_sync_scheduled_triggered', { dateKey: parts.dateKey });
-      const runId = randomUUID();
+      runId = randomUUID();
       lease = tryAcquireWikiSync('scheduled');
       if (!lease) {
         logEvent('info', 'wiki_sync_scheduled_skipped_lock_busy', {
@@ -154,7 +155,7 @@ export class WikiSyncScheduler {
       }
     } catch (error) {
       logEvent('warn', 'wiki_sync_scheduler_error', { error: errorToMessage(error) });
-      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled'); } catch { /* ignore */ }
+      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled', runId); } catch { /* ignore */ }
     } finally {
       lease?.release();
       this.running = false;
