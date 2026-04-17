@@ -13,5 +13,6 @@ COPY packages/ ./packages/
 # Cloud Run sets PORT env var (default 8080)
 ENV PORT=8080
 
-# Run with gunicorn (production WSGI server)
-CMD exec gunicorn --bind :$PORT --workers 2 --threads 4 --timeout 120 "app:create_app()"
+# entrypoint: run migrations then start gunicorn
+RUN chmod +x entrypoint.sh
+CMD ["./entrypoint.sh"]
