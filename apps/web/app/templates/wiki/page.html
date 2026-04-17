@@ -68,12 +68,26 @@
 
             {% if page.cover_image_url %}
             <!-- Portrait / cover image -->
-            <div class="wiki-portrait-card mb-3">
+            <div class="wiki-portrait-card mb-3 {% if char_status and char_status != 'active' %}wiki-portrait-card--faded{% endif %}">
                 <img src="{{ page.cover_image_url }}" alt="{{ page.title }}" class="wiki-portrait-img">
+                {% if char_status == 'deceased' %}
+                <div class="wiki-status-overlay">&#9760; Deceased</div>
+                {% elif char_status == 'retired' %}
+                <div class="wiki-status-overlay wiki-status-overlay--retired">Retired</div>
+                {% endif %}
+            </div>
+            {% elif char_status and char_status != 'active' %}
+            <!-- Status badge when no portrait -->
+            <div class="mb-3">
+                {% if char_status == 'deceased' %}
+                <span class="wiki-status-badge wiki-status-badge--deceased">&#9760; Deceased</span>
+                {% elif char_status == 'retired' %}
+                <span class="wiki-status-badge wiki-status-badge--retired">Retired</span>
+                {% endif %}
             </div>
             {% endif %}
 
-            {% if xp_snapshot %}
+            {% if xp_snapshot and char_status == 'active' %}
             <!-- XP snapshot (characters only) -->
             <div class="wiki-meta-card mb-3">
                 <h6 class="wiki-sidebar-heading">XP</h6>

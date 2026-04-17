@@ -16,7 +16,12 @@
       <div class="flex-grow-1">
         <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
           <h1 class="char-hero-name mb-0">{{ char.character_name }}</h1>
-          {% if char.active %}
+          {% set status = char.status or ('active' if char.active else 'retired') %}
+          {% if status == 'deceased' %}
+          <span class="badge bg-dark border border-secondary">&#9760; Deceased</span>
+          {% elif status == 'retired' %}
+          <span class="badge bg-secondary">Retired</span>
+          {% elif char.active %}
           <span class="badge bg-success">Active</span>
           {% else %}
           <span class="badge bg-secondary">Inactive</span>
@@ -80,21 +85,16 @@
       <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-sm btn-primary">
         <i class="bi bi-pencil"></i> Edit
       </a>
-      {% if char.active %}
-      <form method="POST" action="{{ url_for('roster.deactivate', name=char.character_name) }}" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-outline-warning"
-                data-confirm="Are you sure you want to deactivate {{ char.character_name }}?">
-          <i class="bi bi-pause-circle"></i> Deactivate
-        </button>
+      <form method="POST" action="{{ url_for('roster.set_status', name=char.character_name) }}" class="d-inline">
+        {% set current_status = char.status or ('active' if char.active else 'retired') %}
+        <select name="status" class="form-select form-select-sm d-inline-block w-auto"
+                onchange="this.form.submit()"
+                title="Set character status">
+          <option value="active"   {% if current_status == 'active' %}selected{% endif %}>Active</option>
+          <option value="retired"  {% if current_status == 'retired' %}selected{% endif %}>Retired</option>
+          <option value="deceased" {% if current_status == 'deceased' %}selected{% endif %}>Deceased</option>
+        </select>
       </form>
-      {% else %}
-      <form method="POST" action="{{ url_for('roster.activate', name=char.character_name) }}" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-outline-success"
-                data-confirm="Are you sure you want to re-activate {{ char.character_name }}?">
-          <i class="bi bi-play-circle"></i> Re-activate
-        </button>
-      </form>
-      {% endif %}
     </div>
   </div>
 

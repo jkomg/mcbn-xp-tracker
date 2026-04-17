@@ -1342,6 +1342,74 @@ a.wiki-cat-badge:hover {
     object-fit: cover;
 }
 
+.wiki-portrait-card--faded .wiki-portrait-img {
+    filter: grayscale(60%) opacity(0.75);
+}
+
+.wiki-portrait-card { position: relative; }
+
+.wiki-status-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(20, 10, 10, 0.82);
+    color: #c0a0a0;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-align: center;
+    padding: 0.35rem 0.5rem;
+}
+
+.wiki-status-overlay--retired {
+    color: #999;
+    background: rgba(20, 20, 30, 0.82);
+}
+
+.wiki-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.08em;
+}
+
+.wiki-status-badge--deceased {
+    background: rgba(80, 20, 20, 0.5);
+    color: #c0a0a0;
+    border: 1px solid rgba(150, 50, 50, 0.4);
+}
+
+.wiki-status-badge--retired {
+    background: rgba(40, 40, 50, 0.5);
+    color: #999;
+    border: 1px solid rgba(80, 80, 100, 0.4);
+}
+
+.wiki-page-card--inactive { opacity: 0.75; }
+
+.wiki-card-status-badge {
+    font-size: 0.65rem;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.06em;
+}
+
+.wiki-card-status-badge--deceased {
+    background: rgba(80, 20, 20, 0.5);
+    color: #c0a0a0;
+}
+
+.wiki-card-status-badge--retired {
+    background: rgba(40, 40, 50, 0.5);
+    color: #888;
+}
+
 .wiki-meta-card {
     background: #16213e;
     border: 1px solid rgba(197, 165, 90, 0.15);

@@ -18,6 +18,7 @@ class DbCharacter(db.Model):
     age_category = db.Column(String(50), default='')
     sect = db.Column(String(50), default='')
     active = db.Column(Boolean, default=True, index=True)
+    status = db.Column(String(20), default='active', index=True)  # active | deceased | retired
     creation_xp = db.Column(Integer, default=0)
     enemy = db.Column(String(200), default='')
     date_added = db.Column(String(20), default='')

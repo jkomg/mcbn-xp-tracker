@@ -90,6 +90,7 @@ const LORE_CHANNEL_NAMES = [
   'hecata-notices',
   'backgrounds',          // forum
   'children-of-the-night', // forum
+  'retired',               // forum — processed as retired character wiki pages
   'spc-profiles',
 ];
 
@@ -349,6 +350,28 @@ interface WikiPageData {
   category?: string;
   cover_image_url?: string;
   published?: boolean;
+}
+
+async function wikiSetCharacterStatus(
+  webBase: string,
+  writeToken: string,
+  characterName: string,
+  status: 'active' | 'deceased' | 'retired',
+  dryRun: boolean,
+): Promise<void> {
+  if (dryRun || !writeToken) return;
+  try {
+    const res = await fetch(`${webBase}/api/character/${encodeURIComponent(characterName)}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok && res.status !== 404) {
+      console.log(`  [warn] Failed to set status for ${characterName}: ${res.status}`);
+    }
+  } catch (err) {
+    console.log(`  [warn] wikiSetCharacterStatus error for ${characterName}: ${err}`);
+  }
 }
 
 async function wikiUpsert(webBase: string, writeToken: string, data: WikiPageData, dryRun: boolean): Promise<void> {
@@ -1029,6 +1052,43 @@ async function main(opts: NotionSyncOptions) {
     }, DRY_RUN);
   }
   console.log(`  Created ${FACTIONS.length} faction pages.`);
+
+  // ------------------------------------------------------------------
+  // 6.7 Retired characters from #retired forum
+  //     Each forum thread = one retired PC profile.
+  //     Upserts a character wiki page (same as step 6) and marks the
+  //     DbCharacter status as 'retired' via PUT /api/character/<name>/status.
+  // ------------------------------------------------------------------
+  console.log('\n[6.7/7] Processing retired characters from #retired…');
+  const retiredCh = channelByName.get('retired');
+  if (!retiredCh || retiredCh.type !== CH_FORUM) {
+    console.log('  #retired forum channel not found — skipping.');
+  } else {
+    let retiredThreads: DiscordThread[] = [];
+    try { retiredThreads = await fetchForumThreads(rest, GUILD_ID, retiredCh.id); }
+    catch (err) { console.log(`  [warn] Could not fetch #retired threads: ${err}`); }
+
+    let retiredCount = 0;
+    for (const thread of retiredThreads) {
+      const name = thread.name.trim();
+      const msgs = await fetchAllMessages(rest, thread.id, 50);
+      await sleep(150);
+      const image = firstImage(msgs);
+      const bodyMarkdown = messagesToMarkdown(msgs);
+      console.log(`  → ${name}`);
+      await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+        slug: wikiSlug('characters', name),
+        title: name,
+        category: 'characters',
+        body_markdown: bodyMarkdown,
+        cover_image_url: image ?? undefined,
+        published: true,
+      }, DRY_RUN);
+      await wikiSetCharacterStatus(WEB_BASE, WEB_WRITE_TOKEN, name, 'retired', DRY_RUN);
+      retiredCount++;
+    }
+    console.log(`  Processed ${retiredCount} retired character(s).`);
+  }
 
   // ------------------------------------------------------------------
   // 7. Session & Post Log (lore channels)
