@@ -37,13 +37,20 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label for="sect_filter" class="form-label">Sect</label>
         <select name="sect" id="sect_filter" class="form-select" onchange="this.form.submit()">
           <option value="">All Sects</option>
           {% for sect in sects %}
           <option value="{{ sect }}" {% if sect_filter == sect %}selected{% endif %}>{{ sect }}</option>
           {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="portrait_filter" class="form-label">Portrait</label>
+        <select name="portrait" id="portrait_filter" class="form-select" onchange="this.form.submit()">
+          <option value="" {% if portrait_filter == '' %}selected{% endif %}>All</option>
+          <option value="missing" {% if portrait_filter == 'missing' %}selected{% endif %}>Missing</option>
         </select>
       </div>
     </div>
@@ -59,7 +66,8 @@
           <th class="sortable d-none d-md-table-cell" data-col="2" role="button" tabindex="0" aria-sort="none">Age <span class="sort-arrow"></span></th>
           <th class="sortable d-none d-md-table-cell" data-col="3" role="button" tabindex="0" aria-sort="none">Sect <span class="sort-arrow"></span></th>
           <th class="d-none d-sm-table-cell">Active</th>
-          <th class="sortable" data-col="5" role="button" tabindex="0" aria-sort="none">Available XP <span class="sort-arrow"></span></th>
+          <th class="d-none d-sm-table-cell" title="Wiki portrait status">Portrait</th>
+          <th class="sortable" data-col="6" role="button" tabindex="0" aria-sort="none">Available XP <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody>
@@ -83,6 +91,15 @@
               <span class="badge bg-success">Yes</span>
             {% else %}
               <span class="badge bg-secondary">No</span>
+            {% endif %}
+          </td>
+          <td class="d-none d-sm-table-cell">
+            {% if item.portrait == 'yes' %}
+              <i class="bi bi-person-bounding-box text-success" title="Has portrait"></i>
+            {% elif item.portrait == 'no' %}
+              <i class="bi bi-journal-text text-warning" title="Wiki page exists but no portrait"></i>
+            {% else %}
+              <i class="bi bi-person-x text-secondary" title="No wiki page"></i>
             {% endif %}
           </td>
           <td class="{% if item.available_xp < 0 %}text-danger{% elif item.available_xp > 0 %}text-success{% endif %}">
@@ -141,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Sort rows
       const rows = Array.from(tbody.querySelectorAll('tr'));
-      const isNumeric = col === 5; // Available XP
+      const isNumeric = col === 6; // Available XP
 
       rows.sort(function (a, b) {
         let va = a.cells[col].textContent.trim();

@@ -23,6 +23,9 @@ class Config:
     )
     # For Cloud Run: service-account JSON passed as env var instead of file
     GOOGLE_CREDENTIALS_JSON = os.environ.get('GOOGLE_CREDENTIALS_JSON', '')
+
+    # GCS bucket for permanent wiki image storage
+    GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME', 'mcbn-wiki-images')
     SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '')
     DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL', '')
 

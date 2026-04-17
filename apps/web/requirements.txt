@@ -6,6 +6,7 @@ Flask-Migrate==4.*
 requests==2.*
 gspread==6.*
 google-auth==2.*
+google-cloud-storage==2.*
 python-dotenv==1.*
 gunicorn==25.*
 pytest==9.*
