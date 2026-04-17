@@ -35,7 +35,7 @@ def test_running_ack_manual_clears_request_flag():
         res = client.post(
             '/api/notion-sync-ack',
             headers={'Authorization': 'Bearer write-token'},
-            json={'status': 'running', 'source': 'manual'},
+            json={'status': 'running', 'source': 'manual', 'runId': 'run-manual-1'},
         )
         assert res.status_code == 200
 
@@ -43,10 +43,12 @@ def test_running_ack_manual_clears_request_flag():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
         assert AppSetting.query.get('BOT_NOTION_SYNC_STATUS').value == 'running'
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID').value == 'run-manual-1'
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.status == 'running'
         assert event.source == 'manual'
+        assert event.run_id == 'run-manual-1'
         assert event.error == ''
 
 
@@ -64,9 +66,11 @@ def test_running_ack_scheduled_does_not_clear_request_flag():
     with app.app_context():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is not None
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'scheduled'
+        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID') is None
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.source == 'scheduled'
+        assert event.run_id == ''
 
 
 def test_running_ack_defaults_source_to_manual():
@@ -83,9 +87,11 @@ def test_running_ack_defaults_source_to_manual():
     with app.app_context():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID') is None
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.source == 'manual'
+        assert event.run_id == ''
 
 
 def test_ack_rejects_invalid_source():
@@ -100,13 +106,25 @@ def test_ack_rejects_invalid_source():
         assert 'source must be manual or scheduled' in res.get_json()['error']
 
 
+def test_ack_rejects_oversized_run_id():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/notion-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={'status': 'running', 'source': 'manual', 'runId': 'x' * 65},
+        )
+        assert res.status_code == 400
+        assert 'runId must be at most 64 characters' in res.get_json()['error']
+
+
 def test_error_ack_persists_event_error_message():
     app = _app()
     with app.test_client() as client:
         res = client.post(
             '/api/notion-sync-ack',
             headers={'Authorization': 'Bearer write-token'},
-            json={'status': 'error', 'source': 'scheduled', 'error': 'sync exploded'},
+            json={'status': 'error', 'source': 'scheduled', 'runId': 'run-scheduled-9', 'error': 'sync exploded'},
         )
         assert res.status_code == 200
 
@@ -115,4 +133,5 @@ def test_error_ack_persists_event_error_message():
         assert event is not None
         assert event.status == 'error'
         assert event.source == 'scheduled'
+        assert event.run_id == 'run-scheduled-9'
         assert event.error == 'sync exploded'

@@ -259,10 +259,16 @@
         {% if notion_sync.started_at %}
           <small class="text-muted ms-2">Started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC</small>
         {% endif %}
+        {% if notion_sync.run_id %}
+          <small class="text-muted d-block mt-1">Run ID: <code>{{ notion_sync.run_id }}</code></small>
+        {% endif %}
       {% elif notion_sync.status == 'success' %}
         <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Success</span>
         {% if notion_sync.finished_at %}
           <small class="text-muted ms-2">Completed {{ notion_sync.finished_at[:19] | replace('T', ' ') }} UTC</small>
+        {% endif %}
+        {% if notion_sync.run_id %}
+          <small class="text-muted d-block mt-1">Run ID: <code>{{ notion_sync.run_id }}</code></small>
         {% endif %}
       {% elif notion_sync.status == 'error' %}
         <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Error</span>
@@ -271,6 +277,9 @@
         {% endif %}
         {% if notion_sync.started_at %}
           <small class="text-muted ms-2">(started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC)</small>
+        {% endif %}
+        {% if notion_sync.run_id %}
+          <small class="text-muted d-block mt-1">Run ID: <code>{{ notion_sync.run_id }}</code></small>
         {% endif %}
       {% elif notion_sync.requested %}
         <span class="badge bg-secondary">Queued</span>
@@ -288,6 +297,7 @@
             <thead>
               <tr>
                 <th style="width:180px">Timestamp (UTC)</th>
+                <th style="width:220px">Run ID</th>
                 <th style="width:100px">Source</th>
                 <th style="width:100px">Status</th>
                 <th>Error</th>
@@ -297,6 +307,7 @@
               {% for event in notion_sync_history %}
               <tr>
                 <td class="small text-muted">{{ event.ts[:19] | replace('T', ' ') }}</td>
+                <td class="small font-monospace text-muted">{{ event.run_id if event.run_id else '—' }}</td>
                 <td>
                   {% if event.source == 'scheduled' %}
                     <span class="badge bg-secondary">Scheduled</span>

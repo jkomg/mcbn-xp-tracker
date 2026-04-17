@@ -59,8 +59,12 @@ describe('WikiSyncScheduler orchestration', () => {
 
     await (scheduler as unknown as { tick: () => Promise<void> }).tick();
 
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled');
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'scheduled');
+    const firstRunId = vi.mocked(adapter.ackNotionSync).mock.calls[0][3];
+    const secondRunId = vi.mocked(adapter.ackNotionSync).mock.calls[1][3];
+    expect(firstRunId).toEqual(expect.any(String));
+    expect(secondRunId).toBe(firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled', firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'scheduled', firstRunId);
     expect(runNotionSync).toHaveBeenCalledWith({
       botToken: 'bot-token',
       guildId: 'guild-1',
@@ -98,7 +102,11 @@ describe('WikiSyncScheduler orchestration', () => {
 
     await (scheduler as unknown as { tick: () => Promise<void> }).tick();
 
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled');
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'error', 'boom', 'scheduled');
+    const firstRunId = vi.mocked(adapter.ackNotionSync).mock.calls[0][3];
+    const secondRunId = vi.mocked(adapter.ackNotionSync).mock.calls[1][3];
+    expect(firstRunId).toEqual(expect.any(String));
+    expect(secondRunId).toBe(firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'scheduled', firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'error', 'boom', 'scheduled', firstRunId);
   });
 });

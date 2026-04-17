@@ -93,8 +93,12 @@ describe('ConfigSyncWorker sync orchestration', () => {
       webWriteToken: 'write-token',
       msgLimit: 123,
     });
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'manual');
-    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'manual');
+    const firstRunId = vi.mocked(adapter.ackNotionSync).mock.calls[0][3];
+    const secondRunId = vi.mocked(adapter.ackNotionSync).mock.calls[1][3];
+    expect(firstRunId).toEqual(expect.any(String));
+    expect(secondRunId).toBe(firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'manual', firstRunId);
+    expect(adapter.ackNotionSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'manual', firstRunId);
   });
 
   it('does not start sync when running ack fails', async () => {
@@ -107,7 +111,9 @@ describe('ConfigSyncWorker sync orchestration', () => {
     await vi.waitFor(() => {
       expect(adapter.ackNotionSync).toHaveBeenCalledTimes(1);
     });
-    expect(adapter.ackNotionSync).toHaveBeenCalledWith('running', undefined, 'manual');
+    const firstRunId = vi.mocked(adapter.ackNotionSync).mock.calls[0][3];
+    expect(firstRunId).toEqual(expect.any(String));
+    expect(adapter.ackNotionSync).toHaveBeenCalledWith('running', undefined, 'manual', firstRunId);
     expect(runNotionSync).not.toHaveBeenCalled();
   });
 });

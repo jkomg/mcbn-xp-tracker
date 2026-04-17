@@ -998,6 +998,9 @@ def notion_sync_ack():
     source = str(data.get('source', 'manual')).strip().lower()
     if source not in ('manual', 'scheduled'):
         return jsonify({'error': 'source must be manual or scheduled'}), 400
+    run_id = str(data.get('runId', '')).strip()
+    if len(run_id) > 64:
+        return jsonify({'error': 'runId must be at most 64 characters'}), 400
     now = datetime.now(timezone.utc).isoformat()
 
     def upsert(key, value):
@@ -1019,23 +1022,36 @@ def notion_sync_ack():
             delete_key('BOT_NOTION_SYNC_REQUESTED')
         upsert('BOT_NOTION_SYNC_STATUS', 'running')
         upsert('BOT_NOTION_SYNC_SOURCE', source)
+        if run_id:
+            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+        else:
+            delete_key('BOT_NOTION_SYNC_RUN_ID')
         upsert('BOT_NOTION_SYNC_STARTED_AT', now)
         delete_key('BOT_NOTION_SYNC_FINISHED_AT')
         delete_key('BOT_NOTION_SYNC_ERROR')
     elif status == 'success':
         upsert('BOT_NOTION_SYNC_STATUS', 'success')
         upsert('BOT_NOTION_SYNC_SOURCE', source)
+        if run_id:
+            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+        else:
+            delete_key('BOT_NOTION_SYNC_RUN_ID')
         upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
         delete_key('BOT_NOTION_SYNC_ERROR')
     else:
         upsert('BOT_NOTION_SYNC_STATUS', 'error')
         upsert('BOT_NOTION_SYNC_SOURCE', source)
+        if run_id:
+            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+        else:
+            delete_key('BOT_NOTION_SYNC_RUN_ID')
         upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
         upsert('BOT_NOTION_SYNC_ERROR', data.get('error', 'unknown error'))
 
     db.session.add(
         NotionSyncEvent(
             ts=now,
+            run_id=run_id,
             source=source,
             status=status,
             error=(str(data.get('error') or '')[:2000]),

@@ -1,6 +1,7 @@
 import { liveConfig } from '../liveConfig';
 import { logEvent } from '../logger';
 import { config } from '../config';
+import { randomUUID } from 'node:crypto';
 import type { TrackerAdapter } from './adapter';
 import { runNotionSync } from '../scripts/discord-notion-sync';
 import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
@@ -62,9 +63,10 @@ export class ConfigSyncWorker {
       return;
     }
     this.notionSyncRunning = true;
+    const runId = randomUUID();
     logEvent('info', 'notion_sync_starting', {});
     try {
-      await this.adapter.ackNotionSync('running', undefined, 'manual');
+      await this.adapter.ackNotionSync('running', undefined, 'manual', runId);
     } catch (err) {
       logEvent('warn', 'notion_sync_ack_running_failed', { error: String(err) });
       lease.release();
@@ -83,14 +85,14 @@ export class ConfigSyncWorker {
       });
       if (result.success) {
         logEvent('info', 'notion_sync_completed', {});
-        await this.adapter.ackNotionSync('success', undefined, 'manual');
+        await this.adapter.ackNotionSync('success', undefined, 'manual', runId);
       } else {
         logEvent('warn', 'notion_sync_failed', { error: result.error });
-        await this.adapter.ackNotionSync('error', result.error, 'manual');
+        await this.adapter.ackNotionSync('error', result.error, 'manual', runId);
       }
     } catch (err) {
       logEvent('warn', 'notion_sync_error', { error: String(err) });
-      try { await this.adapter.ackNotionSync('error', String(err), 'manual'); } catch { /* ignore */ }
+      try { await this.adapter.ackNotionSync('error', String(err), 'manual', runId); } catch { /* ignore */ }
     } finally {
       lease.release();
       this.notionSyncRunning = false;

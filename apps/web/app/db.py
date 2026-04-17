@@ -144,6 +144,7 @@ class NotionSyncEvent(db.Model):
     __tablename__ = 'notion_sync_events'
     id = db.Column(Integer, primary_key=True)
     ts = db.Column(String(30), nullable=False)
+    run_id = db.Column(String(64), default='', index=True)
     source = db.Column(String(16), nullable=False)  # manual | scheduled
     status = db.Column(String(16), nullable=False)  # running | success | error
     error = db.Column(Text, default='')
