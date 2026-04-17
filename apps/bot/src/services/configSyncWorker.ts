@@ -3,6 +3,7 @@ import { logEvent } from '../logger';
 import { config } from '../config';
 import type { TrackerAdapter } from './adapter';
 import { runNotionSync } from '../scripts/discord-notion-sync';
+import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
 
 export class ConfigSyncWorker {
   private readonly adapter: TrackerAdapter;
@@ -41,7 +42,7 @@ export class ConfigSyncWorker {
         process.exit(0);
       }
 
-      if (cfg.notionSyncRequested && !this.notionSyncRunning) {
+      if (cfg.notionSyncRequested) {
         void this.runNotionSyncBackground();
       }
     } catch (err) {
@@ -50,12 +51,23 @@ export class ConfigSyncWorker {
   }
 
   private async runNotionSyncBackground(): Promise<void> {
+    if (this.notionSyncRunning) {
+      return;
+    }
+    const lease = tryAcquireWikiSync('manual');
+    if (!lease) {
+      logEvent('info', 'notion_sync_skipped_lock_busy', {
+        activeOwner: currentWikiSyncOwner(),
+      });
+      return;
+    }
     this.notionSyncRunning = true;
     logEvent('info', 'notion_sync_starting', {});
     try {
-      await this.adapter.ackNotionSync('running');
+      await this.adapter.ackNotionSync('running', undefined, 'manual');
     } catch (err) {
       logEvent('warn', 'notion_sync_ack_running_failed', { error: String(err) });
+      lease.release();
       this.notionSyncRunning = false;
       return;
     }
@@ -71,15 +83,16 @@ export class ConfigSyncWorker {
       });
       if (result.success) {
         logEvent('info', 'notion_sync_completed', {});
-        await this.adapter.ackNotionSync('success');
+        await this.adapter.ackNotionSync('success', undefined, 'manual');
       } else {
         logEvent('warn', 'notion_sync_failed', { error: result.error });
-        await this.adapter.ackNotionSync('error', result.error);
+        await this.adapter.ackNotionSync('error', result.error, 'manual');
       }
     } catch (err) {
       logEvent('warn', 'notion_sync_error', { error: String(err) });
-      try { await this.adapter.ackNotionSync('error', String(err)); } catch { /* ignore */ }
+      try { await this.adapter.ackNotionSync('error', String(err), 'manual'); } catch { /* ignore */ }
     } finally {
+      lease.release();
       this.notionSyncRunning = false;
     }
   }

@@ -11,6 +11,7 @@ import { errorToMessage, logEvent } from '../logger';
 import { config } from '../config';
 import type { TrackerAdapter } from './adapter';
 import { runNotionSync } from '../scripts/discord-notion-sync';
+import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
 
 type WikiSyncConfig = {
   enabled: boolean;
@@ -85,6 +86,7 @@ export class WikiSyncScheduler {
     if (!this.cfg.enabled) return;
     if (this.running) return;
     this.running = true;
+    let lease: ReturnType<typeof tryAcquireWikiSync> | null = null;
     try {
       const now = new Date();
       const parts = localParts(now, this.cfg.timezone);
@@ -115,8 +117,16 @@ export class WikiSyncScheduler {
       }
 
       logEvent('info', 'wiki_sync_scheduled_triggered', { dateKey: parts.dateKey });
+      lease = tryAcquireWikiSync('scheduled');
+      if (!lease) {
+        logEvent('info', 'wiki_sync_scheduled_skipped_lock_busy', {
+          dateKey: parts.dateKey,
+          activeOwner: currentWikiSyncOwner(),
+        });
+        return;
+      }
       try {
-        await this.adapter.ackNotionSync('running');
+        await this.adapter.ackNotionSync('running', undefined, 'scheduled');
       } catch (ackErr) {
         logEvent('warn', 'wiki_sync_ack_running_failed', { error: errorToMessage(ackErr) });
       }
@@ -124,7 +134,9 @@ export class WikiSyncScheduler {
       const result = await runNotionSync({
         botToken: config.botToken,
         guildId: config.discordGuildId,
-        notionToken: config.notionToken,
+        // Nightly scheduler defaults to wiki-only refresh to avoid repeated
+        // Notion archival imports; manual runs keep full Notion+Wiki behavior.
+        notionToken: '',
         webBase: config.webAppBaseUrl,
         webReadToken: config.webAppApiReadToken ?? config.webAppApiToken,
         webWriteToken: config.webAppApiWriteToken ?? config.webAppApiToken,
@@ -133,15 +145,16 @@ export class WikiSyncScheduler {
 
       if (result.success) {
         logEvent('info', 'wiki_sync_scheduled_complete', { dateKey: parts.dateKey });
-        try { await this.adapter.ackNotionSync('success'); } catch { /* ignore */ }
+        try { await this.adapter.ackNotionSync('success', undefined, 'scheduled'); } catch { /* ignore */ }
       } else {
         logEvent('warn', 'wiki_sync_scheduled_failed', { dateKey: parts.dateKey, error: result.error });
-        try { await this.adapter.ackNotionSync('error', result.error); } catch { /* ignore */ }
+        try { await this.adapter.ackNotionSync('error', result.error, 'scheduled'); } catch { /* ignore */ }
       }
     } catch (error) {
       logEvent('warn', 'wiki_sync_scheduler_error', { error: errorToMessage(error) });
-      try { await this.adapter.ackNotionSync('error', String(error)); } catch { /* ignore */ }
+      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled'); } catch { /* ignore */ }
     } finally {
+      lease?.release();
       this.running = false;
     }
   }
