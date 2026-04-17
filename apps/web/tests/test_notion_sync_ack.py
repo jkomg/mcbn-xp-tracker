@@ -3,7 +3,7 @@
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
-from app.db import AppSetting, db
+from app.db import AppSetting, NotionSyncEvent, db
 
 
 def _app():
@@ -43,6 +43,11 @@ def test_running_ack_manual_clears_request_flag():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
         assert AppSetting.query.get('BOT_NOTION_SYNC_STATUS').value == 'running'
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.status == 'running'
+        assert event.source == 'manual'
+        assert event.error == ''
 
 
 def test_running_ack_scheduled_does_not_clear_request_flag():
@@ -59,6 +64,9 @@ def test_running_ack_scheduled_does_not_clear_request_flag():
     with app.app_context():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is not None
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'scheduled'
+        event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.source == 'scheduled'
 
 
 def test_running_ack_defaults_source_to_manual():
@@ -75,6 +83,9 @@ def test_running_ack_defaults_source_to_manual():
     with app.app_context():
         assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
         assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.source == 'manual'
 
 
 def test_ack_rejects_invalid_source():
@@ -87,3 +98,21 @@ def test_ack_rejects_invalid_source():
         )
         assert res.status_code == 400
         assert 'source must be manual or scheduled' in res.get_json()['error']
+
+
+def test_error_ack_persists_event_error_message():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/notion-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={'status': 'error', 'source': 'scheduled', 'error': 'sync exploded'},
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.status == 'error'
+        assert event.source == 'scheduled'
+        assert event.error == 'sync exploded'

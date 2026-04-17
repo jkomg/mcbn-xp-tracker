@@ -210,7 +210,7 @@ def index():
         'BOT_PASSAGE_OF_TIME_ENABLED': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
     }
-    from app.db import AppSetting
+    from app.db import AppSetting, NotionSyncEvent
     live_keys = list(LIVE_KEY_MAP.values())
     live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(live_keys)).all()}
 
@@ -410,6 +410,15 @@ def index():
         'stale_after_seconds': _notion_stale_after_seconds,
         'is_stale': _notion_is_stale,
     }
+    notion_sync_history = [
+        {
+            'ts': row.ts,
+            'source': row.source,
+            'status': row.status,
+            'error': row.error or '',
+        }
+        for row in NotionSyncEvent.query.order_by(NotionSyncEvent.created_at.desc()).limit(12).all()
+    ]
 
     return render_template(
         'settings/index.html',
@@ -424,6 +433,7 @@ def index():
         bot_heartbeat_ts=bot_heartbeat_ts,
         bot_restart_pending=_restart_pending,
         notion_sync=notion_sync,
+        notion_sync_history=notion_sync_history,
     )
 
 

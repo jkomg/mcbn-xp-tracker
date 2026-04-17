@@ -990,7 +990,7 @@ def set_reminder_pref(discord_id):
 def notion_sync_ack():
     """Bot calls this to report Notion sync status."""
     from datetime import datetime, timezone
-    from app.db import AppSetting, db
+    from app.db import AppSetting, NotionSyncEvent, db
     data = request.get_json(silent=True) or {}
     status = data.get('status')
     if status not in ('running', 'success', 'error'):
@@ -1032,7 +1032,30 @@ def notion_sync_ack():
         upsert('BOT_NOTION_SYNC_SOURCE', source)
         upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
         upsert('BOT_NOTION_SYNC_ERROR', data.get('error', 'unknown error'))
+
+    db.session.add(
+        NotionSyncEvent(
+            ts=now,
+            source=source,
+            status=status,
+            error=(str(data.get('error') or '')[:2000]),
+            created_at=datetime.now(timezone.utc),
+        )
+    )
     db.session.commit()
+
+    # Keep a bounded sync history to avoid unbounded growth.
+    cutoff_query = (
+        db.session.query(NotionSyncEvent.id)
+        .order_by(NotionSyncEvent.created_at.desc())
+        .offset(500)
+        .limit(1)
+        .scalar()
+    )
+    if cutoff_query:
+        db.session.query(NotionSyncEvent).filter(NotionSyncEvent.id <= cutoff_query).delete()
+        db.session.commit()
+
     return jsonify({'ok': True})
 
 
