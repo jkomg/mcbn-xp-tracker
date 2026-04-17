@@ -3,14 +3,24 @@
 {% block title %}Error Alerts — MCbN XP Tracker{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-exclamation-triangle"></i> Error Alerts</h2>
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h2 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Error Alerts</h2>
+  <div class="d-flex gap-2 align-items-center">
+    <small class="text-muted">Updated {{ now }}</small>
+    <a href="{{ request.url }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </a>
+    <a href="https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20severity%3E%3DWARNING?project=mcbn-xp-tracker"
+       target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">
+      <i class="bi bi-cloud"></i> Cloud Logs
+    </a>
+  </div>
+</div>
 
 {% if sync_errors %}
 <div class="card mb-4 border-warning">
     <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong>
-            <small class="fw-normal ms-1">(DB-persisted + current session)</small>
-        </span>
+        <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong></span>
         <span class="badge bg-dark">{{ sync_errors|length }}</span>
     </div>
     <div class="table-responsive">
@@ -40,11 +50,11 @@
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label for="source" class="form-label">Source Log</label>
+                <label for="source" class="form-label">Source</label>
                 <select class="form-select" id="source" name="source">
                     <option value="">All</option>
-                    <option value="bot.err.log" {% if source_filter == 'bot.err.log' %}selected{% endif %}>bot.err.log</option>
-                    <option value="web.err.log" {% if source_filter == 'web.err.log' %}selected{% endif %}>web.err.log</option>
+                    <option value="bot" {% if source_filter == 'bot' %}selected{% endif %}>bot</option>
+                    <option value="web" {% if source_filter == 'web' %}selected{% endif %}>web</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -57,7 +67,7 @@
             </div>
             <div class="col-md-4">
                 <label for="event" class="form-label">Event contains</label>
-                <input type="text" class="form-control" id="event" name="event" value="{{ event_filter }}" placeholder="claim_reminder_...">
+                <input type="text" class="form-control" id="event" name="event" value="{{ event_filter }}" placeholder="notion_sync_error">
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-outline-light w-100">
@@ -65,59 +75,68 @@
                 </button>
             </div>
         </form>
-        <p class="text-muted mt-3 mb-0">
-            Read from {{ log_dir }} (last {{ max_lines }} lines per selected file), snapshot at {{ now }}.
-        </p>
     </div>
 </div>
 
 {% if event_counts %}
 <div class="card bg-dark border-secondary mb-4">
-    <div class="card-header">Top Error Events</div>
+    <div class="card-header">Top Events</div>
     <div class="card-body">
         {% for event_name, count in event_counts %}
-        <span class="badge bg-secondary me-2 mb-2">{{ event_name }}: {{ count }}</span>
+        <a href="?event={{ event_name | urlencode }}" class="badge bg-secondary text-decoration-none me-2 mb-2">{{ event_name }}: {{ count }}</a>
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
+{% if entries %}
 <div class="table-responsive">
-    <table class="table table-hover">
+    <table class="table table-hover align-middle">
         <thead>
             <tr>
-                <th>Timestamp</th>
-                <th>Source</th>
-                <th>Level</th>
-                <th>Event</th>
-                <th>Message</th>
-                <th>Details</th>
+                <th style="width: 160px;">Time (UTC)</th>
+                <th style="width: 55px;">Src</th>
+                <th style="width: 60px;">Level</th>
+                <th style="width: 200px;">Event</th>
+                <th>Message / Details</th>
             </tr>
         </thead>
         <tbody>
             {% for entry in entries %}
             <tr>
-                <td class="text-nowrap">{{ entry.timestamp or 'n/a' }}</td>
-                <td><code>{{ entry.source }}</code></td>
+                <td class="text-muted small text-nowrap">{{ entry.timestamp[:19] | replace('T', ' ') if entry.timestamp else '' }}</td>
+                <td><span class="badge bg-secondary">{{ entry.source }}</span></td>
                 <td>
                     <span class="badge {% if entry.level == 'error' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
                         {{ entry.level }}
                     </span>
                 </td>
-                <td><code>{{ entry.event }}</code></td>
-                <td style="max-width: 420px; white-space: pre-wrap;">{{ entry.message }}</td>
-                <td style="max-width: 420px; white-space: pre-wrap;"><small class="text-muted">{{ entry.details }}</small></td>
+                <td><code class="small">{{ entry.event }}</code></td>
+                <td>
+                    {% if entry.message %}
+                    <div class="small" style="white-space: pre-wrap; word-break: break-word;">{{ entry.message }}</div>
+                    {% endif %}
+                    {% if entry.details %}
+                    <details class="mt-1">
+                        <summary class="text-muted small" style="cursor:pointer;">Details</summary>
+                        <pre class="mt-1 small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto;">{{ entry.details }}</pre>
+                    </details>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-
-{% if not entries %}
+{% else %}
 <div class="text-center text-muted py-5">
     <i class="bi bi-check-circle" style="font-size: 3rem;"></i>
-    <p class="mt-2">No warning/error alerts matched your filters.</p>
+    <p class="mt-2">No warn/error entries{% if source_filter or level_filter or event_filter %} matching your filters{% endif %}.</p>
 </div>
 {% endif %}
-{% endblock %}
 
+<script>
+  // Auto-refresh every 30s so new bot log entries appear without manual reload
+  setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}

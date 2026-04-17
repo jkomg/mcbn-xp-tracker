@@ -1023,6 +1023,42 @@ def notion_sync_ack():
     return jsonify({'ok': True})
 
 
+@bp.route('/bot-log', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def bot_log():
+    """Bot forwards its warn/error log entries here for persistent storage."""
+    from datetime import datetime, timezone
+    from app.db import AppLogEntry, db
+    entries = request.get_json(silent=True) or []
+    if not isinstance(entries, list):
+        return jsonify({'error': 'expected a JSON array'}), 400
+    now = datetime.now(timezone.utc)
+    for raw in entries[:100]:
+        if not isinstance(raw, dict):
+            continue
+        level = str(raw.get('level', '')).lower()
+        if level not in ('warn', 'error'):
+            continue
+        ts = str(raw.get('ts', now.isoformat()))
+        event = str(raw.get('event', 'unknown'))[:200]
+        msg = str(raw.get('error') or raw.get('reason') or raw.get('message') or '')
+        context = {k: v for k, v in raw.items() if k not in ('ts', 'level', 'event', 'error', 'reason', 'message')}
+        import json as _json
+        details = _json.dumps(context, ensure_ascii=False) if context else ''
+        db.session.add(AppLogEntry(
+            ts=ts, source='bot', level=level, event=event,
+            message=msg[:2000], details=details[:4000], created_at=now,
+        ))
+    db.session.commit()
+    # Prune to 500 most recent entries
+    cutoff_query = db.session.query(AppLogEntry.id).order_by(AppLogEntry.created_at.desc()).offset(500).limit(1).scalar()
+    if cutoff_query:
+        db.session.query(AppLogEntry).filter(AppLogEntry.id <= cutoff_query).delete()
+        db.session.commit()
+    return jsonify({'ok': True})
+
+
 @bp.route('/wiki/page', methods=['POST'])
 @require_bot_scope('write')
 @_limit('120 per minute')
