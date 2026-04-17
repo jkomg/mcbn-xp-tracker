@@ -4,6 +4,8 @@ Settings admins (SETTINGS_ADMIN_DISCORD_IDS) may also toggle feature flags
 and update tuning parameters at runtime without a redeploy.
 """
 
+from datetime import datetime, timezone
+
 from flask import (
     Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 )
@@ -17,6 +19,18 @@ from app.app_settings import (
 )
 
 bp = Blueprint('settings', __name__)
+
+
+def _parse_iso_utc(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 @bp.route('/')
@@ -127,6 +141,15 @@ def index():
             'overridden': 'BOT_API_NONCE_TTL_SECONDS' in overrides,
             'editable': True,
             'description': 'How long a nonce is remembered to detect replays.',
+        },
+        {
+            'label': 'Notion sync stale threshold',
+            'key': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS',
+            'env': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS',
+            'value': _eff_int('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', 3600)),
+            'overridden': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS' in overrides,
+            'editable': True,
+            'description': 'Marks Notion sync as stale after this many seconds in running state.',
         },
         {
             'label': 'Session lifetime',
@@ -341,7 +364,6 @@ def index():
     ]
 
     # ── Bot heartbeat ───────────────────────────────────────────────────────
-    from datetime import datetime, timezone
     from app.db import AppSetting
     _hb = AppSetting.query.get('BOT_LAST_HEARTBEAT')
     bot_heartbeat_age = None
@@ -364,12 +386,29 @@ def index():
     _notion_started_rec = AppSetting.query.get('BOT_NOTION_SYNC_STARTED_AT')
     _notion_finished_rec = AppSetting.query.get('BOT_NOTION_SYNC_FINISHED_AT')
     _notion_error_rec = AppSetting.query.get('BOT_NOTION_SYNC_ERROR')
+    _notion_source_rec = AppSetting.query.get('BOT_NOTION_SYNC_SOURCE')
+    _notion_stale_after_seconds = max(
+        60,
+        int(get_app_setting('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', 3600))),
+    )
+    _notion_started_at = _notion_started_rec.value if _notion_started_rec else None
+    _notion_started_dt = _parse_iso_utc(_notion_started_at)
+    _notion_running_age_seconds = None
+    _notion_is_stale = False
+    if _notion_status_rec and _notion_status_rec.value == 'running' and _notion_started_dt:
+        _notion_running_age_seconds = int((datetime.now(timezone.utc) - _notion_started_dt).total_seconds())
+        _notion_is_stale = _notion_running_age_seconds >= _notion_stale_after_seconds
+
     notion_sync = {
         'requested': _notion_sync_requested,
         'status': _notion_status_rec.value if _notion_status_rec else None,
-        'started_at': _notion_started_rec.value if _notion_started_rec else None,
+        'started_at': _notion_started_at,
         'finished_at': _notion_finished_rec.value if _notion_finished_rec else None,
         'error': _notion_error_rec.value if _notion_error_rec else None,
+        'source': _notion_source_rec.value if _notion_source_rec else None,
+        'running_age_seconds': _notion_running_age_seconds,
+        'stale_after_seconds': _notion_stale_after_seconds,
+        'is_stale': _notion_is_stale,
     }
 
     return render_template(
@@ -402,6 +441,34 @@ def request_notion_sync():
     )
     set_app_setting('BOT_NOTION_SYNC_REQUESTED', 'true', updated_by)
     flash('Notion sync queued. The bot will start it within ~60 seconds.', 'success')
+    return redirect(url_for('settings.index'))
+
+
+@bp.route('/reset-notion-sync', methods=['POST'])
+@require_staff
+def reset_notion_sync():
+    if not is_settings_admin():
+        flash('You do not have permission to reset Notion sync status.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.db import AppSetting, db
+    reset_keys = (
+        'BOT_NOTION_SYNC_REQUESTED',
+        'BOT_NOTION_SYNC_STATUS',
+        'BOT_NOTION_SYNC_STARTED_AT',
+        'BOT_NOTION_SYNC_FINISHED_AT',
+        'BOT_NOTION_SYNC_ERROR',
+        'BOT_NOTION_SYNC_SOURCE',
+    )
+    deleted = 0
+    for key in reset_keys:
+        rec = AppSetting.query.get(key)
+        if rec:
+            db.session.delete(rec)
+            deleted += 1
+    if deleted:
+        db.session.commit()
+    flash('Notion sync state reset. You can safely queue a fresh run.', 'success')
     return redirect(url_for('settings.index'))
 
 

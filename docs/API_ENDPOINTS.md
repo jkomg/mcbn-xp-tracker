@@ -133,6 +133,64 @@ Bot shutdown handshake endpoint. Called just before bot process exit when
 
 ---
 
+## POST /api/notion-sync-ack
+
+**Scope:** write | **Rate limit:** 30/min | **Replay protection:** exempt
+
+Bot status callback for wiki/Notion sync runs.
+
+**Body:**
+```json
+{
+  "status": "running",
+  "source": "manual"
+}
+```
+
+| Field | Required | Values | Notes |
+|-------|----------|--------|-------|
+| `status` | Yes | `running`, `success`, `error` | Current sync lifecycle state |
+| `source` | No | `manual`, `scheduled` | Defaults to `manual` when omitted |
+| `error` | When `status=error` | string | Human-readable error summary |
+
+Behavior notes:
+- `status=running` with `source=manual` clears `BOT_NOTION_SYNC_REQUESTED`.
+- `status=running` with `source=scheduled` **does not** clear `BOT_NOTION_SYNC_REQUESTED` (prevents scheduled runs from consuming staff-queued manual runs).
+- Web stores `BOT_NOTION_SYNC_SOURCE` for UI/operator context.
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
+## POST /api/bot-log
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Bot log forwarder endpoint. Accepts an array of bot log entries and persists
+warn/error records to the web DB (`app_log_entries`) for review in the admin UI.
+
+**Body:**
+```json
+[
+  {
+    "ts": "2026-04-17T03:00:00.000000+00:00",
+    "level": "warn",
+    "event": "wiki_sync_scheduled_failed",
+    "error": "timeout contacting Notion API"
+  }
+]
+```
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
 ## GET /api/meta/active-roster
 
 **Scope:** read | **Rate limit:** 60/min
@@ -553,6 +611,81 @@ Upserts claim-reminder preference state for one Discord user.
 **Response 200:**
 ```json
 { "ok": true }
+```
+
+---
+
+## POST /api/wiki/page
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Creates or updates a wiki page record. Used by the sync script.
+
+**Body (minimum):**
+```json
+{
+  "slug": "hara-s-club",
+  "title": "Hara's Club"
+}
+```
+
+Optional fields:
+- `body_markdown`
+- `category`
+- `cover_image_url` (Discord CDN URLs are mirrored to GCS when configured)
+- `published` (boolean)
+- `source`
+- `updated_by`
+
+**Response 201 (created):**
+```json
+{ "status": "created", "slug": "hara-s-club" }
+```
+
+**Response 200 (updated):**
+```json
+{ "status": "updated", "slug": "hara-s-club" }
+```
+
+---
+
+## DELETE /api/wiki/page/{slug}
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Deletes a wiki page by slug.
+
+**Response 200:**
+```json
+{ "status": "deleted", "slug": "hara-s-club" }
+```
+
+**Response 404:**
+```json
+{ "status": "not_found", "slug": "hara-s-club" }
+```
+
+---
+
+## PUT /api/character/{name}/status
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Updates a character lifecycle status during sync (`active`, `deceased`, `retired`).
+Also keeps `active` boolean aligned with status.
+
+**Body:**
+```json
+{ "status": "retired" }
+```
+
+**Response 200:**
+```json
+{
+  "status": "updated",
+  "character": "Alice",
+  "new_status": "retired"
+}
 ```
 
 ---

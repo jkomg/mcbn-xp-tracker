@@ -76,6 +76,9 @@ class Config:
     BOT_API_NONCE_CACHE_SIZE = int(
         os.environ.get('BOT_API_NONCE_CACHE_SIZE', '10000')
     )
+    BOT_NOTION_SYNC_STALE_AFTER_SECONDS = int(
+        os.environ.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', '3600')
+    )
 
     # Optional auto-generation of the next play period.
     AUTO_CREATE_PERIODS_ENABLED = os.environ.get(

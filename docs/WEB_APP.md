@@ -58,7 +58,7 @@ Action badge types include: `approve_spend` (green), `deny_spend` (red), `approv
 
 ### Settings
 
-Three sections:
+The Settings page includes web-app runtime controls plus bot operations panels.
 
 **Feature Flags** — toggle server-side behaviors. Each flag shows its name, current status (Enabled / Disabled), a description, and the backing env var. Flags:
 
@@ -84,8 +84,15 @@ Three sections:
 | Default period gap | 0 | Days between periods |
 | Replay protection window | 300 s | How far bot request timestamps can differ from server time |
 | Nonce TTL | 600 s | How long nonces are tracked for replay detection |
+| Notion sync stale threshold | 3600 s | Marks sync status as stale after this running duration |
 | Session lifetime | 43200 s | Staff session cookie lifetime |
 | Sheets cache TTL | 30 s | How long Sheets reads are cached |
+
+**Bot Status + Notion Sync** — operational controls for bot lifecycle and wiki/notion sync:
+- Bot heartbeat status (Online / Delayed / Offline) with restart/rebuild controls.
+- Manual **Run Notion Sync** queue button for staff.
+- Live sync state badges (Queued / Running / Success / Error / Stale).
+- `Reset Stale` action for settings admins to clear stuck sync status keys and safely requeue.
 
 ![Settings](screenshots/settings.png)
 

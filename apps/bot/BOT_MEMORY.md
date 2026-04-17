@@ -1,106 +1,76 @@
-# Bot Memory (Audit Snapshot)
+# Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-03-30
-Scope: `apps/bot` in `mcbn-xp-tracker`
+Last updated: 2026-04-17
+Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
-## What This Bot Does
-- Exposes Discord slash commands for XP workflows: claims, spends, summary, health, help, and combat setup.
-- Bridges Discord interactions to the web app API (`/api/*`) through `WebAppAdapter`.
-- Runs optional background services:
-  - claim review notifications to character cubbies (`reviewNotifier`)
-  - staff-channel alerts for new submissions (`submissionNotifier`)
-  - sunrise claim reminders with opt-out/snooze (`claimReminderService`)
-  - automatic period creation trigger (`autoPeriodCreator`)
-  - automatic period close trigger (`autoPeriodCloser`)
-  - passage-of-time announcements (sunrise/sunset/downtime cadence) (`passageOfTimeService`)
-  - hunt consequence dice result monitor (`huntConsequenceMonitor`)
-  - bot heartbeat reporting to web app (`botHeartbeatService`)
-  - runtime feature flag sync from web app settings (`configSyncWorker`)
-  - cubby channel cache maintenance (`cubbyChannelMonitor`)
+## Current System Picture
+- `apps/web` is still the single authority for XP data and staff controls.
+- `apps/bot` is the Discord front-end and scheduler layer; it never writes DB directly.
+- Chronicle Wiki is now in-web (`/wiki`) and can be updated by bot sync through write-token API endpoints.
+- Notion sync and Wiki sync share the same bot script: `apps/bot/src/scripts/discord-notion-sync.ts`.
 
-## Runtime Entry Points
-- Main runtime: `src/index.ts`
-- Command registration/loading: `src/registerCommands.ts`
-- Primary XP command logic: `src/commands/xp.ts`
-- Combat command: `src/commands/combat.ts`
-- Adapter/network layer: `src/services/adapter.ts`
+## Important Cross-App Control Plane
+- Web settings can signal the bot through DB-backed `AppSetting` keys:
+  - `BOT_RESTART_REQUESTED`
+  - `BOT_NOTION_SYNC_REQUESTED`
+  - `BOT_NOTION_SYNC_STALE_AFTER_SECONDS` (web UI stale threshold)
+  - bot feature toggles and selected interval/channel overrides
+- Bot polls `/api/bot-config` (60s) via `ConfigSyncWorker` and updates `liveConfig`.
+- Bot reports status back via:
+  - `/api/bot-heartbeat`
+  - `/api/bot-restart-ack`
+  - `/api/notion-sync-ack`
+  - `/api/bot-log`
 
-## Key Internal Modules
-- `src/interactiveClaimWizard.ts`: ephemeral multi-step `/xp submit` state machine.
-- `src/combatSetupWizard.ts`: multi-step modal flow for `/combat`.
-- `src/services/reviewNotifier.ts`: polls review events and posts approvals/denials to cubbies.
-- `src/services/submissionNotifier.ts`: polls submission events and posts to staff channel.
-- `src/services/claimReminderService.ts`: scheduled reminders + local preferences file.
-- `src/services/passageOfTimeService.ts`: cadence-based scheduled message posting.
-- `src/services/autoPeriodCreator.ts`: periodic `/api/periods/auto-create` trigger.
-- `src/services/autoPeriodCloser.ts`: periodic `/api/periods/auto-close` trigger.
-- `src/services/huntConsequenceMonitor.ts`: monitors hunt channels for messy crit/bestial failure triggers.
-- `src/services/botHeartbeatService.ts`: POSTs heartbeat to `/api/bot-heartbeat` every 60 s.
-- `src/services/configSyncWorker.ts`: polls `/api/bot-config` to pick up runtime flag changes.
-- `src/services/cubbyChannels.ts`: normalized cubby channel/thread lookup.
-- `src/services/cubbyChannelMonitor.ts`: keeps cubby channel cache up to date on channel create/delete.
-- `src/xpRules.ts` + `src/sharedContract.ts`: spend cost computation from shared JSON rules.
-- `src/liveConfig.ts`: in-process mutable flag state updated by `configSyncWorker`.
+## Bot Runtime (Current)
+- Entry point: `apps/bot/src/index.ts`
+- Key services:
+  - `reviewNotifier`, `submissionNotifier`, `claimReminderService`
+  - `autoPeriodCreator`, `autoPeriodCloser`
+  - `passageOfTimeService`, `huntConsequenceMonitor`
+  - `configSyncWorker`, `botHeartbeatService`, `botLogForwarder`
+  - `wikiSyncScheduler` (nightly scheduled sync trigger)
+- Adapter: `apps/bot/src/services/adapter.ts` (scoped read/write token support)
 
-## Commands Exposed
-- `/ping`
-- `/xp submit`
-- `/xp summary`
-- `/xp claim`
-- `/xp spend`
-- `/xp spend-cost`
-- `/xp health`
-- `/xp help`
-- `/combat`
-- Staff test/admin tools (restricted to `BOT_TESTER_IDS`):
-  - `/xp test-reminder`
-  - `/xp test-passage`
-  - `/xp sync-cubby-access`
+## Wiki/Notion Integration Paths
+- Manual run from web UI:
+  - staff clicks Settings -> Run Notion Sync (`/settings/request-notion-sync`)
+  - web sets `BOT_NOTION_SYNC_REQUESTED=true`
+  - bot picks it up and runs `runNotionSync(...)`
+- Scheduled run:
+  - `WikiSyncScheduler` runs `runNotionSync(...)` at configured local time.
+  - Scheduler defaults to wiki-only refresh (`notionToken=''`) to avoid repeated archival imports.
+- Cross-trigger concurrency guard:
+  - `apps/bot/src/services/wikiSyncLock.ts` is a shared in-process lock used by:
+    - `ConfigSyncWorker` (owner=`manual`)
+    - `WikiSyncScheduler` (owner=`scheduled`)
+  - If lock is busy, second trigger skips and logs `*_lock_busy`.
+- Wiki API endpoints used by sync:
+  - `POST /api/wiki/page`
+  - `DELETE /api/wiki/page/<slug>`
+  - `PUT /api/character/<name>/status`
+- Cover image permanence:
+  - web mirrors Discord CDN images to GCS in `app/gcs.py` from `POST /api/wiki/page`.
 
-## Required/Important Env
-- Required: `BOT_TOKEN`
-- Required for command registration: `CLIENT_ID`
-- Backend target: `WEB_APP_BASE_URL` (default `http://127.0.0.1:5001`; use `http://web:5001` in Docker full-stack)
-- Backend auth: `WEB_APP_API_TOKEN`
-- Optional restricted test users: `BOT_TESTER_IDS`, `TEST_REQUESTER_DISCORD_ID`
-- Service enable toggles:
-  - `REVIEW_NOTIFIER_ENABLED`
-  - `SUBMISSION_NOTIFIER_ENABLED`
-  - `CLAIM_REMINDER_ENABLED`
-  - `AUTO_PERIOD_CREATOR_ENABLED`
-  - `AUTO_PERIOD_CLOSER_ENABLED`
-  - `PASSAGE_OF_TIME_ENABLED`
-  - `HUNT_CONSEQUENCE_ENABLED`
+## High-Signal Current Gaps
+- `runNotionSync` is still a large monolithic script (1218 LOC) doing both Notion and Wiki writes.
+- Bot tests do not currently cover:
+  - `ConfigSyncWorker`
+  - `WikiSyncScheduler`
+  - Notion/Wiki sync orchestration edge cases.
+- Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
+- Scheduled vs manual sync source is persisted (`BOT_NOTION_SYNC_SOURCE`) for operator context, but no historical run log exists beyond current status keys.
 
-## Local Persistent Data Files
-- `data/review-notifier-cursor.json`: cursor (epoch + eventKey) for review event polling.
-- `data/submission-notifier-cursor.json`: cursor for submission event polling.
-- `data/claim-reminder-preferences.json`: opt-out/snooze state by Discord user ID.
-- `data/passage-of-time-state.json`: dedupe keys for posted cadence messages.
-
-## Operational Runbook
-1. Install + validate
-   - `npm install`
-   - `npm run check`
-2. Adapter connectivity preflight
-   - `npm run ops:check-adapter`
-3. Local deploy/restart helper
-   - `npm run ops:deploy-local`
-4. Bot runtime
-   - Dev: `npm run dev`
-   - Prod/local service: `npm run build && npm start`
-5. Docker ops
-   - `npm run ops:docker:up` / `ops:docker:down` / `ops:docker:logs` / `ops:docker:usage-30d`
-
-## Current Audit Findings
-1. No critical or high-severity code defects found in the audited bot paths.
-2. Automated coverage is strong on command/adapter/rules paths, but still thinner for scheduler side effects (reminder cadence, passage windows, and cross-restart dedupe behavior).
-3. JSON state files are path-resolved from `process.cwd()`; service launch working directory must remain `apps/bot`.
-4. Docs had drift around claim-reminder defaults (template noon vs code fallback 08:00); normalized in `docs/BOT.md` and `docs/ENV_AND_SECRETS.md`.
+## Operational Files to Keep in Mind
+- Bot local state:
+  - `apps/bot/data/review-notifier-cursor.json`
+  - `apps/bot/data/submission-notifier-cursor.json`
+  - `apps/bot/data/passage-of-time-state.json`
+- Web sync/error persistence:
+  - `app_log_entries` and `sheets_sync_errors` tables in web DB.
 
 ## Invariants to Preserve
-- Evidence links for claims must remain validated as Discord message links in the same guild.
-- Adapter calls must keep timeout + retry + stale-cache behavior for claim context.
-- Test/admin commands must stay restricted to `BOT_TESTER_IDS`.
-- Scheduler services must remain idempotent (dedupe keys, once-per-window behavior).
-- `configSyncWorker` updates `liveConfig` in-process; services must read from `liveConfig`, not the initial `config` snapshot, to pick up runtime flag changes.
+- Web remains system of record; bot stays API-only.
+- Scoped token model (`WEB_APP_API_READ_TOKEN` / `WEB_APP_API_WRITE_TOKEN`) remains preferred over legacy token.
+- Claims evidence link validation and staff-only command gating stay enforced.
+- Scheduler jobs must remain idempotent across restarts and retries.

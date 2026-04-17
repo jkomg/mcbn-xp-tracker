@@ -213,8 +213,9 @@
     <div class="card-header border-secondary d-flex align-items-center justify-content-between">
       <h6 class="mb-0 text-light"><i class="bi bi-database-up"></i> Notion Sync</h6>
       {% if can_edit %}
+        <div class="d-flex align-items-center gap-2">
         <form method="POST" action="{{ url_for('settings.request_notion_sync') }}" class="mb-0">
-          {% if notion_sync.requested or notion_sync.status == 'running' %}
+          {% if notion_sync.requested or (notion_sync.status == 'running' and not notion_sync.is_stale) %}
             <button type="submit" class="btn btn-sm btn-info" disabled>
               <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
               {% if notion_sync.status == 'running' %}Running…{% else %}Queued…{% endif %}
@@ -226,6 +227,15 @@
             </button>
           {% endif %}
         </form>
+        {% if notion_sync.is_stale %}
+          <form method="POST" action="{{ url_for('settings.reset_notion_sync') }}" class="mb-0">
+            <button type="submit" class="btn btn-sm btn-outline-warning"
+              onclick="return confirm('Reset stale Notion sync state? Use this if the bot crashed during a run.')">
+              <i class="bi bi-arrow-counterclockwise"></i> Reset Stale
+            </button>
+          </form>
+        {% endif %}
+        </div>
       {% endif %}
     </div>
     <div class="card-body">
@@ -234,7 +244,17 @@
         (PC Tracker, SPC Tracker, Location DB, Hunting Sites, Session &amp; Post Log).
         Requires <code>NOTION_TOKEN</code> and <code>DISCORD_GUILD_ID</code> in the bot's <code>.env</code>.
       </p>
-      {% if notion_sync.status == 'running' %}
+      {% if notion_sync.status == 'running' and notion_sync.is_stale %}
+        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Stale</span>
+        {% if notion_sync.started_at %}
+          <small class="text-muted ms-2">
+            Started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC and appears stuck.
+          </small>
+        {% endif %}
+        <small class="text-muted d-block mt-1">
+          Running for {{ notion_sync.running_age_seconds or '?' }}s (stale threshold: {{ notion_sync.stale_after_seconds }}s).
+        </small>
+      {% elif notion_sync.status == 'running' %}
         <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Running</span>
         {% if notion_sync.started_at %}
           <small class="text-muted ms-2">Started {{ notion_sync.started_at[:19] | replace('T', ' ') }} UTC</small>
@@ -449,7 +469,7 @@
 
 </div>
 
-{% if notion_sync.requested or notion_sync.status == 'running' %}
+{% if notion_sync.requested or (notion_sync.status == 'running' and not notion_sync.is_stale) %}
 <script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
 {% endblock %}
