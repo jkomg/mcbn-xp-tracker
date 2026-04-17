@@ -54,10 +54,7 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## High-Signal Current Gaps
 - `runNotionSync` is still a large monolithic script (1218 LOC) doing both Notion and Wiki writes.
-- Bot tests do not currently cover:
-  - `ConfigSyncWorker`
-  - `WikiSyncScheduler`
-  - Notion/Wiki sync orchestration edge cases.
+- Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source is persisted (`BOT_NOTION_SYNC_SOURCE`) for operator context, but no historical run log exists beyond current status keys.
 
