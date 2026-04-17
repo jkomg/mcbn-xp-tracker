@@ -177,7 +177,6 @@ def create_app():
 
     @app.errorhandler(Exception)
     def _handle_unhandled_exception(exc):
-        from flask import jsonify as _jsonify
         from .db import AppLogEntry, db as _db
         try:
             tb = _traceback.format_exc()
