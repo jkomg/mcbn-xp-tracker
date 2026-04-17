@@ -61,6 +61,7 @@ export interface TrackerAdapter {
   getBotConfig(): Promise<BotConfigResponse>;
   ackBotRestart(): Promise<void>;
   ackNotionSync(status: 'running' | 'success' | 'error', error?: string): Promise<void>;
+  postBotLog(entries: Array<Record<string, unknown>>): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
   setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
@@ -561,6 +562,16 @@ export class WebAppAdapter implements TrackerAdapter {
       body: JSON.stringify({ status, ...(error ? { error } : {}) }),
     });
     if (!res.ok) throw new Error(`notion-sync-ack POST failed: ${res.status}`);
+  }
+
+  async postBotLog(entries: Array<Record<string, unknown>>): Promise<void> {
+    const url = `${this.baseUrl}/api/bot-log`;
+    const res = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(entries),
+    });
+    if (!res.ok) throw new Error(`bot-log POST failed: ${res.status}`);
   }
 
   async postHeartbeat(liveState?: Record<string, boolean>): Promise<void> {

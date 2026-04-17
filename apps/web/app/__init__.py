@@ -172,6 +172,31 @@ def create_app():
         _fh.setFormatter(_JsonFormatter())
         logging.getLogger().addHandler(_fh)
 
+    # Persist unhandled exceptions to AppLogEntry for the Error Alerts page
+    import traceback as _traceback
+
+    @app.errorhandler(Exception)
+    def _handle_unhandled_exception(exc):
+        from flask import jsonify as _jsonify
+        from .db import AppLogEntry, db as _db
+        try:
+            tb = _traceback.format_exc()
+            path = request.path if request else ''
+            entry = AppLogEntry(
+                ts=datetime.now(timezone.utc).isoformat(),
+                source='web',
+                level='error',
+                event='unhandled_exception',
+                message=f'{type(exc).__name__}: {exc}',
+                details=f'{path}\n\n{tb}'[:4000],
+            )
+            _db.session.add(entry)
+            _db.session.commit()
+        except Exception:
+            pass
+        # Re-raise so Flask's default error handling (500 response) still applies
+        raise exc
+
     if app.config.get('LOCAL_STATUS_ENABLED', False):
         access_log_file = Path(app.config.get('LOCAL_STATUS_ACCESS_LOG_FILE', '.run/logs/access.log'))
         if not access_log_file.is_absolute():

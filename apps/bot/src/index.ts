@@ -17,6 +17,7 @@ import {
 } from './services/passageOfTimeService';
 import { SheetsReconcileService } from './services/sheetsReconcileService';
 import { WikiSyncScheduler } from './services/wikiSyncScheduler';
+import { BotLogForwarder } from './services/botLogForwarder';
 
 const ASSETS_DIR = path.resolve(__dirname, '..', 'assets');
 import { errorToMessage, logEvent } from './logger';
@@ -180,6 +181,7 @@ void applyStartupConfigOverrides().then(() => {
 
   const configSyncWorker = new ConfigSyncWorker(adapter);
   const botHeartbeatService = new BotHeartbeatService(adapter);
+  const botLogForwarder = new BotLogForwarder(adapter);
 
   // Build hunt consequence config, respecting test mode
   const huntConsequenceCfg = {
@@ -201,6 +203,7 @@ void applyStartupConfigOverrides().then(() => {
     await registerCommands(client);
     configSyncWorker.start();
     botHeartbeatService.start();
+    botLogForwarder.start();
     reviewNotifier.start();
     autoPeriodCreator.start();
     autoPeriodCloser.start();

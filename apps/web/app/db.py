@@ -8,6 +8,19 @@ from sqlalchemy import DateTime, Integer, String, Boolean, Text
 db = SQLAlchemy()
 
 
+class AppLogEntry(db.Model):
+    """Persisted warn/error log entries from the bot and web app."""
+    __tablename__ = 'app_log_entries'
+    id = db.Column(Integer, primary_key=True)
+    ts = db.Column(String(30), nullable=False)
+    source = db.Column(String(10), nullable=False)   # 'bot' | 'web'
+    level = db.Column(String(10), nullable=False)    # 'warn' | 'error'
+    event = db.Column(String(200), nullable=False, default='')
+    message = db.Column(Text, default='')
+    details = db.Column(Text, default='')
+    created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 class DbCharacter(db.Model):
     __tablename__ = 'characters'
     id = db.Column(Integer, primary_key=True)

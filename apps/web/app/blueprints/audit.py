@@ -125,36 +125,44 @@ def _parse_error_entries(filename: str, lines: list[str]) -> list[dict]:
 @bp.route('/errors')
 @require_staff
 def errors():
-    """View warning/error alerts collected from local bot/web logs."""
-    max_lines = min(max(int(request.args.get('max_lines', '1200')), 100), 5000)
+    """View warning/error alerts from the DB-persisted log."""
+    from app.db import AppLogEntry
     source_filter = request.args.get('source', '').strip()
     level_filter = request.args.get('level', '').strip().lower()
     event_filter = request.args.get('event', '').strip().lower()
 
-    filenames = [source_filter] if source_filter in ERROR_LOG_FILES else list(ERROR_LOG_FILES)
-    entries: list[dict] = []
-    for filename in filenames:
-        entries.extend(_parse_error_entries(filename, _tail_lines(LOG_DIR / filename, max_lines)))
-
-    if level_filter in {'warn', 'error'}:
-        entries = [e for e in entries if e['level'] == level_filter]
+    query = AppLogEntry.query.order_by(AppLogEntry.created_at.desc())
+    if source_filter in ('bot', 'web'):
+        query = query.filter(AppLogEntry.source == source_filter)
+    if level_filter in ('warn', 'error'):
+        query = query.filter(AppLogEntry.level == level_filter)
     if event_filter:
-        entries = [e for e in entries if event_filter in e['event'].lower()]
+        query = query.filter(AppLogEntry.event.ilike(f'%{event_filter}%'))
+    db_entries = query.limit(200).all()
 
-    entries.sort(key=lambda e: (e['timestamp_sort'], e['source'], e['raw_index']), reverse=True)
+    entries = [
+        {
+            'timestamp': e.ts,
+            'source': e.source,
+            'level': e.level,
+            'event': e.event,
+            'message': e.message,
+            'details': e.details,
+        }
+        for e in db_entries
+    ]
+
     event_counts: dict[str, int] = {}
     for e in entries:
-        key = e['event']
-        event_counts[key] = event_counts.get(key, 0) + 1
+        event_counts[e['event']] = event_counts.get(e['event'], 0) + 1
 
     # Merge in-memory (real-time, current session) and DB (historical) sync errors
     rt_errors = _get_recent_sync_errors()
-    db_errors = db_service.get_recent_sync_errors(limit=100)
-    # Deduplicate: prefer DB entries (they have an id); RT entries not yet flushed are additions
-    db_keys = {(e['timestamp'], e['operation'], e['error']) for e in db_errors}
+    db_sync_errors = db_service.get_recent_sync_errors(limit=100)
+    db_keys = {(e['timestamp'], e['operation'], e['error']) for e in db_sync_errors}
     rt_only = [e for e in rt_errors
                if (e['timestamp'], e['operation'], e['error']) not in db_keys]
-    sync_errors = rt_only + db_errors
+    sync_errors = rt_only + db_sync_errors
 
     return render_template(
         'audit/errors.html',
@@ -164,7 +172,5 @@ def errors():
         source_filter=source_filter,
         level_filter=level_filter,
         event_filter=event_filter,
-        max_lines=max_lines,
-        log_dir=str(LOG_DIR),
         sync_errors=sync_errors,
     )

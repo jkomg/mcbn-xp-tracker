@@ -423,4 +423,8 @@
   </div>
 
 </div>
+
+{% if notion_sync.requested or notion_sync.status == 'running' %}
+<script>setTimeout(() => location.reload(), 10000);</script>
+{% endif %}
 {% endblock %}
