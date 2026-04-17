@@ -127,6 +127,7 @@ export class WikiSyncScheduler {
         notionToken: config.notionToken,
         webBase: config.webAppBaseUrl,
         webReadToken: config.webAppApiReadToken ?? config.webAppApiToken,
+        webWriteToken: config.webAppApiWriteToken ?? config.webAppApiToken,
         msgLimit: config.notionSyncMsgLimit,
       });
 
