@@ -1034,7 +1034,7 @@ def bot_log():
     if not isinstance(entries, list):
         return jsonify({'error': 'expected a JSON array'}), 400
     now = datetime.now(timezone.utc)
-    for raw in entries[:50]:
+    for raw in entries[:100]:
         if not isinstance(raw, dict):
             continue
         level = str(raw.get('level', '')).lower()

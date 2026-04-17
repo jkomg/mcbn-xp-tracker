@@ -177,6 +177,10 @@ def create_app():
 
     @app.errorhandler(Exception)
     def _handle_unhandled_exception(exc):
+        from werkzeug.exceptions import HTTPException
+        # Let HTTPException (404, 403, abort() calls, etc.) pass through unchanged
+        if isinstance(exc, HTTPException):
+            return exc
         from .db import AppLogEntry, db as _db
         try:
             tb = _traceback.format_exc()
@@ -193,7 +197,7 @@ def create_app():
             _db.session.commit()
         except Exception:
             pass
-        # Re-raise so Flask's default error handling (500 response) still applies
+        # Re-raise so Flask's default 500 handling still applies
         raise exc
 
     if app.config.get('LOCAL_STATUS_ENABLED', False):
