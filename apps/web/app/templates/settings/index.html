@@ -191,16 +191,16 @@
 
       <div class="mt-3 pt-3 border-top border-secondary">
         <small class="text-muted d-block mb-1">
-          <i class="bi bi-hammer me-1"></i>Rebuild command — run in terminal from <code>apps/bot/</code>:
+          <i class="bi bi-hammer me-1"></i>Rebuild command — paste into terminal:
         </small>
         <div class="d-flex align-items-center gap-2">
           <code class="flex-grow-1 px-2 py-1 rounded small"
                 style="background:#111; color:#adb5bd; word-break:break-all;">
-            npm run ops:docker:down &amp;&amp; npm run ops:docker:up
+            cd ~/Projects/mcbn-xp-tracker/apps/bot &amp;&amp; npm run ops:docker:down &amp;&amp; npm run ops:docker:up
           </code>
           <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button"
                   id="rebuild-copy-btn"
-                  onclick="navigator.clipboard.writeText('npm run ops:docker:down && npm run ops:docker:up'); var b=document.getElementById('rebuild-copy-btn'); b.textContent='Copied!'; setTimeout(function(){b.textContent='Copy'},2000);">
+                  onclick="navigator.clipboard.writeText('cd ~/Projects/mcbn-xp-tracker/apps/bot && npm run ops:docker:down && npm run ops:docker:up'); var b=document.getElementById('rebuild-copy-btn'); b.textContent='Copied!'; setTimeout(function(){b.textContent='Copy'},2000);">
             Copy
           </button>
         </div>
