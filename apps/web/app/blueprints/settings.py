@@ -422,6 +422,23 @@ def request_restart():
     return redirect(url_for('settings.index'))
 
 
+@bp.route('/request-rebuild', methods=['POST'])
+@require_staff
+def request_rebuild():
+    if not is_settings_admin():
+        flash('You do not have permission to restart the bot.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    updated_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+    set_app_setting('BOT_RESTART_REQUESTED', 'true', updated_by)
+    flash('Bot will exit within ~60s. Run the rebuild command shown below to bring it back up with the latest code.', 'info')
+    return redirect(url_for('settings.index'))
+
+
 @bp.route('/update', methods=['POST'])
 @require_staff
 def update():
