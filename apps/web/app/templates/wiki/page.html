@@ -87,7 +87,7 @@
                         <span class="wiki-xp-lbl">Spent</span>
                     </div>
                     <div class="wiki-xp-stat">
-                        <span class="wiki-xp-val text-success">{{ xp_snapshot.balance }}</span>
+                        <span class="wiki-xp-val {{ 'text-danger' if xp_snapshot.balance < 0 else 'text-success' }}">{{ xp_snapshot.balance }}</span>
                         <span class="wiki-xp-lbl">Balance</span>
                     </div>
                 </div>
