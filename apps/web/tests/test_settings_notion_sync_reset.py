@@ -28,6 +28,7 @@ def _seed_sync_records(app: Flask):
         for key, value in (
             ('BOT_NOTION_SYNC_REQUESTED', 'true'),
             ('BOT_NOTION_SYNC_STATUS', 'running'),
+            ('BOT_NOTION_SYNC_RUN_ID', 'run-abc'),
             ('BOT_NOTION_SYNC_STARTED_AT', '2026-04-17T00:00:00+00:00'),
             ('BOT_NOTION_SYNC_FINISHED_AT', '2026-04-17T00:10:00+00:00'),
             ('BOT_NOTION_SYNC_ERROR', 'boom'),
@@ -57,6 +58,7 @@ def test_reset_notion_sync_clears_sync_state_for_admin():
         for key in (
             'BOT_NOTION_SYNC_REQUESTED',
             'BOT_NOTION_SYNC_STATUS',
+            'BOT_NOTION_SYNC_RUN_ID',
             'BOT_NOTION_SYNC_STARTED_AT',
             'BOT_NOTION_SYNC_FINISHED_AT',
             'BOT_NOTION_SYNC_ERROR',

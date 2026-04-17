@@ -21,7 +21,7 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `/api/bot-restart-ack`
   - `/api/notion-sync-ack`
   - `/api/bot-log`
-- Web now stores sync lifecycle history in `notion_sync_events` (append-only, bounded).
+- Web now stores sync lifecycle history in `notion_sync_events` (append-only, bounded), including `run_id` correlation.
 
 ## Bot Runtime (Current)
 - Entry point: `apps/bot/src/index.ts`
@@ -57,7 +57,7 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 - `runNotionSync` is still a large monolithic script (1218 LOC) doing both Notion and Wiki writes.
 - Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
-- Scheduled vs manual sync source is persisted (`BOT_NOTION_SYNC_SOURCE`) and mirrored into `notion_sync_events`; run correlation IDs are still not captured.
+- Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
 
 ## Operational Files to Keep in Mind
 - Bot local state:

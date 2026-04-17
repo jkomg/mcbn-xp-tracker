@@ -143,7 +143,8 @@ Bot status callback for wiki/Notion sync runs.
 ```json
 {
   "status": "running",
-  "source": "manual"
+  "source": "manual",
+  "runId": "run-manual-1"
 }
 ```
 
@@ -151,13 +152,14 @@ Bot status callback for wiki/Notion sync runs.
 |-------|----------|--------|-------|
 | `status` | Yes | `running`, `success`, `error` | Current sync lifecycle state |
 | `source` | No | `manual`, `scheduled` | Defaults to `manual` when omitted |
+| `runId` | No | string (<=64 chars) | Correlation ID for one sync run lifecycle |
 | `error` | When `status=error` | string | Human-readable error summary |
 
 Behavior notes:
 - `status=running` with `source=manual` clears `BOT_NOTION_SYNC_REQUESTED`.
 - `status=running` with `source=scheduled` **does not** clear `BOT_NOTION_SYNC_REQUESTED` (prevents scheduled runs from consuming staff-queued manual runs).
 - Web stores `BOT_NOTION_SYNC_SOURCE` for UI/operator context.
-- Each ack appends a row to `notion_sync_events` (bounded history) for operator visibility in Settings.
+- Each ack appends a row to `notion_sync_events` (bounded history) including `runId` when provided.
 
 **Response 200:**
 ```json

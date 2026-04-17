@@ -64,6 +64,7 @@ export interface TrackerAdapter {
     status: 'running' | 'success' | 'error',
     error?: string,
     source?: 'manual' | 'scheduled',
+    runId?: string,
   ): Promise<void>;
   postBotLog(entries: Array<Record<string, unknown>>): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
@@ -562,12 +563,13 @@ export class WebAppAdapter implements TrackerAdapter {
     status: 'running' | 'success' | 'error',
     error?: string,
     source: 'manual' | 'scheduled' = 'manual',
+    runId?: string,
   ): Promise<void> {
     const url = `${this.baseUrl}/api/notion-sync-ack`;
     const res = await this.fetchWithTimeout(url, {
       method: 'POST',
       headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, source, ...(error ? { error } : {}) }),
+      body: JSON.stringify({ status, source, ...(runId ? { runId } : {}), ...(error ? { error } : {}) }),
     });
     if (!res.ok) throw new Error(`notion-sync-ack POST failed: ${res.status}`);
   }

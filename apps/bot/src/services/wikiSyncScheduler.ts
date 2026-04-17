@@ -9,6 +9,7 @@
 
 import { errorToMessage, logEvent } from '../logger';
 import { config } from '../config';
+import { randomUUID } from 'node:crypto';
 import type { TrackerAdapter } from './adapter';
 import { runNotionSync } from '../scripts/discord-notion-sync';
 import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
@@ -87,6 +88,7 @@ export class WikiSyncScheduler {
     if (this.running) return;
     this.running = true;
     let lease: ReturnType<typeof tryAcquireWikiSync> | null = null;
+    let runId: string | undefined;
     try {
       const now = new Date();
       const parts = localParts(now, this.cfg.timezone);
@@ -117,6 +119,7 @@ export class WikiSyncScheduler {
       }
 
       logEvent('info', 'wiki_sync_scheduled_triggered', { dateKey: parts.dateKey });
+      runId = randomUUID();
       lease = tryAcquireWikiSync('scheduled');
       if (!lease) {
         logEvent('info', 'wiki_sync_scheduled_skipped_lock_busy', {
@@ -126,7 +129,7 @@ export class WikiSyncScheduler {
         return;
       }
       try {
-        await this.adapter.ackNotionSync('running', undefined, 'scheduled');
+        await this.adapter.ackNotionSync('running', undefined, 'scheduled', runId);
       } catch (ackErr) {
         logEvent('warn', 'wiki_sync_ack_running_failed', { error: errorToMessage(ackErr) });
       }
@@ -145,14 +148,14 @@ export class WikiSyncScheduler {
 
       if (result.success) {
         logEvent('info', 'wiki_sync_scheduled_complete', { dateKey: parts.dateKey });
-        try { await this.adapter.ackNotionSync('success', undefined, 'scheduled'); } catch { /* ignore */ }
+        try { await this.adapter.ackNotionSync('success', undefined, 'scheduled', runId); } catch { /* ignore */ }
       } else {
         logEvent('warn', 'wiki_sync_scheduled_failed', { dateKey: parts.dateKey, error: result.error });
-        try { await this.adapter.ackNotionSync('error', result.error, 'scheduled'); } catch { /* ignore */ }
+        try { await this.adapter.ackNotionSync('error', result.error, 'scheduled', runId); } catch { /* ignore */ }
       }
     } catch (error) {
       logEvent('warn', 'wiki_sync_scheduler_error', { error: errorToMessage(error) });
-      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled'); } catch { /* ignore */ }
+      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled', runId); } catch { /* ignore */ }
     } finally {
       lease?.release();
       this.running = false;

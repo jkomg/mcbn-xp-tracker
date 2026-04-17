@@ -383,6 +383,7 @@ def index():
     # ── Notion sync status ─────────────────────────────────────────────────
     _notion_sync_requested = 'BOT_NOTION_SYNC_REQUESTED' in overrides and overrides['BOT_NOTION_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
     _notion_status_rec = AppSetting.query.get('BOT_NOTION_SYNC_STATUS')
+    _notion_run_id_rec = AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID')
     _notion_started_rec = AppSetting.query.get('BOT_NOTION_SYNC_STARTED_AT')
     _notion_finished_rec = AppSetting.query.get('BOT_NOTION_SYNC_FINISHED_AT')
     _notion_error_rec = AppSetting.query.get('BOT_NOTION_SYNC_ERROR')
@@ -402,6 +403,7 @@ def index():
     notion_sync = {
         'requested': _notion_sync_requested,
         'status': _notion_status_rec.value if _notion_status_rec else None,
+        'run_id': _notion_run_id_rec.value if _notion_run_id_rec else None,
         'started_at': _notion_started_at,
         'finished_at': _notion_finished_rec.value if _notion_finished_rec else None,
         'error': _notion_error_rec.value if _notion_error_rec else None,
@@ -413,6 +415,7 @@ def index():
     notion_sync_history = [
         {
             'ts': row.ts,
+            'run_id': row.run_id or '',
             'source': row.source,
             'status': row.status,
             'error': row.error or '',
@@ -465,6 +468,7 @@ def reset_notion_sync():
     reset_keys = (
         'BOT_NOTION_SYNC_REQUESTED',
         'BOT_NOTION_SYNC_STATUS',
+        'BOT_NOTION_SYNC_RUN_ID',
         'BOT_NOTION_SYNC_STARTED_AT',
         'BOT_NOTION_SYNC_FINISHED_AT',
         'BOT_NOTION_SYNC_ERROR',
