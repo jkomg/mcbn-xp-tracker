@@ -93,6 +93,7 @@ The Settings page includes web-app runtime controls plus bot operations panels.
 - Manual **Run Notion Sync** queue button for staff.
 - Live sync state badges (Queued / Running / Success / Error / Stale).
 - `Reset Stale` action for settings admins to clear stuck sync status keys and safely requeue.
+- Recent sync history table (source, status, timestamp, error) backed by persisted `notion_sync_events`.
 
 ![Settings](screenshots/settings.png)
 
