@@ -55,6 +55,13 @@ import {
   SOURCE_TAG,
 } from './notionSync/notionWrites';
 import {
+  buildHuntingSiteCreatePayload,
+  buildLocationCreatePayload,
+  buildPcTrackerCreatePayload,
+  buildSessionLogCreatePayload,
+  buildSpcCreatePayload,
+} from './notionSync/notionPayloadBuilders';
+import {
   CHAR_TO_COTERIE,
   COTERIE_MEMBERS,
   FACTIONS,
@@ -357,10 +364,6 @@ function firstImage(messages: DiscordMessage[]): string | null {
   return null;
 }
 
-function coverProp(url: string): { type: 'external'; external: { url: string } } {
-  return { type: 'external', external: { url } };
-}
-
 function imageBlock(url: string): object {
   return {
     object: 'block',
@@ -483,14 +486,12 @@ async function main(opts: NotionSyncOptions) {
       if (!DRY_RUN) {
         if (NOTION_ENABLED) {
           await notionCall(() =>
-            notion!.pages.create({
-              parent: { database_id: NOTION_DB.LOCATION_DB },
-              properties: {
-                'Location': { title: [{ text: { content: locationName } }] },
-                'Source': { select: { name: SOURCE_TAG } },
-                ...(ch.topic ? { 'Atmosphere Notes': { rich_text: [{ text: { content: truncate(ch.topic, 2000) } }] } } : {}),
-              },
-            }),
+            notion!.pages.create(buildLocationCreatePayload({
+              databaseId: NOTION_DB.LOCATION_DB,
+              locationName,
+              sourceTag: SOURCE_TAG,
+              atmosphereNotes: ch.topic ? truncate(ch.topic, 2000) : undefined,
+            })),
           );
         }
         // Wiki upsert deferred to step 4 so hunting site pins can be included.
@@ -523,15 +524,13 @@ async function main(opts: NotionSyncOptions) {
       console.log(`    → ${siteName}`);
       if (!DRY_RUN && NOTION_ENABLED) {
         await notionCall(() =>
-          notion!.pages.create({
-            parent: { database_id: NOTION_DB.HUNTING_SITES },
-            properties: {
-              'Site Name': { title: [{ text: { content: siteName } }] },
-              'Description': { rich_text: [{ text: { content: truncate(pin.content, 2000) } }] },
-              'Source': { select: { name: SOURCE_TAG } },
-              ...(domain ? { 'Domain': { select: { name: domain } } } : {}),
-            },
-          }),
+          notion!.pages.create(buildHuntingSiteCreatePayload({
+            databaseId: NOTION_DB.HUNTING_SITES,
+            siteName,
+            description: truncate(pin.content, 2000),
+            sourceTag: SOURCE_TAG,
+            domain: domain ?? undefined,
+          })),
         );
       }
       pinSections.push(`### ${siteName}\n\n${pin.content.trim()}`);
@@ -577,17 +576,14 @@ async function main(opts: NotionSyncOptions) {
         const cover = firstImage(messages);
         if (NOTION_ENABLED) {
           const page = await notionCall(() =>
-            notion!.pages.create({
-              parent: { database_id: NOTION_DB.SPC_TRACKER },
-              ...(cover ? { cover: coverProp(cover) } : {}),
-              properties: {
-                'Name': { title: [{ text: { content: name } }] },
-                'Status': { select: { name: 'Active' } },
-                'Source': { select: { name: SOURCE_TAG } },
-                ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
-                'Relationship Notes': { rich_text: [{ text: { content: truncate(bodyContent, 2000) } }] },
-              },
-            }),
+            notion!.pages.create(buildSpcCreatePayload({
+              databaseId: NOTION_DB.SPC_TRACKER,
+              name,
+              sourceTag: SOURCE_TAG,
+              relationshipNotes: truncate(bodyContent, 2000),
+              spcType,
+              coverUrl: cover ?? undefined,
+            })),
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
@@ -618,16 +614,13 @@ async function main(opts: NotionSyncOptions) {
       if (!DRY_RUN) {
         if (NOTION_ENABLED) {
           const page = await notionCall(() =>
-            notion!.pages.create({
-              parent: { database_id: NOTION_DB.SPC_TRACKER },
-              properties: {
-                'Name': { title: [{ text: { content: name } }] },
-                'Status': { select: { name: 'Active' } },
-                'Source': { select: { name: SOURCE_TAG } },
-                ...(spcType ? { 'Type': { select: { name: spcType } } } : {}),
-                'Relationship Notes': { rich_text: [{ text: { content: truncate(msg.content, 2000) } }] },
-              },
-            }),
+            notion!.pages.create(buildSpcCreatePayload({
+              databaseId: NOTION_DB.SPC_TRACKER,
+              name,
+              sourceTag: SOURCE_TAG,
+              relationshipNotes: truncate(msg.content, 2000),
+              spcType,
+            })),
           );
           await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
         }
@@ -690,17 +683,15 @@ async function main(opts: NotionSyncOptions) {
       if (!DRY_RUN) {
         if (NOTION_ENABLED) {
           await notionCall(() =>
-            notion!.pages.create({
-              parent: { database_id: NOTION_DB.PC_TRACKER },
-              properties: {
-                'Character Name': { title: [{ text: { content: name } }] },
-                'Source': { select: { name: SOURCE_TAG } },
-                ...(playerName ? { 'Player': { rich_text: [{ text: { content: playerName } }] } } : {}),
-                ...(clan ? { 'Clan': { select: { name: clan } } } : {}),
-                ...(sect ? { 'Sect': { select: { name: sect } } } : {}),
-                ...(coterie ? { 'Coterie': { rich_text: [{ text: { content: coterie } }] } } : {}),
-              },
-            }),
+            notion!.pages.create(buildPcTrackerCreatePayload({
+              databaseId: NOTION_DB.PC_TRACKER,
+              name,
+              sourceTag: SOURCE_TAG,
+              playerName,
+              clan,
+              sect,
+              coterie,
+            })),
           );
         }
         const pcProfile = lookupPcProfile(pcProfileMap, name);
@@ -845,19 +836,15 @@ async function main(opts: NotionSyncOptions) {
           const preview = truncate(messages[0]?.content ?? '', 500);
           const cover = firstImage(messages);
           if (NOTION_ENABLED) {
-            const sessionProps = {
-              'Session/Post Title': { title: [{ text: { content: title } }] },
-              'Status': { select: { name: 'Complete' } },
-              'Source': { select: { name: SOURCE_TAG } },
-              'Summary': { rich_text: [{ text: { content: preview } }] },
-              'Date': { date: { start: postDate } },
-            };
             const page = await notionCall(() =>
-              notion!.pages.create({
-                parent: { database_id: NOTION_DB.SESSION_LOG },
-                ...(cover ? { cover: coverProp(cover) } : {}),
-                properties: sessionProps,
-              }),
+              notion!.pages.create(buildSessionLogCreatePayload({
+                databaseId: NOTION_DB.SESSION_LOG,
+                title,
+                summary: preview,
+                date: postDate,
+                sourceTag: SOURCE_TAG,
+                coverUrl: cover ?? undefined,
+              })),
             );
             await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
           }
@@ -893,15 +880,14 @@ async function main(opts: NotionSyncOptions) {
 
       if (!DRY_RUN) {
         if (NOTION_ENABLED) {
-          const sessionProps = {
-            'Session/Post Title': { title: [{ text: { content: title } }] },
-            'Status': { select: { name: 'Complete' } },
-            'Source': { select: { name: SOURCE_TAG } },
-            'Summary': { rich_text: [{ text: { content: preview } }] },
-            'Date': { date: { start: mostRecentDate } },
-          };
           const page = await notionCall(() =>
-            notion!.pages.create({ parent: { database_id: NOTION_DB.SESSION_LOG }, properties: sessionProps }),
+            notion!.pages.create(buildSessionLogCreatePayload({
+              databaseId: NOTION_DB.SESSION_LOG,
+              title,
+              summary: preview,
+              date: mostRecentDate,
+              sourceTag: SOURCE_TAG,
+            })),
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }

@@ -73,12 +73,19 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `discord-notion-sync.ts` now imports `notionCall`, `appendBodyBlocks`,
     `cleanupPreImportEntries`, and `SOURCE_TAG` from this module.
   - dedicated tests added at `apps/bot/src/__tests__/notionWrites.test.ts`.
+- Notion payload builders extraction (phase 4):
+  - Notion page payload construction now lives in
+    `apps/bot/src/scripts/notionSync/notionPayloadBuilders.ts`.
+  - `discord-notion-sync.ts` now imports payload builders for
+    Location/Hunting/SPC/PC/Session create operations.
+  - dedicated tests added at
+    `apps/bot/src/__tests__/notionPayloadBuilders.test.ts`.
 
 ## High-Signal Current Gaps
 - `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.
-- Notion page payload construction is still mostly inline in
-  `discord-notion-sync.ts`; next phase should extract Notion page/db adapter
-  functions (PC/SPC/location/session builders) into a dedicated module.
+- Wiki API write wrappers (`wikiUpsert`, `wikiDelete`, `wikiSetCharacterStatus`)
+  are still inline in `discord-notion-sync.ts`; next phase should extract a
+  dedicated web wiki client module.
 - Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
