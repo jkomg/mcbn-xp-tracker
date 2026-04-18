@@ -282,7 +282,11 @@ async function wikiUpsert(webBase: string, writeToken: string, data: WikiPageDat
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) console.log(`  [wiki warn] upsert "${data.slug}" → HTTP ${res.status}`);
+    if (res.status === 423) {
+      console.log(`  [wiki] "${data.slug}" is sync-locked — skipped upsert.`);
+    } else if (!res.ok) {
+      console.log(`  [wiki warn] upsert "${data.slug}" → HTTP ${res.status}`);
+    }
   } catch (err) {
     console.log(`  [wiki warn] upsert "${data.slug}" failed: ${err}`);
   }
@@ -298,6 +302,8 @@ async function wikiDelete(webBase: string, writeToken: string, slug: string, dry
     });
     if (res.status === 404) {
       console.log(`  [wiki] "${slug}" not found — already deleted or never created.`);
+    } else if (res.status === 423) {
+      console.log(`  [wiki] "${slug}" is sync-locked — skipped delete.`);
     } else if (!res.ok) {
       console.log(`  [wiki warn] delete "${slug}" → HTTP ${res.status}`);
     } else {

@@ -156,6 +156,22 @@
                     <span class="wiki-meta-value text-muted">{{ page.source }}</span>
                 </div>
                 {% endif %}
+                <div class="wiki-meta-row">
+                    <span class="wiki-meta-label">Sync Lock</span>
+                    <span class="wiki-meta-value">
+                        {% if page.sync_locked %}
+                        <span class="badge text-bg-warning">Locked</span>
+                        {% else %}
+                        <span class="badge text-bg-secondary">Unlocked</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if page.sync_locked and page.sync_locked_by %}
+                <div class="wiki-meta-row">
+                    <span class="wiki-meta-label">Locked By</span>
+                    <span class="wiki-meta-value">{{ page.sync_locked_by }}</span>
+                </div>
+                {% endif %}
             </div>
 
             {% if is_staff %}
@@ -165,6 +181,22 @@
                    class="btn btn-sm wiki-btn-edit">
                     <i class="bi bi-pencil-square me-1"></i>Edit Page
                 </a>
+                {% if page.sync_locked %}
+                <form method="post" action="{{ url_for('wiki.unlock_page', slug=page.slug) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                        <i class="bi bi-unlock me-1"></i>Unlock Sync
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('wiki.lock_page', slug=page.slug) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-warning w-100"
+                            title="Prevent bot sync from overwriting this page.">
+                        <i class="bi bi-lock me-1"></i>Lock Sync
+                    </button>
+                </form>
+                {% endif %}
                 <form method="post" action="{{ url_for('wiki.delete_page', slug=page.slug) }}"
                       onsubmit="return confirm('Delete \u00ab{{ page.title }}\u00bb? This cannot be undone.');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -381,3 +381,33 @@ def delete_page(slug):
     db.session.commit()
     flash(f'Page "{title}" deleted.', 'success')
     return redirect(url_for('wiki.index'))
+
+
+@bp.route('/lock/<slug>', methods=['POST'])
+@require_staff
+def lock_page(slug):
+    p = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if p.sync_locked:
+        flash(f'Page "{p.title}" is already sync-locked.', 'info')
+        return redirect(url_for('wiki.page', slug=slug))
+    p.sync_locked = True
+    p.sync_locked_by = get_staff_user()
+    p.sync_locked_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Page "{p.title}" is now sync-locked. Bot sync upserts/deletes are blocked.', 'success')
+    return redirect(url_for('wiki.page', slug=slug))
+
+
+@bp.route('/unlock/<slug>', methods=['POST'])
+@require_staff
+def unlock_page(slug):
+    p = WikiPage.query.filter_by(slug=slug).first_or_404()
+    if not p.sync_locked:
+        flash(f'Page "{p.title}" is not sync-locked.', 'info')
+        return redirect(url_for('wiki.page', slug=slug))
+    p.sync_locked = False
+    p.sync_locked_by = ''
+    p.sync_locked_at = None
+    db.session.commit()
+    flash(f'Page "{p.title}" sync lock removed. Bot sync can update it again.', 'success')
+    return redirect(url_for('wiki.page', slug=slug))

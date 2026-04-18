@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-04-18] Wiki Per-Page Sync Lock
+
+### Manual Guardrail for Discord→Wiki Sync
+
+- Added a per-page `sync_locked` control on wiki pages to prevent bot sync from overwriting/deleting specific pages while staff apply manual fixes.
+- Staff can now lock/unlock pages from the wiki page sidebar:
+  - `POST /wiki/lock/<slug>`
+  - `POST /wiki/unlock/<slug>`
+- Bot-facing wiki endpoints now return `423 Locked` with `{ "status": "locked" }` when a page is sync-locked:
+  - `POST /api/wiki/page`
+  - `DELETE /api/wiki/page/{slug}`
+- Bot sync now treats `423` responses as intentional skips (info logs) rather than warnings.
+- Added migration: `c9b4e1d8f2a0_add_sync_lock_fields_to_wiki_pages.py`.
+
+---
+
 ## [2026-04-18] Wiki Sync Modularization (Phase 3)
 
 ### Bot Notion Write Maintainability
