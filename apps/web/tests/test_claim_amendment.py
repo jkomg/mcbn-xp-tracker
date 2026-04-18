@@ -42,14 +42,14 @@ class TestReopenClaimForAmendment:
         svc = DBService()
         claim_id = _seed_claim('Denied')
         svc.reopen_claim_for_amendment(claim_id, reviewer='ST', notes='Please fix link.')
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.status == 'Amend'
 
     def test_stores_reviewer_and_notes(self, app_ctx):
         svc = DBService()
         claim_id = _seed_claim('Denied')
         svc.reopen_claim_for_amendment(claim_id, reviewer='ST', notes='Fix your links.')
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.reviewed_by == 'ST'
         assert row.st_notes == 'Fix your links.'
 
@@ -57,7 +57,7 @@ class TestReopenClaimForAmendment:
         svc = DBService()
         claim_id = _seed_claim('Denied')
         svc.reopen_claim_for_amendment(claim_id, reviewer='ST')
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.review_date  # non-empty timestamp
 
     def test_raises_for_missing_claim(self, app_ctx):
@@ -75,7 +75,7 @@ class TestAmendClaim:
             'scene_with_another': 'https://discord.com/scene-link',
         }
         svc.amend_claim(claim_id, new_cats)
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.posted_once is True
         assert row.posted_once_link == 'https://discord.com/new-link'
         assert row.scene_with_another is True
@@ -86,7 +86,7 @@ class TestAmendClaim:
         claim_id = _seed_claim('Amend')
         # Only scene_with_another — posted_once should be cleared
         svc.amend_claim(claim_id, {'scene_with_another': 'https://discord.com/x'})
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.posted_once is False
         assert row.posted_once_link == ''
 
@@ -94,14 +94,14 @@ class TestAmendClaim:
         svc = DBService()
         claim_id = _seed_claim('Amend')
         svc.amend_claim(claim_id, {'posted_once': 'https://discord.com/x'})
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.status == 'Pending'
 
     def test_clears_review_fields(self, app_ctx):
         svc = DBService()
         claim_id = _seed_claim('Amend')
         svc.amend_claim(claim_id, {'posted_once': 'https://discord.com/x'})
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.reviewed_by == ''
         assert row.review_date == ''
         assert row.st_notes == ''
@@ -115,7 +115,7 @@ class TestAmendClaim:
             'scene_with_another': 'https://discord.com/b',
             'conflict': 'https://discord.com/c',
         })
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.xp_claimed == 3
 
     def test_wildcard_xp_counted(self, app_ctx):
@@ -127,7 +127,7 @@ class TestAmendClaim:
             'wildcard_reason': 'Conclave',
             'wildcard_amount': '3',
         })
-        row = DbXPClaim.query.get(claim_id)
+        row = db.session.get(DbXPClaim, claim_id)
         assert row.xp_claimed == 4  # 1 standard + 3 wildcard
         assert row.wildcard_amount == 3
         assert row.wildcard_reason == 'Conclave'

@@ -84,7 +84,7 @@ def test_reset_notion_sync_clears_sync_state_for_admin():
             'BOT_NOTION_SYNC_ERROR',
             'BOT_NOTION_SYNC_SOURCE',
         ):
-            assert AppSetting.query.get(key) is None
+            assert db.session.get(AppSetting, key) is None
 
 
 def test_reset_notion_sync_denied_for_non_admin():
@@ -96,7 +96,7 @@ def test_reset_notion_sync_denied_for_non_admin():
         assert res.status_code == 302
 
     with app.app_context():
-        assert AppSetting.query.get('BOT_NOTION_SYNC_STATUS') is not None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_STATUS') is not None
 
 
 def test_settings_index_shows_sync_run_summary_rows():
@@ -158,7 +158,7 @@ def test_request_notion_sync_denied_when_bot_reports_missing_prereqs():
         assert res.status_code == 302
 
     with app.app_context():
-        assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED') is None
 
 
 def test_request_notion_sync_allowed_when_bot_reports_capable():
@@ -173,6 +173,6 @@ def test_request_notion_sync_allowed_when_bot_reports_capable():
         assert res.status_code == 302
 
     with app.app_context():
-        requested = AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED')
+        requested = db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED')
         assert requested is not None
         assert requested.value == 'true'

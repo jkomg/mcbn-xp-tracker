@@ -77,6 +77,6 @@ def test_heartbeat_post_persists_notion_sync_capability_flag():
         assert res.status_code == 200
 
     with app.app_context():
-        rec = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+        rec = db.session.get(AppSetting, 'BOT_LIVE_NOTION_SYNC_CAPABLE')
         assert rec is not None
         assert rec.value == 'false'

@@ -380,8 +380,8 @@ def index():
     ]
 
     # ── Bot heartbeat ───────────────────────────────────────────────────────
-    from app.db import AppSetting
-    _hb = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    from app.db import AppSetting, db
+    _hb = db.session.get(AppSetting, 'BOT_LAST_HEARTBEAT')
     bot_heartbeat_age = None
     bot_heartbeat_ts = None
     if _hb:
@@ -398,13 +398,13 @@ def index():
 
     # ── Notion sync status ─────────────────────────────────────────────────
     _notion_sync_requested = 'BOT_NOTION_SYNC_REQUESTED' in overrides and overrides['BOT_NOTION_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
-    _notion_status_rec = AppSetting.query.get('BOT_NOTION_SYNC_STATUS')
-    _notion_run_id_rec = AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID')
-    _notion_started_rec = AppSetting.query.get('BOT_NOTION_SYNC_STARTED_AT')
-    _notion_finished_rec = AppSetting.query.get('BOT_NOTION_SYNC_FINISHED_AT')
-    _notion_error_rec = AppSetting.query.get('BOT_NOTION_SYNC_ERROR')
-    _notion_source_rec = AppSetting.query.get('BOT_NOTION_SYNC_SOURCE')
-    _notion_capable_rec = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+    _notion_status_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_STATUS')
+    _notion_run_id_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_RUN_ID')
+    _notion_started_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_STARTED_AT')
+    _notion_finished_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_FINISHED_AT')
+    _notion_error_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_ERROR')
+    _notion_source_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_SOURCE')
+    _notion_capable_rec = db.session.get(AppSetting, 'BOT_LIVE_NOTION_SYNC_CAPABLE')
     _notion_capable = None if _notion_capable_rec is None else _is_truthy(_notion_capable_rec.value)
     _notion_stale_after_seconds = max(
         60,
@@ -499,8 +499,8 @@ def request_notion_sync():
         flash('You do not have permission to run the Notion sync.', 'danger')
         return redirect(url_for('settings.index'))
 
-    from app.db import AppSetting
-    notion_capability = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+    from app.db import AppSetting, db
+    notion_capability = db.session.get(AppSetting, 'BOT_LIVE_NOTION_SYNC_CAPABLE')
     if notion_capability is not None and not _is_truthy(notion_capability.value):
         flash(
             'Bot reports Notion sync prerequisites are missing (NOTION_TOKEN and/or DISCORD_GUILD_ID). '
@@ -538,7 +538,7 @@ def reset_notion_sync():
     )
     deleted = 0
     for key in reset_keys:
-        rec = AppSetting.query.get(key)
+        rec = db.session.get(AppSetting, key)
         if rec:
             db.session.delete(rec)
             deleted += 1

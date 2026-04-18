@@ -535,12 +535,12 @@ class DBService:
         return [_row_to_claim(r) for r in rows]
 
     def get_claim_by_row(self, row_index: int) -> Optional[XPClaim]:
-        row = DbXPClaim.query.get(row_index)
+        row = db.session.get(DbXPClaim, row_index)
         return _row_to_claim(row) if row else None
 
     def approve_claim(self, row_index: int, approved_xp: int,
                       reviewer: str, notes: str = '') -> None:
-        row = DbXPClaim.query.get(row_index)
+        row = db.session.get(DbXPClaim, row_index)
         if not row:
             raise ValueError(f'Claim not found: {row_index}')
         row.status = 'Approved'
@@ -552,7 +552,7 @@ class DBService:
 
     def deny_claim(self, row_index: int, reviewer: str,
                    notes: str = '') -> None:
-        row = DbXPClaim.query.get(row_index)
+        row = db.session.get(DbXPClaim, row_index)
         if not row:
             raise ValueError(f'Claim not found: {row_index}')
         row.status = 'Denied'
@@ -565,7 +565,7 @@ class DBService:
     def reopen_claim_for_amendment(self, row_index: int, reviewer: str,
                                    notes: str = '') -> None:
         """Set a denied claim to 'Amend' so the player can edit and resubmit."""
-        row = DbXPClaim.query.get(row_index)
+        row = db.session.get(DbXPClaim, row_index)
         if not row:
             raise ValueError(f'Claim not found: {row_index}')
         row.status = 'Amend'
@@ -576,7 +576,7 @@ class DBService:
 
     def amend_claim(self, row_index: int, categories: dict) -> None:
         """Update claim evidence fields in-place and return it to Pending."""
-        row = DbXPClaim.query.get(row_index)
+        row = db.session.get(DbXPClaim, row_index)
         if not row:
             raise ValueError(f'Claim not found: {row_index}')
         cat_keys = [
@@ -710,12 +710,12 @@ class DBService:
         return [_row_to_spend(r) for r in rows]
 
     def get_spend_by_row(self, row_index: int) -> Optional[SpendRequest]:
-        row = DbSpendRequest.query.get(row_index)
+        row = db.session.get(DbSpendRequest, row_index)
         return _row_to_spend(row) if row else None
 
     def approve_spend(self, row_index: int, verified_cost: int,
                       reviewer: str, notes: str = '') -> None:
-        row = DbSpendRequest.query.get(row_index)
+        row = db.session.get(DbSpendRequest, row_index)
         if not row:
             raise ValueError(f'Spend request not found: {row_index}')
         row.status = 'Approved'
@@ -727,7 +727,7 @@ class DBService:
 
     def deny_spend(self, row_index: int, reviewer: str,
                    notes: str = '') -> None:
-        row = DbSpendRequest.query.get(row_index)
+        row = db.session.get(DbSpendRequest, row_index)
         if not row:
             raise ValueError(f'Spend request not found: {row_index}')
         row.status = 'Denied'
@@ -918,7 +918,7 @@ class DBService:
 
     def delete_ledger_entry(self, row_index: int) -> None:
         """Delete a ledger entry by its DB id (row_index == id)."""
-        row = DbLedgerEntry.query.get(row_index)
+        row = db.session.get(DbLedgerEntry, row_index)
         if not row:
             raise ValueError(f'Ledger entry not found: {row_index}')
         db.session.delete(row)
