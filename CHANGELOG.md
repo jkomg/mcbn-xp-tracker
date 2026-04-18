@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-04-18] Wiki Sync Modularization (Phase 4)
+
+### Bot Notion Payload Builder Extraction
+
+- Extracted Notion page payload construction from [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts) into [`notionPayloadBuilders.ts`](apps/bot/src/scripts/notionSync/notionPayloadBuilders.ts).
+- Centralized payload builders for:
+  - location entries
+  - hunting site entries
+  - SPC entries
+  - PC tracker entries
+  - session/post log entries
+- Updated `discord-notion-sync.ts` to call the shared payload builders with no behavior change.
+- Added focused tests in [`notionPayloadBuilders.test.ts`](apps/bot/src/__tests__/notionPayloadBuilders.test.ts).
+- Added release notes: [`docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE4.md`](docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE4.md).
+
+---
+
 ## [2026-04-18] Wiki Per-Page Sync Lock
 
 ### Manual Guardrail for Discord→Wiki Sync
