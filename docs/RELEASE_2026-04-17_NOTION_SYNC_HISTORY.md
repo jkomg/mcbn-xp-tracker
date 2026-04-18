@@ -8,7 +8,7 @@ Adds persistent, operator-visible history for Notion/wiki sync lifecycle events.
 
 - Added DB table `notion_sync_events` (migration + model).
 - `/api/notion-sync-ack` now appends an event row on every ack (`running|success|error`, `manual|scheduled`, `run_id`, optional error).
-- Settings page now shows recent sync history rows under the Notion Sync card.
+- Settings page now shows recent sync runs under the Notion Sync card, grouped by `run_id` (fallback legacy key) with started/finished timestamps, duration, final status, and error.
 - History is bounded server-side (keeps most recent 500 events).
 - Bot now generates a `runId` per sync run and sends it on all ack phases so lifecycle events correlate cleanly.
 

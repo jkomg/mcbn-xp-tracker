@@ -129,4 +129,6 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - `docs/INSTALL_LITE.md` / `docs/INSTALL_REGULAR.md` — install guides
 - `docs/RELEASE_2026-03-13_TURSO_DB_MIGRATION.md` — Turso DB migration release notes
 - `docs/RELEASE_2026-03-16_BOT_HEALTH_AND_FIXES.md` — bot health monitoring, cubby monitor fix, sidebar pin, Docker ARM64 fixes
+- `docs/RELEASE_2026-04-17_SYNC_CONTROL_PLANE_HARDENING.md` — source-aware sync acks, stale reset controls, and shared sync config constants
+- `docs/RELEASE_2026-04-17_NOTION_SYNC_HISTORY.md` — persisted sync events with run-level settings summaries (started/finished/duration/final status)
 - `docs/RELEASE_2026-04-07_BROADCAST_AND_SCHEDULER_FIX.md` — latest release notes (staff broadcast overhaul, passage-of-time scheduler fix, MONOREPO_ROOT Docker fix)

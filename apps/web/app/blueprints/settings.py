@@ -33,6 +33,18 @@ def _parse_iso_utc(value: str | None) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+def _format_duration(seconds: int | None) -> str:
+    if seconds is None or seconds < 0:
+        return '—'
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f'{hours}h {minutes}m {secs}s'
+    if minutes:
+        return f'{minutes}m {secs}s'
+    return f'{secs}s'
+
+
 @bp.route('/')
 @require_staff
 def index():
@@ -412,16 +424,49 @@ def index():
         'stale_after_seconds': _notion_stale_after_seconds,
         'is_stale': _notion_is_stale,
     }
-    notion_sync_history = [
-        {
-            'ts': row.ts,
-            'run_id': row.run_id or '',
-            'source': row.source,
-            'status': row.status,
-            'error': row.error or '',
-        }
-        for row in NotionSyncEvent.query.order_by(NotionSyncEvent.created_at.desc()).limit(12).all()
-    ]
+    _history_rows = NotionSyncEvent.query.order_by(NotionSyncEvent.created_at.desc()).limit(120).all()
+    _run_buckets: dict[str, list[NotionSyncEvent]] = {}
+    for row in _history_rows:
+        key = (row.run_id or '').strip() or f'legacy-{row.id}'
+        _run_buckets.setdefault(key, []).append(row)
+
+    notion_sync_runs = []
+    for run_key, rows in _run_buckets.items():
+        rows_sorted = sorted(rows, key=lambda r: r.created_at or datetime.min)
+        latest = rows_sorted[-1]
+        started_row = next((r for r in rows_sorted if r.status == 'running'), rows_sorted[0])
+        started_at = started_row.ts
+        latest_at = latest.ts
+        finished_at = latest.ts if latest.status in ('success', 'error') else None
+        started_dt = _parse_iso_utc(started_at)
+        finished_dt = _parse_iso_utc(finished_at) if finished_at else None
+        duration_seconds = None
+        if started_dt and finished_dt:
+            duration_seconds = int((finished_dt - started_dt).total_seconds())
+        err_row = next(
+            (r for r in reversed(rows_sorted) if r.status == 'error' and str(r.error or '').strip()),
+            None,
+        )
+        notion_sync_runs.append(
+            {
+                'run_key': run_key,
+                'run_id': (latest.run_id or '').strip(),
+                'source': latest.source,
+                'status': latest.status,
+                'started_at': started_at,
+                'finished_at': finished_at,
+                'latest_at': latest_at,
+                'duration_seconds': duration_seconds,
+                'duration_display': _format_duration(duration_seconds),
+                'error': (err_row.error if err_row else ''),
+                'event_count': len(rows_sorted),
+            }
+        )
+    notion_sync_runs.sort(
+        key=lambda row: _parse_iso_utc(row['latest_at']) or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    notion_sync_runs = notion_sync_runs[:12]
 
     return render_template(
         'settings/index.html',
@@ -436,7 +481,7 @@ def index():
         bot_heartbeat_ts=bot_heartbeat_ts,
         bot_restart_pending=_restart_pending,
         notion_sync=notion_sync,
-        notion_sync_history=notion_sync_history,
+        notion_sync_runs=notion_sync_runs,
     )
 
 
