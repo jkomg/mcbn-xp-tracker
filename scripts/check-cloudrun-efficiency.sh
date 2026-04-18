@@ -23,6 +23,7 @@ timeout_seconds="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.spec.timeoutSe
 min_scale="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.metadata.annotations["autoscaling.knative.dev/minScale"] // "0"')"
 max_scale="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.metadata.annotations["autoscaling.knative.dev/maxScale"] // "unset"')"
 startup_cpu_boost="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.metadata.annotations["run.googleapis.com/startup-cpu-boost"] // "default"')"
+cpu_throttling="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.metadata.annotations["run.googleapis.com/cpu-throttling"] // "true"')"
 session_affinity="$(echo "${SERVICE_JSON}" | jq -r '.spec.template.metadata.annotations["run.googleapis.com/sessionAffinity"] // "false"')"
 
 echo "Cloud Run efficiency profile (${SERVICE_NAME}, ${REGION})"
@@ -33,6 +34,7 @@ echo "  maxScale: ${max_scale}"
 echo "  concurrency: ${concurrency}"
 echo "  timeoutSeconds: ${timeout_seconds}"
 echo "  startupCpuBoost: ${startup_cpu_boost}"
+echo "  cpuThrottling: ${cpu_throttling}"
 echo "  sessionAffinity: ${session_affinity}"
 echo ""
 
@@ -55,6 +57,7 @@ check_value "minScale" "${min_scale}" "0"
 check_value "maxScale" "${max_scale}" "2"
 check_value "concurrency" "${concurrency}" "80"
 check_value "timeoutSeconds" "${timeout_seconds}" "120"
+check_value "cpuThrottling" "${cpu_throttling}" "true"
 check_value "sessionAffinity" "${session_affinity}" "false"
 
 if [[ "${expect_ok}" == "true" ]]; then
