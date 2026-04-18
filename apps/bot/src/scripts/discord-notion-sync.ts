@@ -49,6 +49,12 @@ import {
   fetchPins,
 } from './notionSync/discordIngest';
 import {
+  appendBodyBlocks,
+  cleanupPreImportEntries,
+  notionCall,
+  SOURCE_TAG,
+} from './notionSync/notionWrites';
+import {
   CHAR_TO_COTERIE,
   COTERIE_MEMBERS,
   FACTIONS,
@@ -152,38 +158,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function notionCall<T>(fn: () => Promise<T>): Promise<T> {
-  await sleep(350);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const code = (err as { code?: string }).code;
-      if (code === 'notionhq_client_request_timeout' || code === 'notionhq_client_response_error') {
-        if (attempt < 2) {
-          console.log(`  [retry] Notion timeout/error, waiting ${(attempt + 1) * 2}s…`);
-          await sleep((attempt + 1) * 2000);
-          continue;
-        }
-      }
-      throw err;
-    }
-  }
-  throw new Error('unreachable');
-}
-
 function toTitleCase(str: string): string {
   return str.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
-}
-
-function chunks<T>(arr: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
-  return result;
 }
 
 function textToBlocks(text: string): object[] {
@@ -360,21 +340,6 @@ async function fetchActiveRoster(webBase: string, webReadToken: string): Promise
   }
 }
 
-// ---------------------------------------------------------------------------
-// Notion helpers
-// ---------------------------------------------------------------------------
-
-async function appendBodyBlocks(notion: NotionClient, pageId: string, blocks: object[]) {
-  for (const chunk of chunks(blocks, 100)) {
-    await notionCall(() =>
-      notion.blocks.children.append({
-        block_id: pageId,
-        children: chunk as Parameters<typeof notion.blocks.children.append>[0]['children'],
-      }),
-    );
-  }
-}
-
 function firstImage(messages: DiscordMessage[]): string | null {
   for (const msg of messages) {
     for (const a of msg.attachments ?? []) {
@@ -413,58 +378,6 @@ function messagesToBlocks(messages: DiscordMessage[]): object[] {
     blocks.push({ object: 'block', type: 'divider', divider: {} });
   }
   return blocks;
-}
-
-// ---------------------------------------------------------------------------
-// Pre-import cleanup
-// ---------------------------------------------------------------------------
-
-const SOURCE_TAG = 'discord-sync';
-
-function getPageTitle(page: { properties: Record<string, unknown> }): string {
-  for (const val of Object.values(page.properties)) {
-    const v = val as { id?: string; type?: string; title?: { plain_text: string }[] };
-    if (v.type === 'title' && Array.isArray(v.title)) {
-      return v.title.map((t) => t.plain_text).join('') || '(untitled)';
-    }
-  }
-  return '(untitled)';
-}
-
-async function cleanupPreImportEntries(notion: NotionClient, dryRun: boolean): Promise<void> {
-  console.log('\n[cleanup] Archiving pre-import entries from all databases…');
-  for (const [dbName, dbId] of Object.entries(NOTION_DB)) {
-    let cursor: string | undefined;
-    let removed = 0;
-    let kept = 0;
-    for (;;) {
-      const result = await notionCall(() =>
-        notion.databases.query({
-          database_id: dbId,
-          page_size: 100,
-          ...(cursor ? { start_cursor: cursor } : {}),
-        }),
-      );
-      for (const page of result.results) {
-        if (page.object !== 'page' || !('properties' in page)) continue;
-        const props = page.properties as Record<string, unknown>;
-        const source = (props['Source'] as { select?: { name: string } } | undefined)?.select?.name;
-        if (source === SOURCE_TAG) {
-          kept++;
-        } else {
-          const title = getPageTitle({ properties: props });
-          console.log(`  [${dbName}] archive: "${title}"`);
-          if (!dryRun) {
-            await notionCall(() => notion.pages.update({ page_id: page.id, archived: true }));
-          }
-          removed++;
-        }
-      }
-      if (!result.has_more) break;
-      cursor = result.next_cursor ?? undefined;
-    }
-    console.log(`  [${dbName}] kept: ${kept}, archived: ${removed}${dryRun ? ' (dry-run)' : ''}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -513,7 +426,10 @@ async function main(opts: NotionSyncOptions) {
   }
 
   if (CLEANUP && NOTION_ENABLED) {
-    await cleanupPreImportEntries(notion!, DRY_RUN);
+    await cleanupPreImportEntries(notion!, {
+      databaseIds: NOTION_DB,
+      dryRun: DRY_RUN,
+    });
   }
 
   // ------------------------------------------------------------------

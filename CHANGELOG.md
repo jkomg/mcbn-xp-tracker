@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-18] Wiki Sync Modularization (Phase 3)
+
+### Bot Notion Write Maintainability
+
+- Extracted Notion write/retry helpers from [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts) into [`notionWrites.ts`](apps/bot/src/scripts/notionSync/notionWrites.ts).
+- Centralized Notion helper behavior for:
+  - `notionCall` retry/backoff wrapper
+  - `appendBodyBlocks` chunked block writes
+  - `cleanupPreImportEntries` archive pass for non-sync rows
+  - shared `SOURCE_TAG` and title extraction helper
+- Added focused tests in [`notionWrites.test.ts`](apps/bot/src/__tests__/notionWrites.test.ts) for retry, chunking, and cleanup semantics.
+- Added release notes: [`docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE3.md`](docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE3.md).
+
+---
+
 ## [2026-04-18] Wiki Sync Modularization (Phase 2)
 
 ### Bot Discord Ingest Maintainability
