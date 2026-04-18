@@ -40,6 +40,7 @@ const LINKS_BUTTON_ID = 'xp:submit:links';
 const SUBMIT_BUTTON_ID = 'xp:submit:confirm';
 const CANCEL_BUTTON_ID = 'xp:submit:cancel';
 const LINKS_MODAL_PREFIX = 'xp:submit:links-modal';
+const NO_ACTIVE_WIZARD_MESSAGE = 'No active claim wizard. Open the player portal to submit your claim.';
 
 type ClaimDraft = {
   characterName?: string;
@@ -307,7 +308,7 @@ export async function handleClaimWizardSelect(interaction: StringSelectMenuInter
   cleanupExpiredDrafts();
   const draft = drafts.get(interaction.user.id);
   if (!draft) {
-    await interaction.reply({ content: 'No active claim wizard. Run /xp submit again.', ephemeral: true });
+    await interaction.reply({ content: NO_ACTIVE_WIZARD_MESSAGE, ephemeral: true });
     return true;
   }
 
@@ -344,7 +345,7 @@ export async function handleClaimWizardButton(interaction: ButtonInteraction, ad
   cleanupExpiredDrafts();
   const draft = drafts.get(interaction.user.id);
   if (!draft) {
-    await interaction.reply({ content: 'No active claim wizard. Run /xp submit again.', ephemeral: true });
+    await interaction.reply({ content: NO_ACTIVE_WIZARD_MESSAGE, ephemeral: true });
     return true;
   }
 
@@ -490,7 +491,7 @@ export async function handleClaimWizardModal(interaction: ModalSubmitInteraction
   cleanupExpiredDrafts();
   const draft = drafts.get(interaction.user.id);
   if (!draft) {
-    await interaction.reply({ content: 'No active claim wizard. Run /xp submit again.', ephemeral: true });
+    await interaction.reply({ content: NO_ACTIVE_WIZARD_MESSAGE, ephemeral: true });
     return true;
   }
 
