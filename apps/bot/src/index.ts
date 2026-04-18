@@ -180,7 +180,12 @@ void applyStartupConfigOverrides().then(() => {
   });
 
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
-  const botHeartbeatService = new BotHeartbeatService(adapter, config.botHeartbeatIntervalMs);
+  const notionSyncCapable = Boolean(config.notionToken && config.discordGuildId);
+  const botHeartbeatService = new BotHeartbeatService(
+    adapter,
+    config.botHeartbeatIntervalMs,
+    { notionSyncCapable },
+  );
   const botLogForwarder = new BotLogForwarder(adapter);
 
   // Build hunt consequence config, respecting test mode

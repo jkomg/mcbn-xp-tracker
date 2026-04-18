@@ -3,7 +3,7 @@
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
-from app.db import db
+from app.db import AppSetting, db
 
 
 def _app():
@@ -64,3 +64,19 @@ def test_heartbeat_get_requires_auth():
     with app.test_client() as client:
         res = client.get('/api/bot-heartbeat')
         assert res.status_code == 401
+
+
+def test_heartbeat_post_persists_notion_sync_capability_flag():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/bot-heartbeat',
+            headers={'Authorization': 'Bearer test-token'},
+            json={'notionSyncCapable': False},
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        rec = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+        assert rec is not None
+        assert rec.value == 'false'

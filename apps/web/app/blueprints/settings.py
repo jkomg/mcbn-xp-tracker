@@ -45,6 +45,10 @@ def _format_duration(seconds: int | None) -> str:
     return f'{secs}s'
 
 
+def _is_truthy(value: str | None) -> bool:
+    return str(value or '').strip().lower() in ('true', '1', 'yes')
+
+
 @bp.route('/')
 @require_staff
 def index():
@@ -400,6 +404,8 @@ def index():
     _notion_finished_rec = AppSetting.query.get('BOT_NOTION_SYNC_FINISHED_AT')
     _notion_error_rec = AppSetting.query.get('BOT_NOTION_SYNC_ERROR')
     _notion_source_rec = AppSetting.query.get('BOT_NOTION_SYNC_SOURCE')
+    _notion_capable_rec = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+    _notion_capable = None if _notion_capable_rec is None else _is_truthy(_notion_capable_rec.value)
     _notion_stale_after_seconds = max(
         60,
         int(get_app_setting('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', 3600))),
@@ -420,6 +426,7 @@ def index():
         'finished_at': _notion_finished_rec.value if _notion_finished_rec else None,
         'error': _notion_error_rec.value if _notion_error_rec else None,
         'source': _notion_source_rec.value if _notion_source_rec else None,
+        'capable': _notion_capable,
         'running_age_seconds': _notion_running_age_seconds,
         'stale_after_seconds': _notion_stale_after_seconds,
         'is_stale': _notion_is_stale,
@@ -490,6 +497,16 @@ def index():
 def request_notion_sync():
     if not is_settings_admin():
         flash('You do not have permission to run the Notion sync.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.db import AppSetting
+    notion_capability = AppSetting.query.get('BOT_LIVE_NOTION_SYNC_CAPABLE')
+    if notion_capability is not None and not _is_truthy(notion_capability.value):
+        flash(
+            'Bot reports Notion sync prerequisites are missing (NOTION_TOKEN and/or DISCORD_GUILD_ID). '
+            'Update bot .env and restart the bot before running sync.',
+            'danger',
+        )
         return redirect(url_for('settings.index'))
 
     updated_by = (

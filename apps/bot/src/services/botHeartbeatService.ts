@@ -5,10 +5,12 @@ import type { TrackerAdapter } from './adapter';
 export class BotHeartbeatService {
   private readonly adapter: TrackerAdapter;
   private readonly intervalMs: number;
+  private readonly staticState: Record<string, boolean>;
 
-  constructor(adapter: TrackerAdapter, intervalMs = 60_000) {
+  constructor(adapter: TrackerAdapter, intervalMs = 60_000, staticState: Record<string, boolean> = {}) {
     this.adapter = adapter;
     this.intervalMs = intervalMs;
+    this.staticState = staticState;
   }
 
   async beat(): Promise<void> {
@@ -21,6 +23,7 @@ export class BotHeartbeatService {
         claimReminderEnabled: liveConfig.claimReminderEnabled,
         passageOfTimeEnabled: liveConfig.passageOfTimeEnabled,
         huntConsequenceEnabled: liveConfig.huntConsequenceEnabled,
+        ...this.staticState,
       });
     } catch (err) {
       logEvent('warn', 'heartbeat_failed', { error: String(err) });
