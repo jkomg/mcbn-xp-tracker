@@ -21,3 +21,8 @@ assert_contains "README.md" "compose.full.yml" "top-level full compose reference
 assert_contains "README.md" "docs/ENV_AND_SECRETS.md" "env/secrets runbook reference"
 assert_contains "docs/INSTALL_LITE.md" "./scripts/bootstrap-local.sh web-only" "lite install one-command bootstrap"
 assert_contains "docs/INSTALL_REGULAR.md" "./scripts/bootstrap-local.sh web+bot" "regular install one-command bootstrap"
+
+# Command semantics parity (portal-first claim/spend flow)
+assert_contains "docs/BOT.md" '| `/xp submit` | Players | Redirect to the web player portal claim flow |' "xp submit portal semantics"
+assert_contains "docs/BOT.md" '| `/xp claim` | Players | Redirect to the web player portal claim flow |' "xp claim portal semantics"
+assert_contains "docs/BOT.md" '| `/xp spend` | Players | Redirect to the web player portal spend flow |' "xp spend portal semantics"
