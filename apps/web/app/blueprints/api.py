@@ -683,6 +683,7 @@ def bot_heartbeat_post():
         'claimReminderEnabled': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
         'passageOfTimeEnabled': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'huntConsequenceEnabled': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
+        'notionSyncCapable': 'BOT_LIVE_NOTION_SYNC_CAPABLE',
     }
     body = request.get_json(silent=True) or {}
     live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(LIVE_FLAG_KEYS.values())).all()}

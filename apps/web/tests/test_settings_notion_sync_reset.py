@@ -144,3 +144,35 @@ def test_settings_index_shows_sync_run_summary_rows():
         assert 'run-222' in body
         assert '10m 0s' in body
         assert 'sync failed' in body
+
+
+def test_request_notion_sync_denied_when_bot_reports_missing_prereqs():
+    app = _app()
+    with app.app_context():
+        db.session.merge(AppSetting(key='BOT_LIVE_NOTION_SYNC_CAPABLE', value='false', updated_by='bot'))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client, '12345')
+        res = client.post('/settings/request-notion-sync')
+        assert res.status_code == 302
+
+    with app.app_context():
+        assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
+
+
+def test_request_notion_sync_allowed_when_bot_reports_capable():
+    app = _app()
+    with app.app_context():
+        db.session.merge(AppSetting(key='BOT_LIVE_NOTION_SYNC_CAPABLE', value='true', updated_by='bot'))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client, '12345')
+        res = client.post('/settings/request-notion-sync')
+        assert res.status_code == 302
+
+    with app.app_context():
+        requested = AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED')
+        assert requested is not None
+        assert requested.value == 'true'
