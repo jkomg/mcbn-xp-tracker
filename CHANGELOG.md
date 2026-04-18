@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-18] Wiki Sync Modularization (Phase 2)
+
+### Bot Discord Ingest Maintainability
+
+- Extracted Discord REST ingest helpers from [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts) into [`discordIngest.ts`](apps/bot/src/scripts/notionSync/discordIngest.ts).
+- Centralized typed pagination/fetch behavior for:
+  - `fetchAllMessages`
+  - `fetchForumThreads`
+  - `fetchPins`
+  - `fetchGuildMember`
+- Added targeted ingest tests in [`discordIngest.test.ts`](apps/bot/src/__tests__/discordIngest.test.ts) to lock pagination/filtering/error behavior before deeper refactors.
+- Added release notes: [`docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE2.md`](docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE2.md).
+
+---
+
 ## [2026-04-18] Wiki Sync Modularization (Phase 1)
 
 ### Bot Wiki Sync Maintainability

@@ -56,9 +56,17 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - shared wiki taxonomy + markdown/slug/domain helpers now live in
     `apps/bot/src/scripts/notionSync/wikiSyncHelpers.ts`.
   - `discord-notion-sync.ts` imports these helpers; orchestration flow is unchanged.
+- Discord ingest extraction (phase 2):
+  - Discord REST pagination helpers now live in
+    `apps/bot/src/scripts/notionSync/discordIngest.ts`.
+  - `discord-notion-sync.ts` now imports `fetchAllMessages`, `fetchForumThreads`,
+    `fetchPins`, and `fetchGuildMember` from this module.
+  - dedicated tests added at `apps/bot/src/__tests__/discordIngest.test.ts`.
 
 ## High-Signal Current Gaps
 - `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.
+- Notion write orchestration and payload construction are still inline in
+  `discord-notion-sync.ts`; next phase should extract Notion page/db adapters.
 - Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
