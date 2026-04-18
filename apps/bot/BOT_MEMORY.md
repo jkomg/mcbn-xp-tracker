@@ -52,6 +52,11 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `PUT /api/character/<name>/status`
 - Cover image permanence:
   - web mirrors Discord CDN images to GCS in `app/gcs.py` from `POST /api/wiki/page`.
+- Manual wiki sync lock:
+  - web wiki pages now support a staff-controlled per-page sync lock (`sync_locked`).
+  - when locked, bot-sync `POST /api/wiki/page` and `DELETE /api/wiki/page/<slug>`
+    return `423` with `status=locked`; bot logs skip and continues.
+  - staff manual wiki edits remain allowed while lock is active.
 - Wiki sync helper extraction (phase 1):
   - shared wiki taxonomy + markdown/slug/domain helpers now live in
     `apps/bot/src/scripts/notionSync/wikiSyncHelpers.ts`.

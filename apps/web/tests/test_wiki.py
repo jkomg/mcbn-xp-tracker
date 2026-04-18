@@ -45,6 +45,12 @@ def _app():
     return app
 
 
+def _set_staff_session(client, staff_user: str = 'Test Staff'):
+    with client.session_transaction() as sess:
+        sess['authenticated'] = True
+        sess['staff_user'] = staff_user
+
+
 # ── Unit tests ────────────────────────────────────────────────────────────────
 
 def test_slugify_basic():
@@ -274,6 +280,24 @@ def test_api_wiki_page_update():
         assert WikiPage.query.filter_by(slug='existing').first().title == 'New Title'
 
 
+def test_api_wiki_page_update_blocked_when_sync_locked():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='existing', title='Old Title', published=True, sync_locked=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/wiki/page',
+            json={'slug': 'existing', 'title': 'New Title'},
+            headers={'Authorization': 'Bearer write-token'},
+        )
+        assert res.status_code == 423
+        assert res.get_json()['status'] == 'locked'
+    with app.app_context():
+        assert WikiPage.query.filter_by(slug='existing').first().title == 'Old Title'
+
+
 def test_api_wiki_page_requires_auth():
     app = _app()
     with app.test_client() as client:
@@ -309,6 +333,23 @@ def test_api_wiki_page_delete():
         assert WikiPage.query.filter_by(slug='to-delete').first() is None
 
 
+def test_api_wiki_page_delete_blocked_when_sync_locked():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='to-delete', title='Bye', published=True, sync_locked=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.delete(
+            '/api/wiki/page/to-delete',
+            headers={'Authorization': 'Bearer write-token'},
+        )
+        assert res.status_code == 423
+        assert res.get_json()['status'] == 'locked'
+    with app.app_context():
+        assert WikiPage.query.filter_by(slug='to-delete').first() is not None
+
+
 def test_api_wiki_page_delete_not_found():
     app = _app()
     with app.test_client() as client:
@@ -324,6 +365,32 @@ def test_api_wiki_page_delete_requires_auth():
     with app.test_client() as client:
         res = client.delete('/api/wiki/page/any-page')
         assert res.status_code == 401
+
+
+def test_wiki_staff_can_lock_and_unlock_page():
+    app = _app()
+    with app.app_context():
+        p = WikiPage(slug='lock-me', title='Lock Me', published=True)
+        db.session.add(p)
+        db.session.commit()
+    with app.test_client() as client:
+        _set_staff_session(client, 'Lock Tester')
+        lock_res = client.post('/wiki/lock/lock-me')
+        assert lock_res.status_code == 302
+    with app.app_context():
+        row = WikiPage.query.filter_by(slug='lock-me').first()
+        assert row.sync_locked is True
+        assert row.sync_locked_by == 'Lock Tester'
+        assert row.sync_locked_at is not None
+    with app.test_client() as client:
+        _set_staff_session(client, 'Unlock Tester')
+        unlock_res = client.post('/wiki/unlock/lock-me')
+        assert unlock_res.status_code == 302
+    with app.app_context():
+        row = WikiPage.query.filter_by(slug='lock-me').first()
+        assert row.sync_locked is False
+        assert row.sync_locked_by == ''
+        assert row.sync_locked_at is None
 
 
 # ── XP snapshot tests ─────────────────────────────────────────────────────────

@@ -651,6 +651,15 @@ Optional fields:
 { "status": "updated", "slug": "hara-s-club" }
 ```
 
+**Response 423 (sync-locked):**
+```json
+{
+  "status": "locked",
+  "slug": "hara-s-club",
+  "error": "wiki page is sync-locked"
+}
+```
+
 ---
 
 ## DELETE /api/wiki/page/{slug}
@@ -667,6 +676,15 @@ Deletes a wiki page by slug.
 **Response 404:**
 ```json
 { "status": "not_found", "slug": "hara-s-club" }
+```
+
+**Response 423 (sync-locked):**
+```json
+{
+  "status": "locked",
+  "slug": "hara-s-club",
+  "error": "wiki page is sync-locked"
+}
 ```
 
 ---

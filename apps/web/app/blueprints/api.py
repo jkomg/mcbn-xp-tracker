@@ -1142,6 +1142,12 @@ def upsert_wiki_page():
 
     p = WikiPage.query.filter_by(slug=slug).first()
     if p:
+        if p.sync_locked:
+            return jsonify({
+                'status': 'locked',
+                'slug': slug,
+                'error': 'wiki page is sync-locked',
+            }), 423
         p.title = title
         if 'body_markdown' in data:
             p.body_markdown = data['body_markdown']
@@ -1203,6 +1209,12 @@ def delete_wiki_page(slug):
     p = WikiPage.query.filter_by(slug=slug).first()
     if not p:
         return jsonify({'status': 'not_found', 'slug': slug}), 404
+    if p.sync_locked:
+        return jsonify({
+            'status': 'locked',
+            'slug': slug,
+            'error': 'wiki page is sync-locked',
+        }), 423
     db.session.delete(p)
     db.session.commit()
     return jsonify({'status': 'deleted', 'slug': slug})
