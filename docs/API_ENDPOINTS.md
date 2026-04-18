@@ -62,7 +62,7 @@ No authentication required. Liveness check.
 
 **Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
 
-Called by the bot on startup and every 60 seconds to record a liveness timestamp.
+Called by the bot on startup and then on its heartbeat loop interval (default every 60 seconds, configurable with bot env `BOT_HEARTBEAT_INTERVAL_MS`) to record a liveness timestamp.
 The web app stores the timestamp in `AppSetting` under key `BOT_LAST_HEARTBEAT`.
 
 **Response 200:**
@@ -94,7 +94,7 @@ Returns the time of the last bot heartbeat and its age in seconds.
 
 **Scope:** read | **Rate limit:** 10/min
 
-Returns the current value of each bot feature flag as stored in the web app's settings database. The bot's `configSyncWorker` polls this endpoint to pick up runtime flag changes without restarting.
+Returns the current value of each bot feature flag as stored in the web app's settings database. The bot's `configSyncWorker` polls this endpoint to pick up runtime flag changes without restarting (default every 60 seconds, configurable with bot env `CONFIG_SYNC_INTERVAL_MS`).
 
 **Response 200:**
 ```json

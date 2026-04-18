@@ -75,6 +75,8 @@ const envSchema = z.object({
   WEB_APP_API_TOKEN: z.string().min(1).optional(),
   WEB_APP_API_READ_TOKEN: z.string().min(1).optional(),
   WEB_APP_API_WRITE_TOKEN: z.string().min(1).optional(),
+  CONFIG_SYNC_INTERVAL_MS: z.string().optional(),
+  BOT_HEARTBEAT_INTERVAL_MS: z.string().optional(),
   REQUEST_TIMEOUT_MS: z.string().optional(),
   CLAIM_CONTEXT_CACHE_TTL_MS: z.string().optional(),
   CLAIM_CONTEXT_STALE_IF_ERROR_MS: z.string().optional(),
@@ -173,6 +175,16 @@ export const config = {
   webAppApiToken: env.WEB_APP_API_TOKEN,
   webAppApiReadToken: env.WEB_APP_API_READ_TOKEN,
   webAppApiWriteToken: env.WEB_APP_API_WRITE_TOKEN,
+  configSyncIntervalMs: parsePositiveInt(
+    env.CONFIG_SYNC_INTERVAL_MS,
+    60_000,
+    'CONFIG_SYNC_INTERVAL_MS',
+  ),
+  botHeartbeatIntervalMs: parsePositiveInt(
+    env.BOT_HEARTBEAT_INTERVAL_MS,
+    60_000,
+    'BOT_HEARTBEAT_INTERVAL_MS',
+  ),
   requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, 10_000, 'REQUEST_TIMEOUT_MS'),
   claimContextCacheTtlMs: parsePositiveInt(
     env.CLAIM_CONTEXT_CACHE_TTL_MS,

@@ -120,6 +120,8 @@ cp apps/bot/.env.example apps/bot/.env
 | `CLAIM_CONTEXT_STALE_IF_ERROR_MS` | No | `300000` | Serve stale cache if web app is unreachable (ms). |
 | `CLAIM_CONTEXT_MAX_RETRIES` | No | `2` | Retries on claim context fetch failure. |
 | `CLAIM_CONTEXT_RETRY_BASE_MS` | No | `250` | Base delay for retry backoff (ms). |
+| `CONFIG_SYNC_INTERVAL_MS` | No | `60000` | Poll interval for `GET /api/bot-config` (ms). |
+| `BOT_HEARTBEAT_INTERVAL_MS` | No | `60000` | Interval for `POST /api/bot-heartbeat` pings (ms). |
 
 ### Review Notifier
 

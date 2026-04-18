@@ -179,8 +179,8 @@ void applyStartupConfigOverrides().then(() => {
     intervalMs: config.wikiSyncIntervalMs,
   });
 
-  const configSyncWorker = new ConfigSyncWorker(adapter);
-  const botHeartbeatService = new BotHeartbeatService(adapter);
+  const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
+  const botHeartbeatService = new BotHeartbeatService(adapter, config.botHeartbeatIntervalMs);
   const botLogForwarder = new BotLogForwarder(adapter);
 
   // Build hunt consequence config, respecting test mode
