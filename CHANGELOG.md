@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-04-18] Wiki Sync Modularization (Phase 1)
+
+### Bot Wiki Sync Maintainability
+
+- Extracted wiki-focused sync helpers from `apps/bot/src/scripts/discord-notion-sync.ts` into `apps/bot/src/scripts/notionSync/wikiSyncHelpers.ts`.
+- Centralized slug generation, markdown sanitization/rendering, SPC type inference, domain mapping, and coterie/faction taxonomy constants used by the sync pipeline.
+- Added targeted helper tests in `apps/bot/src/__tests__/wikiSyncHelpers.test.ts`.
+- Added release notes: `docs/RELEASE_2026-04-18_WIKI_SYNC_MODULARIZATION_PHASE1.md`.
+
+---
+
 ## [2026-03-14] Bulk Approvals, Claim Amendment, and Spend Queue
 
 ### Bulk Claim Approval

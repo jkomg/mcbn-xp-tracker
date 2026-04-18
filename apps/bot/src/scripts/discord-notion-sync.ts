@@ -39,6 +39,15 @@ import path from 'node:path';
 import * as dotenv from 'dotenv';
 import { REST, Routes } from 'discord.js';
 import { Client as NotionClient } from '@notionhq/client';
+import {
+  CHAR_TO_COTERIE,
+  COTERIE_MEMBERS,
+  FACTIONS,
+  inferSpcType,
+  mapDomain,
+  messagesToMarkdown,
+  wikiSlug,
+} from './notionSync/wikiSyncHelpers';
 
 // ---------------------------------------------------------------------------
 // Public API — call this from the bot process or from the CLI
@@ -244,20 +253,6 @@ function heading3Block(content: string): object {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Chronicle Wiki helpers
-// ---------------------------------------------------------------------------
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
 interface PcProfile { image: string | null; markdown: string; }
 
 /**
@@ -295,52 +290,6 @@ function lookupPcProfile(map: Map<string, PcProfile>, charName: string): PcProfi
     if (threadName.includes(key) || key.includes(threadName)) return profile;
   }
   return null;
-}
-
-/** Prefix slug with category abbreviation to prevent cross-category collisions. */
-function wikiSlug(category: string, name: string): string {
-  const prefixes: Record<string, string> = {
-    locations: 'loc',
-    characters: 'char',
-    lore: 'lore',
-  };
-  const prefix = prefixes[category] ?? category;
-  return `${prefix}-${slugify(name)}`;
-}
-
-/**
- * Strip Discord-specific markdown extensions so content renders cleanly
- * in standard Markdown (the wiki renderer).
- *
- * Handles:
- *  - Spoilers: ||text|| → text  (reveal hidden content)
- *  - Custom emoji: <:name:id> / <a:name:id> → removed
- *  - User/role/channel mentions: <@id> <@!id> <#id> <@&id> → removed
- *  - Timestamp tags: <t:123:F> → removed
- *  - Unbalanced ** bold markers: if count is odd, close at end of block
- */
-function sanitizeDiscordMarkdown(text: string): string {
-  let s = text
-    .replace(/\|\|([^|]*)\|\|/g, '$1')          // spoilers → plain text
-    .replace(/<a?:\w+:\d+>/g, '')                // custom emoji
-    .replace(/<[@#!&]?!?\d+>/g, '')              // mentions & channels
-    .replace(/<t:\d+(?::[tTdDfFR])?>/g, '');     // timestamp tags
-
-  // Close any unclosed bold markers (odd number of ** in the block)
-  if ((s.match(/\*\*/g) ?? []).length % 2 !== 0) s += '**';
-
-  return s.trim();
-}
-
-function messagesToMarkdown(messages: DiscordMessage[]): string {
-  return messages
-    .filter((m) => m.content.trim())
-    .map((m) => {
-      const author = m.author.global_name ?? m.author.username;
-      const date = m.timestamp.slice(0, 10);
-      return `### ${author} · ${date}\n\n${sanitizeDiscordMarkdown(m.content.trim())}`;
-    })
-    .join('\n\n---\n\n');
 }
 
 interface WikiPageData {
@@ -565,61 +514,6 @@ function messagesToBlocks(messages: DiscordMessage[]): object[] {
 // ---------------------------------------------------------------------------
 
 const SOURCE_TAG = 'discord-sync';
-
-// Coterie membership: display name → member character names (lowercase for matching)
-const COTERIE_MEMBERS: Record<string, string[]> = {
-  'The Brood':              ['ratcatcher', 'umaira', 'foxus', 'measly', 'viper'],
-  'Obsidian Citadel':       ['krayt', 'constance', 'patrick', 'nochtli'],
-  'Pillars of Community':   ['sonja', 'alice', 'gabriella', 'raize'],
-  'Danse Macabre':          ['ebba', 'alexander', 'kip'],
-  'The Magnolia Court':     ['cecilia', 'dahlia', 'david'],
-  'Ars Ananke':             ['argento', 'charmaine', 'marcus'],
-  'Culebra':                ['yamata', 'derrick', 'code red', 'percy'],
-  'Phantom Troupe':         ['jester', 'sikorsky', 'coral', 'jennifer jean'],
-  'The Assets':             ['big joey', 'lil joey', 'viktor'],
-  'Earth, Wind and Fire':   ['ashanti', 'aliyah', 'dolohov'],
-  'Midnight Oil':           ['rain', 'sierra', 'nightblazer'],
-};
-
-// Build reverse map: character name (lowercase) → coterie display name
-const CHAR_TO_COTERIE = new Map<string, string>();
-for (const [coterie, members] of Object.entries(COTERIE_MEMBERS)) {
-  for (const m of members) CHAR_TO_COTERIE.set(m, coterie);
-}
-
-interface FactionDef {
-  name: string;
-  sectAliases: string[];  // matches c.sect.toLowerCase()
-  loreChannels: string[]; // channel names whose archive pages link under Lore
-}
-const FACTIONS: FactionDef[] = [
-  { name: 'Camarilla', sectAliases: ['camarilla'],         loreChannels: ['camarilla-decrees'] },
-  { name: 'Anarchs',   sectAliases: ['anarch'],            loreChannels: ['anarch-mandates'] },
-  { name: 'Voivode',   sectAliases: ['hecata'],            loreChannels: ['hecata-notices'] },
-  { name: 'Autark',    sectAliases: ['autarkis'],          loreChannels: [] },
-];
-
-// SPC type keywords: if thread/message name contains keyword → Type tag
-const SPC_TYPE_KEYWORDS: { keyword: string; tag: string }[] = [
-  { keyword: 'haven',      tag: 'Haven' },
-  { keyword: 'mawla',      tag: 'Mawla' },
-  { keyword: 'retainer',   tag: 'Retainer' },
-  { keyword: 'contact',    tag: 'Contact' },
-  { keyword: 'allies',     tag: 'Allies' },
-  { keyword: 'ally',       tag: 'Allies' },
-  { keyword: 'herd',       tag: 'Herd' },
-  { keyword: 'rolodex',    tag: 'Rolodex' },
-  { keyword: 'famulus',    tag: 'Famulus' },
-  { keyword: 'touchstone', tag: 'Touchstone' },
-];
-
-function inferSpcType(text: string): string | null {
-  const lower = text.toLowerCase();
-  for (const { keyword, tag } of SPC_TYPE_KEYWORDS) {
-    if (lower.includes(keyword)) return tag;
-  }
-  return null;
-}
 
 function getPageTitle(page: { properties: Record<string, unknown> }): string {
   for (const val of Object.values(page.properties)) {
@@ -1196,23 +1090,3 @@ async function main(opts: NotionSyncOptions) {
 
   console.log(`\nDone!${DRY_RUN ? ' (dry-run: nothing written to Notion)' : ''}`);
 }
-
-// ---------------------------------------------------------------------------
-// Domain name normalisation
-// ---------------------------------------------------------------------------
-
-const DOMAIN_OPTIONS = [
-  'Madison', 'North Nashville', 'West Nashville', 'Bordeaux', 'East Nashville',
-  'Downtown', 'Midtown', 'South Nashville', 'Donelson', 'Sylvan Park',
-  'Hillwood', 'Green Hills', 'Bellevue', 'Hermitage', 'Percy Priest Lake',
-  'City Sewers', 'Metro Area',
-];
-
-function mapDomain(name: string): string | null {
-  const lower = name.toLowerCase();
-  for (const opt of DOMAIN_OPTIONS) {
-    if (lower.includes(opt.toLowerCase())) return opt;
-  }
-  return null;
-}
-

@@ -1,6 +1,6 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## Current System Picture
@@ -52,9 +52,13 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `PUT /api/character/<name>/status`
 - Cover image permanence:
   - web mirrors Discord CDN images to GCS in `app/gcs.py` from `POST /api/wiki/page`.
+- Wiki sync helper extraction (phase 1):
+  - shared wiki taxonomy + markdown/slug/domain helpers now live in
+    `apps/bot/src/scripts/notionSync/wikiSyncHelpers.ts`.
+  - `discord-notion-sync.ts` imports these helpers; orchestration flow is unchanged.
 
 ## High-Signal Current Gaps
-- `runNotionSync` is still a large monolithic script (1218 LOC) doing both Notion and Wiki writes.
+- `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.
 - Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
