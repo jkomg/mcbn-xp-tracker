@@ -40,10 +40,10 @@ def test_running_ack_manual_clears_request_flag():
         assert res.status_code == 200
 
     with app.app_context():
-        assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
-        assert AppSetting.query.get('BOT_NOTION_SYNC_STATUS').value == 'running'
-        assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
-        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID').value == 'run-manual-1'
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED') is None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_STATUS').value == 'running'
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_RUN_ID').value == 'run-manual-1'
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.status == 'running'
@@ -64,9 +64,9 @@ def test_running_ack_scheduled_does_not_clear_request_flag():
         assert res.status_code == 200
 
     with app.app_context():
-        assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is not None
-        assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'scheduled'
-        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID') is None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED') is not None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_SOURCE').value == 'scheduled'
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_RUN_ID') is None
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.source == 'scheduled'
@@ -85,9 +85,9 @@ def test_running_ack_defaults_source_to_manual():
         assert res.status_code == 200
 
     with app.app_context():
-        assert AppSetting.query.get('BOT_NOTION_SYNC_REQUESTED') is None
-        assert AppSetting.query.get('BOT_NOTION_SYNC_SOURCE').value == 'manual'
-        assert AppSetting.query.get('BOT_NOTION_SYNC_RUN_ID') is None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED') is None
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_SOURCE').value == 'manual'
+        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_RUN_ID') is None
         event = NotionSyncEvent.query.order_by(NotionSyncEvent.id.desc()).first()
         assert event is not None
         assert event.source == 'manual'

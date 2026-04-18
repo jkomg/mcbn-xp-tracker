@@ -650,7 +650,7 @@ def bot_config():
 def bot_restart_ack():
     """Bot calls this to clear the restart-requested flag just before exiting."""
     from app.db import AppSetting, db
-    record = AppSetting.query.get('BOT_RESTART_REQUESTED')
+    record = db.session.get(AppSetting, 'BOT_RESTART_REQUESTED')
     if record:
         db.session.delete(record)
         db.session.commit()
@@ -664,7 +664,7 @@ def bot_heartbeat_post():
     from datetime import datetime, timezone
     from app.db import AppSetting, db
     ts = datetime.now(timezone.utc).isoformat()
-    record = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    record = db.session.get(AppSetting, 'BOT_LAST_HEARTBEAT')
     if record:
         record.value = ts
         record.updated_at = datetime.now(timezone.utc)
@@ -706,8 +706,8 @@ def bot_heartbeat_post():
 @_limit('60 per minute')
 def bot_heartbeat_get():
     from datetime import datetime, timezone
-    from app.db import AppSetting
-    record = AppSetting.query.get('BOT_LAST_HEARTBEAT')
+    from app.db import AppSetting, db
+    record = db.session.get(AppSetting, 'BOT_LAST_HEARTBEAT')
     if not record:
         return jsonify({'last_heartbeat': None, 'age_seconds': None})
     ts = record.value
@@ -1005,7 +1005,7 @@ def notion_sync_ack():
     now = datetime.now(timezone.utc).isoformat()
 
     def upsert(key, value):
-        rec = AppSetting.query.get(key)
+        rec = db.session.get(AppSetting, key)
         if rec:
             rec.value = value
             rec.updated_at = datetime.now(timezone.utc)
@@ -1014,7 +1014,7 @@ def notion_sync_ack():
             db.session.add(AppSetting(key=key, value=value, updated_by='bot'))
 
     def delete_key(key):
-        rec = AppSetting.query.get(key)
+        rec = db.session.get(AppSetting, key)
         if rec:
             db.session.delete(rec)
 
