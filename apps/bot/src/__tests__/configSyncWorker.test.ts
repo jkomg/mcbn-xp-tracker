@@ -56,6 +56,7 @@ function makeAdapter(cfg: BotConfigResponse): TrackerAdapter {
 describe('ConfigSyncWorker sync orchestration', () => {
   afterEach(() => {
     expect(currentWikiSyncOwner()).toBeNull();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -115,5 +116,20 @@ describe('ConfigSyncWorker sync orchestration', () => {
     expect(firstRunId).toEqual(expect.any(String));
     expect(adapter.ackNotionSync).toHaveBeenCalledWith('running', undefined, 'manual', firstRunId);
     expect(runNotionSync).not.toHaveBeenCalled();
+  });
+
+  it('start uses provided interval and unrefs timer', () => {
+    const adapter = makeAdapter(baseBotConfig());
+    const worker = new ConfigSyncWorker(adapter, 123_456);
+    const syncSpy = vi.spyOn(worker, 'sync').mockResolvedValue(undefined);
+    const unref = vi.fn();
+    const intervalSpy = vi.spyOn(global, 'setInterval').mockReturnValue({ unref } as unknown as NodeJS.Timeout);
+
+    worker.start();
+
+    expect(syncSpy).toHaveBeenCalledTimes(1);
+    expect(intervalSpy).toHaveBeenCalledTimes(1);
+    expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 123_456);
+    expect(unref).toHaveBeenCalledTimes(1);
   });
 });

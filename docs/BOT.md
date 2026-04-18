@@ -117,7 +117,7 @@ Requires: `HUNT_CONSEQUENCE_ENABLED=true`, `HUNT_CONSEQUENCE_CHANNEL_IDS`, `HUNT
 
 ### configSyncWorker
 
-Polls `GET /api/bot-config` periodically to pick up feature flag changes made on the web app Settings page. This allows toggling bot services at runtime without restarting the bot process.
+Polls `GET /api/bot-config` periodically (default every 60 seconds, configurable via `CONFIG_SYNC_INTERVAL_MS`) to pick up feature flag changes made on the web app Settings page. This allows toggling bot services at runtime without restarting the bot process.
 
 Also handles **manual Notion/Wiki sync requests** from Settings (`BOT_NOTION_SYNC_REQUESTED=true`) and reports lifecycle updates to `POST /api/notion-sync-ack`.
 
@@ -137,7 +137,7 @@ Only one owner can run at a time. If a run is active, the other trigger logs a
 
 ### botHeartbeatService
 
-POSTs to `POST /api/bot-heartbeat` on a 60-second interval. The web app records the timestamp, which is displayed on the Settings page so staff can verify the bot is alive.
+POSTs to `POST /api/bot-heartbeat` on a configurable interval (default 60 seconds, `BOT_HEARTBEAT_INTERVAL_MS`). The web app records the timestamp, which is displayed on the Settings page so staff can verify the bot is alive.
 
 ### cubbyChannelMonitor
 
