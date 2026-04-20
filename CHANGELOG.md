@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 7)
+
+### Bot Sync Orchestration Coverage: Targeted Runtime Gating
+
+- Added direct orchestration tests for `runNotionSync` in [`runNotionSyncTargets.test.ts`](apps/bot/src/__tests__/runNotionSyncTargets.test.ts).
+- Added fail-fast coverage when neither Notion nor Wiki target is enabled.
+- Added execution coverage for:
+  - Notion-only runs (`syncToNotion=true`, `syncToWiki=false`)
+  - Wiki-only runs (`syncToNotion=false`, `syncToWiki=true`)
+- Tests use mocked Discord/Notion/wiki clients to validate target gating behavior without external network dependencies.
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE7.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE7.md).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 6)
 
 ### Explicit Target Separation: Notion vs Wiki
