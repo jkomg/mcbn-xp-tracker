@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 6)
+
+### Explicit Target Separation: Notion vs Wiki
+
+- Added explicit target selection support in [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts):
+  - `--notion-only`
+  - `--wiki-only`
+- Added `syncToNotion` / `syncToWiki` options to `runNotionSync` so callers can run sinks independently.
+- Extracted target gating logic into [`syncTargets.ts`](apps/bot/src/scripts/notionSync/syncTargets.ts).
+- Sync now fails fast with a clear error when neither target is enabled (for example missing tokens with both targets requested).
+- Added focused tests in [`syncTargets.test.ts`](apps/bot/src/__tests__/syncTargets.test.ts).
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE6.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE6.md).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 5)
 
 ### Bot Web Wiki Client Extraction
