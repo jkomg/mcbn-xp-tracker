@@ -100,9 +100,11 @@ vi.mock('../scripts/notionSync/webWikiClient', () => {
 import { runNotionSync } from '../scripts/discord-notion-sync';
 import {
   fetchAllMessages,
+  fetchForumThreads,
   fetchPins,
   type DiscordChannel,
   type DiscordMessage,
+  type DiscordThread,
 } from '../scripts/notionSync/discordIngest';
 
 describe('runNotionSync target orchestration', () => {
@@ -116,6 +118,8 @@ describe('runNotionSync target orchestration', () => {
       { id: 'chan-locations', type: 0, name: 'broadway', parent_id: 'cat-city' } as DiscordChannel,
       { id: 'chan-spc', type: 0, name: 'spc-profiles' } as DiscordChannel,
       { id: 'chan-lore', type: 0, name: 'music-city-histories' } as DiscordChannel,
+      { id: 'forum-children', type: 15, name: 'children-of-the-night' } as DiscordChannel,
+      { id: 'forum-retired', type: 15, name: 'retired' } as DiscordChannel,
     ];
     restGet.mockResolvedValue(channels);
 
@@ -131,12 +135,27 @@ describe('runNotionSync target orchestration', () => {
       attachments: [],
     } as DiscordMessage);
 
+    const thread = (id: string, name: string): DiscordThread => ({
+      id,
+      name,
+      thread_metadata: {
+        archive_timestamp: '2026-01-01T00:00:00.000Z',
+      } as DiscordThread['thread_metadata'],
+    } as DiscordThread);
+
     vi.mocked(fetchPins).mockResolvedValue([
       defaultMessage('### Site One\nPinned hunting details'),
     ]);
+    vi.mocked(fetchForumThreads).mockImplementation(async (_rest, _guildId, channelId) => {
+      if (channelId === 'forum-children') return [thread('thread-children-1', 'Aludra')];
+      if (channelId === 'forum-retired') return [thread('thread-retired-1', 'Retired One')];
+      return [];
+    });
     vi.mocked(fetchAllMessages).mockImplementation(async (_rest, channelId) => {
       if (channelId === 'chan-spc') return [defaultMessage('SPC Name\nSPC profile body')];
       if (channelId === 'chan-lore') return [defaultMessage('Lore archive text')];
+      if (channelId === 'thread-children-1') return [defaultMessage('Aludra profile body')];
+      if (channelId === 'thread-retired-1') return [defaultMessage('Retired profile body')];
       return [];
     });
   }
@@ -192,5 +211,27 @@ describe('runNotionSync target orchestration', () => {
     expect(webWikiCtor).toHaveBeenCalledWith(
       expect.objectContaining({ writeToken: 'wiki-write-token' }),
     );
+  });
+
+  it('runs both targets together and performs both notion and wiki write paths', async () => {
+    seedChannels();
+    const result = await runNotionSync({
+      botToken: 'bot-token',
+      guildId: 'guild-1',
+      notionToken: 'notion-token',
+      webWriteToken: 'wiki-write-token',
+      syncToNotion: true,
+      syncToWiki: true,
+      dryRun: false,
+    });
+
+    expect(result.success).toBe(true);
+    expect(notionCtor).toHaveBeenCalledTimes(1);
+    expect(notionDbUpdate).toHaveBeenCalledTimes(5);
+    expect(notionPagesCreate).toHaveBeenCalled();
+
+    expect(webWikiUpsertPage).toHaveBeenCalled();
+    expect(webWikiDeletePage).toHaveBeenCalled();
+    expect(webWikiSetCharacterStatus).toHaveBeenCalledWith('Retired One', 'retired');
   });
 });

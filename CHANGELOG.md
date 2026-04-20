@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 9)
+
+### Full-Flow Orchestration Coverage: Both-Target Runtime
+
+- Expanded [`runNotionSyncTargets.test.ts`](apps/bot/src/__tests__/runNotionSyncTargets.test.ts) with a richer seeded Discord fixture set (city/text/forum channels, profile threads, retired thread, pins, and lore messages).
+- Added explicit both-target runtime coverage for `runNotionSync` (`syncToNotion=true`, `syncToWiki=true`) asserting:
+  - Notion client/database/page write path executes.
+  - Wiki upsert/delete/status write paths execute.
+- Preserved existing assertions for target-separated runs:
+  - notion-only: no wiki writes
+  - wiki-only: no Notion writes
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE9.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE9.md).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 8)
 
 ### Runtime Efficiency: Skip Disabled Target Work
