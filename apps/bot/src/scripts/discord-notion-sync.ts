@@ -371,11 +371,12 @@ async function main(opts: NotionSyncOptions) {
   }
 
   const NOTION_ENABLED = syncTargets.notionEnabled;
+  const WIKI_ENABLED = syncTargets.wikiEnabled;
   const rest = new REST({ version: '10' }).setToken(opts.botToken);
   const notion = NOTION_ENABLED ? new NotionClient({ auth: opts.notionToken!, timeoutMs: 120_000 }) : null;
   const wikiClient = new WebWikiClient({
     webBase: WEB_BASE,
-    writeToken: syncTargets.wikiEnabled ? WEB_WRITE_TOKEN : '',
+    writeToken: WIKI_ENABLED ? WEB_WRITE_TOKEN : '',
     dryRun: DRY_RUN,
   });
 
@@ -501,17 +502,19 @@ async function main(opts: NotionSyncOptions) {
     }
 
     // Wiki upsert: topic as intro, pins as Hunting Sites section
-    const bodyParts = [
-      ch.topic ?? '',
-      pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
-    ].filter(Boolean);
-    await wikiClient.upsertPage({
-      slug: wikiSlug('locations', locationName),
-      title: locationName,
-      category: 'locations',
-      body_markdown: bodyParts.join('\n\n---\n\n'),
-      published: true,
-    });
+    if (WIKI_ENABLED) {
+      const bodyParts = [
+        ch.topic ?? '',
+        pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
+      ].filter(Boolean);
+      await wikiClient.upsertPage({
+        slug: wikiSlug('locations', locationName),
+        title: locationName,
+        category: 'locations',
+        body_markdown: bodyParts.join('\n\n---\n\n'),
+        published: true,
+      });
+    }
   }
   console.log(`  Created ${huntingTotal} hunting site entries.`);
 
@@ -550,14 +553,16 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
-        await wikiClient.upsertPage({
-          slug: wikiSlug('characters', name),
-          title: name,
-          category: 'characters',
-          body_markdown: messagesToMarkdown(messages),
-          cover_image_url: cover ?? undefined,
-          published: true,
-        });
+        if (WIKI_ENABLED) {
+          await wikiClient.upsertPage({
+            slug: wikiSlug('characters', name),
+            title: name,
+            category: 'characters',
+            body_markdown: messagesToMarkdown(messages),
+            cover_image_url: cover ?? undefined,
+            published: true,
+          });
+        }
       }
       count++;
     }
@@ -587,13 +592,15 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
         }
-        await wikiClient.upsertPage({
-          slug: wikiSlug('characters', name),
-          title: name,
-          category: 'characters',
-          body_markdown: msg.content.trim(),
-          published: true,
-        });
+        if (WIKI_ENABLED) {
+          await wikiClient.upsertPage({
+            slug: wikiSlug('characters', name),
+            title: name,
+            category: 'characters',
+            body_markdown: msg.content.trim(),
+            published: true,
+          });
+        }
       }
       count++;
     }
@@ -604,8 +611,12 @@ async function main(opts: NotionSyncOptions) {
   // 5.5 Build PC profile map from #children-of-the-night forum
   // ------------------------------------------------------------------
   console.log('\n[5.5/7] Building PC profile map from #children-of-the-night…');
-  const pcProfileMap = await buildPcProfileMap(rest, GUILD_ID, channelByName);
-  console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
+  const pcProfileMap = WIKI_ENABLED ? await buildPcProfileMap(rest, GUILD_ID, channelByName) : new Map();
+  if (!WIKI_ENABLED) {
+    console.log('  Wiki target disabled — skipping profile map build.');
+  } else {
+    console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
+  }
 
   // ------------------------------------------------------------------
   // 5.6 Remove stale lore pages created from #children-of-the-night
@@ -614,10 +625,14 @@ async function main(opts: NotionSyncOptions) {
   // ------------------------------------------------------------------
   console.log('\n[5.6/7] Removing stale PC lore pages…');
   let deletedCount = 0;
-  for (const threadName of pcProfileMap.keys()) {
-    const slug = wikiSlug('lore', threadName);
-    await wikiClient.deletePage(slug);
-    deletedCount++;
+  if (WIKI_ENABLED) {
+    for (const threadName of pcProfileMap.keys()) {
+      const slug = wikiSlug('lore', threadName);
+      await wikiClient.deletePage(slug);
+      deletedCount++;
+    }
+  } else {
+    console.log('  Wiki target disabled — skipping stale page cleanup.');
   }
   console.log(`  Processed ${deletedCount} potential stale page(s).`);
 
@@ -657,25 +672,27 @@ async function main(opts: NotionSyncOptions) {
             })),
           );
         }
-        const pcProfile = lookupPcProfile(pcProfileMap, name);
-        const metaParts = [
-          clan && `**Clan:** ${clan}`,
-          sect && `**Sect:** ${sect}`,
-          coterie && `**Coterie:** ${coterie}`,
-          playerName && `**Player:** ${playerName}`,
-        ].filter(Boolean) as string[];
-        const bodyMarkdown = [
-          metaParts.join('\n\n'),
-          pcProfile?.markdown,
-        ].filter(Boolean).join('\n\n---\n\n');
-        await wikiClient.upsertPage({
-          slug: wikiSlug('characters', name),
-          title: name,
-          category: 'characters',
-          body_markdown: bodyMarkdown,
-          cover_image_url: pcProfile?.image ?? undefined,
-          published: true,
-        });
+        if (WIKI_ENABLED) {
+          const pcProfile = lookupPcProfile(pcProfileMap, name);
+          const metaParts = [
+            clan && `**Clan:** ${clan}`,
+            sect && `**Sect:** ${sect}`,
+            coterie && `**Coterie:** ${coterie}`,
+            playerName && `**Player:** ${playerName}`,
+          ].filter(Boolean) as string[];
+          const bodyMarkdown = [
+            metaParts.join('\n\n'),
+            pcProfile?.markdown,
+          ].filter(Boolean).join('\n\n---\n\n');
+          await wikiClient.upsertPage({
+            slug: wikiSlug('characters', name),
+            title: name,
+            category: 'characters',
+            body_markdown: bodyMarkdown,
+            cover_image_url: pcProfile?.image ?? undefined,
+            published: true,
+          });
+        }
       }
     }
     console.log(`  Created ${activeRoster.length} PC entries.`);
@@ -685,49 +702,61 @@ async function main(opts: NotionSyncOptions) {
   // 6.5 Coteries wiki pages (built from static COTERIE_MEMBERS map)
   // ------------------------------------------------------------------
   console.log('\n[6.5/7] Populating Coteries wiki pages…');
-  for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
-    const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
-    const body = `## Members\n\n${memberList}`;
-    console.log(`  → ${coterieName} (${members.length} members)`);
-    await wikiClient.upsertPage({
-      slug: wikiSlug('coteries', coterieName),
-      title: coterieName,
-      category: 'coteries',
-      body_markdown: body,
-      published: true,
-    });
+  let coterieCreatedCount = 0;
+  if (!WIKI_ENABLED) {
+    console.log('  Wiki target disabled — skipping coteries pages.');
+  } else {
+    for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
+      const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
+      const body = `## Members\n\n${memberList}`;
+      console.log(`  → ${coterieName} (${members.length} members)`);
+      await wikiClient.upsertPage({
+        slug: wikiSlug('coteries', coterieName),
+        title: coterieName,
+        category: 'coteries',
+        body_markdown: body,
+        published: true,
+      });
+      coterieCreatedCount++;
+    }
   }
-  console.log(`  Created ${Object.keys(COTERIE_MEMBERS).length} coterie pages.`);
+  console.log(`  Created ${coterieCreatedCount} coterie pages.`);
 
   // ------------------------------------------------------------------
   // 6.6 Factions wiki pages (built from active roster sect field)
   // ------------------------------------------------------------------
   console.log('\n[6.6/7] Populating Factions wiki pages…');
-  for (const faction of FACTIONS) {
-    const factionMembers = activeRoster.filter(
-      (c) => c.sect && faction.sectAliases.includes(c.sect.toLowerCase()),
-    );
-    const memberLines = factionMembers.map((c) => {
-      const coterie = CHAR_TO_COTERIE.get(c.name.toLowerCase());
-      return `- [${c.name}](/wiki/${wikiSlug('characters', c.name)})${c.clan ? ` — ${c.clan}` : ''}${coterie ? ` *(${coterie})*` : ''}`;
-    });
-    const loreLinks = faction.loreChannels.map(
-      (ch) => `- [#${ch} archive](/wiki/${wikiSlug('lore', `${ch} archive`)})`,
-    );
-    const bodyParts: string[] = [];
-    if (memberLines.length) bodyParts.push(`## Members\n\n${memberLines.join('\n')}`);
-    if (loreLinks.length) bodyParts.push(`## Lore\n\n${loreLinks.join('\n')}`);
-    const bodyMarkdown = bodyParts.join('\n\n') || '_No members found._';
-    console.log(`  → ${faction.name} (${factionMembers.length} members)`);
-    await wikiClient.upsertPage({
-      slug: wikiSlug('factions', faction.name),
-      title: faction.name,
-      category: 'factions',
-      body_markdown: bodyMarkdown,
-      published: true,
-    });
+  let factionCreatedCount = 0;
+  if (!WIKI_ENABLED) {
+    console.log('  Wiki target disabled — skipping factions pages.');
+  } else {
+    for (const faction of FACTIONS) {
+      const factionMembers = activeRoster.filter(
+        (c) => c.sect && faction.sectAliases.includes(c.sect.toLowerCase()),
+      );
+      const memberLines = factionMembers.map((c) => {
+        const coterie = CHAR_TO_COTERIE.get(c.name.toLowerCase());
+        return `- [${c.name}](/wiki/${wikiSlug('characters', c.name)})${c.clan ? ` — ${c.clan}` : ''}${coterie ? ` *(${coterie})*` : ''}`;
+      });
+      const loreLinks = faction.loreChannels.map(
+        (ch) => `- [#${ch} archive](/wiki/${wikiSlug('lore', `${ch} archive`)})`,
+      );
+      const bodyParts: string[] = [];
+      if (memberLines.length) bodyParts.push(`## Members\n\n${memberLines.join('\n')}`);
+      if (loreLinks.length) bodyParts.push(`## Lore\n\n${loreLinks.join('\n')}`);
+      const bodyMarkdown = bodyParts.join('\n\n') || '_No members found._';
+      console.log(`  → ${faction.name} (${factionMembers.length} members)`);
+      await wikiClient.upsertPage({
+        slug: wikiSlug('factions', faction.name),
+        title: faction.name,
+        category: 'factions',
+        body_markdown: bodyMarkdown,
+        published: true,
+      });
+      factionCreatedCount++;
+    }
   }
-  console.log(`  Created ${FACTIONS.length} faction pages.`);
+  console.log(`  Created ${factionCreatedCount} faction pages.`);
 
   // ------------------------------------------------------------------
   // 6.7 Retired characters from #retired forum
@@ -737,7 +766,9 @@ async function main(opts: NotionSyncOptions) {
   // ------------------------------------------------------------------
   console.log('\n[6.7/7] Processing retired characters from #retired…');
   const retiredCh = channelByName.get('retired');
-  if (!retiredCh || retiredCh.type !== CH_FORUM) {
+  if (!WIKI_ENABLED) {
+    console.log('  Wiki target disabled — skipping retired character updates.');
+  } else if (!retiredCh || retiredCh.type !== CH_FORUM) {
     console.log('  #retired forum channel not found — skipping.');
   } else {
     let retiredThreads: DiscordThread[] = [];
@@ -813,7 +844,7 @@ async function main(opts: NotionSyncOptions) {
           }
           // children-of-the-night threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
-          if (chanName !== 'children-of-the-night') {
+          if (WIKI_ENABLED && chanName !== 'children-of-the-night') {
             await wikiClient.upsertPage({
               slug: wikiSlug('lore', title),
               title,
@@ -854,13 +885,15 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
-        await wikiClient.upsertPage({
-          slug: wikiSlug('lore', `${chanName} archive`),
-          title,
-          category: 'lore',
-          body_markdown: messagesToMarkdown(messages),
-          published: true,
-        });
+        if (WIKI_ENABLED) {
+          await wikiClient.upsertPage({
+            slug: wikiSlug('lore', `${chanName} archive`),
+            title,
+            category: 'lore',
+            body_markdown: messagesToMarkdown(messages),
+            published: true,
+          });
+        }
       }
     }
   }

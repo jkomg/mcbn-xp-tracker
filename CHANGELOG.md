@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 8)
+
+### Runtime Efficiency: Skip Disabled Target Work
+
+- Tightened target separation in [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts) so Notion-only runs skip wiki-only execution paths instead of invoking wiki client no-op calls.
+- Added explicit `WIKI_ENABLED` gating for:
+  - location wiki upserts in hunting-site pass
+  - SPC/PC/lore wiki writes
+  - stale lore wiki cleanup
+  - coteries/factions wiki generation
+  - retired-character wiki/status updates
+  - PC profile map fetch for children-of-the-night
+- Corrected coterie/faction created-count logging to report actual writes performed.
+- Expanded orchestration tests in [`runNotionSyncTargets.test.ts`](apps/bot/src/__tests__/runNotionSyncTargets.test.ts) with seeded channel/message fixtures:
+  - notion-only runs now assert zero wiki write calls
+  - wiki-only runs now assert zero Notion write calls while wiki writes continue
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE8.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE8.md).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 7)
 
 ### Bot Sync Orchestration Coverage: Targeted Runtime Gating
