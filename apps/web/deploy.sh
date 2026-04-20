@@ -85,6 +85,10 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 2 \
+  --concurrency 80 \
+  --timeout 120 \
+  --cpu-throttling \
+  --no-session-affinity \
   --set-env-vars "FLASK_DEBUG=false" \
   --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
