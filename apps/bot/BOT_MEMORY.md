@@ -1,6 +1,6 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-20
+Last updated: 2026-04-20 (phase 6)
 Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## Current System Picture
@@ -99,6 +99,15 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
     wiki upsert/delete and retired status updates.
   - dedicated tests added at
     `apps/bot/src/__tests__/webWikiClient.test.ts`.
+- Sync target separation (phase 6):
+  - target resolution now lives in
+    `apps/bot/src/scripts/notionSync/syncTargets.ts`.
+  - `discord-notion-sync.ts` now supports independent target toggles:
+    `--notion-only` and `--wiki-only`.
+  - Notion and Wiki execution are now explicitly gated via
+    `syncToNotion` / `syncToWiki` options and token availability.
+  - dedicated tests added at
+    `apps/bot/src/__tests__/syncTargets.test.ts`.
 
 ## High-Signal Current Gaps
 - `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.

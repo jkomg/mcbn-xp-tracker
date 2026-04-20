@@ -6,11 +6,13 @@
  * Usage (from apps/bot/):
  *   npx tsx src/scripts/discord-notion-sync.ts
  *   npx tsx src/scripts/discord-notion-sync.ts --dry-run
+ *   npx tsx src/scripts/discord-notion-sync.ts --notion-only
+ *   npx tsx src/scripts/discord-notion-sync.ts --wiki-only
  *
  * Required env vars (in apps/bot/.env):
  *   BOT_TOKEN          Discord bot token
  *   DISCORD_GUILD_ID   Target server ID (falls back to TEST_GUILD_ID)
- *   NOTION_TOKEN       Notion integration token (create at notion.so/profile/integrations)
+ *   NOTION_TOKEN       Notion integration token (required unless using --wiki-only)
  *
  * Optional env vars:
  *   WEB_APP_BASE_URL          Web app URL for active-roster API (default: http://127.0.0.1:5001)
@@ -71,6 +73,7 @@ import {
   wikiSlug,
 } from './notionSync/wikiSyncHelpers';
 import { WebWikiClient } from './notionSync/webWikiClient';
+import { resolveSyncTargets } from './notionSync/syncTargets';
 
 // ---------------------------------------------------------------------------
 // Public API — call this from the bot process or from the CLI
@@ -79,12 +82,16 @@ import { WebWikiClient } from './notionSync/webWikiClient';
 export interface NotionSyncOptions {
   botToken: string;
   guildId: string;
-  /** Notion integration token. If omitted, all Notion writes are skipped. */
+  /** Notion integration token. Required only when notion target is enabled. */
   notionToken?: string;
   webBase?: string;
   webReadToken?: string;
   /** Write token for Chronicle Wiki upsert API (WEB_APP_API_WRITE_TOKEN). */
   webWriteToken?: string;
+  /** Explicitly enable/disable Notion target. Defaults to true. */
+  syncToNotion?: boolean;
+  /** Explicitly enable/disable Wiki target. Defaults to true. */
+  syncToWiki?: boolean;
   msgLimit?: number;
   dryRun?: boolean;
   /** If true, archive all Notion pages that were NOT created by this sync before importing. */
@@ -139,6 +146,12 @@ const CH_FORUM = 15;
 
 if (require.main === module) {
   dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+  const notionOnly = process.argv.includes('--notion-only');
+  const wikiOnly = process.argv.includes('--wiki-only');
+  if (notionOnly && wikiOnly) {
+    console.error('Choose only one target flag: --notion-only or --wiki-only.');
+    process.exit(1);
+  }
   const cliOpts: NotionSyncOptions = {
     botToken: process.env.BOT_TOKEN ?? '',
     guildId: process.env.DISCORD_GUILD_ID ?? process.env.TEST_GUILD_ID ?? '',
@@ -149,10 +162,11 @@ if (require.main === module) {
     msgLimit: Number.parseInt(process.env.NOTION_SYNC_MSG_LIMIT ?? '200', 10),
     dryRun: process.argv.includes('--dry-run'),
     cleanup: process.argv.includes('--cleanup'),
+    syncToNotion: notionOnly ? true : (wikiOnly ? false : undefined),
+    syncToWiki: wikiOnly ? true : (notionOnly ? false : undefined),
   };
   if (!cliOpts.botToken) { console.error('BOT_TOKEN is required'); process.exit(1); }
   if (!cliOpts.guildId) { console.error('DISCORD_GUILD_ID (or TEST_GUILD_ID) is required'); process.exit(1); }
-  if (!cliOpts.notionToken) { console.log('NOTION_TOKEN not set — Notion sync disabled.'); }
   runNotionSync(cliOpts).then((result) => {
     if (!result.success) { console.error('Sync failed:', result.error); process.exit(1); }
   }).catch((err) => { console.error('Fatal:', err); process.exit(1); });
@@ -330,25 +344,40 @@ async function main(opts: NotionSyncOptions) {
   const WEB_BASE = (opts.webBase ?? 'http://127.0.0.1:5001').replace(/\/+$/, '');
   const WEB_READ_TOKEN = opts.webReadToken ?? '';
   const WEB_WRITE_TOKEN = opts.webWriteToken ?? '';
-  if (WEB_WRITE_TOKEN) {
-    console.log('  Wiki sync enabled — pages will be upserted to Chronicle Wiki.');
-  } else {
-    console.log('  Wiki sync disabled — set WEB_APP_API_WRITE_TOKEN to enable.');
-  }
-  const wikiClient = new WebWikiClient({
-    webBase: WEB_BASE,
-    writeToken: WEB_WRITE_TOKEN,
-    dryRun: DRY_RUN,
+  const syncTargets = resolveSyncTargets({
+    notionToken: opts.notionToken,
+    webWriteToken: WEB_WRITE_TOKEN,
+    syncToNotion: opts.syncToNotion,
+    syncToWiki: opts.syncToWiki,
   });
 
   const flags = [DRY_RUN && 'DRY RUN', CLEANUP && 'CLEANUP'].filter(Boolean).join(' + ');
   console.log(`discord-notion-sync${flags ? ` [${flags}]` : ''}`);
   console.log(`Guild: ${GUILD_ID} | Limit: ${MSG_LIMIT} messages/posts per source`);
+  for (const warning of syncTargets.warnings) console.log(`  [warn] ${warning}`);
 
-  const NOTION_ENABLED = !!opts.notionToken;
+  if (syncTargets.notionEnabled) {
+    console.log('  Notion target enabled — pages will be written to configured Notion databases.');
+  } else {
+    console.log('  Notion target disabled.');
+  }
+  if (syncTargets.wikiEnabled) {
+    console.log('  Wiki target enabled — pages will be upserted to Chronicle Wiki.');
+  } else {
+    console.log('  Wiki target disabled.');
+  }
+  if (!syncTargets.notionEnabled && !syncTargets.wikiEnabled) {
+    throw new Error('No sync targets enabled. Provide required tokens or choose at least one target.');
+  }
+
+  const NOTION_ENABLED = syncTargets.notionEnabled;
   const rest = new REST({ version: '10' }).setToken(opts.botToken);
   const notion = NOTION_ENABLED ? new NotionClient({ auth: opts.notionToken!, timeoutMs: 120_000 }) : null;
-  if (!NOTION_ENABLED) console.log('  Notion sync disabled — set NOTION_TOKEN to enable.');
+  const wikiClient = new WebWikiClient({
+    webBase: WEB_BASE,
+    writeToken: syncTargets.wikiEnabled ? WEB_WRITE_TOKEN : '',
+    dryRun: DRY_RUN,
+  });
 
   // ------------------------------------------------------------------
   // 0. Ensure Source property exists on all databases
