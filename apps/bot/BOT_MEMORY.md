@@ -1,6 +1,6 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-18
+Last updated: 2026-04-20
 Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## Current System Picture
@@ -27,7 +27,7 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `BOT_NOTION_SYNC_REQUESTED`
   - `BOT_NOTION_SYNC_STALE_AFTER_SECONDS` (web UI stale threshold)
   - bot feature toggles and selected interval/channel overrides
-- Bot polls `/api/bot-config` (60s) via `ConfigSyncWorker` and updates `liveConfig`.
+- Bot polls `/api/bot-config` (120s default) via `ConfigSyncWorker` and updates `liveConfig`.
 - Bot reports status back via:
   - `/api/bot-heartbeat`
   - `/api/bot-restart-ack`
@@ -92,12 +92,16 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
     Location/Hunting/SPC/PC/Session create operations.
   - dedicated tests added at
     `apps/bot/src/__tests__/notionPayloadBuilders.test.ts`.
+- Web wiki client extraction (phase 5):
+  - wiki/status API write wrappers now live in
+    `apps/bot/src/scripts/notionSync/webWikiClient.ts`.
+  - `discord-notion-sync.ts` now calls `WebWikiClient` methods for
+    wiki upsert/delete and retired status updates.
+  - dedicated tests added at
+    `apps/bot/src/__tests__/webWikiClient.test.ts`.
 
 ## High-Signal Current Gaps
 - `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.
-- Wiki API write wrappers (`wikiUpsert`, `wikiDelete`, `wikiSetCharacterStatus`)
-  are still inline in `discord-notion-sync.ts`; next phase should extract a
-  dedicated web wiki client module.
 - Bot now has direct orchestration tests for `ConfigSyncWorker` and `WikiSyncScheduler` lock/ack flows, but still lacks higher-level integration tests around the full `runNotionSync` path.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
