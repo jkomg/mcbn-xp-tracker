@@ -1,6 +1,6 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-20 (phase 9)
+Last updated: 2026-04-20 (phase 10)
 Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## Current System Picture
@@ -129,10 +129,15 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
     fixtures (city/lore/SPC text channels + children/retired forums).
   - added explicit both-target (`syncToNotion=true`, `syncToWiki=true`) test
     asserting Notion writes + wiki upsert/delete/status paths execute.
+- Golden payload/body assertions (phase 10):
+  - `runNotionSyncTargets.test.ts` now asserts concrete generated output:
+    - Notion payload-builder inputs (location/hunting/SPC/session titles)
+    - wiki upsert payload fields (slug/category/title/body)
+    - location wiki body includes expected Hunting Sites section content.
 
 ## High-Signal Current Gaps
 - `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction and target gating; next split should separate end-to-end step runners (locations/hunting, characters, session log).
-- Bot now has direct orchestration tests for `ConfigSyncWorker`, `WikiSyncScheduler`, and richer `runNotionSync` target/combined runtime paths, but still lacks golden-output style assertions for specific page payload/body content.
+- Bot now has direct orchestration tests for `ConfigSyncWorker`, `WikiSyncScheduler`, and `runNotionSync` target/combined runtime with key payload/body assertions, but still lacks snapshot-style assertions for larger markdown bodies across multi-message threads.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
 
