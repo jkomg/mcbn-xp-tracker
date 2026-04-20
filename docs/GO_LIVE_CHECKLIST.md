@@ -3,10 +3,10 @@
 Use this checklist when promoting the merged web + bot setup to production.
 
 ## 1) Repository and Branch Hygiene
-- [ ] `main` is up to date with merged migration PRs.
-- [ ] Branch protection is enabled on `main` with required status checks.
-- [ ] No local-only files are pending (`.env*`, backup files, temp scripts).
-- [ ] CI checks are green on the release commit.
+- [x] `main` is up to date with merged migration PRs.
+- [x] Branch protection is enabled on `main` with required status checks.
+- [x] No local-only files are pending (`.env*`, backup files, temp scripts).
+- [x] CI checks are green on the release commit.
 
 ## 2) Secrets and Environment
 - [ ] Discord bot token is rotated and current.
@@ -22,18 +22,18 @@ Use this checklist when promoting the merged web + bot setup to production.
 - [ ] `BOT_API_REPLAY_PROTECTION_ENABLED=true` in production.
 
 ## 3) Web Application Production Validation
-- [ ] Deploy latest release commit to Cloud Run.
-- [ ] Confirm custom domain mapping is healthy (`mcbn.jkomg.us`).
-- [ ] Confirm health endpoint:
-  - [ ] `GET /api/health` returns OK
+- [x] Deploy latest release commit to Cloud Run.
+- [x] Confirm custom domain mapping is healthy (`mcbn.jkomg.us`).
+- [x] Confirm health endpoint:
+  - [x] `GET /api/health` returns OK
 - [ ] Confirm adapter endpoint used by bot:
   - [ ] `GET /api/meta/claim-context` returns expected JSON (auth if required)
 - [ ] Confirm OAuth redirect URI values exactly match production callback URL.
 
 ## 4) Bot Runtime Validation (Local Host / Pi / VM)
 - [ ] Bot host uses Node 20+ LTS.
-- [ ] Install deps and run checks:
-  - [ ] `npm run check` in `apps/bot`
+- [x] Install deps and run checks:
+  - [x] `npm run check` in `apps/bot`
 - [ ] Startup test:
   - [ ] `npm run dev` logs `bot_ready`
   - [ ] command registration succeeds for `TEST_GUILD_ID`
@@ -55,11 +55,13 @@ Use this checklist when promoting the merged web + bot setup to production.
 ## 6) Cost Guardrails (Free-Tier Focus)
 - [ ] Bot remains locally hosted (not Cloud Run) unless intentionally changed.
 - [ ] No Cloud SQL is provisioned for bot runtime.
-- [ ] Cloud Run min instances remain `0` unless explicitly required.
+- [x] Cloud Run min instances remain `0` unless explicitly required.
 - [ ] Monitoring/alerts are limited to free-tier friendly defaults.
 
 ## 7) Release and Rollback
 - [ ] Publish release notes summarizing migration + XP rule changes.
-- [ ] Tag the release commit.
-- [ ] Document rollback target (previous stable commit/tag).
+- [x] Tag the release commit.
+- [x] Document rollback target (previous stable commit/tag).
 - [ ] Validate rollback procedure in advance (deploy + smoke test).
+
+Rollback target documented: `v2026-03-13-turso-db-migration` (current release tag: `v2026-04-20-wiki-sync-phase10`).
