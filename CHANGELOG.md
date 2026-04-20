@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 10)
+
+### Golden Assertions for Sync Payload and Body Output
+
+- Strengthened [`runNotionSyncTargets.test.ts`](apps/bot/src/__tests__/runNotionSyncTargets.test.ts) with concrete output assertions for both-target sync runs.
+- Added deterministic payload-builder spies for Notion create payloads and asserted key generated values:
+  - location payload includes `locationName: Broadway`
+  - hunting-site payload includes `siteName: Site One`
+  - SPC payload includes `name: SPC Name`
+  - session payload includes `#music-city-histories archive` and retired thread title entries
+- Added concrete wiki upsert assertions for generated page shape/content:
+  - location page slug/category/title
+  - SPC character page slug/category/title/body
+  - lore archive page slug/category/title
+  - location body contains the expected `Hunting Sites` section and site heading
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE10.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE10.md).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 9)
 
 ### Full-Flow Orchestration Coverage: Both-Target Runtime
