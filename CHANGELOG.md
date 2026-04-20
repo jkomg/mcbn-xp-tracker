@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-20] Wiki Sync Modularization (Phase 5)
+
+### Bot Web Wiki Client Extraction
+
+- Extracted wiki/status API write wrappers from [`discord-notion-sync.ts`](apps/bot/src/scripts/discord-notion-sync.ts) into [`webWikiClient.ts`](apps/bot/src/scripts/notionSync/webWikiClient.ts).
+- Centralized Chronicle Wiki write endpoint handling for:
+  - `POST /api/wiki/page` (upsert)
+  - `DELETE /api/wiki/page/{slug}` (delete)
+  - `PUT /api/character/{name}/status` (retired status updates)
+- Updated `discord-notion-sync.ts` to use a `WebWikiClient` instance with no sync behavior change.
+- Added focused tests in [`webWikiClient.test.ts`](apps/bot/src/__tests__/webWikiClient.test.ts) for dry-run, lock-skip, status handling, and error logging semantics.
+- Added release notes: [`docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE5.md`](docs/RELEASE_2026-04-20_WIKI_SYNC_MODULARIZATION_PHASE5.md).
+
+---
+
 ## [2026-04-18] Production Ops + Efficiency Hardening
 
 ### Deploy Guardrails and Cost Baseline Pinning

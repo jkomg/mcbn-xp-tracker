@@ -70,6 +70,7 @@ import {
   messagesToMarkdown,
   wikiSlug,
 } from './notionSync/wikiSyncHelpers';
+import { WebWikiClient } from './notionSync/webWikiClient';
 
 // ---------------------------------------------------------------------------
 // Public API — call this from the bot process or from the CLI
@@ -249,78 +250,6 @@ function lookupPcProfile(map: Map<string, PcProfile>, charName: string): PcProfi
   return null;
 }
 
-interface WikiPageData {
-  slug: string;
-  title: string;
-  body_markdown?: string;
-  category?: string;
-  cover_image_url?: string;
-  published?: boolean;
-}
-
-async function wikiSetCharacterStatus(
-  webBase: string,
-  writeToken: string,
-  characterName: string,
-  status: 'active' | 'deceased' | 'retired',
-  dryRun: boolean,
-): Promise<void> {
-  if (dryRun || !writeToken) return;
-  try {
-    const res = await fetch(`${webBase}/api/character/${encodeURIComponent(characterName)}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok && res.status !== 404) {
-      console.log(`  [warn] Failed to set status for ${characterName}: ${res.status}`);
-    }
-  } catch (err) {
-    console.log(`  [warn] wikiSetCharacterStatus error for ${characterName}: ${err}`);
-  }
-}
-
-async function wikiUpsert(webBase: string, writeToken: string, data: WikiPageData, dryRun: boolean): Promise<void> {
-  if (dryRun || !writeToken) return;
-  try {
-    const res = await fetch(`${webBase}/api/wiki/page`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` },
-      body: JSON.stringify(data),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (res.status === 423) {
-      console.log(`  [wiki] "${data.slug}" is sync-locked — skipped upsert.`);
-    } else if (!res.ok) {
-      console.log(`  [wiki warn] upsert "${data.slug}" → HTTP ${res.status}`);
-    }
-  } catch (err) {
-    console.log(`  [wiki warn] upsert "${data.slug}" failed: ${err}`);
-  }
-}
-
-async function wikiDelete(webBase: string, writeToken: string, slug: string, dryRun: boolean): Promise<void> {
-  if (dryRun || !writeToken) { console.log(`  [wiki dry-run] would delete "${slug}"`); return; }
-  try {
-    const res = await fetch(`${webBase}/api/wiki/page/${encodeURIComponent(slug)}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${writeToken}` },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (res.status === 404) {
-      console.log(`  [wiki] "${slug}" not found — already deleted or never created.`);
-    } else if (res.status === 423) {
-      console.log(`  [wiki] "${slug}" is sync-locked — skipped delete.`);
-    } else if (!res.ok) {
-      console.log(`  [wiki warn] delete "${slug}" → HTTP ${res.status}`);
-    } else {
-      console.log(`  [wiki] deleted "${slug}"`);
-    }
-  } catch (err) {
-    console.log(`  [wiki warn] delete "${slug}" failed: ${err}`);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Web API: active character roster
 // ---------------------------------------------------------------------------
@@ -406,6 +335,11 @@ async function main(opts: NotionSyncOptions) {
   } else {
     console.log('  Wiki sync disabled — set WEB_APP_API_WRITE_TOKEN to enable.');
   }
+  const wikiClient = new WebWikiClient({
+    webBase: WEB_BASE,
+    writeToken: WEB_WRITE_TOKEN,
+    dryRun: DRY_RUN,
+  });
 
   const flags = [DRY_RUN && 'DRY RUN', CLEANUP && 'CLEANUP'].filter(Boolean).join(' + ');
   console.log(`discord-notion-sync${flags ? ` [${flags}]` : ''}`);
@@ -542,13 +476,13 @@ async function main(opts: NotionSyncOptions) {
       ch.topic ?? '',
       pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
     ].filter(Boolean);
-    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+    await wikiClient.upsertPage({
       slug: wikiSlug('locations', locationName),
       title: locationName,
       category: 'locations',
       body_markdown: bodyParts.join('\n\n---\n\n'),
       published: true,
-    }, DRY_RUN);
+    });
   }
   console.log(`  Created ${huntingTotal} hunting site entries.`);
 
@@ -587,14 +521,14 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
-        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+        await wikiClient.upsertPage({
           slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: messagesToMarkdown(messages),
           cover_image_url: cover ?? undefined,
           published: true,
-        }, DRY_RUN);
+        });
       }
       count++;
     }
@@ -624,13 +558,13 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
         }
-        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+        await wikiClient.upsertPage({
           slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: msg.content.trim(),
           published: true,
-        }, DRY_RUN);
+        });
       }
       count++;
     }
@@ -653,7 +587,7 @@ async function main(opts: NotionSyncOptions) {
   let deletedCount = 0;
   for (const threadName of pcProfileMap.keys()) {
     const slug = wikiSlug('lore', threadName);
-    await wikiDelete(WEB_BASE, WEB_WRITE_TOKEN, slug, DRY_RUN);
+    await wikiClient.deletePage(slug);
     deletedCount++;
   }
   console.log(`  Processed ${deletedCount} potential stale page(s).`);
@@ -705,14 +639,14 @@ async function main(opts: NotionSyncOptions) {
           metaParts.join('\n\n'),
           pcProfile?.markdown,
         ].filter(Boolean).join('\n\n---\n\n');
-        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+        await wikiClient.upsertPage({
           slug: wikiSlug('characters', name),
           title: name,
           category: 'characters',
           body_markdown: bodyMarkdown,
           cover_image_url: pcProfile?.image ?? undefined,
           published: true,
-        }, DRY_RUN);
+        });
       }
     }
     console.log(`  Created ${activeRoster.length} PC entries.`);
@@ -726,13 +660,13 @@ async function main(opts: NotionSyncOptions) {
     const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
     const body = `## Members\n\n${memberList}`;
     console.log(`  → ${coterieName} (${members.length} members)`);
-    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+    await wikiClient.upsertPage({
       slug: wikiSlug('coteries', coterieName),
       title: coterieName,
       category: 'coteries',
       body_markdown: body,
       published: true,
-    }, DRY_RUN);
+    });
   }
   console.log(`  Created ${Object.keys(COTERIE_MEMBERS).length} coterie pages.`);
 
@@ -756,13 +690,13 @@ async function main(opts: NotionSyncOptions) {
     if (loreLinks.length) bodyParts.push(`## Lore\n\n${loreLinks.join('\n')}`);
     const bodyMarkdown = bodyParts.join('\n\n') || '_No members found._';
     console.log(`  → ${faction.name} (${factionMembers.length} members)`);
-    await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+    await wikiClient.upsertPage({
       slug: wikiSlug('factions', faction.name),
       title: faction.name,
       category: 'factions',
       body_markdown: bodyMarkdown,
       published: true,
-    }, DRY_RUN);
+    });
   }
   console.log(`  Created ${FACTIONS.length} faction pages.`);
 
@@ -789,15 +723,15 @@ async function main(opts: NotionSyncOptions) {
       const image = firstImage(msgs);
       const bodyMarkdown = messagesToMarkdown(msgs);
       console.log(`  → ${name}`);
-      await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+      await wikiClient.upsertPage({
         slug: wikiSlug('characters', name),
         title: name,
         category: 'characters',
         body_markdown: bodyMarkdown,
         cover_image_url: image ?? undefined,
         published: true,
-      }, DRY_RUN);
-      await wikiSetCharacterStatus(WEB_BASE, WEB_WRITE_TOKEN, name, 'retired', DRY_RUN);
+      });
+      await wikiClient.setCharacterStatus(name, 'retired');
       retiredCount++;
     }
     console.log(`  Processed ${retiredCount} retired character(s).`);
@@ -851,14 +785,14 @@ async function main(opts: NotionSyncOptions) {
           // children-of-the-night threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
           if (chanName !== 'children-of-the-night') {
-            await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+            await wikiClient.upsertPage({
               slug: wikiSlug('lore', title),
               title,
               category: 'lore',
               body_markdown: messagesToMarkdown(messages),
               cover_image_url: cover ?? undefined,
               published: true,
-            }, DRY_RUN);
+            });
           }
         }
       }
@@ -891,13 +825,13 @@ async function main(opts: NotionSyncOptions) {
           );
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
-        await wikiUpsert(WEB_BASE, WEB_WRITE_TOKEN, {
+        await wikiClient.upsertPage({
           slug: wikiSlug('lore', `${chanName} archive`),
           title,
           category: 'lore',
           body_markdown: messagesToMarkdown(messages),
           published: true,
-        }, DRY_RUN);
+        });
       }
     }
   }
