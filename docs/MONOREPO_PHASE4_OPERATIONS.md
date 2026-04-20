@@ -76,8 +76,13 @@ Behavior:
 3. Bot service shows running state
 4. Discord slash command round-trip works (`/xp health`, `/xp summary`)
 5. Web audit log records bot claim/spend operations
+6. Cloud Run efficiency profile matches baseline:
+   - `./scripts/check-cloudrun-efficiency.sh`
 
 ## Notes
 
 - This phase does not introduce a cloud-hosted bot runtime.
 - Cost posture remains: web usage on Cloud Run, bot compute on local host.
+- Keep bot control-plane polling on the 120s baseline unless lower latency is explicitly required:
+  - `CONFIG_SYNC_INTERVAL_MS=120000`
+  - `BOT_HEARTBEAT_INTERVAL_MS=120000`

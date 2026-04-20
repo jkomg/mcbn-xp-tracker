@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-04-18] Production Ops + Efficiency Hardening
+
+### Deploy Guardrails and Cost Baseline Pinning
+
+- Hardened both Cloud Run deploy paths (`apps/web/deploy.sh` and `.github/workflows/deploy-web.yml`) to explicitly set:
+  - `cpu=1`, `memory=256Mi`
+  - `min-instances=0`, `max-instances=2`
+  - `concurrency=80`
+  - `timeout=120`
+  - `cpu-throttling=true`
+  - `session-affinity=false`
+- Added `scripts/check-cloudrun-efficiency.sh` to detect runtime drift from the expected lean baseline.
+- Updated bot template defaults for control-plane polling to reduce idle API chatter:
+  - `CONFIG_SYNC_INTERVAL_MS=120000`
+  - `BOT_HEARTBEAT_INTERVAL_MS=120000`
+- Added release notes: [`docs/RELEASE_2026-04-18_PROD_OPS_EFFICIENCY_HARDENING.md`](docs/RELEASE_2026-04-18_PROD_OPS_EFFICIENCY_HARDENING.md).
+
+---
+
 ## [2026-04-18] Wiki Sync Modularization (Phase 4)
 
 ### Bot Notion Payload Builder Extraction

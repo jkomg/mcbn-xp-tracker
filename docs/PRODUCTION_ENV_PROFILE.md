@@ -12,7 +12,8 @@ Use these templates as secure, cost-conscious production baselines:
 3. Use scoped bot API tokens (`WEB_APP_API_READ_TOKEN`, `WEB_APP_API_WRITE_TOKEN`) and retire legacy token usage.
 4. Keep bot write-route replay protection enabled (`BOT_API_REPLAY_PROTECTION_ENABLED=true`).
 5. Keep Cloud Run `min-instances=0` unless latency SLOs require warm instances.
-6. Keep bot polling intervals at cost-conscious defaults unless faster notification latency is required.
+6. Keep Cloud Run deploy defaults pinned (`cpu=1`, `memory=256Mi`, `max-instances=2`, `concurrency=80`, `timeout=120`).
+7. Keep bot polling intervals at cost-conscious defaults unless faster notification latency is required.
 
 ## Token Scope Mapping
 
@@ -29,3 +30,31 @@ Use these templates as secure, cost-conscious production baselines:
 - `/xp health` succeeds
 - `/api/bot-heartbeat` age remains healthy
 - claims/spends submit successfully
+
+## Cloud Run Lean Baseline (Verified 2026-04-18)
+
+- Service: `mcbn-xp-tracker` (`us-central1`)
+- `cpu=1`
+- `memory=256Mi`
+- `min-instances=0`
+- `max-instances=2`
+- `concurrency=80`
+- `timeout=120s`
+- `session-affinity=false`
+
+## Bot Polling Baseline (Cost-Conscious)
+
+- `CONFIG_SYNC_INTERVAL_MS=120000`
+- `BOT_HEARTBEAT_INTERVAL_MS=120000`
+- `REVIEW_NOTIFIER_INTERVAL_MS=120000`
+- `SUBMISSION_NOTIFIER_INTERVAL_MS=120000`
+
+Use shorter intervals only when operational latency requirements justify the extra request volume.
+
+## Efficiency Drift Check
+
+Run this after deploys and during monthly ops review:
+
+```bash
+./scripts/check-cloudrun-efficiency.sh
+```

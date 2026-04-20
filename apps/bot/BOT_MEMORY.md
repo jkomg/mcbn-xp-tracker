@@ -9,6 +9,18 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 - Chronicle Wiki is now in-web (`/wiki`) and can be updated by bot sync through write-token API endpoints.
 - Notion sync and Wiki sync share the same bot script: `apps/bot/src/scripts/discord-notion-sync.ts`.
 
+## Production Ops Posture (2026-04-18)
+- Cloud Run spend is currently minimal; lean service profile is pinned and should remain:
+  - `cpu=1`, `memory=256Mi`
+  - `min-instances=0`, `max-instances=2`
+  - `concurrency=80`, `timeout=120`
+  - `session-affinity=false`
+- Use `./scripts/check-cloudrun-efficiency.sh` after deploys to catch cost-shape drift.
+- Bot control-plane polling baseline is now 120s:
+  - `CONFIG_SYNC_INTERVAL_MS=120000`
+  - `BOT_HEARTBEAT_INTERVAL_MS=120000`
+- Production Turso schema drift caused wiki outage after sync-lock merge; manual reconciliation was applied and `alembic_version` was advanced to `c9b4e1d8f2a0`.
+
 ## Important Cross-App Control Plane
 - Web settings can signal the bot through DB-backed `AppSetting` keys:
   - `BOT_RESTART_REQUESTED`
