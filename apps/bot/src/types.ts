@@ -137,3 +137,39 @@ export type SpendSubmissionEvent = SubmissionEventBase & {
 };
 
 export type SubmissionEvent = ClaimSubmissionEvent | SpendSubmissionEvent;
+
+export type CharacterBackgroundStatus = {
+  background_name: string;
+  dots_total: number;
+  dots_blanked: number;
+  dots_available: number;
+  blanked: boolean;
+  blanked_at_night_number: number | null;
+  release_night_number: number | null;
+  updated_at: string;
+  updated_by: string;
+};
+
+export type BackgroundStatusResponse = {
+  characterName: string;
+  currentNight: string | null;
+  currentNightNumber: number | null;
+  backgrounds: CharacterBackgroundStatus[];
+};
+
+export type BackgroundBlankResult = {
+  character_name: string;
+  background_name: string;
+  dots_blanked_now: number;
+  dots_total: number;
+  dots_blanked_total: number;
+  dots_available: number;
+  release_night_number: number;
+};
+
+export type BackgroundReleaseEvent = {
+  character_name: string;
+  background_name: string;
+  dots_released: number;
+  player_discord: string;
+};

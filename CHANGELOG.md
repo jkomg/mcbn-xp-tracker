@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-04-20] Clickable Background Blanking (Issue #174)
+
+### Per-Character Tracking + One-Night Blank/Release Cycle
+
+- Added tracked character backgrounds in web DB (`character_backgrounds`) with per-background dot totals and blanked-dot state.
+- Added player-facing Background Blanking UI on character pages:
+  - set/update/remove tracked backgrounds
+  - blank a chosen number of dots for the current night
+  - live display of total/blanked/available dots and scheduled release night
+- Added bot API endpoints for background workflows:
+  - `GET /api/backgrounds/status`
+  - `POST /api/backgrounds/blank`
+  - `POST /api/backgrounds/release-due`
+- Added `/lasombra blank` command with ownership enforcement for players and staff-targeting support.
+- Added automated background release notifications to character cubbies via a new bot release monitor service.
+- Added focused web tests in [`apps/web/tests/test_background_blanking.py`](apps/web/tests/test_background_blanking.py).
+
+---
+
 ## [2026-04-20] Wiki Sync Modularization (Phase 10)
 
 ### Golden Assertions for Sync Payload and Body Output

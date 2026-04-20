@@ -39,6 +39,7 @@ import {
 import { ConfigSyncWorker } from './services/configSyncWorker';
 import { BotHeartbeatService } from './services/botHeartbeatService';
 import { liveConfig } from './liveConfig';
+import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
 liveConfig.reviewNotifierEnabled = config.reviewNotifierEnabled;
@@ -186,6 +187,12 @@ void applyStartupConfigOverrides().then(() => {
     config.botHeartbeatIntervalMs,
     { notionSyncCapable },
   );
+  const backgroundBlankReleaseService = new BackgroundBlankReleaseService(
+    client,
+    adapter,
+    config.claimReminderGuildId ?? config.reviewNotifierGuildId ?? config.discordGuildId,
+    Math.max(60_000, config.botHeartbeatIntervalMs),
+  );
   const botLogForwarder = new BotLogForwarder(adapter);
 
   // Build hunt consequence config, respecting test mode
@@ -208,6 +215,7 @@ void applyStartupConfigOverrides().then(() => {
     await registerCommands(client);
     configSyncWorker.start();
     botHeartbeatService.start();
+    backgroundBlankReleaseService.start();
     botLogForwarder.start();
     reviewNotifier.start();
     autoPeriodCreator.start();

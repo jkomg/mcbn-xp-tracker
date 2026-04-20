@@ -184,3 +184,22 @@ class DbReminderPreference(db.Model):
     opt_out = db.Column(Boolean, default=False, nullable=False)
     snooze_until_epoch = db.Column(Integer, default=0, nullable=False)
     updated_at = db.Column(String(20), default='')
+
+
+class DbCharacterBackground(db.Model):
+    __tablename__ = 'character_backgrounds'
+    __table_args__ = (
+        db.UniqueConstraint('character_name', 'background_key', name='uq_character_background_key'),
+        db.Index('ix_character_backgrounds_character', 'character_name'),
+        db.Index('ix_character_backgrounds_release_night', 'release_night_number'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    character_name = db.Column(String(200), nullable=False)
+    background_key = db.Column(String(120), nullable=False)
+    background_name = db.Column(String(120), nullable=False)
+    dots_total = db.Column(Integer, nullable=False, default=0)
+    dots_blanked = db.Column(Integer, nullable=False, default=0)
+    blanked_at_night_number = db.Column(Integer, nullable=True)
+    release_night_number = db.Column(Integer, nullable=True)
+    updated_at = db.Column(String(20), nullable=False, default='')
+    updated_by = db.Column(String(100), nullable=False, default='')

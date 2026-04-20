@@ -101,6 +101,89 @@
 </div>
 {% endif %}
 
+<!-- Backgrounds -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Background Blanking</h5>
+        {% if current_night %}
+        <span class="badge bg-secondary">Current: {{ current_night.period_label }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if backgrounds %}
+        <div class="table-responsive mb-3">
+            <table class="table table-dark table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Background</th>
+                        <th>Total</th>
+                        <th>Blanked</th>
+                        <th>Available</th>
+                        <th>Release</th>
+                        <th>Blank</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bg in backgrounds %}
+                    <tr>
+                        <td>{{ bg.background_name }}</td>
+                        <td>{{ bg.dots_total }}</td>
+                        <td>{{ bg.dots_blanked }}</td>
+                        <td>
+                            <span class="{% if bg.dots_available > 0 %}text-success{% else %}text-muted{% endif %}">
+                                {{ bg.dots_available }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if bg.release_night_number %}
+                            Night {{ bg.release_night_number }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('player.blank_background', name=char.character_name) }}" class="d-flex gap-2">
+                                <input type="hidden" name="background_name" value="{{ bg.background_name }}">
+                                <input
+                                    type="number"
+                                    name="dots"
+                                    class="form-control form-control-sm"
+                                    style="width: 80px;"
+                                    min="1"
+                                    max="{{ bg.dots_available if bg.dots_available > 0 else 1 }}"
+                                    value="1"
+                                    {% if bg.dots_available <= 0 %}disabled{% endif %}
+                                >
+                                <button class="btn btn-sm btn-outline-warning" {% if bg.dots_available <= 0 %}disabled{% endif %}>
+                                    Blank
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No backgrounds tracked yet. Add one below to start blanking per night.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('player.set_background', name=char.character_name) }}" class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label fw-bold mb-1">Background</label>
+                <input type="text" name="background_name" class="form-control form-control-sm" placeholder="e.g., Allies" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold mb-1">Dots (0 removes)</label>
+                <input type="number" name="dots_total" class="form-control form-control-sm" min="0" max="10" value="1" required>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-sm btn-outline-secondary w-100">Set Background</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- ═══ Submission Forms ═══ -->
 <div class="row mb-4">
 

@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { errorToMessage, logEvent } from '../logger';
 import type {
   AdapterHealthReport,
+  BackgroundBlankResult,
+  BackgroundReleaseEvent,
+  BackgroundStatusResponse,
   ClaimContext,
   ClaimReminderSnapshot,
   ClaimPayload,
@@ -35,6 +38,12 @@ export interface TrackerAdapter {
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getActiveRoster(): Promise<{ characters: string[] }>;
   getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }>;
+  getBackgroundStatus(characterName: string, requester: RequesterContext): Promise<BackgroundStatusResponse | null>;
+  blankBackground(
+    requester: RequesterContext,
+    payload: { characterName: string; backgroundName: string; dots: number },
+  ): Promise<{ ok: boolean; message: string; result?: BackgroundBlankResult; currentNight?: string }>;
+  releaseDueBackgroundBlanks(): Promise<{ ok: boolean; currentNight: string | null; released: BackgroundReleaseEvent[] }>;
   getClaimReminderTargets(): Promise<ClaimReminderSnapshot>;
   getReviewEvents(opts?: {
     sinceEpoch?: number;
@@ -176,6 +185,48 @@ const claimReminderTargetsSchema = z.object({
       characterName: z.string(),
     }),
   ),
+});
+
+const backgroundStatusSchema = z.object({
+  characterName: z.string(),
+  currentNight: z.string().nullable(),
+  currentNightNumber: z.number().nullable(),
+  backgrounds: z.array(z.object({
+    background_name: z.string(),
+    dots_total: z.number(),
+    dots_blanked: z.number(),
+    dots_available: z.number(),
+    blanked: z.boolean(),
+    blanked_at_night_number: z.number().nullable(),
+    release_night_number: z.number().nullable(),
+    updated_at: z.string(),
+    updated_by: z.string(),
+  })),
+});
+
+const blankBackgroundResponseSchema = z.object({
+  ok: z.boolean(),
+  currentNight: z.string(),
+  result: z.object({
+    character_name: z.string(),
+    background_name: z.string(),
+    dots_blanked_now: z.number(),
+    dots_total: z.number(),
+    dots_blanked_total: z.number(),
+    dots_available: z.number(),
+    release_night_number: z.number(),
+  }),
+});
+
+const releaseDueBackgroundsSchema = z.object({
+  ok: z.boolean(),
+  currentNight: z.string().nullable(),
+  released: z.array(z.object({
+    character_name: z.string(),
+    background_name: z.string(),
+    dots_released: z.number(),
+    player_discord: z.string(),
+  })),
 });
 
 const autoCreatePeriodSchema = z.object({
@@ -331,6 +382,94 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     return activeRosterWithIdsSchema.parse(raw);
+  }
+
+  async getBackgroundStatus(characterName: string, requester: RequesterContext): Promise<BackgroundStatusResponse | null> {
+    const params = new URLSearchParams({
+      requesterDiscordId: requester.requesterDiscordId,
+      characterName,
+    });
+    if (requester.requesterDiscordName) {
+      params.set('requesterDiscordName', requester.requesterDiscordName);
+    }
+    if (requester.testMode) {
+      params.set('testMode', 'true');
+    }
+    if (requester.testAsDiscordId) {
+      params.set('testAsDiscordId', requester.testAsDiscordId);
+    }
+
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/backgrounds/status?${params.toString()}`, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp || resp.status === 404) {
+      return null;
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app backgrounds/status API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    return backgroundStatusSchema.parse(raw);
+  }
+
+  async blankBackground(
+    requester: RequesterContext,
+    payload: { characterName: string; backgroundName: string; dots: number },
+  ): Promise<{ ok: boolean; message: string; result?: BackgroundBlankResult; currentNight?: string }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/backgrounds/blank`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        testMode: requester.testMode ?? false,
+        testAsDiscordId: requester.testAsDiscordId,
+        ...payload,
+      }),
+    }).catch(() => null);
+
+    if (!resp) {
+      return { ok: false, message: 'Unable to reach web app API.' };
+    }
+    if (!resp.ok) {
+      const bodyPreview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      const userMessage = bodyPreview || `Request was rejected by the web API (status ${resp.status}).`;
+      return { ok: false, message: userMessage };
+    }
+    const parsed = blankBackgroundResponseSchema.parse(await resp.json());
+    return {
+      ok: true,
+      message: 'Background blanked.',
+      result: parsed.result,
+      currentNight: parsed.currentNight,
+    };
+  }
+
+  async releaseDueBackgroundBlanks(): Promise<{ ok: boolean; currentNight: string | null; released: BackgroundReleaseEvent[] }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/backgrounds/release-due`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+    if (!resp || !resp.ok) {
+      return { ok: false, currentNight: null, released: [] };
+    }
+    const parsed = releaseDueBackgroundsSchema.parse(await resp.json());
+    return { ok: parsed.ok, currentNight: parsed.currentNight, released: parsed.released };
   }
 
   async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {

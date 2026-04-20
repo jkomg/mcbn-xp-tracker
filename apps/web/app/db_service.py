@@ -16,7 +16,18 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from app.db import db, DbCharacter, DbPlayPeriod, DbXPClaim, DbSpendRequest, DbLedgerEntry, DbAuditLog, DbReminderPreference, DbSheetsSyncError
+from app.db import (
+    db,
+    DbCharacter,
+    DbPlayPeriod,
+    DbXPClaim,
+    DbSpendRequest,
+    DbLedgerEntry,
+    DbAuditLog,
+    DbReminderPreference,
+    DbSheetsSyncError,
+    DbCharacterBackground,
+)
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 
 
@@ -88,6 +99,12 @@ def _parse_yyyymmdd(value: str) -> Optional[datetime]:
 
 def _short_md(value: datetime) -> str:
     return f'{value.month}/{value.day}'
+
+
+def _background_key(value: str) -> str:
+    normalized = re.sub(r'[^a-z0-9]+', '-', str(value or '').strip().lower())
+    normalized = normalized.strip('-')
+    return normalized[:120]
 
 
 def _row_to_character(row: DbCharacter) -> Character:
@@ -1142,6 +1159,160 @@ class DBService:
             'other_spends': other_spends,
             'summary': xp,
         }
+
+    # ── Background Blanking ──────────────────────────────────────────────────
+
+    def get_character_backgrounds(self, name: str) -> list[dict]:
+        rows = DbCharacterBackground.query.filter(
+            func.lower(DbCharacterBackground.character_name) == name.lower(),
+        ).order_by(DbCharacterBackground.background_name.asc()).all()
+        result: list[dict] = []
+        for row in rows:
+            total = max(0, int(row.dots_total or 0))
+            blanked = max(0, min(total, int(row.dots_blanked or 0)))
+            available = max(0, total - blanked)
+            result.append({
+                'id': row.id,
+                'background_name': row.background_name,
+                'dots_total': total,
+                'dots_blanked': blanked,
+                'dots_available': available,
+                'blanked': blanked > 0,
+                'blanked_at_night_number': row.blanked_at_night_number,
+                'release_night_number': row.release_night_number,
+                'updated_at': row.updated_at or '',
+                'updated_by': row.updated_by or '',
+            })
+        return result
+
+    def set_character_background(self, character_name: str, background_name: str, dots_total: int, updated_by: str) -> dict:
+        bg_name = str(background_name or '').strip()[:120]
+        if not bg_name:
+            raise ValueError('Background name is required.')
+        bg_key = _background_key(bg_name)
+        if not bg_key:
+            raise ValueError('Background name is required.')
+
+        row = DbCharacterBackground.query.filter(
+            func.lower(DbCharacterBackground.character_name) == character_name.lower(),
+            DbCharacterBackground.background_key == bg_key,
+        ).first()
+        total = max(0, int(dots_total))
+        if not row:
+            if total == 0:
+                return {'deleted': False, 'background': bg_name}
+            row = DbCharacterBackground(
+                character_name=character_name,
+                background_key=bg_key,
+                background_name=bg_name,
+                dots_total=total,
+                dots_blanked=0,
+                blanked_at_night_number=None,
+                release_night_number=None,
+                updated_at=_now_str(),
+                updated_by=updated_by[:100],
+            )
+            db.session.add(row)
+            db.session.commit()
+            return {'deleted': False, 'background': row.background_name}
+
+        if total == 0:
+            db.session.delete(row)
+            db.session.commit()
+            return {'deleted': True, 'background': row.background_name}
+
+        row.background_name = bg_name
+        row.dots_total = total
+        row.dots_blanked = max(0, min(total, int(row.dots_blanked or 0)))
+        if row.dots_blanked == 0:
+            row.blanked_at_night_number = None
+            row.release_night_number = None
+        row.updated_at = _now_str()
+        row.updated_by = updated_by[:100]
+        db.session.commit()
+        return {'deleted': False, 'background': row.background_name}
+
+    def blank_character_background(
+        self,
+        character_name: str,
+        background_name: str,
+        dots_to_blank: int,
+        current_night_number: int,
+        updated_by: str,
+    ) -> dict:
+        bg_key = _background_key(background_name)
+        if not bg_key:
+            raise ValueError('Background name is required.')
+        if current_night_number <= 0:
+            raise ValueError('Current night number is required for blanking.')
+
+        row = DbCharacterBackground.query.filter(
+            func.lower(DbCharacterBackground.character_name) == character_name.lower(),
+            DbCharacterBackground.background_key == bg_key,
+        ).first()
+        if not row:
+            raise ValueError(f'Background "{background_name}" is not tracked for {character_name}.')
+
+        dots = int(dots_to_blank)
+        if dots <= 0:
+            raise ValueError('Dots to blank must be at least 1.')
+        total = max(0, int(row.dots_total or 0))
+        blanked = max(0, min(total, int(row.dots_blanked or 0)))
+        available = total - blanked
+        if dots > available:
+            raise ValueError(
+                f'Cannot blank {dots} dot(s) from {row.background_name}; only {available} available.',
+            )
+
+        row.dots_blanked = blanked + dots
+        row.blanked_at_night_number = current_night_number
+        row.release_night_number = current_night_number + 1
+        row.updated_at = _now_str()
+        row.updated_by = updated_by[:100]
+        db.session.commit()
+        return {
+            'character_name': row.character_name,
+            'background_name': row.background_name,
+            'dots_blanked_now': dots,
+            'dots_total': row.dots_total,
+            'dots_blanked_total': row.dots_blanked,
+            'dots_available': max(0, row.dots_total - row.dots_blanked),
+            'release_night_number': row.release_night_number,
+        }
+
+    def release_due_background_blanks(self, current_night_number: int) -> list[dict]:
+        if current_night_number <= 0:
+            return []
+
+        rows = DbCharacterBackground.query.filter(
+            DbCharacterBackground.dots_blanked > 0,
+            DbCharacterBackground.release_night_number.isnot(None),
+            DbCharacterBackground.release_night_number <= current_night_number,
+        ).all()
+        if not rows:
+            return []
+
+        releases: list[dict] = []
+        for row in rows:
+            released = int(row.dots_blanked or 0)
+            if released <= 0:
+                continue
+            char = DbCharacter.query.filter(
+                func.lower(DbCharacter.character_name) == row.character_name.lower(),
+            ).first()
+            releases.append({
+                'character_name': row.character_name,
+                'background_name': row.background_name,
+                'dots_released': released,
+                'player_discord': (char.player_discord if char else '') or '',
+            })
+            row.dots_blanked = 0
+            row.blanked_at_night_number = None
+            row.release_night_number = None
+            row.updated_at = _now_str()
+            row.updated_by = 'system:release'
+        db.session.commit()
+        return releases
 
     # ── Reminder Preferences ──────────────────────────────────────────────────
 
