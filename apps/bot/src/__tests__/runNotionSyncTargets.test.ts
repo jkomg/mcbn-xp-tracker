@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const restSetToken = vi.fn();
 const restGet = vi.fn(async () => []);
 const notionCtor = vi.fn();
+const notionPagesCreate = vi.fn(async () => ({ id: 'page-1' }));
+const notionDbUpdate = vi.fn(async () => ({}));
 const webWikiCtor = vi.fn();
+const webWikiUpsertPage = vi.fn(async () => {});
+const webWikiDeletePage = vi.fn(async () => {});
+const webWikiSetCharacterStatus = vi.fn(async () => {});
 
 vi.mock('discord.js', () => {
   class MockREST {
@@ -27,6 +32,9 @@ vi.mock('discord.js', () => {
 
 vi.mock('@notionhq/client', () => {
   class MockNotionClient {
+    pages = { create: notionPagesCreate };
+    databases = { update: notionDbUpdate };
+
     constructor(opts: unknown) {
       notionCtor(opts);
     }
@@ -73,20 +81,65 @@ vi.mock('../scripts/notionSync/webWikiClient', () => {
       webWikiCtor(opts);
     }
 
-    async upsertPage() {}
-    async deletePage() {}
-    async setCharacterStatus() {}
+    async upsertPage(payload: unknown) {
+      await webWikiUpsertPage(payload);
+    }
+
+    async deletePage(slug: string) {
+      await webWikiDeletePage(slug);
+    }
+
+    async setCharacterStatus(name: string, status: string) {
+      await webWikiSetCharacterStatus(name, status);
+    }
   }
 
   return { WebWikiClient: MockWebWikiClient };
 });
 
 import { runNotionSync } from '../scripts/discord-notion-sync';
+import {
+  fetchAllMessages,
+  fetchPins,
+  type DiscordChannel,
+  type DiscordMessage,
+} from '../scripts/notionSync/discordIngest';
 
 describe('runNotionSync target orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  function seedChannels(): void {
+    const channels: DiscordChannel[] = [
+      { id: 'cat-city', type: 4, name: 'City of Nashville' } as DiscordChannel,
+      { id: 'chan-locations', type: 0, name: 'broadway', parent_id: 'cat-city' } as DiscordChannel,
+      { id: 'chan-spc', type: 0, name: 'spc-profiles' } as DiscordChannel,
+      { id: 'chan-lore', type: 0, name: 'music-city-histories' } as DiscordChannel,
+    ];
+    restGet.mockResolvedValue(channels);
+
+    const defaultAuthor = {
+      username: 'user-1',
+      global_name: 'User One',
+    };
+    const defaultMessage = (content: string): DiscordMessage => ({
+      id: `msg-${Math.random()}`,
+      content,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      author: defaultAuthor as DiscordMessage['author'],
+      attachments: [],
+    } as DiscordMessage);
+
+    vi.mocked(fetchPins).mockResolvedValue([
+      defaultMessage('### Site One\nPinned hunting details'),
+    ]);
+    vi.mocked(fetchAllMessages).mockImplementation(async (_rest, channelId) => {
+      if (channelId === 'chan-spc') return [defaultMessage('SPC Name\nSPC profile body')];
+      if (channelId === 'chan-lore') return [defaultMessage('Lore archive text')];
+      return [];
+    });
+  }
 
   it('fails fast when no sync targets are enabled', async () => {
     const result = await runNotionSync({
@@ -100,7 +153,8 @@ describe('runNotionSync target orchestration', () => {
     expect(restSetToken).not.toHaveBeenCalled();
   });
 
-  it('supports notion-only runs and disables wiki write token', async () => {
+  it('supports notion-only runs and skips wiki writes', async () => {
+    seedChannels();
     const result = await runNotionSync({
       botToken: 'bot-token',
       guildId: 'guild-1',
@@ -108,26 +162,33 @@ describe('runNotionSync target orchestration', () => {
       webWriteToken: 'wiki-write-token',
       syncToNotion: true,
       syncToWiki: false,
-      dryRun: true,
+      dryRun: false,
     });
 
     expect(result.success).toBe(true);
     expect(notionCtor).toHaveBeenCalledTimes(1);
+    expect(notionPagesCreate).toHaveBeenCalled();
+    expect(webWikiUpsertPage).not.toHaveBeenCalled();
+    expect(webWikiDeletePage).not.toHaveBeenCalled();
+    expect(webWikiSetCharacterStatus).not.toHaveBeenCalled();
     expect(webWikiCtor).toHaveBeenCalledWith(expect.objectContaining({ writeToken: '' }));
   });
 
   it('supports wiki-only runs without constructing Notion client', async () => {
+    seedChannels();
     const result = await runNotionSync({
       botToken: 'bot-token',
       guildId: 'guild-1',
       webWriteToken: 'wiki-write-token',
       syncToNotion: false,
       syncToWiki: true,
-      dryRun: true,
+      dryRun: false,
     });
 
     expect(result.success).toBe(true);
     expect(notionCtor).not.toHaveBeenCalled();
+    expect(notionPagesCreate).not.toHaveBeenCalled();
+    expect(webWikiUpsertPage).toHaveBeenCalled();
     expect(webWikiCtor).toHaveBeenCalledWith(
       expect.objectContaining({ writeToken: 'wiki-write-token' }),
     );

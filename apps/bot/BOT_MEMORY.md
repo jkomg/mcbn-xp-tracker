@@ -1,6 +1,6 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-20 (phase 7)
+Last updated: 2026-04-20 (phase 8)
 Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 
 ## Current System Picture
@@ -115,9 +115,18 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
     - fail-fast when no targets are enabled
     - notion-only target wiring
     - wiki-only target wiring
+- Runtime target-efficiency hardening (phase 8):
+  - `discord-notion-sync.ts` now gates wiki-only execution by `WIKI_ENABLED`
+    instead of relying on no-op wiki client token behavior.
+  - notion-only runs skip wiki-only work paths (profile-map enrichment,
+    stale wiki cleanup, coteries/factions generation, retired updates, and
+    wiki upsert/delete/status calls).
+  - `runNotionSyncTargets.test.ts` now includes fixture-backed assertions for:
+    - notion-only: no wiki writes
+    - wiki-only: no Notion writes
 
 ## High-Signal Current Gaps
-- `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction; next split should separate Discord ingest, Notion writes, and wiki upsert/cleanup execution paths.
+- `runNotionSync` orchestration remains large (~1.1k LOC) even after helper extraction and target gating; next split should separate end-to-end step runners (locations/hunting, characters, session log).
 - Bot now has direct orchestration tests for `ConfigSyncWorker`, `WikiSyncScheduler`, and target-gating behavior in `runNotionSync`, but still lacks deeper full-flow integration tests for rich channel/message datasets.
 - Stale-running remediation now exists in web Settings (`/settings/reset-notion-sync`), but there is no automated stale cleanup/alerting yet.
 - Scheduled vs manual sync source + `run_id` are persisted (`BOT_NOTION_SYNC_SOURCE`, `BOT_NOTION_SYNC_RUN_ID`) and mirrored into `notion_sync_events`.
