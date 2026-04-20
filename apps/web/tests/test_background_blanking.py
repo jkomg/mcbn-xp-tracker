@@ -72,6 +72,23 @@ def test_blank_and_release_cycle(app_ctx):
     assert rows_after[0]['dots_available'] == 3
 
 
+def test_blank_consecutive_nights_preserves_one_night_release(app_ctx):
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Allies', 3, 'test')
+
+    # Night 101 blank: due on 102
+    first = svc.blank_character_background('Aludra', 'Allies', 1, 101, 'test')
+    assert first['release_night_number'] == 102
+
+    # Night 102 blank without running release worker first:
+    # previous due blank should auto-release, new blank due on 103.
+    second = svc.blank_character_background('Aludra', 'Allies', 1, 102, 'test')
+    assert second['release_night_number'] == 103
+    assert second['dots_blanked_total'] == 1
+    assert second['dots_available'] == 2
+
+
 def test_blank_background_api_enforces_owner(app_ctx):
     svc = DBService()
     _seed_character_period()

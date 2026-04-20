@@ -1264,6 +1264,15 @@ class DBService:
                 f'Cannot blank {dots} dot(s) from {row.background_name}; only {available} available.',
             )
 
+        # If an older blank is already due this night (or earlier), release it
+        # before adding the new blank so one-night expiry is preserved.
+        existing_release_night = int(row.release_night_number or 0)
+        if blanked > 0 and existing_release_night > 0 and existing_release_night <= current_night_number:
+            row.dots_blanked = 0
+            row.blanked_at_night_number = None
+            row.release_night_number = None
+            blanked = 0
+
         row.dots_blanked = blanked + dots
         row.blanked_at_night_number = current_night_number
         row.release_night_number = current_night_number + 1

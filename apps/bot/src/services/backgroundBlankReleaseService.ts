@@ -35,31 +35,43 @@ export class BackgroundBlankReleaseService {
 
       const channelMap = await buildCubbyChannelMap(guild);
       let sent = 0;
+      let failed = 0;
       for (const release of releaseBatch.released) {
-        const channel = channelMap.get(normalizeChannelName(release.character_name));
-        if (!channel) {
-          logEvent('warn', 'background_release_cubby_missing', { characterName: release.character_name });
-          continue;
+        try {
+          const channel = channelMap.get(normalizeChannelName(release.character_name));
+          if (!channel) {
+            failed += 1;
+            logEvent('warn', 'background_release_cubby_missing', { characterName: release.character_name });
+            continue;
+          }
+
+          const mention = /^\d{17,20}$/.test(release.player_discord)
+            ? `<@${release.player_discord}>`
+            : release.character_name;
+
+          await channel.send({
+            content: [
+              `${mention} your background refresh is ready.`,
+              `Released **${release.dots_released}** dot(s) of **${release.background_name}**.`,
+              releaseBatch.currentNight ? `Current night: **${releaseBatch.currentNight}**.` : '',
+            ].filter(Boolean).join('\n'),
+          });
+          sent += 1;
+        } catch (error) {
+          failed += 1;
+          logEvent('warn', 'background_release_notify_failed', {
+            characterName: release.character_name,
+            backgroundName: release.background_name,
+            error: errorToMessage(error),
+          });
         }
-
-        const mention = /^\d{17,20}$/.test(release.player_discord)
-          ? `<@${release.player_discord}>`
-          : release.character_name;
-
-        await channel.send({
-          content: [
-            `${mention} your background refresh is ready.`,
-            `Released **${release.dots_released}** dot(s) of **${release.background_name}**.`,
-            releaseBatch.currentNight ? `Current night: **${releaseBatch.currentNight}**.` : '',
-          ].filter(Boolean).join('\n'),
-        });
-        sent += 1;
       }
 
       logEvent('info', 'background_release_notified', {
         currentNight: releaseBatch.currentNight,
         released: releaseBatch.released.length,
         sent,
+        failed,
       });
     } catch (error) {
       logEvent('warn', 'background_release_tick_failed', { error: errorToMessage(error) });
