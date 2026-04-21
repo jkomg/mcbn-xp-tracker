@@ -13,7 +13,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
 )
 from app.auth import require_staff, get_staff_user, is_staff as _is_staff
-from app.db import db, WikiPage, DbCharacter, DbSpendRequest
+from app.db import db, WikiPage, WikiSyncBlock, DbCharacter, DbSpendRequest
 
 bp = Blueprint('wiki', __name__)
 
@@ -360,6 +360,11 @@ def page(slug):
 
 # ── Staff routes ───────────────────────────────────────────────────────────────
 
+def _block_slug(slug: str) -> None:
+    """Add slug to WikiSyncBlock if not already present."""
+    if not WikiSyncBlock.query.filter_by(slug=slug).first():
+        db.session.add(WikiSyncBlock(slug=slug, blocked_by=get_staff_user()))
+
 @bp.route('/new', methods=['GET', 'POST'])
 @require_staff
 def new_page():
@@ -413,9 +418,30 @@ def edit_page(slug):
 def delete_page(slug):
     p = WikiPage.query.filter_by(slug=slug).first_or_404()
     title = p.title
+    _block_slug(slug)
     db.session.delete(p)
     db.session.commit()
     flash(f'Page "{title}" deleted.', 'success')
+    return redirect(url_for('wiki.index'))
+
+
+@bp.route('/bulk-delete', methods=['POST'])
+@require_staff
+def bulk_delete():
+    slugs = request.form.getlist('slug')
+    if not slugs:
+        flash('No pages selected.', 'warning')
+        return redirect(request.referrer or url_for('wiki.index'))
+    pages = WikiPage.query.filter(WikiPage.slug.in_(slugs)).all()
+    count = len(pages)
+    for p in pages:
+        _block_slug(p.slug)
+        db.session.delete(p)
+    db.session.commit()
+    flash(f'Deleted {count} page{"s" if count != 1 else ""}. Sync is blocked for those slugs.', 'success')
+    return_category = request.form.get('return_category', '')
+    if return_category:
+        return redirect(url_for('wiki.category', category=return_category))
     return redirect(url_for('wiki.index'))
 
 
