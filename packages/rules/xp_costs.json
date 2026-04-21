@@ -58,5 +58,11 @@
     "description": "Purchased dot × 3 (non-sequential allowed)",
     "min_dots": 0,
     "max_dots": 5
+  },
+  "Ghoul Discipline": {
+    "flat_cost": 10,
+    "description": "10 XP (0 → 1, requires resonance + kindred blood)",
+    "min_dots": 0,
+    "max_dots": 1
   }
 }
