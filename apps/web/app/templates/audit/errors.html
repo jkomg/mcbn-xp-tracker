@@ -14,6 +14,11 @@
        target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">
       <i class="bi bi-cloud"></i> Cloud Logs
     </a>
+    {% if show_dismissed %}
+    <a href="{{ request.path }}" class="btn btn-sm btn-outline-secondary">Hide dismissed</a>
+    {% else %}
+    <a href="?show_dismissed=1{% if source_filter %}&source={{ source_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if event_filter %}&event={{ event_filter }}{% endif %}" class="btn btn-sm btn-outline-secondary">Show dismissed</a>
+    {% endif %}
   </div>
 </div>
 
@@ -99,11 +104,12 @@
                 <th style="width: 60px;">Level</th>
                 <th style="width: 200px;">Event</th>
                 <th>Message / Details</th>
+                <th style="width: 40px;"></th>
             </tr>
         </thead>
         <tbody>
             {% for entry in entries %}
-            <tr>
+            <tr id="log-row-{{ entry.id }}">
                 <td class="text-muted small text-nowrap">{{ entry.timestamp[:19] | replace('T', ' ') if entry.timestamp else '' }}</td>
                 <td><span class="badge bg-secondary">{{ entry.source }}</span></td>
                 <td>
@@ -123,6 +129,12 @@
                     </details>
                     {% endif %}
                 </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-secondary dismiss-btn" title="Dismiss"
+                            data-id="{{ entry.id }}" data-url="{{ url_for('audit.dismiss_error', entry_id=entry.id) }}">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -138,5 +150,25 @@
 <script>
   // Auto-refresh every 30s so new bot log entries appear without manual reload
   setTimeout(() => location.reload(), 30000);
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.dismiss-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const url = btn.dataset.url;
+    btn.disabled = true;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          const row = document.getElementById('log-row-' + id);
+          if (row) row.remove();
+        } else {
+          btn.disabled = false;
+        }
+      })
+      .catch(() => { btn.disabled = false; });
+  });
 </script>
 {% endblock %}
