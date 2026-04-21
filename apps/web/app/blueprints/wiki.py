@@ -164,16 +164,34 @@ def _unique_slug(base: str) -> str:
 
 # ── Public routes ─────────────────────────────────────────────────────────────
 
+def _get_featured_page(slug: str) -> Markup | None:
+    """Return rendered HTML for a featured index section page, or None if not found."""
+    page = WikiPage.query.filter_by(slug=slug, published=True).first()
+    if not page or not page.body_markdown:
+        return None
+    return _render_md(page.body_markdown)
+
+
 @bp.route('/')
 def index():
     recent = (WikiPage.query
               .filter_by(published=True)
               .order_by(WikiPage.updated_at.desc())
-              .limit(8)
+              .limit(6)
               .all())
     counts = {s: WikiPage.query.filter_by(category=s, published=True).count()
               for s, _, _ in CATEGORIES}
-    return render_template('wiki/index.html', recent=recent, counts=counts)
+    chronicle_background = _get_featured_page('chronicle-background')
+    state_of_domain = _get_featured_page('state-of-domain')
+    coteries_page = WikiPage.query.filter_by(slug='domains-and-coteries', published=True).first()
+    return render_template(
+        'wiki/index.html',
+        recent=recent,
+        counts=counts,
+        chronicle_background=chronicle_background,
+        state_of_domain=state_of_domain,
+        coteries_page=coteries_page,
+    )
 
 
 @bp.route('/search')
