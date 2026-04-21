@@ -27,94 +27,120 @@
 {% endblock %}
 
 {% block content %}
+<div class="row g-4">
 
-{% if is_staff %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-4">
-    {% if domains_and_coteries_page %}
-    <a href="{{ url_for('wiki.edit_page', slug=domains_and_coteries_page.slug) }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-pencil me-1"></i>Edit Map &amp; Legend
-    </a>
-    {% endif %}
-    <a href="{{ url_for('wiki.new_page') }}" class="btn btn-sm wiki-btn-new">
-        <i class="bi bi-plus-circle me-1"></i>New Page
-    </a>
-</div>
-{% endif %}
+    <!-- Main content -->
+    <div class="col-lg-9">
 
-{% if domains_and_coteries_html %}
-<div class="wiki-article mb-5">
-    {{ domains_and_coteries_html | safe }}
-</div>
-<hr class="wiki-sep mb-5">
-{% endif %}
-
-{% if pages %}
-<form id="bulk-delete-form" method="POST" action="{{ url_for('wiki.bulk_delete') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="return_category" value="{{ active_category }}">
-    <div class="row g-3">
-        {% for p in pages %}
-        {% set cstatus = char_statuses.get(p.title.lower(), 'active') if char_statuses is defined else 'active' %}
-        <div class="col-md-6 col-lg-4 wiki-card-col">
-            {% if is_staff %}
-            <label class="wiki-card-select-label">
-                <input type="checkbox" class="wiki-card-checkbox" name="slug" value="{{ p.slug }}" aria-label="Select {{ p.title }}">
-            </label>
+        {% if is_staff %}
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-4">
+            {% if domains_and_coteries_page %}
+            <a href="{{ url_for('wiki.edit_page', slug=domains_and_coteries_page.slug) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil me-1"></i>Edit Map &amp; Legend
+            </a>
             {% endif %}
-            <a href="{{ url_for('wiki.page', slug=p.slug) }}"
-               class="wiki-page-card text-decoration-none {% if cstatus != 'active' %}wiki-page-card--inactive{% endif %}">
-                {% if p.cover_image_url %}
-                <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');
-                     {% if cstatus != 'active' %}filter: grayscale(60%) opacity(0.7);{% endif %}">
-                </div>
-                {% endif %}
-                <div class="wiki-card-body">
-                    <h5>
-                        {{ p.title }}
-                        {% if cstatus == 'deceased' %}
-                        <span class="wiki-card-status-badge wiki-card-status-badge--deceased">&#9760; Deceased</span>
-                        {% elif cstatus == 'retired' %}
-                        <span class="wiki-card-status-badge wiki-card-status-badge--retired">Retired</span>
-                        {% endif %}
-                    </h5>
-                    {% if p.summary %}
-                    <div class="wiki-card-summary">{{ p.summary }}</div>
-                    {% endif %}
-                    <div class="meta">
-                        <i class="bi bi-clock me-1"></i>
-                        {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
-                        {% if not p.published %}
-                        <span class="badge bg-secondary ms-1">Draft</span>
-                        {% endif %}
-                    </div>
-                </div>
+            <a href="{{ url_for('wiki.new_page') }}" class="btn btn-sm wiki-btn-new">
+                <i class="bi bi-plus-circle me-1"></i>New Page
             </a>
         </div>
-        {% endfor %}
+        {% endif %}
+
+        {% if domains_and_coteries_html %}
+        <div class="wiki-article mb-5">
+            {{ domains_and_coteries_html | safe }}
+        </div>
+        <hr class="wiki-sep mb-5">
+        {% endif %}
+
+        {% if pages %}
+        <form id="bulk-delete-form" method="POST" action="{{ url_for('wiki.bulk_delete') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_category" value="{{ active_category }}">
+            <div class="row g-3">
+                {% for p in pages %}
+                {% set cstatus = char_statuses.get(p.title.lower(), 'active') if char_statuses is defined else 'active' %}
+                <div class="col-md-6 col-lg-4 wiki-card-col">
+                    {% if is_staff %}
+                    <label class="wiki-card-select-label">
+                        <input type="checkbox" class="wiki-card-checkbox" name="slug" value="{{ p.slug }}" aria-label="Select {{ p.title }}">
+                    </label>
+                    {% endif %}
+                    <a href="{{ url_for('wiki.page', slug=p.slug) }}"
+                       class="wiki-page-card text-decoration-none {% if cstatus != 'active' %}wiki-page-card--inactive{% endif %}">
+                        {% if p.cover_image_url %}
+                        <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');
+                             {% if cstatus != 'active' %}filter: grayscale(60%) opacity(0.7);{% endif %}">
+                        </div>
+                        {% endif %}
+                        <div class="wiki-card-body">
+                            <h5>
+                                {{ p.title }}
+                                {% if cstatus == 'deceased' %}
+                                <span class="wiki-card-status-badge wiki-card-status-badge--deceased">&#9760; Deceased</span>
+                                {% elif cstatus == 'retired' %}
+                                <span class="wiki-card-status-badge wiki-card-status-badge--retired">Retired</span>
+                                {% endif %}
+                            </h5>
+                            {% if p.summary %}
+                            <div class="wiki-card-summary">{{ p.summary }}</div>
+                            {% endif %}
+                            <div class="meta">
+                                <i class="bi bi-clock me-1"></i>
+                                {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
+                                {% if not p.published %}
+                                <span class="badge bg-secondary ms-1">Draft</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if is_staff %}
+            <div id="bulk-delete-bar" class="wiki-bulk-delete-bar d-none mt-4">
+                <span id="bulk-delete-count" class="text-muted me-3 small"></span>
+                <button type="submit" class="btn btn-sm btn-danger"
+                        onclick="return confirm('Permanently delete the selected pages? They will be blocked from sync re-creation.')">
+                    <i class="bi bi-trash me-1"></i>Delete selected
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="bulk-deselect-btn">
+                    Clear selection
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-journal-richtext"></i>
+            <p>No pages yet in {{ category_name }}.
+            {% if is_staff %}<a href="{{ url_for('wiki.new_page') }}">Write the first one.</a>{% endif %}
+            </p>
+        </div>
+        {% endif %}
+
     </div>
 
-    {% if is_staff %}
-    <div id="bulk-delete-bar" class="wiki-bulk-delete-bar d-none mt-4">
-        <span id="bulk-delete-count" class="text-muted me-3 small"></span>
-        <button type="submit" class="btn btn-sm btn-danger"
-                onclick="return confirm('Permanently delete the selected pages? They will be blocked from sync re-creation.')">
-            <i class="bi bi-trash me-1"></i>Delete selected
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="bulk-deselect-btn">
-            Clear selection
-        </button>
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+        <aside class="wiki-sidebar-panel">
+            <div class="wiki-meta-card">
+                <h6 class="wiki-sidebar-heading">Browse</h6>
+                <ul class="list-unstyled mb-0">
+                    {% for cat_slug, cat_name, cat_icon in wiki_categories %}
+                    <li class="mb-1">
+                        <a href="{{ url_for('wiki.category', category=cat_slug) }}"
+                           class="wiki-sidebar-link {% if active_category == cat_slug %}wiki-sidebar-link--active{% endif %}">
+                            <i class="bi {{ cat_icon }} me-2 opacity-75"></i>{{ cat_name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </aside>
     </div>
-    {% endif %}
-</form>
-{% else %}
-<div class="empty-state">
-    <i class="bi bi-journal-richtext"></i>
-    <p>No pages yet in {{ category_name }}.
-    {% if is_staff %}<a href="{{ url_for('wiki.new_page') }}">Write the first one.</a>{% endif %}
-    </p>
+
 </div>
-{% endif %}
-
 {% endblock %}
 
 {% block scripts %}
@@ -134,7 +160,6 @@
         } else {
             bar.classList.add('d-none');
         }
-        // Highlight selected cards
         checkboxes.forEach(function (cb) {
             cb.closest('.wiki-card-col').classList.toggle('wiki-card-col--selected', cb.checked);
         });
