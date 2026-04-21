@@ -100,12 +100,14 @@ function resolveChannel(
   const exact = channelMap.get(fullKey);
   if (exact) return exact;
 
-  // First-name fallback: find channels whose normalized name equals the
-  // first hyphen-separated segment of the full key.
+  // First-name fallback: find channels whose normalized name is exactly
+  // the first word of the character name (e.g. "sylvester" for "Sylvester Glass").
+  // Prefix matching is intentionally excluded to avoid routing to unrelated
+  // channels that happen to share the same prefix.
   const firstName = fullKey.split('-')[0];
   const candidates: NotificationChannel[] = [];
   for (const [key, ch] of channelMap) {
-    if (key === firstName || key.startsWith(`${firstName}-`)) {
+    if (key === firstName) {
       candidates.push(ch);
     }
   }
@@ -256,6 +258,10 @@ export class ReviewNotifier {
           if (!channel) {
             // Advance cursor so we don't re-attempt on next poll.
             this.seenEventKeys.add(event.eventKey);
+            if (this.seenEventKeys.size > 5000) {
+              const first = this.seenEventKeys.values().next().value;
+              if (first) this.seenEventKeys.delete(first);
+            }
             this.cursorEpoch = event.reviewedAtEpoch;
             this.cursorEventKey = event.eventKey;
             saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
