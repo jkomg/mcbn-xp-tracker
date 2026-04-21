@@ -166,6 +166,7 @@ class WikiPage(db.Model):
     id = db.Column(Integer, primary_key=True)
     slug = db.Column(String(200), nullable=False, unique=True, index=True)
     title = db.Column(String(300), nullable=False)
+    summary = db.Column(String(300), default='')
     body_markdown = db.Column(Text, default='')
     category = db.Column(String(100), default='', index=True)
     cover_image_url = db.Column(Text, default='')

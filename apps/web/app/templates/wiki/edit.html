@@ -111,6 +111,17 @@
                     </select>
                 </div>
 
+                <!-- Summary -->
+                <div class="col-12">
+                    <label class="form-label wiki-form-label" for="summary">
+                        Summary <span class="text-muted">(optional — shown on category cards, e.g. territory or affiliation)</span>
+                    </label>
+                    <input type="text" class="form-control wiki-form-input" id="summary" name="summary"
+                           value="{{ page.summary if page else '' }}"
+                           placeholder="e.g. Territory: Midtown · Allied with the Invictus"
+                           maxlength="300">
+                </div>
+
                 <!-- Cover Image URL -->
                 <div class="col-12">
                     <label class="form-label wiki-form-label" for="cover_image_url">
