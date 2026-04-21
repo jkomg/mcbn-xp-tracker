@@ -182,7 +182,7 @@ def index():
     counts = {s: WikiPage.query.filter_by(category=s, published=True).count()
               for s, _, _ in CATEGORIES}
     chronicle_background = _get_featured_page('chronicle-background')
-    state_of_domain = _get_featured_page('state-of-domain')
+    state_of_domain = _get_featured_page('state-of-the-domain')
     coteries_page = WikiPage.query.filter_by(slug='domains-and-coteries', published=True).first()
     return render_template(
         'wiki/index.html',
