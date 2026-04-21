@@ -78,6 +78,27 @@
 
                 <!-- Category -->
                 <div class="col-md-4">
+                </div>
+
+                <!-- Slug -->
+                <div class="col-md-8">
+                    {% if page %}
+                    <label class="form-label wiki-form-label">Slug</label>
+                    <input type="text" class="form-control wiki-form-input" value="{{ page.slug }}" disabled>
+                    <div class="form-text text-muted">Slug cannot be changed after creation.</div>
+                    {% else %}
+                    <label class="form-label wiki-form-label" for="slug">
+                        Slug <span class="text-muted">(optional — auto-generated from title if blank)</span>
+                    </label>
+                    <input type="text" class="form-control wiki-form-input" id="slug" name="slug"
+                           placeholder="e.g. chronicle-background"
+                           pattern="[a-z0-9\-]*"
+                           title="Lowercase letters, numbers, and hyphens only">
+                    {% endif %}
+                </div>
+
+                <!-- spacer -->
+                <div class="col-md-4">
                     <label class="form-label wiki-form-label" for="category">Category</label>
                     <select class="form-select wiki-form-input" id="category" name="category">
                         <option value="">— Uncategorised —</option>
@@ -163,6 +184,22 @@
         placeholder: 'Write your page content in Markdown...',
         status: ['autosave', 'lines', 'words'],
     });
+    // Auto-populate slug from title on new pages
+    const slugInput = document.getElementById('slug');
+    if (slugInput) {
+        let slugManuallyEdited = false;
+        slugInput.addEventListener('input', () => { slugManuallyEdited = true; });
+        document.getElementById('title').addEventListener('input', function () {
+            if (!slugManuallyEdited) {
+                slugInput.value = this.value.toLowerCase()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/[\s_]+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-+|-+$/g, '');
+            }
+        });
+    }
+
     // Cover image live preview
     const coverInput = document.getElementById('cover_image_url');
     coverInput.addEventListener('change', function () {
