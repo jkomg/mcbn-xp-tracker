@@ -180,6 +180,14 @@ class WikiPage(db.Model):
     updated_by = db.Column(String(100), default='')
 
 
+class WikiSyncBlock(db.Model):
+    """Slugs that the sync is not allowed to recreate (tombstones for manually deleted pages)."""
+    __tablename__ = 'wiki_sync_blocks'
+    slug = db.Column(String(200), primary_key=True)
+    blocked_by = db.Column(String(100), nullable=False, default='')
+    blocked_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class DbReminderPreference(db.Model):
     __tablename__ = 'reminder_preferences'
     discord_id = db.Column(String(30), primary_key=True)

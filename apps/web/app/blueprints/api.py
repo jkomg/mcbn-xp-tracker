@@ -1280,7 +1280,10 @@ def upsert_wiki_page():
             credentials_file=_app.config.get('GOOGLE_CREDENTIALS_FILE', ''),
         )
 
+    from app.db import WikiSyncBlock
     p = WikiPage.query.filter_by(slug=slug).first()
+    if not p and WikiSyncBlock.query.filter_by(slug=slug).first():
+        return jsonify({'status': 'sync_blocked', 'slug': slug})
     if p:
         if p.sync_locked:
             return jsonify({

@@ -1196,6 +1196,43 @@ tr.has-clan-color {
     line-height: 1.4;
 }
 
+/* Bulk delete — card checkbox overlay */
+.wiki-card-col {
+    position: relative;
+}
+
+.wiki-card-select-label {
+    position: absolute;
+    top: 0.45rem;
+    left: 0.85rem;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.wiki-card-checkbox {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: #c5a55a;
+    cursor: pointer;
+    background: rgba(13,17,23,0.75);
+    border-radius: 3px;
+}
+
+.wiki-card-col--selected .wiki-page-card {
+    outline: 2px solid #e05252;
+    outline-offset: 2px;
+}
+
+/* Bulk delete action bar */
+.wiki-bulk-delete-bar {
+    padding: 0.65rem 0;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+}
+
 /* Category badge */
 .wiki-cat-badge {
     display: inline-block;
