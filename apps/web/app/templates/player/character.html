@@ -851,6 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Thin-Blood Alchemy Formula':  { level_mult: 3, min: 0, max: 5 },
         'Advantage (Merit/Background)':{ per_dot: 3, min: 0, max: 5 },
         'Loresheet':                   { level_mult: 3, min: 0, max: 5 },
+        'Ghoul Discipline':            { flat: 10, min: 0, max: 1 },
     };
 
     function calcCost() {
@@ -871,7 +872,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (rules.flat !== undefined) {
             cost = rules.flat;
-            formula = '3 XP flat';
+            formula = rules.flat + ' XP flat';
         } else if (rules.level_mult !== undefined) {
             cost = nw * rules.level_mult;
             formula = nw + ' × ' + rules.level_mult;
@@ -935,8 +936,8 @@ document.addEventListener('DOMContentLoaded', function() {
             newDots.disabled = false;
         }
 
-        // Show/hide In-Clan checkbox
-        const isDiscipline = cat.toLowerCase().includes('discipline');
+        // Show/hide In-Clan checkbox (not applicable for Ghoul Discipline)
+        const isDiscipline = cat === 'Discipline (In-Clan)' || cat === 'Discipline (Out-of-Clan)' || cat === 'Caitiff Discipline';
         if (inClanGroup) {
             if (isDiscipline) {
                 inClanGroup.classList.remove('d-none');
@@ -972,6 +973,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Thin-Blood Alchemy Formula':  { level_mult: 3 },
         'Advantage (Merit/Background)':{ per_dot: 3 },
         'Loresheet':                   { level_mult: 3 },
+        'Ghoul Discipline':            { flat: 10 },
     };
 
     function wlCost(cat, from, to) {
