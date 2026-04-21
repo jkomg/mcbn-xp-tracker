@@ -108,14 +108,25 @@ def create_app():
     with app.app_context():
         # db.create_all() handles the baseline schema for fresh installs
         # (the Alembic baseline migration is a no-op).  For existing databases
-        # it's a no-op for any table that already exists.
+        # it's a no-op for tables that already exist.
         db.create_all()
-        # upgrade() applies any pending migrations (ADD COLUMN, new tables, etc.)
-        # and keeps alembic_version accurate.  All create_table migrations are
-        # written with IF NOT EXISTS guards so they're safe even when
-        # db.create_all() already created the table above.
-        from flask_migrate import upgrade as _db_upgrade
-        _db_upgrade()
+
+        from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
+        from alembic.migration import MigrationContext
+
+        with db.engine.connect() as _conn:
+            _current_rev = MigrationContext.configure(_conn).get_current_revision()
+
+        if _current_rev is None:
+            # Fresh install: db.create_all() already built the full schema.
+            # Stamp to head so future upgrades start from the right baseline.
+            _db_stamp('head')
+        else:
+            # Existing install: apply any pending migrations (ADD COLUMN, etc.)
+            # and keep alembic_version accurate.  All create_table migrations
+            # have IF NOT EXISTS guards so they're safe if the table already
+            # exists from a prior db.create_all() run.
+            _db_upgrade()
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp
