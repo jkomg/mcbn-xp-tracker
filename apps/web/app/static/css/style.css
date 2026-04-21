@@ -1388,6 +1388,14 @@ a.wiki-featured-card h4 {
     margin: 0.75rem 0;
 }
 
+.wiki-article iframe {
+    max-width: 100%;
+    border-radius: 6px;
+    border: 1px solid rgba(197, 165, 90, 0.2);
+    margin: 1rem 0;
+    display: block;
+}
+
 /* Sidebar panel */
 .wiki-sidebar-panel {
     position: sticky;

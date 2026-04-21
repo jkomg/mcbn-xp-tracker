@@ -51,15 +51,22 @@ _ALLOWED_TAGS = frozenset({
     'blockquote', 'pre', 'code',
     'table', 'thead', 'tbody', 'tr', 'th', 'td',
     'div', 'span',
+    'iframe',
 })
 _ALLOWED_ATTRS: dict[str, list[str]] = {
-    'a':   ['href', 'title', 'rel'],
-    'img': ['src', 'alt', 'title', 'width', 'height'],
-    '*':   ['class', 'id'],
+    'a':      ['href', 'title', 'rel'],
+    'img':    ['src', 'alt', 'title', 'width', 'height'],
+    'iframe': ['src', 'width', 'height', 'title', 'frameborder',
+               'allowfullscreen', 'loading', 'referrerpolicy', 'style'],
+    '*':      ['class', 'id'],
 }
 _VOID_TAGS = frozenset({'br', 'hr', 'img'})
 _URL_ATTRS = frozenset({'href', 'src'})
 _JS_RE = re.compile(r'^\s*javascript:', re.I)
+# Only these src domains are permitted for iframes
+_IFRAME_SRC_ALLOWLIST_RE = re.compile(
+    r'^https://(www\.google\.com/maps/|maps\.google\.com/)', re.I
+)
 
 
 class _HtmlSanitizer(HTMLParser):
@@ -89,6 +96,8 @@ class _HtmlSanitizer(HTMLParser):
                 continue
             value = value or ''
             if name in _URL_ATTRS and _JS_RE.match(value):
+                continue
+            if tag == 'iframe' and name == 'src' and not _IFRAME_SRC_ALLOWLIST_RE.match(value):
                 continue
             safe += f' {name}="{_html_mod.escape(value)}"'
         self._out.append(f'<{tag}{safe}>')
