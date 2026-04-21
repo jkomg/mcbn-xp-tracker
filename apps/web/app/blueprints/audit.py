@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, render_template, request, jsonify, abort
+from flask import Blueprint, render_template, request, jsonify
 from app import db_service
 from app.sheets_sync import get_recent_sync_errors as _get_recent_sync_errors
 from app.auth import require_staff
