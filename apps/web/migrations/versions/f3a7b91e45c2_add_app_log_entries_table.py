@@ -16,7 +16,17 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(name):
+    conn = op.get_bind()
+    return conn.execute(
+        sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:t"),
+        {'t': name},
+    ).fetchone() is not None
+
+
 def upgrade():
+    if _table_exists('app_log_entries'):
+        return
     op.create_table(
         'app_log_entries',
         sa.Column('id', sa.Integer, primary_key=True),
