@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
 from app import db_service
 from app.sheets_sync import get_recent_sync_errors as _get_recent_sync_errors
 from app.auth import require_staff
@@ -122,6 +122,16 @@ def _parse_error_entries(filename: str, lines: list[str]) -> list[dict]:
     return entries
 
 
+@bp.route('/errors/<int:entry_id>/dismiss', methods=['POST'])
+@require_staff
+def dismiss_error(entry_id: int):
+    from app.db import AppLogEntry, db
+    entry = AppLogEntry.query.get_or_404(entry_id)
+    entry.dismissed = True
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @bp.route('/errors')
 @require_staff
 def errors():
@@ -131,7 +141,11 @@ def errors():
     level_filter = request.args.get('level', '').strip().lower()
     event_filter = request.args.get('event', '').strip().lower()
 
+    show_dismissed = request.args.get('show_dismissed', '').lower() in ('1', 'true', 'yes')
+
     query = AppLogEntry.query.order_by(AppLogEntry.created_at.desc())
+    if not show_dismissed:
+        query = query.filter(AppLogEntry.dismissed == False)  # noqa: E712
     if source_filter in ('bot', 'web'):
         query = query.filter(AppLogEntry.source == source_filter)
     if level_filter in ('warn', 'error'):
@@ -142,12 +156,14 @@ def errors():
 
     entries = [
         {
+            'id': e.id,
             'timestamp': e.ts,
             'source': e.source,
             'level': e.level,
             'event': e.event,
             'message': e.message,
             'details': e.details,
+            'dismissed': e.dismissed,
         }
         for e in db_entries
     ]
@@ -172,5 +188,6 @@ def errors():
         source_filter=source_filter,
         level_filter=level_filter,
         event_filter=event_filter,
+        show_dismissed=show_dismissed,
         sync_errors=sync_errors,
     )

@@ -19,6 +19,7 @@ class AppLogEntry(db.Model):
     message = db.Column(Text, default='')
     details = db.Column(Text, default='')
     created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    dismissed = db.Column(Boolean, nullable=False, default=False, index=True)
 
 
 class DbCharacter(db.Model):

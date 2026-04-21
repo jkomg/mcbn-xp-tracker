@@ -5,7 +5,7 @@ import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
-import { findCubbyChannel } from './cubbyChannels';
+import { buildCubbyChannelMap, normalizeChannelName, type NotificationChannel } from './cubbyChannels';
 import { liveConfig } from '../liveConfig';
 
 const STATE_PATH = path.resolve('./data/review-notifier-cursor.json');
@@ -82,6 +82,59 @@ export function buildReviewNotificationMessage(event: ReviewEvent): string {
     base.push(`**ST Notes:** ${event.staffNotes.trim()}`);
   }
   return base.join('\n');
+}
+
+/**
+ * Resolve a cubby channel for a character name.
+ * First tries an exact normalized match; if that fails, falls back to
+ * matching on just the first word of the character name.  If the fallback
+ * is ambiguous (multiple channels share the same first-word prefix) the
+ * notification is skipped and an error is logged.
+ */
+function resolveChannel(
+  channelMap: Map<string, NotificationChannel>,
+  characterName: string,
+  eventKey: string,
+): NotificationChannel | null {
+  const fullKey = normalizeChannelName(characterName);
+  const exact = channelMap.get(fullKey);
+  if (exact) return exact;
+
+  // First-name fallback: find channels whose normalized name is exactly
+  // the first word of the character name (e.g. "sylvester" for "Sylvester Glass").
+  // Prefix matching is intentionally excluded to avoid routing to unrelated
+  // channels that happen to share the same prefix.
+  const firstName = fullKey.split('-')[0];
+  const candidates: NotificationChannel[] = [];
+  for (const [key, ch] of channelMap) {
+    if (key === firstName) {
+      candidates.push(ch);
+    }
+  }
+
+  if (candidates.length === 1) {
+    logEvent('warn', 'review_notifier_channel_first_name_fallback', {
+      characterName,
+      channelName: candidates[0].name,
+      eventKey,
+    });
+    return candidates[0];
+  }
+
+  if (candidates.length > 1) {
+    logEvent('error', 'review_notifier_channel_ambiguous', {
+      characterName,
+      candidates: candidates.map((c) => c.name),
+      eventKey,
+    });
+    return null;
+  }
+
+  logEvent('error', 'review_notifier_channel_missing', {
+    characterName,
+    eventKey,
+  });
+  return null;
 }
 
 export class ReviewNotifier {
@@ -191,6 +244,9 @@ export class ReviewNotifier {
           break;
         }
 
+        // Build channel map once per page to avoid one API round-trip per event.
+        const channelMap = await buildCubbyChannelMap(guild);
+
         for (const event of page.events) {
           if (this.seenEventKeys.has(event.eventKey)) {
             this.cursorEpoch = event.reviewedAtEpoch;
@@ -198,12 +254,17 @@ export class ReviewNotifier {
             continue;
           }
 
-          const channel = await findCubbyChannel(guild, event.characterName);
+          const channel = resolveChannel(channelMap, event.characterName, event.eventKey);
           if (!channel) {
-            logEvent('warn', 'review_notifier_channel_missing', {
-              characterName: event.characterName,
-              eventKey: event.eventKey,
-            });
+            // Advance cursor so we don't re-attempt on next poll.
+            this.seenEventKeys.add(event.eventKey);
+            if (this.seenEventKeys.size > 5000) {
+              const first = this.seenEventKeys.values().next().value;
+              if (first) this.seenEventKeys.delete(first);
+            }
+            this.cursorEpoch = event.reviewedAtEpoch;
+            this.cursorEventKey = event.eventKey;
+            saveCursorState({ cursorEpoch: this.cursorEpoch, cursorEventKey: this.cursorEventKey });
             continue;
           }
 
