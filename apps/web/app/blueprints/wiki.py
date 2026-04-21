@@ -146,7 +146,7 @@ def _render_md(text: str) -> Markup:
     text = _apply_strikethrough(text or '')
     raw_html = md_lib.markdown(
         text,
-        extensions=['extra', 'toc', 'nl2br'],
+        extensions=['extra', 'toc'],
         output_format='html',
     )
     return Markup(_sanitize(raw_html))
