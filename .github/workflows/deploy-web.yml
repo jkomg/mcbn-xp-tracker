@@ -133,17 +133,18 @@ jobs:
 
           SHORT_SHA="${SHA:0:7}"
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
+          COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
 
           if [ "$STATUS" = "success" ]; then
             COLOR=3066993
             ICON="✅"
             TITLE="Web deployed"
-            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) is live on Cloud Run."
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) is live on Cloud Run.\n${COMMIT_MSG}"
           else
             COLOR=15158332
             ICON="❌"
             TITLE="Deploy failed"
-            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) did not deploy. [View logs](${RUN_URL})."
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) did not deploy. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
           fi
 
           curl -s -X POST "$WEBHOOK" \
