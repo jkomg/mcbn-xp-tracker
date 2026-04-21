@@ -17,7 +17,7 @@ export const name = 'lasombra';
 
 export const data = new SlashCommandBuilder()
   .setName('lasombra')
-  .setDescription('Staff-only commands')
+  .setDescription('Lasombra utility commands')
   .addSubcommand((s) =>
     s
       .setName('broadcast')
@@ -45,6 +45,33 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
           .setAutocomplete(true),
       ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('blank')
+      .setDescription('Blank a tracked background for one night')
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name (staff may target any character)')
+          .setRequired(false)
+          .setAutocomplete(true),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('background')
+          .setDescription('Tracked background name')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
+      .addIntegerOption((o) =>
+        o
+          .setName('dots')
+          .setDescription('How many dots to blank')
+          .setRequired(true)
+          .setMinValue(1)
+          .setMaxValue(10),
+      ),
   );
 
 const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
@@ -60,7 +87,7 @@ type PendingBroadcast = {
 // Keyed by user ID — a user can only have one modal open at a time.
 const pendingBroadcasts = new Map<string, PendingBroadcast>();
 
-export async function execute(interaction: ChatInputCommandInteraction, _ctx: CommandContext): Promise<void> {
+export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
   const sub = interaction.options.getSubcommand();
 
   if (sub === 'broadcast') {
@@ -96,19 +123,92 @@ export async function execute(interaction: ChatInputCommandInteraction, _ctx: Co
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
 
     await interaction.showModal(modal);
+    return;
+  }
+
+  if (sub === 'blank') {
+    const isStaff = config.testerDiscordIds.has(interaction.user.id);
+    const requestedCharacter = interaction.options.getString('character')?.trim() ?? '';
+    const backgroundName = interaction.options.getString('background', true).trim();
+    const dots = interaction.options.getInteger('dots', true);
+
+    const roster = await ctx.adapter.getActiveRosterWithIds();
+    const allNames = new Set(roster.characters.map((c) => c.name.toLowerCase()));
+    const owned = roster.characters.filter((c) => c.discordId === interaction.user.id).map((c) => c.name);
+
+    let characterName = '';
+    if (requestedCharacter) {
+      if (!allNames.has(requestedCharacter.toLowerCase())) {
+        await interaction.reply({ content: `Unknown character: ${requestedCharacter}`, ephemeral: true });
+        return;
+      }
+      if (!isStaff && !owned.some((n) => n.toLowerCase() === requestedCharacter.toLowerCase())) {
+        await interaction.reply({
+          content: 'You can only blank backgrounds for your own linked character.',
+          ephemeral: true,
+        });
+        return;
+      }
+      characterName = roster.characters.find((c) => c.name.toLowerCase() === requestedCharacter.toLowerCase())?.name ?? requestedCharacter;
+    } else {
+      if (owned.length === 1) {
+        characterName = owned[0];
+      } else if (owned.length > 1) {
+        await interaction.reply({
+          content: 'You have multiple linked characters. Please provide the `character` option.',
+          ephemeral: true,
+        });
+        return;
+      } else {
+        await interaction.reply({
+          content: 'No linked active character found. Use the web player page to link first.',
+          ephemeral: true,
+        });
+        return;
+      }
+    }
+
+    const requester = {
+      requesterDiscordId: interaction.user.id,
+      requesterDiscordName: interaction.user.username,
+    };
+
+    const result = await ctx.adapter.blankBackground(requester, {
+      characterName,
+      backgroundName,
+      dots,
+    });
+    if (!result.ok || !result.result) {
+      await interaction.reply({
+        content: `Could not blank background: ${result.message}`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    await interaction.reply({
+      content: [
+        `Blanked **${result.result.dots_blanked_now}** dot(s) of **${result.result.background_name}** for **${result.result.character_name}**.`,
+        `Available now: **${result.result.dots_available}**/${result.result.dots_total}.`,
+        `Release: **Night ${result.result.release_night_number}**${result.currentNight ? ` (current: ${result.currentNight})` : ''}.`,
+      ].join('\n'),
+      ephemeral: true,
+    });
+    return;
   }
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.testerDiscordIds.has(interaction.user.id)) {
-    await interaction.respond([]);
-    return;
-  }
-
+  const isStaff = config.testerDiscordIds.has(interaction.user.id);
+  const sub = interaction.options.getSubcommand(false) ?? '';
   const focused = interaction.options.getFocused(true);
   const query = focused.value.toLowerCase();
 
   if (focused.name === 'target') {
+    if (!isStaff || sub !== 'broadcast') {
+      await interaction.respond([]);
+      return;
+    }
     const choices: Array<{ name: string; value: string }> = [];
 
     // Static targets
@@ -156,12 +256,73 @@ export async function autocomplete(interaction: AutocompleteInteraction, ctx: Co
   }
 
   if (focused.name === 'mention-character') {
+    if (!isStaff || sub !== 'broadcast') {
+      await interaction.respond([]);
+      return;
+    }
     try {
       const roster = await ctx.adapter.getActiveRosterWithIds();
       const choices = roster.characters
         .filter((c) => c.discordId && c.name.toLowerCase().includes(query))
         .slice(0, 25)
         .map((c) => ({ name: c.name, value: c.discordId as string }));
+      await interaction.respond(choices);
+    } catch {
+      await interaction.respond([]);
+    }
+    return;
+  }
+
+  if (sub === 'blank' && focused.name === 'character') {
+    try {
+      const roster = await ctx.adapter.getActiveRosterWithIds();
+      const candidates = isStaff
+        ? roster.characters.map((c) => c.name)
+        : roster.characters.filter((c) => c.discordId === interaction.user.id).map((c) => c.name);
+      const choices = candidates
+        .filter((name) => name.toLowerCase().includes(query))
+        .slice(0, 25)
+        .map((name) => ({ name, value: name }));
+      await interaction.respond(choices);
+    } catch {
+      await interaction.respond([]);
+    }
+    return;
+  }
+
+  if (sub === 'blank' && focused.name === 'background') {
+    try {
+      const roster = await ctx.adapter.getActiveRosterWithIds();
+      const requestedCharacter = interaction.options.getString('character')?.trim();
+      const owned = roster.characters.filter((c) => c.discordId === interaction.user.id).map((c) => c.name);
+      let characterName = requestedCharacter || '';
+      if (!characterName) {
+        if (owned.length === 1) {
+          characterName = owned[0];
+        } else {
+          await interaction.respond([]);
+          return;
+        }
+      }
+      if (!isStaff && !owned.some((name) => name.toLowerCase() === characterName.toLowerCase())) {
+        await interaction.respond([]);
+        return;
+      }
+
+      const requester = {
+        requesterDiscordId: interaction.user.id,
+        requesterDiscordName: interaction.user.username,
+      };
+      const status = await ctx.adapter.getBackgroundStatus(characterName, requester);
+      if (!status) {
+        await interaction.respond([]);
+        return;
+      }
+      const choices = status.backgrounds
+        .map((bg) => bg.background_name)
+        .filter((name) => name.toLowerCase().includes(query))
+        .slice(0, 25)
+        .map((name) => ({ name, value: name }));
       await interaction.respond(choices);
     } catch {
       await interaction.respond([]);

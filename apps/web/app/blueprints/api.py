@@ -173,6 +173,11 @@ def _open_periods_desc():
     return periods
 
 
+def _current_open_night():
+    periods = _open_periods_desc()
+    return periods[0] if periods else None
+
+
 def _requester_from_query():
     requester_discord_id = str(request.args.get('requesterDiscordId', '')).strip()
     requester_discord_name = str(request.args.get('requesterDiscordName', '')).strip()
@@ -342,6 +347,141 @@ def active_roster():
             ]
         })
     return jsonify({'characters': [c.character_name for c in characters]})
+
+
+@bp.route('/backgrounds/status', methods=['GET'])
+@require_bot_scope('read')
+@_limit("60 per minute")
+def backgrounds_status():
+    backend = _require_db()
+    if backend:
+        return backend
+
+    _, _, effective_discord_id, _, _, error = _requester_from_query()
+    if error:
+        return error
+
+    character_name = str(request.args.get('characterName', '')).strip()
+    if not character_name:
+        return jsonify({'error': 'characterName is required'}), 400
+
+    char = db_service.get_character(character_name)
+    if not char:
+        return jsonify({'error': 'Character not found'}), 404
+    if not _requester_can_access_character(char, effective_discord_id):
+        return _forbidden()
+
+    current_night = _current_open_night()
+    backgrounds = db_service.get_character_backgrounds(character_name)
+    return jsonify({
+        'characterName': char.character_name,
+        'currentNight': current_night.period_label if current_night else None,
+        'currentNightNumber': current_night.night_number if current_night else None,
+        'backgrounds': backgrounds,
+    })
+
+
+@bp.route('/backgrounds/blank', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("30 per minute")
+def blank_background():
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, effective_discord_name, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    character_name = str(payload.get('characterName', '')).strip()
+    background_name = str(payload.get('backgroundName', '')).strip()
+    try:
+        dots = int(payload.get('dots', 1) or 1)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'dots must be an integer'}), 400
+    if not character_name:
+        return jsonify({'error': 'characterName is required'}), 400
+    if not background_name:
+        return jsonify({'error': 'backgroundName is required'}), 400
+    if dots <= 0:
+        return jsonify({'error': 'dots must be greater than 0'}), 400
+
+    char = db_service.get_character(character_name)
+    if not char:
+        return jsonify({'error': 'Character not found'}), 404
+    if not _requester_can_access_character(char, effective_discord_id):
+        return _forbidden()
+
+    current_night = _current_open_night()
+    if not current_night:
+        return jsonify({'error': 'No active open night found'}), 409
+
+    actor = f'bot:{effective_discord_name or effective_discord_id}'
+    try:
+        result = db_service.blank_character_background(
+            char.character_name,
+            background_name,
+            dots,
+            current_night.night_number,
+            actor,
+        )
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+    db_service.log_action(
+        staff_user=actor,
+        action_type='bot_background_blank',
+        target=char.character_name,
+        details=(
+            f'{result["background_name"]}: blanked {result["dots_blanked_now"]} dot(s), '
+            f'release night {result["release_night_number"]}'
+        ),
+    )
+    if sheets_sync:
+        sheets_sync.sync_log_action(
+            staff_user=actor,
+            action_type='bot_background_blank',
+            target=char.character_name,
+            details=(
+                f'{result["background_name"]}: blanked {result["dots_blanked_now"]} dot(s), '
+                f'release night {result["release_night_number"]}'
+            ),
+        )
+
+    return jsonify({
+        'ok': True,
+        'currentNight': current_night.period_label,
+        'result': result,
+    })
+
+
+@bp.route('/backgrounds/release-due', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("30 per minute")
+def release_due_backgrounds():
+    backend = _require_db()
+    if backend:
+        return backend
+
+    current_night = _current_open_night()
+    if not current_night:
+        return jsonify({'ok': True, 'currentNight': None, 'released': []})
+
+    released = db_service.release_due_background_blanks(current_night.night_number)
+    for item in released:
+        db_service.log_action(
+            staff_user='system:background-release',
+            action_type='background_blank_release',
+            target=item.get('character_name', ''),
+            details=(
+                f'{item.get("background_name", "")}: released '
+                f'{int(item.get("dots_released", 0))} dot(s) on {current_night.period_label}'
+            ),
+        )
+    return jsonify({'ok': True, 'currentNight': current_night.period_label, 'released': released})
 
 
 @bp.route('/characters/<string:name>/summary', methods=['GET'])

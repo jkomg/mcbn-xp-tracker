@@ -174,6 +174,8 @@ def character(name):
         c.play_period for c in claims
         if c.status.lower() != 'denied'
     }
+    backgrounds = db_service.get_character_backgrounds(name)
+    current_night = open_periods[0] if open_periods else None
 
     return render_template(
         'player/character.html',
@@ -193,7 +195,95 @@ def character(name):
         open_periods=open_periods,
         claimed_periods=claimed_periods,
         spend_categories=SPEND_CATEGORIES,
+        backgrounds=backgrounds,
+        current_night=current_night,
     )
+
+
+@bp.route('/<name>/backgrounds/set', methods=['POST'])
+@require_character_owner
+@_limit("20 per minute")
+def set_background(name):
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    background_name = request.form.get('background_name', '').strip()
+    try:
+        dots_total = int(request.form.get('dots_total', '0') or '0')
+    except (ValueError, TypeError):
+        dots_total = 0
+    dots_total = max(0, min(dots_total, 10))
+
+    actor = f'player:{session.get("discord_name", "unknown")}'
+    try:
+        result = db_service.set_character_background(name, background_name, dots_total, actor)
+        if result.get('deleted'):
+            flash(f'Removed background "{result["background"]}".', 'success')
+        else:
+            flash(f'Updated background "{result["background"]}" to {dots_total} dot(s).', 'success')
+        db_service.log_action(
+            staff_user=actor,
+            action_type='player_background_set',
+            target=name,
+            details=f'{result["background"]} => {dots_total} dots',
+        )
+    except ValueError as e:
+        flash(str(e), 'danger')
+
+    return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/backgrounds/blank', methods=['POST'])
+@require_character_owner
+@_limit("20 per minute")
+def blank_background(name):
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    background_name = request.form.get('background_name', '').strip()
+    try:
+        dots = int(request.form.get('dots', '1') or '1')
+    except (ValueError, TypeError):
+        dots = 1
+    dots = max(1, min(dots, 10))
+
+    all_periods = db_service.get_all_periods()
+    open_periods = [p for p in all_periods if p.submissions_open and p.active]
+    open_periods.sort(key=lambda p: p.night_number, reverse=True)
+    current_night = open_periods[0] if open_periods else None
+    if not current_night:
+        flash('Cannot blank backgrounds without an active night.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
+    actor = f'player:{session.get("discord_name", "unknown")}'
+    try:
+        result = db_service.blank_character_background(
+            name,
+            background_name,
+            dots,
+            current_night.night_number,
+            actor,
+        )
+        flash(
+            f'Blanked {result["dots_blanked_now"]} dot(s) of {result["background_name"]}. '
+            f'Release scheduled for Night {result["release_night_number"]}.',
+            'success',
+        )
+        db_service.log_action(
+            staff_user=actor,
+            action_type='player_background_blank',
+            target=name,
+            details=(
+                f'{result["background_name"]}: blanked {result["dots_blanked_now"]} dot(s), '
+                f'release night {result["release_night_number"]}'
+            ),
+        )
+    except ValueError as e:
+        flash(str(e), 'danger')
+
+    return redirect(url_for('player.character', name=name))
 
 
 @bp.route('/<name>/claim', methods=['POST'])
