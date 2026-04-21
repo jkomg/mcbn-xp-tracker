@@ -192,14 +192,12 @@ def index():
               for s, _, _ in CATEGORIES}
     chronicle_background = _get_featured_page('chronicle-background')
     state_of_domain = _get_featured_page('state-of-the-domain')
-    coteries_page = WikiPage.query.filter_by(slug='domains-and-coteries', published=True).first()
     return render_template(
         'wiki/index.html',
         recent=recent,
         counts=counts,
         chronicle_background=chronicle_background,
         state_of_domain=state_of_domain,
-        coteries_page=coteries_page,
     )
 
 
@@ -278,11 +276,18 @@ def category(category):
             _order.get(char_statuses.get(p.title.lower(), 'active'), 0),
             p.title.lower()
         ))
+    domains_and_coteries_html = None
+    domains_and_coteries_page = None
+    if category == 'coteries':
+        domains_and_coteries_html = _get_featured_page('domains-and-coteries')
+        domains_and_coteries_page = WikiPage.query.filter_by(slug='domains-and-coteries').first()
     return render_template('wiki/category.html',
                            active_category=category,
                            category_name=CATEGORY_DISPLAY[category],
                            pages=pages,
-                           char_statuses=char_statuses)
+                           char_statuses=char_statuses,
+                           domains_and_coteries_html=domains_and_coteries_html,
+                           domains_and_coteries_page=domains_and_coteries_page)
 
 
 def _xp_snapshot(character_name: str) -> tuple[dict | None, list]:
@@ -369,6 +374,7 @@ def new_page():
         p = WikiPage(
             slug=slug,
             title=title,
+            summary=request.form.get('summary', '').strip(),
             body_markdown=request.form.get('body_markdown', ''),
             category=request.form.get('category', '').strip(),
             cover_image_url=request.form.get('cover_image_url', '').strip(),
@@ -389,6 +395,7 @@ def edit_page(slug):
     p = WikiPage.query.filter_by(slug=slug).first_or_404()
     if request.method == 'POST':
         p.title = request.form.get('title', p.title).strip() or p.title
+        p.summary = request.form.get('summary', '').strip()
         p.category = request.form.get('category', p.category).strip()
         p.body_markdown = request.form.get('body_markdown', '')
         p.cover_image_url = request.form.get('cover_image_url', '').strip()

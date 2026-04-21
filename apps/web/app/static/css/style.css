@@ -1189,6 +1189,13 @@ tr.has-clan-color {
     color: #666;
 }
 
+.wiki-card-summary {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+}
+
 /* Category badge */
 .wiki-cat-badge {
     display: inline-block;

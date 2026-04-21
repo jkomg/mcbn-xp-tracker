@@ -71,27 +71,6 @@
 <hr class="wiki-sep">
 {% endif %}
 
-{% if coteries_page %}
-<!-- Domains & Coteries featured link -->
-<section class="mb-5">
-    <h2 class="wiki-section-heading mb-4">Domains &amp; Coteries</h2>
-    <a href="{{ url_for('wiki.page', slug='domains-and-coteries') }}" class="wiki-featured-card text-decoration-none d-flex align-items-center gap-4 p-4">
-        {% if coteries_page.cover_image_url %}
-        <div class="wiki-featured-card-cover flex-shrink-0" style="background-image: url('{{ coteries_page.cover_image_url }}');"></div>
-        {% else %}
-        <div class="wiki-featured-card-icon flex-shrink-0"><i class="bi bi-map"></i></div>
-        {% endif %}
-        <div>
-            <h4 class="mb-1">{{ coteries_page.title }}</h4>
-            <p class="mb-0 text-muted small">View the domain map and active coteries of Nashville</p>
-        </div>
-        <i class="bi bi-arrow-right ms-auto"></i>
-    </a>
-</section>
-
-<hr class="wiki-sep">
-{% endif %}
-
 <!-- Recently Updated -->
 {% if recent %}
 <section class="mb-4">
