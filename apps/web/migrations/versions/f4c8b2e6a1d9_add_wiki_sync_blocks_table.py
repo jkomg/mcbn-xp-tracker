@@ -16,7 +16,17 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(name):
+    conn = op.get_bind()
+    return conn.execute(
+        sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:t"),
+        {'t': name},
+    ).fetchone() is not None
+
+
 def upgrade():
+    if _table_exists('wiki_sync_blocks'):
+        return
     op.create_table(
         'wiki_sync_blocks',
         sa.Column('slug', sa.String(200), primary_key=True),

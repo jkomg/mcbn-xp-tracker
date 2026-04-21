@@ -105,9 +105,17 @@ def create_app():
     if sheets_client:
         sheets_sync = SheetsSyncWorker(sheets_client, flask_app=app, db_service=db_service)
 
-    # Create DB tables if they don't exist
     with app.app_context():
+        # db.create_all() handles the baseline schema for fresh installs
+        # (the Alembic baseline migration is a no-op).  For existing databases
+        # it's a no-op for any table that already exists.
         db.create_all()
+        # upgrade() applies any pending migrations (ADD COLUMN, new tables, etc.)
+        # and keeps alembic_version accurate.  All create_table migrations are
+        # written with IF NOT EXISTS guards so they're safe even when
+        # db.create_all() already created the table above.
+        from flask_migrate import upgrade as _db_upgrade
+        _db_upgrade()
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp
