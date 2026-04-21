@@ -43,7 +43,7 @@
         {% endif %}
     </div>
     <div class="wiki-article" style="max-width: 820px;">
-        {{ chronicle_background }}
+        {{ chronicle_background | safe }}
     </div>
 </section>
 
@@ -56,14 +56,14 @@
     <div class="d-flex align-items-baseline justify-content-between mb-3">
         <h2 class="wiki-section-heading mb-0">State of the Domain</h2>
         {% if is_staff %}
-        <a href="{{ url_for('wiki.page', slug='state-of-domain') }}" class="text-muted small text-decoration-none">
+        <a href="{{ url_for('wiki.page', slug='state-of-the-domain') }}" class="text-muted small text-decoration-none">
             <i class="bi bi-pencil me-1"></i>Edit
         </a>
         {% endif %}
     </div>
     <div class="wiki-domain-notice">
         <div class="wiki-article">
-            {{ state_of_domain }}
+            {{ state_of_domain | safe }}
         </div>
     </div>
 </section>
