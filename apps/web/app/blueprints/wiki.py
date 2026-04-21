@@ -354,7 +354,9 @@ def new_page():
         if not title:
             flash('Title is required.', 'danger')
             return redirect(url_for('wiki.new_page'))
-        slug = _unique_slug(_slugify(title))
+        custom_slug = request.form.get('slug', '').strip()
+        base_slug = _slugify(custom_slug) if custom_slug else _slugify(title)
+        slug = _unique_slug(base_slug)
         p = WikiPage(
             slug=slug,
             title=title,
