@@ -302,6 +302,117 @@ staff can access any.
 
 ---
 
+## GET /api/backgrounds/status
+
+**Scope:** read | **Rate limit:** 60/min
+
+Returns all tracked backgrounds and their blanking state for a character. Players can only access their own characters; staff can access any.
+
+**Query params:** common requester params plus:
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `characterName` | string | Yes | Character name (case-insensitive) |
+
+**Response 200:**
+```json
+{
+  "characterName": "Alice",
+  "currentNight": "Night 42",
+  "currentNightNumber": 42,
+  "backgrounds": [
+    {
+      "id": 1,
+      "background_name": "Herd",
+      "dots_total": 3,
+      "dots_blanked": 1,
+      "dots_available": 2,
+      "blanked": true,
+      "blanked_at_night_number": 41,
+      "release_night_number": 42,
+      "updated_at": "20260421 18:00:00",
+      "updated_by": "bot:StaffMember"
+    }
+  ]
+}
+```
+
+`currentNight`/`currentNightNumber` are `null` if no open play period exists.
+
+**Response 400:** `characterName` missing. **Response 403:** Requester cannot access this character. **Response 404:** Character not found.
+
+---
+
+## POST /api/backgrounds/blank
+
+**Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
+
+Blanks one or more dots of a tracked background for a character (e.g. hunting consequence). Sets `release_night_number` to `current_night_number + 1`. Requires an active open play period.
+
+**Body:**
+```json
+{
+  "characterName": "Alice",
+  "backgroundName": "Herd",
+  "dots": 1,
+  "requesterDiscordId": "123456789",
+  "requesterDiscordName": "StaffMember"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `characterName` | string | Yes | Character name (case-insensitive) |
+| `backgroundName` | string | Yes | Background name as it appears in the tracker |
+| `dots` | int | No (default 1) | Number of dots to blank (must be > 0) |
+
+**Response 200:**
+```json
+{
+  "ok": true,
+  "currentNight": "Night 42",
+  "result": {
+    "character_name": "Alice",
+    "background_name": "Herd",
+    "dots_blanked_now": 1,
+    "dots_total": 3,
+    "dots_blanked_total": 1,
+    "dots_available": 2,
+    "release_night_number": 43
+  }
+}
+```
+
+**Response 400:** Missing/invalid fields, or background not tracked for this character. **Response 403:** Requester cannot access this character. **Response 404:** Character not found. **Response 409:** No active open night found.
+
+---
+
+## POST /api/backgrounds/release-due
+
+**Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
+
+Releases all blanked backgrounds whose `release_night_number` is ≤ the current open night number. Called automatically by the bot's passage-of-time monitor at the start of each night. No body required.
+
+If no open play period exists, returns `ok: true` with an empty `released` array.
+
+**Response 200:**
+```json
+{
+  "ok": true,
+  "currentNight": "Night 43",
+  "released": [
+    {
+      "character_name": "Alice",
+      "background_name": "Herd",
+      "dots_released": 1,
+      "player_discord": "111222333444555666"
+    }
+  ]
+}
+```
+
+---
+
 ## GET /api/submission-events
 
 **Scope:** read | **Rate limit:** 30/min
