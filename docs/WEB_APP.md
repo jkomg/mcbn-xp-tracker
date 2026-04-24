@@ -48,6 +48,17 @@ Staff can open and close submission windows, hide old periods from player-facing
 
 ![Play Periods](screenshots/play-period.png)
 
+### Error Alerts
+
+`/audit/errors` — shows warn and error log entries persisted from the web app and bot. Entries are written automatically when unhandled exceptions, sync failures, or other error-level events occur.
+
+- **Filter bar** — filter by Source (bot / web), Level (warn / error), or Event name substring.
+- **Top Events** — clickable badges showing the most frequent event types for quick filtering.
+- **Dismiss button** — staff can dismiss individual entries (✓ button per row). Dismissed entries are hidden by default; the **Show dismissed** toggle reveals them.
+- **Sheets Sync Errors** — a separate card at the top lists recent Google Sheets sync failures (timestamp, operation, error message).
+
+---
+
 ### Audit Log
 
 A full history of every staff action. Filterable by Action Type, Character, and Staff Member. Columns: Timestamp, Staff (Discord name), Action (colored badge), Character (linked), Details.
@@ -144,7 +155,7 @@ To submit a claim:
 **Request XP Spend (right panel)**
 
 To request a spend:
-1. Select a category (e.g. Discipline In-Clan, Advantage Merit/Background).
+1. Select a category (e.g. Discipline In-Clan, Advantage Merit/Background, Ghoul Discipline).
 2. Enter the trait name (e.g. "Dominate", "Allies").
 3. Set Current Dots and New Dots — the **Estimated Cost** updates automatically using V5 XP rules.
 4. Write a Justification / RP Rationale explaining the in-character reason.
@@ -154,7 +165,11 @@ Both panels open simultaneously, as shown below:
 
 ![Claim and Spend panels open](screenshots/play-spend-claim.png)
 
-Both submissions go into the pending queue for staff review. Players receive a Discord notification in their character's cubby channel when the review is complete.
+Both submissions go into the pending queue for staff review.
+
+**Backgrounds tab**
+
+Characters that have tracked backgrounds (e.g. Herd, Allies) show a **Backgrounds** tab below the action panels. Each row lists the background name, total dots, currently blanked dots, available dots, and the scheduled release night if blanked. Blanking is triggered by the bot (hunt consequence); release happens automatically at the start of the next night via the bot's passage-of-time monitor. Players receive a Discord notification in their character's cubby channel when the review is complete.
 
 ## Staff Workflows
 
@@ -168,7 +183,7 @@ Both submissions go into the pending queue for staff review. Players receive a D
 ### Reviewing Spends
 
 1. Click **XP Spends**.
-2. The verified XP cost is calculated automatically from V5 rules. A mismatch between requested and verified cost is flagged.
+2. The verified XP cost is calculated automatically from V5 rules. A mismatch between requested and verified cost is flagged. Ghoul Discipline spends are flat 10 XP per dot (0→1 only).
 3. **Approve** or **Deny** (with a note).
 
 ### Managing the Roster
