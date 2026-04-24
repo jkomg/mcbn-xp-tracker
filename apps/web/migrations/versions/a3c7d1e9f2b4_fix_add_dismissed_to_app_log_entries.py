@@ -46,7 +46,7 @@ def upgrade():
 
 
 def downgrade():
-    if _index_exists('ix_app_log_entries_dismissed'):
-        op.drop_index('ix_app_log_entries_dismissed', table_name='app_log_entries')
-    if _column_exists('app_log_entries', 'dismissed'):
-        op.drop_column('app_log_entries', 'dismissed')
+    # No-op: this migration repairs drift from d1a8e3f7c2b5 rather than
+    # introducing a new schema change. Dropping dismissed here would leave
+    # the DB missing a column that d1a8e3f7c2b5 (still in ancestry) requires.
+    pass
