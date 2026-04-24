@@ -120,7 +120,7 @@ def create_app():
         if _current_rev is None:
             # Fresh install: db.create_all() already built the full schema.
             # Stamp to head so future upgrades start from the right baseline.
-            _db_stamp('head')
+            _db_stamp(revision='head')
         else:
             # Existing install: apply any pending migrations (ADD COLUMN, etc.)
             # and keep alembic_version accurate.  All create_table migrations
