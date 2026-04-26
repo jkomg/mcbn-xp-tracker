@@ -159,7 +159,7 @@ def test_wiki_page_not_found():
 def test_wiki_page_published():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='test-page', title='Test', body_markdown='# Hello', published=True)
+        p = WikiPage(slug='test-page', title='Test', body_markdown='# Hello', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -171,7 +171,7 @@ def test_wiki_page_published():
 def test_wiki_draft_hidden_from_public():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='draft-page', title='Draft', body_markdown='secret', published=False)
+        p = WikiPage(slug='draft-page', title='Draft', body_markdown='secret', status="draft")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -190,7 +190,7 @@ def test_wiki_search_finds_by_title():
     app = _app()
     with app.app_context():
         p = WikiPage(slug='nashville-overview', title='Nashville Overview',
-                     body_markdown='A city of music.', published=True)
+                     body_markdown='A city of music.', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -204,7 +204,7 @@ def test_wiki_search_finds_by_body():
     with app.app_context():
         p = WikiPage(slug='elysium-page', title='The Elysium',
                      body_markdown='The kindred gather at the Elysium each full moon.',
-                     published=True)
+                     status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -217,7 +217,7 @@ def test_wiki_search_hides_drafts():
     app = _app()
     with app.app_context():
         p = WikiPage(slug='secret-page', title='Secret Draft',
-                     body_markdown='hidden content', published=False)
+                     body_markdown='hidden content', status="draft")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -237,7 +237,7 @@ def test_wiki_new_requires_staff():
 def test_wiki_delete_requires_staff():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='del-test', title='Delete Me', published=True)
+        p = WikiPage(slug='del-test', title='Delete Me', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -265,7 +265,7 @@ def test_api_wiki_page_create():
 def test_api_wiki_page_update():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='existing', title='Old Title', published=True)
+        p = WikiPage(slug='existing', title='Old Title', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -283,7 +283,7 @@ def test_api_wiki_page_update():
 def test_api_wiki_page_update_blocked_when_sync_locked():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='existing', title='Old Title', published=True, sync_locked=True)
+        p = WikiPage(slug='existing', title='Old Title', status="active", sync_locked=True)
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -319,7 +319,7 @@ def test_api_wiki_page_missing_fields():
 def test_api_wiki_page_delete():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='to-delete', title='Bye', published=True)
+        p = WikiPage(slug='to-delete', title='Bye', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -336,7 +336,7 @@ def test_api_wiki_page_delete():
 def test_api_wiki_page_delete_blocked_when_sync_locked():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='to-delete', title='Bye', published=True, sync_locked=True)
+        p = WikiPage(slug='to-delete', title='Bye', status="active", sync_locked=True)
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -370,7 +370,7 @@ def test_api_wiki_page_delete_requires_auth():
 def test_wiki_staff_can_lock_and_unlock_page():
     app = _app()
     with app.app_context():
-        p = WikiPage(slug='lock-me', title='Lock Me', published=True)
+        p = WikiPage(slug='lock-me', title='Lock Me', status="active")
         db.session.add(p)
         db.session.commit()
     with app.test_client() as client:
@@ -403,7 +403,7 @@ def test_character_page_shows_xp_snapshot():
                            creation_xp=10, active=True)
         db.session.add(char)
         page = WikiPage(slug='char-evander-cole', title='Evander Cole',
-                        category='characters', published=True)
+                        category='characters', status="active")
         db.session.add(page)
         db.session.commit()
     with app.test_client() as client:
@@ -431,7 +431,7 @@ def test_character_page_xp_snapshot_reflects_spends():
         )
         db.session.add(spend)
         page = WikiPage(slug='char-evander-cole', title='Evander Cole',
-                        category='characters', published=True)
+                        category='characters', status="active")
         db.session.add(page)
         db.session.commit()
     with app.test_client() as client:
@@ -446,7 +446,7 @@ def test_non_character_page_no_xp_snapshot():
     app = _app()
     with app.app_context():
         page = WikiPage(slug='loc-elysium', title='The Elysium',
-                        category='locations', published=True,
+                        category='locations', status="active",
                         body_markdown='A place.')
         db.session.add(page)
         db.session.commit()
@@ -461,7 +461,7 @@ def test_character_page_no_xp_when_unmatched():
     app = _app()
     with app.app_context():
         page = WikiPage(slug='char-ghost', title='Ghost Character',
-                        category='characters', published=True,
+                        category='characters', status="active",
                         body_markdown='No DB record.')
         db.session.add(page)
         db.session.commit()
