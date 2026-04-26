@@ -52,6 +52,10 @@ def login():
 @limiter.limit("10 per minute")
 def discord_redirect():
     """Redirect user to Discord's OAuth2 authorization page."""
+    # Stash a ?next= return path if provided (e.g. from wiki Sign In button)
+    next_path = request.args.get('next', '').strip()
+    if next_path and next_path.startswith('/') and not next_path.startswith('//'):
+        session['login_next'] = next_path
     # Generate a random state token to prevent CSRF
     state = secrets.token_urlsafe(32)
     session['oauth_state'] = state
