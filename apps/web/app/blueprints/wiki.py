@@ -17,6 +17,16 @@ from app.db import db, WikiPage, WikiSyncBlock, DbCharacter, DbSpendRequest
 
 bp = Blueprint('wiki', __name__)
 
+WIKI_STATUSES = ('draft', 'active', 'upcoming', 'archived')
+WIKI_STATUS_LABELS = {
+    'draft':    'Draft',
+    'active':   'Active',
+    'upcoming': 'Upcoming',
+    'archived': 'Archived',
+}
+# Statuses visible to players (non-staff)
+WIKI_PUBLIC_STATUSES = ('active', 'upcoming')
+
 CATEGORIES: list[tuple[str, str, str]] = [
     ('locations',   'Locations',   'bi-geo-alt-fill'),
     ('characters',  'Characters',  'bi-person-fill'),
@@ -32,7 +42,12 @@ _RESERVED_SLUGS = frozenset({'new', 'edit', 'category', 'search'})
 
 @bp.context_processor
 def _wiki_context():
-    return {'wiki_categories': CATEGORIES, 'wiki_category_display': CATEGORY_DISPLAY}
+    return {
+        'wiki_categories': CATEGORIES,
+        'wiki_category_display': CATEGORY_DISPLAY,
+        'wiki_statuses': WIKI_STATUSES,
+        'wiki_status_labels': WIKI_STATUS_LABELS,
+    }
 
 
 def _slugify(text: str) -> str:
@@ -175,7 +190,7 @@ def _unique_slug(base: str) -> str:
 
 def _get_featured_page(slug: str) -> Markup | None:
     """Return rendered HTML for a featured index section page, or None if not found."""
-    page = WikiPage.query.filter_by(slug=slug, published=True).first()
+    page = WikiPage.query.filter_by(slug=slug).filter(WikiPage.status == 'active').first()
     if not page or not page.body_markdown:
         return None
     return _render_md(page.body_markdown)
@@ -184,11 +199,12 @@ def _get_featured_page(slug: str) -> Markup | None:
 @bp.route('/')
 def index():
     recent = (WikiPage.query
-              .filter_by(published=True)
+              .filter(WikiPage.status.in_(WIKI_PUBLIC_STATUSES))
               .order_by(WikiPage.updated_at.desc())
               .limit(6)
               .all())
-    counts = {s: WikiPage.query.filter_by(category=s, published=True).count()
+    counts = {s: WikiPage.query.filter_by(category=s).filter(
+                  WikiPage.status.in_(WIKI_PUBLIC_STATUSES)).count()
               for s, _, _ in CATEGORIES}
     chronicle_background = _get_featured_page('chronicle-background')
     state_of_domain = _get_featured_page('state-of-the-domain')
@@ -206,7 +222,7 @@ def search():
     q = request.args.get('q', '').strip()
     results = []
     if q:
-        visible = [WikiPage.published == True]  # noqa: E712
+        visible = [WikiPage.status.in_(WIKI_PUBLIC_STATUSES)]
         if _is_staff():
             visible = []
         pattern = f'%{q}%'
@@ -253,10 +269,10 @@ def _excerpt(body: str, query: str, context: int = 160) -> str:
 def category(category):
     if category not in CATEGORY_DISPLAY:
         abort(404)
-    pages = (WikiPage.query
-             .filter_by(category=category, published=True)
-             .order_by(WikiPage.title.asc())
-             .all())
+    query = WikiPage.query.filter_by(category=category)
+    if not _is_staff():
+        query = query.filter(WikiPage.status.in_(WIKI_PUBLIC_STATUSES))
+    pages = query.order_by(WikiPage.title.asc()).all()
     # For the characters category, look up status for each page from DbCharacter
     char_statuses: dict[str, str] = {}
     if category == 'characters':
@@ -342,7 +358,7 @@ def _xp_snapshot(character_name: str) -> tuple[dict | None, list]:
 @bp.route('/<slug>')
 def page(slug):
     p = WikiPage.query.filter_by(slug=slug).first_or_404()
-    if not p.published and not _is_staff():
+    if p.status not in WIKI_PUBLIC_STATUSES and not _is_staff():
         abort(404)
     body_html = _render_md(p.body_markdown)
     xp_snapshot, approved_spends, char_status = None, [], None
@@ -376,6 +392,9 @@ def new_page():
         custom_slug = request.form.get('slug', '').strip()
         base_slug = _slugify(custom_slug) if custom_slug else _slugify(title)
         slug = _unique_slug(base_slug)
+        new_status = request.form.get('status', 'active').strip()
+        if new_status not in WIKI_STATUSES:
+            new_status = 'active'
         p = WikiPage(
             slug=slug,
             title=title,
@@ -383,7 +402,7 @@ def new_page():
             body_markdown=request.form.get('body_markdown', ''),
             category=request.form.get('category', '').strip(),
             cover_image_url=request.form.get('cover_image_url', '').strip(),
-            published=request.form.get('published') == '1',
+            status=new_status,
             source='manual',
             updated_by=get_staff_user(),
         )
@@ -404,7 +423,9 @@ def edit_page(slug):
         p.category = request.form.get('category', p.category).strip()
         p.body_markdown = request.form.get('body_markdown', '')
         p.cover_image_url = request.form.get('cover_image_url', '').strip()
-        p.published = request.form.get('published') == '1'
+        new_status = request.form.get('status', p.status).strip()
+        if new_status in WIKI_STATUSES:
+            p.status = new_status
         p.updated_by = get_staff_user()
         p.updated_at = datetime.now(timezone.utc)
         db.session.commit()
@@ -472,4 +493,20 @@ def unlock_page(slug):
     p.sync_locked_at = None
     db.session.commit()
     flash(f'Page "{p.title}" sync lock removed. Bot sync can update it again.', 'success')
+    return redirect(url_for('wiki.page', slug=slug))
+
+
+@bp.route('/set-status/<slug>', methods=['POST'])
+@require_staff
+def set_status(slug):
+    p = WikiPage.query.filter_by(slug=slug).first_or_404()
+    new_status = request.form.get('status', '').strip()
+    if new_status not in WIKI_STATUSES:
+        flash('Invalid status.', 'danger')
+        return redirect(url_for('wiki.page', slug=slug))
+    p.status = new_status
+    p.updated_by = get_staff_user()
+    p.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'"{p.title}" status set to {WIKI_STATUS_LABELS[new_status]}.', 'success')
     return redirect(url_for('wiki.page', slug=slug))

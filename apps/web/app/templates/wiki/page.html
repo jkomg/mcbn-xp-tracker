@@ -50,10 +50,20 @@
 
     <!-- Article -->
     <div class="col-lg-9">
-        {% if not page.published %}
+        {% if page.status == 'draft' %}
         <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4">
-            <i class="bi bi-eye-slash-fill"></i>
+            <i class="bi bi-pencil-fill"></i>
             <span>This page is a <strong>draft</strong> — only staff can see it.</span>
+        </div>
+        {% elif page.status == 'upcoming' %}
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+            <i class="bi bi-hourglass-split"></i>
+            <span><strong>Coming Soon</strong> — this page is visible to players as a preview.</span>
+        </div>
+        {% elif page.status == 'archived' %}
+        <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4">
+            <i class="bi bi-archive-fill"></i>
+            <span>This page is <strong>archived</strong> — only staff can see it.</span>
         </div>
         {% endif %}
 
@@ -150,6 +160,20 @@
                     <span class="wiki-meta-value">{{ page.updated_by }}</span>
                 </div>
                 {% endif %}
+                <div class="wiki-meta-row">
+                    <span class="wiki-meta-label">Status</span>
+                    <span class="wiki-meta-value">
+                        {% if page.status == 'active' %}
+                        <span class="badge text-bg-success">Active</span>
+                        {% elif page.status == 'upcoming' %}
+                        <span class="badge text-bg-info">Upcoming</span>
+                        {% elif page.status == 'draft' %}
+                        <span class="badge text-bg-secondary">Draft</span>
+                        {% elif page.status == 'archived' %}
+                        <span class="badge text-bg-dark">Archived</span>
+                        {% endif %}
+                    </span>
+                </div>
                 {% if page.source and page.source != 'manual' %}
                 <div class="wiki-meta-row">
                     <span class="wiki-meta-label">Source</span>
@@ -181,6 +205,20 @@
                    class="btn btn-sm wiki-btn-edit">
                     <i class="bi bi-pencil-square me-1"></i>Edit Page
                 </a>
+                <form method="post" action="{{ url_for('wiki.set_status', slug=page.slug) }}" class="d-flex gap-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="status" class="form-select form-select-sm wiki-form-input flex-grow-1"
+                            aria-label="Page status">
+                        {% for s in wiki_statuses %}
+                        <option value="{{ s }}" {% if page.status == s %}selected{% endif %}>
+                            {{ wiki_status_labels[s] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Apply status">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                </form>
                 {% if page.sync_locked %}
                 <form method="post" action="{{ url_for('wiki.unlock_page', slug=page.slug) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

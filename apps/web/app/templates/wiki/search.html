@@ -46,8 +46,12 @@
                             {{ wiki_category_display.get(r.page.category, r.page.category) }}
                         </span>
                         {% endif %}
-                        {% if not r.page.published %}
+                        {% if r.page.status == 'draft' %}
                         <span class="badge bg-secondary flex-shrink-0">Draft</span>
+                        {% elif r.page.status == 'upcoming' %}
+                        <span class="badge bg-info flex-shrink-0">Upcoming</span>
+                        {% elif r.page.status == 'archived' %}
+                        <span class="badge bg-dark flex-shrink-0">Archived</span>
                         {% endif %}
                     </div>
                     {% if r.excerpt %}
