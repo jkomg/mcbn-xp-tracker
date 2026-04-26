@@ -138,14 +138,23 @@
                     {% endif %}
                 </div>
 
-                <!-- Published toggle -->
-                <div class="col-12">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="published" name="published" value="1"
-                               {% if page is none or page.published %}checked{% endif %}>
-                        <label class="form-check-label text-light" for="published">
-                            Published <span class="text-muted">(uncheck to save as draft)</span>
-                        </label>
+                <!-- Status -->
+                <div class="col-md-4">
+                    <label class="form-label wiki-form-label" for="status">Status</label>
+                    <select class="form-select wiki-form-input" id="status" name="status">
+                        {% for s in wiki_statuses %}
+                        <option value="{{ s }}"
+                            {% if page and page.status == s %}selected
+                            {% elif page is none and s == 'active' %}selected
+                            {% endif %}>
+                            {{ wiki_status_labels[s] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text text-muted">
+                        Draft/Archived: staff only.
+                        Active: visible to all.
+                        Upcoming: visible to all, shown as "coming soon".
                     </div>
                 </div>
             </div>

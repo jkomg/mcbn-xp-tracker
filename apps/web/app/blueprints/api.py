@@ -1299,7 +1299,11 @@ def upsert_wiki_page():
         if 'cover_image_url' in data:
             p.cover_image_url = _resolve_cover(data['cover_image_url'], slug)
         if 'published' in data:
-            p.published = bool(data['published'])
+            # Bot sync sends published bool; map to status only when page is
+            # in a sync-managed state (draft/active). Upcoming/archived are
+            # staff-managed and should not be overridden by the bot.
+            if p.status in ('draft', 'active'):
+                p.status = 'active' if data['published'] else 'draft'
         p.source = data.get('source', p.source)
         p.updated_by = data.get('updated_by', 'api-sync')
         p.updated_at = datetime.now(timezone.utc)
@@ -1313,7 +1317,7 @@ def upsert_wiki_page():
         category=data.get('category', ''),
         cover_image_url=_resolve_cover(data.get('cover_image_url', ''), slug),
         source=data.get('source', 'api-sync'),
-        published=bool(data.get('published', True)),
+        status='active' if data.get('published', True) else 'draft',
         updated_by=data.get('updated_by', 'api-sync'),
     )
     db.session.add(p)

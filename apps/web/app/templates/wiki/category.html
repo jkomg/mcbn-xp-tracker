@@ -21,6 +21,16 @@
         {% endfor %}
         <p class="wiki-cat-hero-count text-muted mt-1">
             {{ pages | length }} page{{ 's' if pages | length != 1 }}
+            {% if is_staff %}
+                {% set hidden_count = pages | selectattr('status', 'in', ['draft', 'archived']) | list | length %}
+                {% set upcoming_count = pages | selectattr('status', 'equalto', 'upcoming') | list | length %}
+                {% if hidden_count > 0 %}
+                <span class="badge bg-secondary ms-1">{{ hidden_count }} hidden</span>
+                {% endif %}
+                {% if upcoming_count > 0 %}
+                <span class="badge bg-info ms-1">{{ upcoming_count }} upcoming</span>
+                {% endif %}
+            {% endif %}
         </p>
     </div>
 </div>
@@ -65,11 +75,12 @@
                         <input type="checkbox" class="wiki-card-checkbox" name="slug" value="{{ p.slug }}" aria-label="Select {{ p.title }}">
                     </label>
                     {% endif %}
+                    {% set page_inactive = (cstatus != 'active') or (p.status in ('archived', 'draft')) %}
                     <a href="{{ url_for('wiki.page', slug=p.slug) }}"
-                       class="wiki-page-card text-decoration-none {% if cstatus != 'active' %}wiki-page-card--inactive{% endif %}">
+                       class="wiki-page-card text-decoration-none {% if page_inactive %}wiki-page-card--inactive{% endif %}">
                         {% if p.cover_image_url %}
                         <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');
-                             {% if cstatus != 'active' %}filter: grayscale(60%) opacity(0.7);{% endif %}">
+                             {% if page_inactive %}filter: grayscale(60%) opacity(0.7);{% endif %}">
                         </div>
                         {% endif %}
                         <div class="wiki-card-body">
@@ -87,8 +98,12 @@
                             <div class="meta">
                                 <i class="bi bi-clock me-1"></i>
                                 {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
-                                {% if not p.published %}
+                                {% if p.status == 'draft' %}
                                 <span class="badge bg-secondary ms-1">Draft</span>
+                                {% elif p.status == 'upcoming' %}
+                                <span class="badge bg-info ms-1">Upcoming</span>
+                                {% elif p.status == 'archived' %}
+                                <span class="badge bg-dark ms-1">Archived</span>
                                 {% endif %}
                             </div>
                         </div>

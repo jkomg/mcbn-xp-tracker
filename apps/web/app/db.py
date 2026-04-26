@@ -171,7 +171,9 @@ class WikiPage(db.Model):
     category = db.Column(String(100), default='', index=True)
     cover_image_url = db.Column(Text, default='')
     source = db.Column(String(50), default='')
-    published = db.Column(Boolean, default=True, index=True)
+    # status: 'draft' | 'active' | 'upcoming' | 'archived'
+    # draft/archived are staff-only; active/upcoming are player-visible.
+    status = db.Column(String(20), default='active', nullable=False, index=True)
     sync_locked = db.Column(Boolean, default=False, nullable=False, index=True)
     sync_locked_by = db.Column(String(100), default='')
     sync_locked_at = db.Column(DateTime, nullable=True)
