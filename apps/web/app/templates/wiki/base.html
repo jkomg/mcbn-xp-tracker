@@ -61,13 +61,21 @@
                        title="Staff dashboard">
                         <i class="bi bi-speedometer2"></i>
                     </a>
+                    <a href="{{ url_for('dashboard.logout') }}" class="btn btn-sm btn-outline-secondary"
+                       title="Sign out">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
                     {% elif is_logged_in %}
                     <a href="{{ url_for('player.my_characters') }}" class="btn btn-sm btn-outline-secondary"
                        title="Player portal">
                         <i class="bi bi-person-circle"></i>
                     </a>
+                    <a href="{{ url_for('dashboard.logout') }}" class="btn btn-sm btn-outline-secondary"
+                       title="Sign out">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
                     {% else %}
-                    <a href="{{ url_for('dashboard.login') }}" class="btn btn-sm wiki-btn-login">
+                    <a href="{{ url_for('dashboard.login', next=request.path) }}" class="btn btn-sm wiki-btn-login">
                         <i class="bi bi-discord me-1"></i>Sign In
                     </a>
                     {% endif %}

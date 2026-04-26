@@ -41,6 +41,10 @@ def login():
     if session.get('discord_id'):
         # Logged in as player, not staff — send to player portal
         return redirect(url_for('player.my_characters'))
+    # Stash a safe local ?next= path so OAuth callback returns to the right page
+    next_path = request.args.get('next', '').strip()
+    if next_path and next_path.startswith('/') and not next_path.startswith('//'):
+        session['login_next'] = next_path
     return render_template('login.html')
 
 
@@ -139,8 +143,10 @@ def discord_callback():
         session['authenticated'] = True
         session['staff_user'] = discord_name
         flash(f'Welcome, {discord_name}.', 'success')
+        # Prefer stashed next URL (e.g. wiki page); fall back to dashboard
+        default_next = url_for('dashboard.index')
         return redirect(next_url if next_url != url_for('player.my_characters')
-                        else url_for('dashboard.index'))
+                        else default_next)
     else:
         # Player user — redirect to player portal
         flash(f'Welcome, {discord_name}.', 'success')
