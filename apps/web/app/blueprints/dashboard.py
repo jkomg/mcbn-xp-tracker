@@ -105,10 +105,16 @@ def discord_callback():
 
     try:
         token_resp = requests.post(DISCORD_TOKEN_URL, data=token_data, headers=headers, timeout=10)
-        token_resp.raise_for_status()
+        if not token_resp.ok:
+            current_app.logger.error(
+                'Discord token exchange failed: HTTP %s — %s',
+                token_resp.status_code, token_resp.text,
+            )
+            flash('Failed to authenticate with Discord. Please try again.', 'danger')
+            return redirect(url_for('dashboard.login'))
         access_token = token_resp.json().get('access_token')
     except Exception as exc:
-        current_app.logger.error('Discord token exchange failed: %s', exc)
+        current_app.logger.error('Discord token exchange error: %s', exc)
         flash('Failed to authenticate with Discord. Please try again.', 'danger')
         return redirect(url_for('dashboard.login'))
 

@@ -78,6 +78,7 @@ docker push "${IMAGE}"
 echo "==> Deploying to Cloud Run..."
 gcloud run deploy "${SERVICE_NAME}" \
   --image "${IMAGE}" \
+  --project "${PROJECT_ID}" \
   --region "${REGION}" \
   --platform managed \
   --allow-unauthenticated \
@@ -108,9 +109,10 @@ gcloud run deploy "${SERVICE_NAME}" \
 
 echo "==> Routing 100% traffic to latest revision..."
 gcloud run services update-traffic "${SERVICE_NAME}" \
+  --project "${PROJECT_ID}" \
   --region "${REGION}" \
   --to-latest
 
 echo ""
 echo "==> Deployed! Your app URL:"
-gcloud run services describe "${SERVICE_NAME}" --region "${REGION}" --format="value(status.url)"
+gcloud run services describe "${SERVICE_NAME}" --project "${PROJECT_ID}" --region "${REGION}" --format="value(status.url)"
