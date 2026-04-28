@@ -201,11 +201,6 @@ def _get_featured_page(slug: str) -> Markup | None:
 
 @bp.route('/')
 def index():
-    recent = (WikiPage.query
-              .filter(WikiPage.status.in_(WIKI_PUBLIC_STATUSES))
-              .order_by(WikiPage.updated_at.desc())
-              .limit(6)
-              .all())
     counts = {s: WikiPage.query.filter_by(category=s).filter(
                   WikiPage.status.in_(WIKI_PUBLIC_STATUSES)).count()
               for s, _, _ in CATEGORIES}
@@ -213,7 +208,6 @@ def index():
     state_of_domain = _get_featured_page('state-of-the-domain')
     return render_template(
         'wiki/index.html',
-        recent=recent,
         counts=counts,
         chronicle_background=chronicle_background,
         state_of_domain=state_of_domain,
