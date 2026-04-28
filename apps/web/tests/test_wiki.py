@@ -34,7 +34,7 @@ def _app():
     db.init_app(app)
     CSRFProtect(app)
     # Stub blueprints referenced by wiki templates
-    dash = _stub_bp('dashboard', '/', {'/': 'index', '/login': 'login', '/logout': 'logout'})
+    dash = _stub_bp('dashboard', '/', {'/': 'index', '/login': 'login', '/logout': 'logout', '/auth/discord': 'discord_redirect'})
     player = _stub_bp('player', '/player', {'/player/': 'my_characters'})
     app.register_blueprint(dash)
     app.register_blueprint(player)
