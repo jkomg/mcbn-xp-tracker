@@ -71,37 +71,5 @@
 <hr class="wiki-sep">
 {% endif %}
 
-<!-- Recently Updated -->
-{% if recent %}
-<section class="mb-4">
-    <h2 class="wiki-section-heading mb-4">Recently Updated</h2>
-    <div class="row g-3">
-        {% for p in recent %}
-        <div class="col-md-6 col-lg-4">
-            <a href="{{ url_for('wiki.page', slug=p.slug) }}" class="wiki-page-card text-decoration-none">
-                {% if p.cover_image_url %}
-                <div class="wiki-card-cover" style="background-image: url('{{ p.cover_image_url }}');"></div>
-                {% endif %}
-                <div class="wiki-card-body">
-                    {% if p.category %}
-                    <span class="wiki-cat-badge">{{ wiki_category_display.get(p.category, p.category) }}</span>
-                    {% endif %}
-                    <h5>{{ p.title }}</h5>
-                    <div class="meta">
-                        <i class="bi bi-clock me-1"></i>
-                        {{ p.updated_at.strftime('%b %d, %Y') if p.updated_at else '' }}
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-</section>
-{% else %}
-<div class="empty-state">
-    <i class="bi bi-journal-richtext"></i>
-    <p>The chronicle has yet to be written. {% if is_staff %}<a href="{{ url_for('wiki.new_page') }}">Create the first page.</a>{% endif %}</p>
-</div>
-{% endif %}
 
 {% endblock %}
