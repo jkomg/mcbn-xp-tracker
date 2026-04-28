@@ -30,6 +30,9 @@ WIKI_PUBLIC_STATUSES = ('active', 'upcoming')
 CATEGORIES: list[tuple[str, str, str]] = [
     ('locations',   'Locations',   'bi-geo-alt-fill'),
     ('characters',  'Characters',  'bi-person-fill'),
+    ('backgrounds', 'Backgrounds', 'bi-journal-text'),
+    ('spcs',        'SPCs',        'bi-person-badge-fill'),
+    ('plotlines',   'Plotlines',   'bi-diagram-3-fill'),
     ('coteries',    'Coteries',    'bi-people-fill'),
     ('factions',    'Factions',    'bi-shield-fill'),
     ('lore',        'Lore',        'bi-book-fill'),

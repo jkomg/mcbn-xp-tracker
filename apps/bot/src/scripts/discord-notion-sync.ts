@@ -554,14 +554,16 @@ async function main(opts: NotionSyncOptions) {
           await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
         }
         if (WIKI_ENABLED) {
+          // Upsert under the new spcs category and delete any old char- slug.
           await wikiClient.upsertPage({
-            slug: wikiSlug('characters', name),
+            slug: wikiSlug('spcs', name),
             title: name,
-            category: 'characters',
+            category: 'spcs',
             body_markdown: messagesToMarkdown(messages),
             cover_image_url: cover ?? undefined,
             published: true,
           });
+          await wikiClient.deletePage(wikiSlug('characters', name));
         }
       }
       count++;
@@ -593,13 +595,15 @@ async function main(opts: NotionSyncOptions) {
           await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
         }
         if (WIKI_ENABLED) {
+          // Upsert under the new spcs category and delete any old char- slug.
           await wikiClient.upsertPage({
-            slug: wikiSlug('characters', name),
+            slug: wikiSlug('spcs', name),
             title: name,
-            category: 'characters',
+            category: 'spcs',
             body_markdown: msg.content.trim(),
             published: true,
           });
+          await wikiClient.deletePage(wikiSlug('characters', name));
         }
       }
       count++;
@@ -844,11 +848,14 @@ async function main(opts: NotionSyncOptions) {
           }
           // children-of-the-night threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
+          // backgrounds forum gets its own wiki category; slug stays lore- prefix
+          // so existing pages are updated in-place rather than duplicated.
           if (WIKI_ENABLED && chanName !== 'children-of-the-night') {
+            const pageCategory = chanName === 'backgrounds' ? 'backgrounds' : 'lore';
             await wikiClient.upsertPage({
               slug: wikiSlug('lore', title),
               title,
-              category: 'lore',
+              category: pageCategory,
               body_markdown: messagesToMarkdown(messages),
               cover_image_url: cover ?? undefined,
               published: true,
