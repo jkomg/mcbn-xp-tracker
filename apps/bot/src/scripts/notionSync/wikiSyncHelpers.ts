@@ -2,6 +2,7 @@ export type DiscordMessageForWiki = {
   content: string;
   author: { username: string; global_name?: string };
   timestamp: string;
+  attachments?: { url: string; content_type?: string; filename: string }[];
 };
 
 export function slugify(text: string): string {
@@ -20,6 +21,9 @@ export function wikiSlug(category: string, name: string): string {
     locations: 'loc',
     characters: 'char',
     lore: 'lore',
+    backgrounds: 'bg',
+    spcs: 'spc',
+    plotlines: 'plot',
   };
   const prefix = prefixes[category] ?? category;
   return `${prefix}-${slugify(name)}`;
@@ -35,6 +39,9 @@ export function wikiSlug(category: string, name: string): string {
  *  - User/role/channel mentions: <@id> <@!id> <#id> <@&id> → removed
  *  - Timestamp tags: <t:123:F> → removed
  *  - Unbalanced ** bold markers: if count is odd, close at end of block
+ *  - Single newlines → markdown line breaks (  \n) so Discord's line-per-field
+ *    format renders as separate lines rather than one collapsed paragraph.
+ *    Double newlines (paragraph breaks) are left unchanged.
  */
 export function sanitizeDiscordMarkdown(text: string): string {
   let s = text
@@ -43,19 +50,28 @@ export function sanitizeDiscordMarkdown(text: string): string {
     .replace(/<[@#!&]?!?\d+>/g, '') // mentions & channels
     .replace(/<t:\d+(?::[tTdDfFR])?>/g, ''); // timestamp tags
 
+  // Convert lone newlines to markdown line breaks; leave blank lines alone.
+  s = s.replace(/(?<!\n)\n(?!\n)/g, '  \n');
+
   if ((s.match(/\*\*/g) ?? []).length % 2 !== 0) s += '**';
   return s.trim();
 }
 
 export function messagesToMarkdown(messages: DiscordMessageForWiki[]): string {
-  return messages
-    .filter((m) => m.content.trim())
-    .map((m) => {
-      const author = m.author.global_name ?? m.author.username;
-      const date = m.timestamp.slice(0, 10);
-      return `### ${author} · ${date}\n\n${sanitizeDiscordMarkdown(m.content.trim())}`;
-    })
-    .join('\n\n---\n\n');
+  const parts: string[] = [];
+  for (const m of messages) {
+    const images = (m.attachments ?? []).filter(
+      (a) => a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename),
+    );
+    if (!m.content.trim() && !images.length) continue;
+    const author = m.author.global_name ?? m.author.username;
+    const date = m.timestamp.slice(0, 10);
+    const textBody = m.content.trim() ? sanitizeDiscordMarkdown(m.content.trim()) : '';
+    const imageBody = images.map((img) => `![](${img.url})`).join('\n\n');
+    const body = [textBody, imageBody].filter(Boolean).join('\n\n');
+    parts.push(`### ${author} · ${date}\n\n${body}`);
+  }
+  return parts.join('\n\n---\n\n');
 }
 
 // Coterie membership: display name → member character names (lowercase for matching)

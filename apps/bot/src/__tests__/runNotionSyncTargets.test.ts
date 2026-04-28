@@ -272,8 +272,8 @@ describe('runNotionSync target orchestration', () => {
         title: 'Broadway',
       }),
       expect.objectContaining({
-        slug: 'characters-SPC Name',
-        category: 'characters',
+        slug: 'spcs-SPC Name',
+        category: 'spcs',
         title: 'SPC Name',
         body_markdown: 'SPC Name\nSPC profile body',
       }),
