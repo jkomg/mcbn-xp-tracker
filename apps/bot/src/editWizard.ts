@@ -151,10 +151,31 @@ export async function startEditWizard(
 
   await interaction.deferReply({ ephemeral: true });
 
-  const charDetails = await ctx.adapter.getCharacterDetails(channel.name).catch(() => null);
+  // Channel names are normalized slugs (e.g. "astrid-von-holt") but roster
+  // names are human-readable (e.g. "Astrid von Holt"). Match by normalizing
+  // each roster entry rather than sending the slug directly to the API.
+  let resolvedName: string | null = null;
+  try {
+    const roster = await ctx.adapter.getActiveRosterWithIds();
+    const match = roster.characters.find(
+      (c) => normalizeChannelName(c.name) === channel.name,
+    );
+    resolvedName = match?.name ?? null;
+  } catch {
+    // fall through to the not-found message below
+  }
+
+  if (!resolvedName) {
+    await interaction.editReply(
+      `No roster entry found matching channel **${channel.name}**. Make sure the channel name matches the character name.`,
+    );
+    return;
+  }
+
+  const charDetails = await ctx.adapter.getCharacterDetails(resolvedName).catch(() => null);
   if (!charDetails) {
     await interaction.editReply(
-      `No roster entry found for **${channel.name}**. Check the channel name matches the character name exactly.`,
+      `Could not load details for **${resolvedName}** — try again shortly.`,
     );
     return;
   }
@@ -309,9 +330,11 @@ export async function handleEditWizardButton(
     results.push(`✅ Roster updated (${fieldList}).`);
   } else {
     results.push(`⚠️ Roster update failed: ${updateResult.message}`);
+    await interaction.editReply({ content: results.join('\n'), components: [] });
+    return true;
   }
 
-  // ── Move cubby if age changed ──────────────────────────────────────────
+  // ── Move cubby if age changed (only runs if roster update succeeded) ───
   if (changed.ageCategory) {
     const targetCubbyName = AGE_TO_CUBBY[changed.ageCategory.toLowerCase()];
     if (targetCubbyName) {
