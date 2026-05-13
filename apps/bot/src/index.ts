@@ -28,7 +28,7 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
-import { handleBroadcastModal } from './commands/lasombra';
+import { handleBroadcastModal, handleDeleteButton, isDeleteButton } from './commands/lasombra';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardRoleSelect,
@@ -299,6 +299,11 @@ void applyStartupConfigOverrides().then(() => {
       if (isEditWizardButton(interaction.customId)) {
         await handleEditWizardButton(interaction, { client, adapter });
         logEvent('info', 'interaction_handled_edit_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isDeleteButton(interaction.customId)) {
+        await handleDeleteButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_delete_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
       if (isHuntConsequenceButton(interaction.customId)) {

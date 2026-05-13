@@ -101,6 +101,10 @@ export interface TrackerAdapter {
     newName: string,
     requester: { requesterDiscordId: string; requesterDiscordName: string },
   ): Promise<{ ok: boolean; message: string; newName?: string }>;
+  deleteCharacter(
+    name: string,
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string; hasHistory?: boolean }>;
 }
 
 export type CharacterDetails = {
@@ -908,6 +912,28 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = (await resp.json()) as { new_name?: string };
     return { ok: true, message: 'Character renamed.', newName: raw.new_name };
+  }
+
+  async deleteCharacter(
+    name: string,
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string; hasHistory?: boolean }> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/roster/character/${encodeURIComponent(name)}`,
+      {
+        method: 'DELETE',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterDiscordName: requester.requesterDiscordName }),
+      },
+    ).catch(() => null);
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (resp.status === 409) return { ok: false, hasHistory: true, message: 'Character has existing history — use retired or deceased status instead.' };
+    if (resp.status === 404) return { ok: false, message: 'Character not found.' };
+    if (!resp.ok) {
+      const preview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
+    }
+    return { ok: true, message: 'Character deleted.' };
   }
 
   private async post(path: string, body: unknown, successMessage: string) {

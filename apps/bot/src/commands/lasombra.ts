@@ -1,6 +1,9 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonInteraction,
+  ButtonStyle,
   ChatInputCommandInteraction,
   ModalBuilder,
   SlashCommandBuilder,
@@ -29,6 +32,18 @@ export const data = new SlashCommandBuilder()
     s
       .setName('edit')
       .setDescription('Edit a character\'s clan, sect, or age (and move cubby if age changes). Run in their channel.'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('delete')
+      .setDescription('Hard-delete a character with no history (staff only). Use retired/deceased for real characters.')
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name to delete')
+          .setRequired(true)
+          .setAutocomplete(true),
+      ),
   )
   .addSubcommand((s) =>
     s
@@ -87,6 +102,11 @@ export const data = new SlashCommandBuilder()
   );
 
 const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
+export const DELETE_CONFIRM_ID = 'lasombra:delete:confirm';
+export const DELETE_CANCEL_ID = 'lasombra:delete:cancel';
+
+// Keyed by staffUserId → character name pending deletion
+const pendingDeletes = new Map<string, string>();
 
 type PendingBroadcast = {
   target: string;
@@ -109,6 +129,31 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
 
   if (sub === 'edit') {
     await startEditWizard(interaction, ctx);
+    return;
+  }
+
+  if (sub === 'delete') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    const characterName = interaction.options.getString('character', true).trim();
+    pendingDeletes.set(interaction.user.id, characterName);
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(DELETE_CONFIRM_ID)
+        .setLabel('Yes, delete')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(DELETE_CANCEL_ID)
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary),
+    );
+    await interaction.reply({
+      content: `⚠️ Delete **${characterName}** from the roster? This is permanent and only works if they have no XP history.`,
+      components: [row],
+      ephemeral: true,
+    });
     return;
   }
 
@@ -527,5 +572,51 @@ export async function handleBroadcastModal(
     mentionCharDiscordId: pending.mentionCharDiscordId,
   });
 
+  return true;
+}
+
+// ── Delete confirmation button handler ─────────────────────────────────────
+
+export function isDeleteButton(customId: string): boolean {
+  return customId === DELETE_CONFIRM_ID || customId === DELETE_CANCEL_ID;
+}
+
+export async function handleDeleteButton(
+  interaction: ButtonInteraction,
+  ctx: CommandContext,
+): Promise<boolean> {
+  if (!isDeleteButton(interaction.customId)) return false;
+
+  if (interaction.customId === DELETE_CANCEL_ID) {
+    pendingDeletes.delete(interaction.user.id);
+    await interaction.update({ content: 'Delete cancelled.', components: [] });
+    return true;
+  }
+
+  const characterName = pendingDeletes.get(interaction.user.id);
+  pendingDeletes.delete(interaction.user.id);
+
+  if (!characterName) {
+    await interaction.update({ content: 'Session expired — run `/lasombra delete` again.', components: [] });
+    return true;
+  }
+
+  await interaction.deferUpdate();
+
+  const result = await ctx.adapter.deleteCharacter(characterName, {
+    requesterDiscordId: interaction.user.id,
+    requesterDiscordName: interaction.user.username,
+  });
+
+  if (!result.ok) {
+    const hint = result.hasHistory
+      ? '\nUse `/lasombra edit` to mark them as retired or deceased instead.'
+      : '';
+    await interaction.editReply({ content: `⚠️ ${result.message}${hint}`, components: [] });
+    return true;
+  }
+
+  logEvent('info', 'character_deleted', { characterName, staffId: interaction.user.id });
+  await interaction.editReply({ content: `✅ **${characterName}** deleted from the roster.`, components: [] });
   return true;
 }
