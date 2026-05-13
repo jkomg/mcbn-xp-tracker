@@ -4,7 +4,9 @@ import {
   ButtonBuilder,
   ButtonInteraction,
   ButtonStyle,
+  ChannelType,
   ChatInputCommandInteraction,
+  GuildChannel,
   ModalBuilder,
   SlashCommandBuilder,
   TextInputBuilder,
@@ -616,6 +618,27 @@ export async function handleDeleteButton(
   }
 
   logEvent('info', 'character_deleted', { characterName, staffId: interaction.user.id });
+
+  // Delete the current channel if its name matches the character (ticket cleanup)
+  const channel = interaction.channel;
+  if (
+    channel &&
+    channel.type === ChannelType.GuildText &&
+    channel.name === normalizeChannelName(characterName)
+  ) {
+    try {
+      await (channel as GuildChannel).delete(`Character deleted: ${characterName}`);
+      // Channel is gone — no editReply possible
+      return true;
+    } catch (err) {
+      await interaction.editReply({
+        content: `✅ **${characterName}** deleted from the roster.\n⚠️ Channel delete failed: ${errorToMessage(err)}`,
+        components: [],
+      });
+      return true;
+    }
+  }
+
   await interaction.editReply({ content: `✅ **${characterName}** deleted from the roster.`, components: [] });
   return true;
 }
