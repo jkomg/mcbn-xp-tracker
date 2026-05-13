@@ -52,9 +52,12 @@ def _is_truthy(value: str | None) -> bool:
 @bp.route('/')
 @require_staff
 def index():
+    if not is_settings_admin():
+        flash('Settings is restricted to Administrators.', 'danger')
+        return redirect(url_for('roster.index'))
     cfg = current_app.config
     overrides = get_all_overrides()
-    can_edit = is_settings_admin()
+    can_edit = True
 
     def _eff_bool(key, env_default):
         return get_app_setting(key, env_default)

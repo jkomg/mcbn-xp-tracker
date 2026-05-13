@@ -155,12 +155,13 @@ def create_app():
     csrf.exempt(api_bp)
 
     # Inject auth helpers into all templates
-    from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in
+    from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in, is_settings_admin as _is_settings_admin
 
     @app.context_processor
     def inject_auth():
         return {
             'is_staff': _is_staff(),
+            'is_admin': _is_settings_admin(),
             'is_logged_in': _is_logged_in(),
             'current_discord_name': session.get('discord_name', ''),
             'current_discord_id': session.get('discord_id', ''),
