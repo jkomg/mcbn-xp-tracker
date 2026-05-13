@@ -64,13 +64,6 @@ export const data = new SlashCommandBuilder()
       .setDescription('Blank a tracked background for one night')
       .addStringOption((o) =>
         o
-          .setName('character')
-          .setDescription('Character name (staff may target any character)')
-          .setRequired(false)
-          .setAutocomplete(true),
-      )
-      .addStringOption((o) =>
-        o
           .setName('background')
           .setDescription('Tracked background name')
           .setRequired(true)
@@ -83,6 +76,13 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .setMinValue(1)
           .setMaxValue(10),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name (staff may target any character)')
+          .setRequired(false)
+          .setAutocomplete(true),
       ),
   );
 
