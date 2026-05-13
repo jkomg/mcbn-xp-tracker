@@ -823,6 +823,115 @@ Also keeps `active` boolean aligned with status.
 
 ---
 
+## GET /api/roster/character/{name}
+
+**Scope:** read | **Rate limit:** 120/hour
+
+Returns current details for a character. Used by `/lasombra edit` to pre-fill the form.
+
+**Response 200:**
+```json
+{
+  "character_name": "Astrid",
+  "player_discord": "166346048049119233",
+  "player_discord_name": "itsneeon",
+  "clan": "Gangrel",
+  "age_category": "Neonate",
+  "sect": "Camarilla",
+  "active": true
+}
+```
+
+**Response 404:** Character not found.
+
+---
+
+## PATCH /api/roster/character/{name}
+
+**Scope:** write | **Rate limit:** 60/hour
+
+Updates clan, age_category, and/or sect for an existing character.
+
+**Body:**
+```json
+{
+  "clan": "Toreador",
+  "age_category": "Ancilla",
+  "sect": "Camarilla",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "StaffMember"
+}
+```
+
+All fields are optional. At least one of `clan`, `age_category`, `sect` is required.
+
+**Response 200:** `{ "ok": true, "character_name": "Astrid" }`
+**Response 400:** No updatable fields or invalid value.
+**Response 404:** Character not found.
+
+---
+
+## POST /api/roster/character/{name}/rename
+
+**Scope:** write | **Rate limit:** 30/hour
+
+Renames a character and migrates all claims, spends, ledger, and audit entries.
+
+**Body:**
+```json
+{
+  "new_name": "Astrid von Holt",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "StaffMember"
+}
+```
+
+**Response 200:** `{ "ok": true, "old_name": "Astrid", "new_name": "Astrid von Holt" }`
+**Response 400:** `new_name` missing or same as current.
+**Response 404:** Character not found.
+**Response 409:** `new_name` already exists on the roster.
+
+---
+
+## POST /api/roster/character
+
+**Scope:** write | **Rate limit:** 60/hour
+
+Creates a new character roster entry. Called by the bot during `/lasombra approve`.
+
+**Body:**
+```json
+{
+  "character_name": "Astrid",
+  "player_discord": "166346048049119233",
+  "player_discord_name": "itsneeon",
+  "clan": "Gangrel",
+  "age_category": "Neonate",
+  "sect": "Camarilla",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "StaffMember"
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `character_name` | Yes | Must be unique (case-insensitive) |
+| `clan` | No | Must match CLANS list if provided |
+| `age_category` | No | Fledgling / Neonate / Ancilla / Elder / Mortal |
+| `sect` | No | Camarilla / Anarch / Hecata / Autarkis / NA |
+| `player_discord` | No | Discord snowflake |
+| `player_discord_name` | No | Discord username |
+
+**Response 201:**
+```json
+{ "ok": true, "character_name": "Astrid" }
+```
+
+**Response 400:** Missing or invalid fields.
+**Response 409:** Character name already exists.
+
+---
+
 ## POST /api/sheets/reconcile
 
 **Scope:** write | **Rate limit:** 5/hour

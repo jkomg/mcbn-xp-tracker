@@ -149,6 +149,8 @@ const envSchema = z.object({
   NOTION_TOKEN: z.string().optional(),
   NOTION_SYNC_MSG_LIMIT: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
+  APPROVE_PLAYER_SHEETS_CHANNEL_ID: z.string().optional(),
+  APPROVE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -345,6 +347,8 @@ export const config = {
   notionToken: env.NOTION_TOKEN ?? '',
   notionSyncMsgLimit: parsePositiveInt(env.NOTION_SYNC_MSG_LIMIT, 200, 'NOTION_SYNC_MSG_LIMIT'),
   discordGuildId: env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
+  approvePlayerSheetsChannelId: env.APPROVE_PLAYER_SHEETS_CHANNEL_ID ?? '',
+  approveSheetInProgressRoleId: env.APPROVE_SHEET_IN_PROGRESS_ROLE_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {

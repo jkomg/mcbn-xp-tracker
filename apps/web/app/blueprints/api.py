@@ -1367,6 +1367,159 @@ def delete_wiki_page(slug):
     return jsonify({'status': 'deleted', 'slug': slug})
 
 
+@bp.route('/roster/character/<name>', methods=['GET'])
+@require_bot_scope('read')
+@_limit('120 per hour')
+def get_character_api(name):
+    """Return current details for a character by name."""
+    char = db_service.get_character(name)
+    if not char:
+        return jsonify({'error': 'Character not found'}), 404
+    return jsonify({
+        'character_name': char.character_name,
+        'player_discord': char.player_discord or '',
+        'player_discord_name': char.player_discord_name or '',
+        'clan': char.clan or '',
+        'age_category': char.age_category or '',
+        'sect': char.sect or '',
+        'active': char.active,
+    }), 200
+
+
+@bp.route('/roster/character/<name>', methods=['PATCH'])
+@require_bot_scope('write')
+@_limit('60 per hour')
+def update_character_api(name):
+    """Update clan, age_category, and/or sect for an existing character."""
+    from app.models import CLANS, AGE_CATEGORIES, SECTS
+
+    char = db_service.get_character(name)
+    if not char:
+        return jsonify({'error': 'Character not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    updates = {}
+    for field in ('clan', 'age_category', 'sect'):
+        if field in data:
+            updates[field] = (data[field] or '').strip()
+
+    if not updates:
+        return jsonify({'error': 'No updatable fields provided'}), 400
+
+    if 'clan' in updates and updates['clan'] and updates['clan'] not in CLANS:
+        return jsonify({'error': f'Invalid clan: {updates["clan"]}'}), 400
+    if 'age_category' in updates and updates['age_category'] and updates['age_category'] not in AGE_CATEGORIES:
+        return jsonify({'error': f'Invalid age_category: {updates["age_category"]}'}), 400
+    if 'sect' in updates and updates['sect'] and updates['sect'] not in SECTS:
+        return jsonify({'error': f'Invalid sect: {updates["sect"]}'}), 400
+
+    db_service.update_character(name, updates)
+    requester_name = (data.get('requesterDiscordName') or 'bot').strip()
+    db_service.log_action(
+        staff_user=requester_name,
+        action_type='edit_character',
+        target=name,
+        details=f'Updated via bot: {", ".join(updates.keys())}',
+    )
+    return jsonify({'ok': True, 'character_name': name}), 200
+
+
+@bp.route('/roster/character/<name>/rename', methods=['POST'])
+@require_bot_scope('write')
+@_limit('30 per hour')
+def rename_character_api(name):
+    """Rename a character and migrate all related records."""
+    char = db_service.get_character(name)
+    if not char:
+        return jsonify({'error': 'Character not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    new_name = (data.get('new_name') or '').strip()
+    if not new_name:
+        return jsonify({'error': 'new_name is required'}), 400
+    if new_name.lower() == name.lower():
+        return jsonify({'error': 'New name is the same as the current name'}), 400
+
+    try:
+        db_service.rename_character(name, new_name)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 409
+
+    requester_name = (data.get('requesterDiscordName') or 'bot').strip()
+    db_service.log_action(
+        staff_user=requester_name,
+        action_type='rename_character',
+        target=new_name,
+        details=f'Renamed via bot: "{name}" → "{new_name}"',
+    )
+    return jsonify({'ok': True, 'old_name': name, 'new_name': new_name}), 200
+
+
+@bp.route('/roster/character', methods=['POST'])
+@require_bot_scope('write')
+@_limit('60 per hour')
+def create_character():
+    """Create a new character roster entry via the bot (e.g. /lasombra approve).
+
+    Body fields:
+      character_name       string, required
+      player_discord       string (Discord snowflake), optional
+      player_discord_name  string (Discord username), optional
+      clan                 string, must match CLANS list
+      age_category         string, must match AGE_CATEGORIES list
+      sect                 string, must match SECTS list
+      requesterDiscordId   string, for audit log
+      requesterDiscordName string, for audit log
+    """
+    from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
+
+    data = request.get_json(silent=True) or {}
+    character_name = (data.get('character_name') or '').strip()
+    if not character_name:
+        return jsonify({'error': 'character_name is required'}), 400
+
+    clan = (data.get('clan') or '').strip()
+    age_category = (data.get('age_category') or '').strip()
+    sect = (data.get('sect') or '').strip()
+    player_discord = (data.get('player_discord') or '').strip()
+    player_discord_name = (data.get('player_discord_name') or '').strip()
+    requester_name = (data.get('requesterDiscordName') or 'bot').strip()
+
+    if clan and clan not in CLANS:
+        return jsonify({'error': f'Invalid clan: {clan}'}), 400
+    if age_category and age_category not in AGE_CATEGORIES:
+        return jsonify({'error': f'Invalid age_category: {age_category}'}), 400
+    if sect and sect not in SECTS:
+        return jsonify({'error': f'Invalid sect: {sect}'}), 400
+
+    existing = db_service.get_character(character_name)
+    if existing:
+        return jsonify({'error': f'Character "{character_name}" already exists'}), 409
+
+    char = Character(
+        character_name=character_name,
+        player_discord=player_discord,
+        player_discord_name=player_discord_name,
+        clan=clan,
+        age_category=age_category,
+        sect=sect,
+        active=True,
+        creation_xp=0,
+    )
+    db_service.add_character(char)
+    if sheets_sync:
+        sheets_sync.sync_add_character(char)
+
+    db_service.log_action(
+        staff_user=requester_name,
+        action_type='add_character',
+        target=character_name,
+        details=f'Added character via bot: {character_name} ({clan}, {sect})',
+    )
+
+    return jsonify({'ok': True, 'character_name': character_name}), 201
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

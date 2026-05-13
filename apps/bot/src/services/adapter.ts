@@ -80,7 +80,38 @@ export interface TrackerAdapter {
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
   setReminderPref(discordId: string, prefs: { optOut: boolean; snoozeUntilEpoch: number }): Promise<void>;
   triggerSheetsReconcile(): Promise<SheetsReconcileSummary>;
+  createCharacter(payload: {
+    characterName: string;
+    playerDiscord: string;
+    playerDiscordName: string;
+    clan: string;
+    ageCategory: string;
+    sect: string;
+    requesterDiscordId: string;
+    requesterDiscordName: string;
+  }): Promise<{ ok: boolean; message: string; characterName?: string }>;
+  getCharacterDetails(name: string): Promise<CharacterDetails | null>;
+  updateCharacter(
+    name: string,
+    updates: { clan?: string; ageCategory?: string; sect?: string },
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string }>;
+  renameCharacter(
+    name: string,
+    newName: string,
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string; newName?: string }>;
 }
+
+export type CharacterDetails = {
+  character_name: string;
+  player_discord: string;
+  player_discord_name: string;
+  clan: string;
+  age_category: string;
+  sect: string;
+  active: boolean;
+};
 
 export interface SheetsReconcileSummary {
   started_at: string;
@@ -772,6 +803,111 @@ export class WebAppAdapter implements TrackerAdapter {
     });
     if (!res.ok) throw new Error(`sheets/reconcile POST failed: ${res.status}`);
     return res.json() as Promise<SheetsReconcileSummary>;
+  }
+
+  async createCharacter(payload: {
+    characterName: string;
+    playerDiscord: string;
+    playerDiscordName: string;
+    clan: string;
+    ageCategory: string;
+    sect: string;
+    requesterDiscordId: string;
+    requesterDiscordName: string;
+  }): Promise<{ ok: boolean; message: string; characterName?: string }> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/roster/character`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character_name: payload.characterName,
+        player_discord: payload.playerDiscord,
+        player_discord_name: payload.playerDiscordName,
+        clan: payload.clan,
+        age_category: payload.ageCategory,
+        sect: payload.sect,
+        requesterDiscordId: payload.requesterDiscordId,
+        requesterDiscordName: payload.requesterDiscordName,
+      }),
+    }).catch(() => null);
+
+    if (!resp) {
+      return { ok: false, message: 'Unable to reach web app API.' };
+    }
+    if (resp.status === 409) {
+      return { ok: false, message: `Character "${payload.characterName}" already exists on the roster.` };
+    }
+    if (!resp.ok) {
+      const bodyPreview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: bodyPreview || `API rejected request (status ${resp.status}).` };
+    }
+    const raw = (await resp.json()) as { character_name?: string };
+    return { ok: true, message: 'Character created.', characterName: raw.character_name };
+  }
+
+  async getCharacterDetails(name: string): Promise<CharacterDetails | null> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/roster/character/${encodeURIComponent(name)}`,
+      { headers: this.readAuthHeaders() },
+    ).catch(() => null);
+    if (!resp || resp.status === 404) return null;
+    if (!resp.ok) throw new Error(`get character details failed (${resp.status})`);
+    return resp.json() as Promise<CharacterDetails>;
+  }
+
+  async updateCharacter(
+    name: string,
+    updates: { clan?: string; ageCategory?: string; sect?: string },
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string }> {
+    const body: Record<string, string> = {
+      requesterDiscordId: requester.requesterDiscordId,
+      requesterDiscordName: requester.requesterDiscordName,
+    };
+    if (updates.clan !== undefined) body.clan = updates.clan;
+    if (updates.ageCategory !== undefined) body.age_category = updates.ageCategory;
+    if (updates.sect !== undefined) body.sect = updates.sect;
+
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/roster/character/${encodeURIComponent(name)}`,
+      {
+        method: 'PATCH',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    ).catch(() => null);
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) {
+      const preview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
+    }
+    return { ok: true, message: 'Character updated.' };
+  }
+
+  async renameCharacter(
+    name: string,
+    newName: string,
+    requester: { requesterDiscordId: string; requesterDiscordName: string },
+  ): Promise<{ ok: boolean; message: string; newName?: string }> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/roster/character/${encodeURIComponent(name)}/rename`,
+      {
+        method: 'POST',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_name: newName,
+          requesterDiscordId: requester.requesterDiscordId,
+          requesterDiscordName: requester.requesterDiscordName,
+        }),
+      },
+    ).catch(() => null);
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (resp.status === 409) return { ok: false, message: `Character "${newName}" already exists.` };
+    if (!resp.ok) {
+      const preview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
+    }
+    const raw = (await resp.json()) as { new_name?: string };
+    return { ok: true, message: 'Character renamed.', newName: raw.new_name };
   }
 
   private async post(path: string, body: unknown, successMessage: string) {
