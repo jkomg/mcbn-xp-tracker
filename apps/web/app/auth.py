@@ -96,15 +96,31 @@ def require_character_owner(f):
     return decorated_function
 
 
+def _get_db_staff_role(discord_id: str) -> str | None:
+    """Return 'storyteller' or 'administrator' from the DB, or None."""
+    try:
+        from .db import AppSetting
+        row = AppSetting.query.get(f'STAFF_MEMBER_{discord_id}')
+        return row.value if row else None
+    except Exception:
+        return None
+
+
 def is_allowed_discord_user(discord_id: str) -> bool:
-    """Check whether a Discord user ID is in the staff allowlist."""
-    return str(discord_id) in current_app.config['ALLOWED_DISCORD_IDS']
+    """Check whether a Discord user ID is in the staff allowlist (env or DB)."""
+    if str(discord_id) in current_app.config['ALLOWED_DISCORD_IDS']:
+        return True
+    return _get_db_staff_role(str(discord_id)) is not None
 
 
 def is_settings_admin() -> bool:
-    """Check if the current session user may edit Settings."""
+    """Check if the current session user may edit Settings (env or DB)."""
     discord_id = session.get('discord_id', '')
-    return bool(discord_id) and str(discord_id) in current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
+    if not discord_id:
+        return False
+    if str(discord_id) in current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set()):
+        return True
+    return _get_db_staff_role(str(discord_id)) == 'administrator'
 
 
 def is_staff() -> bool:
