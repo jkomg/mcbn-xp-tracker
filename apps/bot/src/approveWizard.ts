@@ -249,7 +249,7 @@ export async function startApproveWizard(
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ ephemeral: false });
 
   const [playerId, pdf, guildRoles] = await Promise.all([
     findPlayerInChannel(channel, config.testerDiscordIds),
@@ -461,11 +461,12 @@ export async function handleApproveWizardButton(
 
   // ── 5. Post to #player-character-sheets ───────────────────────────────
   const sheetsChannelId = config.approvePlayerSheetsChannelId;
-  if (sheetsChannelId && state.playerId) {
+  if (sheetsChannelId) {
     try {
       const sheetsChannel = await guild.channels.fetch(sheetsChannelId);
       if (sheetsChannel && sheetsChannel.isTextBased() && 'send' in sheetsChannel) {
-        const content = `${state.characterName} <@${state.playerId}> initial sub`;
+        const playerTag = state.playerId ? ` <@${state.playerId}>` : '';
+        const content = `${state.characterName}${playerTag} initial sub`;
         if (state.pdfUrl) {
           await (sheetsChannel as TextChannel).send({
             content,
@@ -481,7 +482,7 @@ export async function handleApproveWizardButton(
     } catch (err) {
       results.push(`⚠️ #player-character-sheets post failed: ${errorToMessage(err)}`);
     }
-  } else if (!sheetsChannelId) {
+  } else {
     results.push('ℹ️ `APPROVE_PLAYER_SHEETS_CHANNEL_ID` not configured — skipped.');
   }
 
