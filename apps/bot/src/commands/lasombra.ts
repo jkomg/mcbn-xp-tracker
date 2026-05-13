@@ -152,7 +152,6 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     await interaction.reply({
       content: `⚠️ Delete **${characterName}** from the roster? This is permanent and only works if they have no XP history.`,
       components: [row],
-      ephemeral: true,
     });
     return;
   }
