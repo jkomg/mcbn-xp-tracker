@@ -31,7 +31,6 @@ import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButt
 import { handleBroadcastModal, handleDeleteButton, isDeleteButton } from './commands/lasombra';
 import {
   handleApproveWizardStringSelect,
-  handleApproveWizardRoleSelect,
   handleApproveWizardButton,
   isApproveWizardButton,
 } from './approveWizard';
@@ -277,14 +276,6 @@ void applyStartupConfigOverrides().then(() => {
       }
       const editHandled = await handleEditWizardStringSelect(interaction);
       if (editHandled) {
-        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
-        return;
-      }
-    }
-
-    if (interaction.isRoleSelectMenu()) {
-      const approveHandled = await handleApproveWizardRoleSelect(interaction);
-      if (approveHandled) {
         logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
         return;
       }
