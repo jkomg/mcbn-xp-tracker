@@ -29,6 +29,18 @@ import {
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { handleBroadcastModal } from './commands/lasombra';
+import {
+  handleApproveWizardStringSelect,
+  handleApproveWizardRoleSelect,
+  handleApproveWizardButton,
+  isApproveWizardButton,
+} from './approveWizard';
+import {
+  handleEditWizardStringSelect,
+  handleEditWizardButton,
+  isEditWizardButton,
+  handleEditRenameModal,
+} from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {
@@ -253,14 +265,42 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
         return;
       }
-      const handled = await handleClaimWizardSelect(interaction);
-      if (handled) {
+      const claimHandled = await handleClaimWizardSelect(interaction);
+      if (claimHandled) {
+        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const approveHandled = await handleApproveWizardStringSelect(interaction);
+      if (approveHandled) {
+        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const editHandled = await handleEditWizardStringSelect(interaction);
+      if (editHandled) {
+        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+    }
+
+    if (interaction.isRoleSelectMenu()) {
+      const approveHandled = await handleApproveWizardRoleSelect(interaction);
+      if (approveHandled) {
         logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
         return;
       }
     }
 
     if (interaction.isButton()) {
+      if (isApproveWizardButton(interaction.customId)) {
+        await handleApproveWizardButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_approve_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isEditWizardButton(interaction.customId)) {
+        await handleEditWizardButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_edit_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       if (isHuntConsequenceButton(interaction.customId)) {
         await handleHuntConsequenceButton(interaction, huntConsequenceCfg);
         logEvent('info', 'interaction_handled_hunt_consequence', { ...baseMeta, customId: interaction.customId });
@@ -286,6 +326,11 @@ void applyStartupConfigOverrides().then(() => {
     if (interaction.isModalSubmit()) {
       const broadcastHandled = await handleBroadcastModal(interaction, { client, adapter });
       if (broadcastHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const editRenameHandled = await handleEditRenameModal(interaction, { client, adapter });
+      if (editRenameHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }

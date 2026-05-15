@@ -12,12 +12,24 @@ import { config } from '../config';
 import { liveConfig } from '../liveConfig';
 import { buildCubbyChannelMap, getChannelsInCubbyCategories, normalizeChannelName } from '../services/cubbyChannels';
 import { errorToMessage, logEvent } from '../logger';
+import { startApproveWizard } from '../approveWizard';
+import { startEditWizard } from '../editWizard';
 
 export const name = 'lasombra';
 
 export const data = new SlashCommandBuilder()
   .setName('lasombra')
   .setDescription('Lasombra utility commands')
+  .addSubcommand((s) =>
+    s
+      .setName('approve')
+      .setDescription('Approve a character ticket: move to cubby, assign roles, create roster entry, post sheet'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('edit')
+      .setDescription('Edit a character\'s clan, sect, or age (and move cubby if age changes). Run in their channel.'),
+  )
   .addSubcommand((s) =>
     s
       .setName('broadcast')
@@ -89,6 +101,16 @@ const pendingBroadcasts = new Map<string, PendingBroadcast>();
 
 export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
   const sub = interaction.options.getSubcommand();
+
+  if (sub === 'approve') {
+    await startApproveWizard(interaction, ctx);
+    return;
+  }
+
+  if (sub === 'edit') {
+    await startEditWizard(interaction, ctx);
+    return;
+  }
 
   if (sub === 'broadcast') {
     if (!config.testerDiscordIds.has(interaction.user.id)) {
