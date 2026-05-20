@@ -52,9 +52,12 @@ def _is_truthy(value: str | None) -> bool:
 @bp.route('/')
 @require_staff
 def index():
+    if not is_settings_admin():
+        flash('Settings is restricted to Administrators.', 'danger')
+        return redirect(url_for('roster.index'))
     cfg = current_app.config
     overrides = get_all_overrides()
-    can_edit = is_settings_admin()
+    can_edit = True
 
     def _eff_bool(key, env_default):
         return get_app_setting(key, env_default)
@@ -475,6 +478,20 @@ def index():
     )
     notion_sync_runs = notion_sync_runs[:12]
 
+    # ── Staff members (DB-managed) ─────────────────────────────────────────
+    from app.db import AppSetting as _AppSetting
+    db_staff = _AppSetting.query.filter(
+        _AppSetting.key.like('STAFF_MEMBER_%')
+    ).order_by(_AppSetting.key).all()
+    staff_members = [
+        {
+            'discord_id': row.key[len('STAFF_MEMBER_'):],
+            'role': row.value,
+            'label': 'Administrator' if row.value == 'administrator' else 'Storyteller',
+        }
+        for row in db_staff
+    ]
+
     return render_template(
         'settings/index.html',
         web_flags=web_flags,
@@ -489,6 +506,7 @@ def index():
         bot_restart_pending=_restart_pending,
         notion_sync=notion_sync,
         notion_sync_runs=notion_sync_runs,
+        staff_members=staff_members,
     )
 
 
@@ -642,4 +660,51 @@ def update():
             set_app_setting(key, raw_value, updated_by)
         flash(f'{key} updated.', 'success')
 
+    return redirect(url_for('settings.index'))
+
+
+@bp.route('/staff/add', methods=['POST'])
+@require_staff
+def staff_add():
+    if not is_settings_admin():
+        flash('Only Administrators can manage staff.', 'danger')
+        return redirect(url_for('settings.index'))
+    from app.db import AppSetting, db
+    discord_id = request.form.get('discord_id', '').strip()
+    role = request.form.get('role', '').strip()
+    if not discord_id or not discord_id.isdigit():
+        flash('Invalid Discord ID — must be numeric.', 'danger')
+        return redirect(url_for('settings.index'))
+    if role not in ('storyteller', 'administrator'):
+        flash('Invalid role.', 'danger')
+        return redirect(url_for('settings.index'))
+    key = f'STAFF_MEMBER_{discord_id}'
+    row = AppSetting.query.get(key)
+    if row:
+        row.value = role
+        row.updated_by = session.get('discord_name', 'admin')
+    else:
+        row = AppSetting(key=key, value=role, updated_by=session.get('discord_name', 'admin'))
+        db.session.add(row)
+    db.session.commit()
+    flash(f'{role.capitalize()} {discord_id} added.', 'success')
+    return redirect(url_for('settings.index'))
+
+
+@bp.route('/staff/remove', methods=['POST'])
+@require_staff
+def staff_remove():
+    if not is_settings_admin():
+        flash('Only Administrators can manage staff.', 'danger')
+        return redirect(url_for('settings.index'))
+    from app.db import AppSetting, db
+    discord_id = request.form.get('discord_id', '').strip()
+    key = f'STAFF_MEMBER_{discord_id}'
+    row = AppSetting.query.get(key)
+    if row:
+        db.session.delete(row)
+        db.session.commit()
+        flash(f'Staff member {discord_id} removed.', 'success')
+    else:
+        flash('Staff member not found.', 'warning')
     return redirect(url_for('settings.index'))

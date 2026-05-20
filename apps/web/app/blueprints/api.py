@@ -1520,6 +1520,53 @@ def create_character():
     return jsonify({'ok': True, 'character_name': character_name}), 201
 
 
+@bp.route('/roster/character/<name>', methods=['DELETE'])
+@require_bot_scope('write')
+@_limit('60 per hour')
+def delete_character(name):
+    """Hard-delete a character roster entry.
+
+    Refused with 409 if the character has any XP claims, spend requests, or
+    ledger entries — those characters should be retired/deceased instead.
+    """
+    from app.db import db, DbCharacter, DbXPClaim, DbSpendRequest, DbLedgerEntry
+    from sqlalchemy import func as _func
+
+    row = DbCharacter.query.filter(
+        _func.lower(DbCharacter.character_name) == name.lower()
+    ).first()
+    if not row:
+        return jsonify({'error': 'Character not found'}), 404
+
+    char_name = row.character_name
+
+    has_history = (
+        DbXPClaim.query.filter(_func.lower(DbXPClaim.character_name) == char_name.lower()).first() or
+        DbSpendRequest.query.filter(_func.lower(DbSpendRequest.character_name) == char_name.lower()).first() or
+        DbLedgerEntry.query.filter(_func.lower(DbLedgerEntry.character_name) == char_name.lower()).first()
+    )
+    if has_history:
+        return jsonify({
+            'error': 'Character has existing history (claims, spends, or ledger entries). '
+                     'Use retired or deceased status instead of deleting.',
+        }), 409
+
+    data = request.get_json(silent=True) or {}
+    requester_name = (data.get('requesterDiscordName') or 'bot').strip()
+
+    db.session.delete(row)
+    db.session.commit()
+
+    db_service.log_action(
+        staff_user=requester_name,
+        action_type='delete_character',
+        target=char_name,
+        details=f'Hard-deleted character via bot (no history): {char_name}',
+    )
+
+    return jsonify({'ok': True, 'character_name': char_name}), 200
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

@@ -5,11 +5,9 @@ import {
   ChannelType,
   GuildChannel,
   OverwriteType,
-  RoleSelectMenuBuilder,
   StringSelectMenuBuilder,
   type ButtonInteraction,
   type ChatInputCommandInteraction,
-  type RoleSelectMenuInteraction,
   type StringSelectMenuInteraction,
   type TextChannel,
 } from 'discord.js';
@@ -38,6 +36,13 @@ const AGE_TO_CUBBY: Record<string, string> = {
 };
 
 const CUBBY_CATEGORY_NAMES = new Set(Object.values(AGE_TO_CUBBY));
+
+const APPROVAL_ROLE_NAMES = [
+  'Kindred', 'Ghoul', 'Mortal', 'Camarilla', 'Anarch', 'Family', 'Autarkis',
+  'Banu Haqim', 'Brujah', 'Clanless', 'Gangrel', 'Lasombra', 'Malkavian',
+  'Ministry', 'Nosferatu', 'Ravnos', 'Salubri', 'Toreador', 'Tremere',
+  'Tzimisce', 'Ventrue',
+];
 
 function welcomeMessage(playerMention: string): string {
   return (
@@ -69,6 +74,7 @@ type ApproveState = {
   clan: string | null;
   sect: string | null;
   roleIds: string[];
+  availableRoles: { id: string; name: string }[];
 };
 
 // keyed by staffUserId — one wizard per staff member at a time
@@ -76,7 +82,7 @@ const pending = new Map<string, ApproveState>();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function findPlayerInChannel(
+export async function findPlayerInChannel(
   channel: TextChannel,
   staffIds: Set<string>,
 ): Promise<string | null> {
@@ -97,7 +103,7 @@ async function findPlayerInChannel(
   return null;
 }
 
-async function findLatestPdf(
+export async function findLatestPdf(
   channel: TextChannel,
 ): Promise<{ url: string; name: string } | null> {
   try {
@@ -156,12 +162,21 @@ function buildComponents(state: ApproveState) {
       ),
   );
 
-  const rolesRow = new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
-    new RoleSelectMenuBuilder()
+  const rolesRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    new StringSelectMenuBuilder()
       .setCustomId(APPROVE_ROLES_SELECT_ID)
-      .setPlaceholder('Select roles to assign to player (Kindred, Camarilla, etc.)')
+      .setPlaceholder('Select roles to assign (Kindred, Camarilla, etc.)')
       .setMinValues(0)
-      .setMaxValues(10),
+      .setMaxValues(Math.max(1, state.availableRoles.length))
+      .addOptions(
+        state.availableRoles.length > 0
+          ? state.availableRoles.map((r) => ({
+              label: r.name,
+              value: r.id,
+              default: state.roleIds.includes(r.id),
+            }))
+          : [{ label: '(no roles found)', value: 'none', default: false }],
+      ),
   );
 
   const canConfirm = Boolean(state.age && state.clan && state.sect);
@@ -234,10 +249,20 @@ export async function startApproveWizard(
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ ephemeral: false });
 
-  const playerId = await findPlayerInChannel(channel, config.testerDiscordIds);
-  const pdf = await findLatestPdf(channel);
+  const [playerId, pdf, guildRoles] = await Promise.all([
+    findPlayerInChannel(channel, config.testerDiscordIds),
+    findLatestPdf(channel),
+    interaction.guild!.roles.fetch(),
+  ]);
+
+  const availableRoles = APPROVAL_ROLE_NAMES
+    .map((name) => {
+      const role = guildRoles.find((r) => r.name.toLowerCase() === name.toLowerCase());
+      return role ? { id: role.id, name: role.name } : null;
+    })
+    .filter((r): r is { id: string; name: string } => r !== null);
 
   const state: ApproveState = {
     channelId: channel.id,
@@ -249,6 +274,7 @@ export async function startApproveWizard(
     clan: null,
     sect: null,
     roleIds: [],
+    availableRoles,
   };
 
   pending.set(interaction.user.id, state);
@@ -265,7 +291,8 @@ export function isApproveWizardStringSelect(customId: string): boolean {
   return (
     customId === APPROVE_AGE_SELECT_ID ||
     customId === APPROVE_CLAN_SELECT_ID ||
-    customId === APPROVE_SECT_SELECT_ID
+    customId === APPROVE_SECT_SELECT_ID ||
+    customId === APPROVE_ROLES_SELECT_ID
   );
 }
 
@@ -280,36 +307,10 @@ export async function handleApproveWizardStringSelect(
     return true;
   }
 
-  const value = interaction.values[0] ?? null;
-  if (interaction.customId === APPROVE_AGE_SELECT_ID) state.age = value;
-  else if (interaction.customId === APPROVE_CLAN_SELECT_ID) state.clan = value;
-  else if (interaction.customId === APPROVE_SECT_SELECT_ID) state.sect = value;
-
-  await interaction.update({
-    content: buildStatusContent(state),
-    components: buildComponents(state),
-  });
-  return true;
-}
-
-// ── Role select handler ────────────────────────────────────────────────────
-
-export function isApproveWizardRoleSelect(customId: string): boolean {
-  return customId === APPROVE_ROLES_SELECT_ID;
-}
-
-export async function handleApproveWizardRoleSelect(
-  interaction: RoleSelectMenuInteraction,
-): Promise<boolean> {
-  if (!isApproveWizardRoleSelect(interaction.customId)) return false;
-
-  const state = pending.get(interaction.user.id);
-  if (!state) {
-    await interaction.update({ content: 'Session expired — run `/lasombra approve` again.', components: [] });
-    return true;
-  }
-
-  state.roleIds = interaction.values;
+  if (interaction.customId === APPROVE_AGE_SELECT_ID) state.age = interaction.values[0] ?? null;
+  else if (interaction.customId === APPROVE_CLAN_SELECT_ID) state.clan = interaction.values[0] ?? null;
+  else if (interaction.customId === APPROVE_SECT_SELECT_ID) state.sect = interaction.values[0] ?? null;
+  else if (interaction.customId === APPROVE_ROLES_SELECT_ID) state.roleIds = interaction.values.filter((v) => v !== 'none');
 
   await interaction.update({
     content: buildStatusContent(state),
@@ -460,11 +461,12 @@ export async function handleApproveWizardButton(
 
   // ── 5. Post to #player-character-sheets ───────────────────────────────
   const sheetsChannelId = config.approvePlayerSheetsChannelId;
-  if (sheetsChannelId && state.playerId) {
+  if (sheetsChannelId) {
     try {
       const sheetsChannel = await guild.channels.fetch(sheetsChannelId);
       if (sheetsChannel && sheetsChannel.isTextBased() && 'send' in sheetsChannel) {
-        const content = `${state.characterName} <@${state.playerId}> initial sub`;
+        const playerTag = state.playerId ? ` <@${state.playerId}>` : '';
+        const content = `${state.characterName}${playerTag} initial sub`;
         if (state.pdfUrl) {
           await (sheetsChannel as TextChannel).send({
             content,
@@ -480,7 +482,7 @@ export async function handleApproveWizardButton(
     } catch (err) {
       results.push(`⚠️ #player-character-sheets post failed: ${errorToMessage(err)}`);
     }
-  } else if (!sheetsChannelId) {
+  } else {
     results.push('ℹ️ `APPROVE_PLAYER_SHEETS_CHANNEL_ID` not configured — skipped.');
   }
 

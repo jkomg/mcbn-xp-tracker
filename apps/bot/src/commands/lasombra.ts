@@ -1,7 +1,12 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonInteraction,
+  ButtonStyle,
+  ChannelType,
   ChatInputCommandInteraction,
+  GuildChannel,
   ModalBuilder,
   SlashCommandBuilder,
   TextInputBuilder,
@@ -12,7 +17,7 @@ import { config } from '../config';
 import { liveConfig } from '../liveConfig';
 import { buildCubbyChannelMap, getChannelsInCubbyCategories, normalizeChannelName } from '../services/cubbyChannels';
 import { errorToMessage, logEvent } from '../logger';
-import { startApproveWizard } from '../approveWizard';
+import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
 import { startEditWizard } from '../editWizard';
 
 export const name = 'lasombra';
@@ -27,8 +32,25 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((s) =>
     s
+      .setName('update')
+      .setDescription('Post a sheet update to #player-character-sheets. Run in the character\'s channel.'),
+  )
+  .addSubcommand((s) =>
+    s
       .setName('edit')
       .setDescription('Edit a character\'s clan, sect, or age (and move cubby if age changes). Run in their channel.'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('delete')
+      .setDescription('Hard-delete a character with no history (staff only). Use retired/deceased for real characters.')
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name to delete')
+          .setRequired(true)
+          .setAutocomplete(true),
+      ),
   )
   .addSubcommand((s) =>
     s
@@ -64,13 +86,6 @@ export const data = new SlashCommandBuilder()
       .setDescription('Blank a tracked background for one night')
       .addStringOption((o) =>
         o
-          .setName('character')
-          .setDescription('Character name (staff may target any character)')
-          .setRequired(false)
-          .setAutocomplete(true),
-      )
-      .addStringOption((o) =>
-        o
           .setName('background')
           .setDescription('Tracked background name')
           .setRequired(true)
@@ -83,10 +98,26 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .setMinValue(1)
           .setMaxValue(10),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('character')
+          .setDescription('Character name (staff may target any character)')
+          .setRequired(false)
+          .setAutocomplete(true),
       ),
   );
 
 const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
+const UPDATE_MODAL_ID = 'lasombra:update:modal';
+export const DELETE_CONFIRM_ID = 'lasombra:delete:confirm';
+export const DELETE_CANCEL_ID = 'lasombra:delete:cancel';
+
+// Keyed by staffUserId → channel ID where /lasombra update was run
+const pendingUpdates = new Map<string, string>();
+
+// Keyed by confirmation message ID → character name pending deletion
+const pendingDeletes = new Map<string, string>();
 
 type PendingBroadcast = {
   target: string;
@@ -107,8 +138,57 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     return;
   }
 
+  if (sub === 'update') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    if (!interaction.channel || interaction.channel.type !== ChannelType.GuildText) {
+      await interaction.reply({ content: 'Run this inside the character\'s channel.', ephemeral: true });
+      return;
+    }
+    pendingUpdates.set(interaction.user.id, interaction.channel.id);
+
+    const modal = new ModalBuilder().setCustomId(UPDATE_MODAL_ID).setTitle('Sheet Update');
+    const updateInput = new TextInputBuilder()
+      .setCustomId('update_message')
+      .setLabel('What is the update?')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('e.g. 15 xp spent Presence 3')
+      .setMaxLength(1000)
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(updateInput));
+    await interaction.showModal(modal);
+    return;
+  }
+
   if (sub === 'edit') {
     await startEditWizard(interaction, ctx);
+    return;
+  }
+
+  if (sub === 'delete') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    const characterName = interaction.options.getString('character', true).trim();
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(DELETE_CONFIRM_ID)
+        .setLabel('Yes, delete')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(DELETE_CANCEL_ID)
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary),
+    );
+    await interaction.reply({
+      content: `⚠️ Delete **${characterName}** from the roster? This is permanent and only works if they have no XP history.`,
+      components: [row],
+    });
+    const replyMsg = await interaction.fetchReply();
+    pendingDeletes.set(replyMsg.id, characterName);
     return;
   }
 
@@ -527,5 +607,164 @@ export async function handleBroadcastModal(
     mentionCharDiscordId: pending.mentionCharDiscordId,
   });
 
+  return true;
+}
+
+// ── Update modal handler ────────────────────────────────────────────────────
+
+export async function handleUpdateModal(
+  interaction: import('discord.js').ModalSubmitInteraction,
+): Promise<boolean> {
+  if (interaction.customId !== UPDATE_MODAL_ID) return false;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const channelId = pendingUpdates.get(interaction.user.id);
+  pendingUpdates.delete(interaction.user.id);
+
+  if (!channelId) {
+    await interaction.editReply('Session expired — run `/lasombra update` again.');
+    return true;
+  }
+
+  const updateMessage = interaction.fields.getTextInputValue('update_message').trim();
+
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.editReply('Could not resolve server. Please try again.');
+    return true;
+  }
+
+  let channel: import('discord.js').TextChannel;
+  try {
+    const fetched = await guild.channels.fetch(channelId);
+    if (!fetched || !fetched.isTextBased() || !('messages' in fetched)) {
+      await interaction.editReply('Could not find the original channel.');
+      return true;
+    }
+    channel = fetched as import('discord.js').TextChannel;
+  } catch (err) {
+    await interaction.editReply(`Could not fetch channel: ${errorToMessage(err)}`);
+    return true;
+  }
+
+  const characterName = channel.name;
+  const [playerId, pdf] = await Promise.all([
+    findPlayerInChannel(channel, config.testerDiscordIds),
+    findLatestPdf(channel),
+  ]);
+
+  const sheetsChannelId = config.approvePlayerSheetsChannelId;
+  if (!sheetsChannelId) {
+    await interaction.editReply('`APPROVE_PLAYER_SHEETS_CHANNEL_ID` is not configured.');
+    return true;
+  }
+
+  try {
+    const sheetsChannel = await guild.channels.fetch(sheetsChannelId);
+    if (!sheetsChannel || !sheetsChannel.isTextBased() || !('send' in sheetsChannel)) {
+      await interaction.editReply('#player-character-sheets channel not found or not sendable.');
+      return true;
+    }
+
+    const playerMention = playerId ? `<@${playerId}>` : characterName;
+    const content = `${playerMention} "${updateMessage}"`;
+
+    if (pdf) {
+      await (sheetsChannel as import('discord.js').TextChannel).send({
+        content,
+        files: [{ attachment: pdf.url, name: pdf.name }],
+      });
+    } else {
+      await (sheetsChannel as import('discord.js').TextChannel).send({ content });
+    }
+  } catch (err) {
+    await interaction.editReply(`Failed to post to #player-character-sheets: ${errorToMessage(err)}`);
+    return true;
+  }
+
+  logEvent('info', 'sheet_update_posted', {
+    characterName,
+    playerId,
+    staffId: interaction.user.id,
+    hasPdf: Boolean(pdf),
+  });
+
+  // Post public confirmation in the character's channel
+  try {
+    await channel.send({ content: 'Character sheet uploaded.' });
+  } catch (err) {
+    logEvent('warn', 'sheet_update_channel_confirm_failed', { characterName, error: errorToMessage(err) });
+  }
+
+  const pdfNote = pdf ? '' : ' *(no PDF found in channel)*';
+  await interaction.editReply(`✅ Posted update for **${characterName}** to <#${sheetsChannelId}>${pdfNote}.`);
+  return true;
+}
+
+// ── Delete confirmation button handler ─────────────────────────────────────
+
+export function isDeleteButton(customId: string): boolean {
+  return customId === DELETE_CONFIRM_ID || customId === DELETE_CANCEL_ID;
+}
+
+export async function handleDeleteButton(
+  interaction: ButtonInteraction,
+  ctx: CommandContext,
+): Promise<boolean> {
+  if (!isDeleteButton(interaction.customId)) return false;
+
+  if (interaction.customId === DELETE_CANCEL_ID) {
+    pendingDeletes.delete(interaction.message.id);
+    await interaction.update({ content: 'Delete cancelled.', components: [] });
+    return true;
+  }
+
+  const characterName = pendingDeletes.get(interaction.message.id);
+  pendingDeletes.delete(interaction.message.id);
+
+  if (!characterName) {
+    await interaction.update({ content: 'Session expired — run `/lasombra delete` again.', components: [] });
+    return true;
+  }
+
+  await interaction.deferUpdate();
+
+  const result = await ctx.adapter.deleteCharacter(characterName, {
+    requesterDiscordId: interaction.user.id,
+    requesterDiscordName: interaction.user.username,
+  });
+
+  if (!result.ok) {
+    const hint = result.hasHistory
+      ? '\nUse `/lasombra edit` to mark them as retired or deceased instead.'
+      : '';
+    await interaction.editReply({ content: `⚠️ ${result.message}${hint}`, components: [] });
+    return true;
+  }
+
+  logEvent('info', 'character_deleted', { characterName, staffId: interaction.user.id });
+
+  // Delete the current channel if its name matches the character (ticket cleanup)
+  const channel = interaction.channel;
+  if (
+    channel &&
+    channel.type === ChannelType.GuildText &&
+    channel.name === normalizeChannelName(characterName)
+  ) {
+    try {
+      await (channel as GuildChannel).delete(`Character deleted: ${characterName}`);
+      // Channel is gone — no editReply possible
+      return true;
+    } catch (err) {
+      await interaction.editReply({
+        content: `✅ **${characterName}** deleted from the roster.\n⚠️ Channel delete failed: ${errorToMessage(err)}`,
+        components: [],
+      });
+      return true;
+    }
+  }
+
+  await interaction.editReply({ content: `✅ **${characterName}** deleted from the roster.`, components: [] });
   return true;
 }

@@ -28,10 +28,9 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
-import { handleBroadcastModal } from './commands/lasombra';
+import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
 import {
   handleApproveWizardStringSelect,
-  handleApproveWizardRoleSelect,
   handleApproveWizardButton,
   isApproveWizardButton,
 } from './approveWizard';
@@ -282,14 +281,6 @@ void applyStartupConfigOverrides().then(() => {
       }
     }
 
-    if (interaction.isRoleSelectMenu()) {
-      const approveHandled = await handleApproveWizardRoleSelect(interaction);
-      if (approveHandled) {
-        logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
-        return;
-      }
-    }
-
     if (interaction.isButton()) {
       if (isApproveWizardButton(interaction.customId)) {
         await handleApproveWizardButton(interaction, { client, adapter });
@@ -299,6 +290,11 @@ void applyStartupConfigOverrides().then(() => {
       if (isEditWizardButton(interaction.customId)) {
         await handleEditWizardButton(interaction, { client, adapter });
         logEvent('info', 'interaction_handled_edit_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isDeleteButton(interaction.customId)) {
+        await handleDeleteButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_delete_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
       if (isHuntConsequenceButton(interaction.customId)) {
@@ -324,6 +320,11 @@ void applyStartupConfigOverrides().then(() => {
     }
 
     if (interaction.isModalSubmit()) {
+      const updateHandled = await handleUpdateModal(interaction);
+      if (updateHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const broadcastHandled = await handleBroadcastModal(interaction, { client, adapter });
       if (broadcastHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });

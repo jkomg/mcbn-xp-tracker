@@ -21,7 +21,7 @@ WEB_URL="$(grep -E '^WEB_APP_BASE_URL=' "${BOT_ENV}" 2>/dev/null | head -1 | cut
 WEB_URL="${WEB_URL:-http://127.0.0.1:5001}"
 ALERT_COOLDOWN_FILE="/tmp/mcbn-health-last-alert"
 ALERT_COOLDOWN_SECONDS=600   # 10 min between repeat alerts
-HEARTBEAT_STALE_SECONDS=300  # 5 min = bot is considered frozen
+HEARTBEAT_STALE_SECONDS=600  # 10 min (~9 missed beats) = bot is considered frozen
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
