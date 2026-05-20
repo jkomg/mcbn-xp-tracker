@@ -116,7 +116,7 @@ export const DELETE_CANCEL_ID = 'lasombra:delete:cancel';
 // Keyed by staffUserId → channel ID where /lasombra update was run
 const pendingUpdates = new Map<string, string>();
 
-// Keyed by staffUserId → character name pending deletion
+// Keyed by confirmation message ID → character name pending deletion
 const pendingDeletes = new Map<string, string>();
 
 type PendingBroadcast = {
@@ -173,7 +173,6 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       return;
     }
     const characterName = interaction.options.getString('character', true).trim();
-    pendingDeletes.set(interaction.user.id, characterName);
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(DELETE_CONFIRM_ID)
@@ -188,6 +187,8 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       content: `⚠️ Delete **${characterName}** from the roster? This is permanent and only works if they have no XP history.`,
       components: [row],
     });
+    const replyMsg = await interaction.fetchReply();
+    pendingDeletes.set(replyMsg.id, characterName);
     return;
   }
 
@@ -714,13 +715,13 @@ export async function handleDeleteButton(
   if (!isDeleteButton(interaction.customId)) return false;
 
   if (interaction.customId === DELETE_CANCEL_ID) {
-    pendingDeletes.delete(interaction.user.id);
+    pendingDeletes.delete(interaction.message.id);
     await interaction.update({ content: 'Delete cancelled.', components: [] });
     return true;
   }
 
-  const characterName = pendingDeletes.get(interaction.user.id);
-  pendingDeletes.delete(interaction.user.id);
+  const characterName = pendingDeletes.get(interaction.message.id);
+  pendingDeletes.delete(interaction.message.id);
 
   if (!characterName) {
     await interaction.update({ content: 'Session expired — run `/lasombra delete` again.', components: [] });
