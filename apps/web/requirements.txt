@@ -8,7 +8,7 @@ gspread==6.*
 google-auth==2.*
 google-cloud-storage==3.*
 python-dotenv==1.*
-gunicorn==25.*
+gunicorn==26.*
 pytest==9.*
 pytest-cov==7.*
 Markdown==3.*
