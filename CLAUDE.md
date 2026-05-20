@@ -134,4 +134,5 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - `docs/RELEASE_2026-04-17_SYNC_CONTROL_PLANE_HARDENING.md` — source-aware sync acks, stale reset controls, and shared sync config constants
 - `docs/RELEASE_2026-04-17_NOTION_SYNC_HISTORY.md` — persisted sync events with run-level settings summaries (started/finished/duration/final status)
 - `docs/RELEASE_2026-04-07_BROADCAST_AND_SCHEDULER_FIX.md` — staff broadcast overhaul, passage-of-time scheduler fix, MONOREPO_ROOT Docker fix
-- `docs/RELEASE_2026-04-21_BACKGROUNDS_GHOUL_DISCIPLINE_WIKI_OPS.md` — **latest release notes** (background blanking, Ghoul Discipline spend, error dismissal, wiki bulk delete + sync block tombstones, migration safety fixes)
+- `docs/RELEASE_2026-04-21_BACKGROUNDS_GHOUL_DISCIPLINE_WIKI_OPS.md` — background blanking, Ghoul Discipline spend, error dismissal, wiki bulk delete + sync block tombstones, migration safety fixes
+- `docs/RELEASE_2026-05-20_CHARACTER_APPROVAL_WORKFLOW.md` — **latest release notes** (character approval workflow: /lasombra approve, edit, update, delete; full roster API)
