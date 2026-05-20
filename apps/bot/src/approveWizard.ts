@@ -82,7 +82,7 @@ const pending = new Map<string, ApproveState>();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function findPlayerInChannel(
+export async function findPlayerInChannel(
   channel: TextChannel,
   staffIds: Set<string>,
 ): Promise<string | null> {
@@ -103,7 +103,7 @@ async function findPlayerInChannel(
   return null;
 }
 
-async function findLatestPdf(
+export async function findLatestPdf(
   channel: TextChannel,
 ): Promise<{ url: string; name: string } | null> {
   try {

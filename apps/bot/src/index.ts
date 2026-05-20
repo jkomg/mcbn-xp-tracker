@@ -28,7 +28,7 @@ import {
   handleClaimWizardSelect,
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
-import { handleBroadcastModal, handleDeleteButton, isDeleteButton } from './commands/lasombra';
+import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -320,6 +320,11 @@ void applyStartupConfigOverrides().then(() => {
     }
 
     if (interaction.isModalSubmit()) {
+      const updateHandled = await handleUpdateModal(interaction);
+      if (updateHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const broadcastHandled = await handleBroadcastModal(interaction, { client, adapter });
       if (broadcastHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
