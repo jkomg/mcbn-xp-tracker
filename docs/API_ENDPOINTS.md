@@ -976,3 +976,31 @@ All error responses use this shape:
 | 404 | Resource not found |
 | 409 | Replay attack detected |
 | 503 | Server-side config missing (token or DB not configured) |
+
+---
+
+## DELETE /api/roster/character/{name}
+
+**Scope:** write | **Rate limit:** 60/hour
+
+Hard-deletes a character roster entry with no history. Refuses with `409` if the character has any XP claims, spend requests, or ledger entries — use `PUT /api/character/{name}/status` with `retired` or `deceased` for those cases instead.
+
+Called by the bot during `/lasombra delete` (staff-only, no-history characters only).
+
+**Path params:** `name` — character name (case-insensitive)
+
+**Body (optional):**
+```json
+{
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "StaffMember"
+}
+```
+
+**Response 200:**
+```json
+{ "ok": true, "character_name": "Astrid" }
+```
+
+**Response 404:** Character not found.
+**Response 409:** Character has existing history — retire or mark deceased instead.

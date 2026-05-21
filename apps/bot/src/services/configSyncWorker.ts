@@ -37,10 +37,10 @@ export class ConfigSyncWorker {
         logEvent('info', 'config_sync_restart_requested', {});
         try {
           await this.adapter.ackBotRestart();
+          process.exit(0);
         } catch (ackErr) {
-          logEvent('warn', 'config_sync_restart_ack_failed', { error: String(ackErr) });
+          logEvent('warn', 'config_sync_restart_ack_failed_skipping_exit', { error: String(ackErr) });
         }
-        process.exit(0);
       }
 
       if (cfg.notionSyncRequested) {
