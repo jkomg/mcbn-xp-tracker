@@ -8,12 +8,15 @@ import {
 } from "../generator/steps"
 import { isDefault } from "../generator/utils"
 import { globals } from "../globals"
+import { loresheetDotCost } from "../data/Loresheets"
 import { RAW_RED, rgba } from "../theme/colors"
 
-/** XP spent during character creation (disciplines purchased above free picks, loresheets, etc.)
- *  Returns 0 until spending steps (loresheets, etc.) are wired in. */
-function computeCcXpSpent(_character: Character): number {
-    return 0
+/** XP spent during character creation: sum of loresheet dot purchases. */
+function computeCcXpSpent(character: Character): number {
+    return (character.loresheet_purchases ?? []).reduce(
+        (sum, p) => sum + loresheetDotCost(p.dot),
+        0,
+    )
 }
 
 const XP_ONLY_CATEGORIES = new Set(["neonate", "ancilla"])

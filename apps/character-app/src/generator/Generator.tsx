@@ -8,6 +8,7 @@ import ClanPicker from "./components/ClanPicker"
 import CeremoniesPicker from "./components/CeremoniesPicker"
 import DisciplinesPicker from "./components/DisciplinesPicker"
 import Final from "./components/Final"
+import LoresheetPicker from "./components/LoresheetPicker"
 import MeritsAndFlawsPicker from "./components/MeritsAndFlawsPicker"
 import PredatorTypePicker from "./components/PredatorTypePicker"
 import RitualsPicker from "./components/RitualsPicker"
@@ -116,6 +117,14 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
             case "merits":
                 return (
                     <MeritsAndFlawsPicker
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                )
+            case "loresheet":
+                return (
+                    <LoresheetPicker
                         character={character}
                         setCharacter={setCharacter}
                         nextStep={nextStep}
