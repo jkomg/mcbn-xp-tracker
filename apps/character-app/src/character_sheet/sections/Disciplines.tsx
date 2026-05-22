@@ -1,0 +1,899 @@
+import {
+    Badge,
+    Box,
+    Divider,
+    Grid,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Paper,
+    Center,
+    ActionIcon,
+    Modal,
+    Button,
+    Tooltip,
+    useMantineTheme
+} from "@mantine/core"
+import { useState } from "react"
+import { DisciplineName, KnownDisciplineName, knownDisciplineNameSchema } from "~/data/NameSchemas"
+import { upcase, updateHealthAndWillpowerAndBloodPotencyAndHumanity } from "~/generator/utils"
+import { disciplines, Power, Ritual, sanitizeCustomDisciplineLogoUrl } from "~/data/Disciplines"
+import { Rituals } from "~/data/Rituals"
+import { Ceremony, Ceremonies, getCeremonyPrerequisiteLabel } from "~/data/Ceremonies"
+import { SheetOptions } from "../CharacterSheet"
+import DisciplineSelectModal from "../components/DisciplineSelectModal"
+import DisciplinePowerCard from "../components/DisciplinePowerCard"
+import CustomDisciplineModal from "../components/CustomDisciplineModal"
+import CustomPowerModal from "../components/CustomPowerModal"
+import RitualSelectModal from "../components/RitualSelectModal"
+import CustomRitualModal from "../components/CustomRitualModal"
+import CeremonySelectModal from "../components/CeremonySelectModal"
+import CustomCeremonyModal from "../components/CustomCeremonyModal"
+import { IconPlus, IconX, IconEdit } from "@tabler/icons-react"
+import { getDisciplineCost, getAvailableXP, canAffordUpgrade, getRitualCost } from "../utils/xp"
+import { bgAlpha, hexToRgba } from "../utils/style"
+import { useCharacterSheetStore } from "../stores/characterSheetStore"
+import { useShallow } from "zustand/react/shallow"
+
+type DisciplinesProps = {
+    options: SheetOptions
+}
+
+const isKnownDiscipline = (name: DisciplineName): name is KnownDisciplineName => {
+    return knownDisciplineNameSchema.safeParse(name).success
+}
+
+const Disciplines = ({ options }: DisciplinesProps) => {
+    const { character, primaryColor, mode, setCharacter, diceModalOpened } = options
+    const { selectedDicePool, updateSelectedDicePool } = useCharacterSheetStore(
+        useShallow((state) => ({
+            selectedDicePool: state.selectedDicePool,
+            updateSelectedDicePool: state.updateSelectedDicePool
+        }))
+    )
+    const theme = useMantineTheme()
+    const [modalOpened, setModalOpened] = useState(false)
+    const [initialDiscipline, setInitialDiscipline] = useState<DisciplineName | null>(null)
+    const [customDisciplineModalOpened, setCustomDisciplineModalOpened] = useState(false)
+    const [customPowerModalOpened, setCustomPowerModalOpened] = useState(false)
+    const [ritualModalOpened, setRitualModalOpened] = useState(false)
+    const [customRitualModalOpened, setCustomRitualModalOpened] = useState(false)
+    const [ceremonyModalOpened, setCeremonyModalOpened] = useState(false)
+    const [customCeremonyModalOpened, setCustomCeremonyModalOpened] = useState(false)
+    const [editingDisciplineName, setEditingDisciplineName] = useState<DisciplineName | null>(null)
+    const [editingPower, setEditingPower] = useState<Power | null>(null)
+    const [editingRitual, setEditingRitual] = useState<Ritual | null>(null)
+    const [editingCeremony, setEditingCeremony] = useState<Ceremony | null>(null)
+    const [itemToDelete, setItemToDelete] = useState<
+        | { type: "power"; power: Power }
+        | { type: "ritual"; ritual: Ritual }
+        | { type: "ceremony"; ceremony: Ceremony }
+        | { type: "discipline"; disciplineName: DisciplineName }
+        | null
+    >(null)
+    const isEditable = mode === "xp" || mode === "free"
+    const isFreeMode = mode === "free"
+    const isClickable = diceModalOpened
+    const paperBg = hexToRgba(theme.colors.dark[7], bgAlpha)
+    const bloodSorceryLevel = character.disciplines.filter(
+        (power) => power.discipline === "blood sorcery"
+    ).length
+    const oblivionLevel = character.disciplines.filter(
+        (power) => power.discipline === "oblivion"
+    ).length
+    const canAddRituals = isEditable && bloodSorceryLevel > 0
+    const canAddCeremonies = isEditable && oblivionLevel > 0
+
+    const handleDisciplineClick = (disciplineName: DisciplineName) => {
+        if (!isClickable) return
+        updateSelectedDicePool({
+            discipline: selectedDicePool.discipline === disciplineName ? null : disciplineName,
+            skill: null,
+            selectedMeritFlaws: []
+        })
+    }
+
+    if (
+        character.disciplines.length === 0 &&
+        character.rituals.length === 0 &&
+        character.ceremonies.length === 0 &&
+        !isEditable
+    ) {
+        return null
+    }
+
+    const powersByDiscipline = new Map<DisciplineName, typeof character.disciplines>()
+    character.disciplines.forEach((power) => {
+        if (!powersByDiscipline.has(power.discipline)) {
+            powersByDiscipline.set(power.discipline, [power])
+        } else {
+            powersByDiscipline.set(power.discipline, [
+                ...powersByDiscipline.get(power.discipline)!,
+                power
+            ])
+        }
+    })
+
+    if (isEditable && character.customDisciplines) {
+        Object.keys(character.customDisciplines).forEach((disciplineName) => {
+            if (!powersByDiscipline.has(disciplineName)) {
+                powersByDiscipline.set(disciplineName, [])
+            }
+        })
+    }
+
+    const handleDeletePower = (power: Power) => {
+        setItemToDelete({ type: "power", power })
+    }
+
+    const handleDeleteRitual = (ritual: Ritual) => {
+        setItemToDelete({ type: "ritual", ritual })
+    }
+
+    const handleDeleteCeremony = (ceremony: Ceremony) => {
+        setItemToDelete({ type: "ceremony", ceremony })
+    }
+
+    const handleDeleteDiscipline = (disciplineName: DisciplineName) => {
+        setItemToDelete({ type: "discipline", disciplineName })
+    }
+
+    const confirmDelete = () => {
+        if (!itemToDelete) return
+
+        let updatedCharacter
+        if (itemToDelete.type === "power") {
+            updatedCharacter = {
+                ...character,
+                disciplines: character.disciplines.filter((p) => p !== itemToDelete.power)
+            }
+        } else if (itemToDelete.type === "ritual") {
+            updatedCharacter = {
+                ...character,
+                rituals: character.rituals.filter((ritual) => ritual !== itemToDelete.ritual)
+            }
+        } else if (itemToDelete.type === "ceremony") {
+            updatedCharacter = {
+                ...character,
+                ceremonies: character.ceremonies.filter(
+                    (ceremony) => ceremony !== itemToDelete.ceremony
+                )
+            }
+        } else {
+            const updatedCustomDisciplines = { ...character.customDisciplines }
+            delete updatedCustomDisciplines[itemToDelete.disciplineName]
+
+            updatedCharacter = {
+                ...character,
+                customDisciplines: updatedCustomDisciplines,
+                availableDisciplineNames: character.availableDisciplineNames.filter(
+                    (disciplineName) => disciplineName !== itemToDelete.disciplineName
+                ),
+                disciplines: character.disciplines.filter(
+                    (p) => p.discipline !== itemToDelete.disciplineName
+                ),
+                rituals: itemToDelete.disciplineName === "blood sorcery" ? [] : character.rituals,
+                ceremonies: itemToDelete.disciplineName === "oblivion" ? [] : character.ceremonies
+            }
+        }
+
+        updateHealthAndWillpowerAndBloodPotencyAndHumanity(updatedCharacter)
+        setCharacter(updatedCharacter)
+        setItemToDelete(null)
+    }
+
+    return (
+        <>
+            {character.disciplines.length > 0 || isEditable ? (
+                <Box>
+                    <Title order={2} mb="lg" c={primaryColor}>
+                        Disciplines
+                    </Title>
+                    <Grid gutter="md">
+                        {Array.from(powersByDiscipline.entries()).map(
+                            ([disciplineName, powers]) => {
+                                const isCustom = !isKnownDiscipline(disciplineName)
+                                const discipline = disciplines[disciplineName]
+                                const customDiscipline =
+                                    character.customDisciplines?.[disciplineName]
+                                const logo =
+                                    discipline?.logo ||
+                                    sanitizeCustomDisciplineLogoUrl(customDiscipline?.logo)
+
+                                return (
+                                    <Grid.Col
+                                        key={disciplineName}
+                                        span={{ base: 12, md: 6, lg: 4 }}
+                                    >
+                                        <Paper
+                                            p="md"
+                                            withBorder
+                                            style={{
+                                                height: "100%",
+                                                backgroundColor: paperBg,
+                                                cursor: isClickable ? "pointer" : "default"
+                                            }}
+                                            onClick={() => handleDisciplineClick(disciplineName)}
+                                        >
+                                            <Group gap="md" mb="md" align="center">
+                                                {logo ? (
+                                                    <img
+                                                        src={logo}
+                                                        alt={upcase(disciplineName)}
+                                                        referrerPolicy="no-referrer"
+                                                        style={{
+                                                            width: "40px",
+                                                            height: "40px",
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <Group
+                                                    justify="space-between"
+                                                    style={{ flex: 1 }}
+                                                    align="center"
+                                                >
+                                                    <Title order={4} style={{ margin: 0 }}>
+                                                        {upcase(disciplineName)}
+                                                        {isCustom ? (
+                                                            <Badge
+                                                                size="xs"
+                                                                variant="dot"
+                                                                color={primaryColor}
+                                                                ml="xs"
+                                                            >
+                                                                Custom
+                                                            </Badge>
+                                                        ) : null}
+                                                    </Title>
+                                                    <Group gap="xs" align="center">
+                                                        <Badge
+                                                            size="lg"
+                                                            variant="light"
+                                                            color={primaryColor}
+                                                            circle
+                                                        >
+                                                            {powers.length}
+                                                        </Badge>
+                                                        {isCustom && isFreeMode ? (
+                                                            <ActionIcon
+                                                                size="sm"
+                                                                variant="subtle"
+                                                                color={primaryColor}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setEditingDisciplineName(
+                                                                        disciplineName
+                                                                    )
+                                                                    setCustomDisciplineModalOpened(
+                                                                        true
+                                                                    )
+                                                                }}
+                                                            >
+                                                                <IconEdit size={16} />
+                                                            </ActionIcon>
+                                                        ) : null}
+                                                        {isFreeMode && powers.length === 0 ? (
+                                                            <ActionIcon
+                                                                size="sm"
+                                                                variant="subtle"
+                                                                color="red"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleDeleteDiscipline(
+                                                                        disciplineName
+                                                                    )
+                                                                }}
+                                                            >
+                                                                <IconX size={16} />
+                                                            </ActionIcon>
+                                                        ) : null}
+                                                    </Group>
+                                                </Group>
+                                            </Group>
+                                            <Divider mb="sm" />
+                                            <Stack
+                                                gap="sm"
+                                                onClick={(e) => isClickable && e.stopPropagation()}
+                                            >
+                                                {powers
+                                                    .sort((a, b) => a.level - b.level)
+                                                    .map((power) => (
+                                                        <DisciplinePowerCard
+                                                            key={power.name}
+                                                            power={power}
+                                                            primaryColor={primaryColor}
+                                                            inModal={false}
+                                                            character={character}
+                                                            renderActions={
+                                                                isFreeMode
+                                                                    ? () => (
+                                                                          <Group gap="xs">
+                                                                              {power.isCustom ? (
+                                                                                  <ActionIcon
+                                                                                      size="sm"
+                                                                                      variant="subtle"
+                                                                                      color={
+                                                                                          primaryColor
+                                                                                      }
+                                                                                      onClick={(
+                                                                                          e
+                                                                                      ) => {
+                                                                                          e.stopPropagation()
+                                                                                          setEditingDisciplineName(
+                                                                                              disciplineName
+                                                                                          )
+                                                                                          setEditingPower(
+                                                                                              power
+                                                                                          )
+                                                                                          setCustomPowerModalOpened(
+                                                                                              true
+                                                                                          )
+                                                                                      }}
+                                                                                  >
+                                                                                      <IconEdit
+                                                                                          size={16}
+                                                                                      />
+                                                                                  </ActionIcon>
+                                                                              ) : null}
+                                                                              <ActionIcon
+                                                                                  size="sm"
+                                                                                  variant="subtle"
+                                                                                  color="red"
+                                                                                  onClick={(e) => {
+                                                                                      e.stopPropagation()
+                                                                                      handleDeletePower(
+                                                                                          power
+                                                                                      )
+                                                                                  }}
+                                                                              >
+                                                                                  <IconX
+                                                                                      size={16}
+                                                                                  />
+                                                                              </ActionIcon>
+                                                                          </Group>
+                                                                      )
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                    ))}
+                                                {isEditable ? (
+                                                    <Center
+                                                        mt="xs"
+                                                        onClick={(e) =>
+                                                            isClickable && e.stopPropagation()
+                                                        }
+                                                    >
+                                                        {isCustom ? (
+                                                            <ActionIcon
+                                                                size="lg"
+                                                                radius="xl"
+                                                                variant="light"
+                                                                color={primaryColor}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setEditingDisciplineName(
+                                                                        disciplineName
+                                                                    )
+                                                                    setEditingPower(null)
+                                                                    setCustomPowerModalOpened(true)
+                                                                }}
+                                                            >
+                                                                <IconPlus size={18} />
+                                                            </ActionIcon>
+                                                        ) : mode === "xp" ? (
+                                                            (() => {
+                                                                const cost = getDisciplineCost(
+                                                                    character,
+                                                                    disciplineName
+                                                                )
+                                                                const availableXP =
+                                                                    getAvailableXP(character)
+                                                                const canAfford = canAffordUpgrade(
+                                                                    availableXP,
+                                                                    cost
+                                                                )
+                                                                const tooltipLabel = canAfford
+                                                                    ? `${cost} XP`
+                                                                    : `Insufficient XP. Need ${cost}, have ${availableXP}`
+
+                                                                return (
+                                                                    <Tooltip label={tooltipLabel}>
+                                                                        <span
+                                                                            style={{
+                                                                                display:
+                                                                                    "inline-block"
+                                                                            }}
+                                                                        >
+                                                                            <ActionIcon
+                                                                                size="lg"
+                                                                                radius="xl"
+                                                                                variant="light"
+                                                                                color={primaryColor}
+                                                                                disabled={
+                                                                                    !canAfford
+                                                                                }
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setInitialDiscipline(
+                                                                                        disciplineName
+                                                                                    )
+                                                                                    setModalOpened(
+                                                                                        true
+                                                                                    )
+                                                                                }}
+                                                                                style={{
+                                                                                    cursor: canAfford
+                                                                                        ? "pointer"
+                                                                                        : "default"
+                                                                                }}
+                                                                            >
+                                                                                <IconPlus
+                                                                                    size={18}
+                                                                                />
+                                                                            </ActionIcon>
+                                                                        </span>
+                                                                    </Tooltip>
+                                                                )
+                                                            })()
+                                                        ) : (
+                                                            <ActionIcon
+                                                                size="lg"
+                                                                radius="xl"
+                                                                variant="light"
+                                                                color={primaryColor}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setInitialDiscipline(
+                                                                        disciplineName
+                                                                    )
+                                                                    setModalOpened(true)
+                                                                }}
+                                                            >
+                                                                <IconPlus size={18} />
+                                                            </ActionIcon>
+                                                        )}
+                                                    </Center>
+                                                ) : null}
+                                            </Stack>
+                                        </Paper>
+                                    </Grid.Col>
+                                )
+                            }
+                        )}
+                        {isEditable ? (
+                            <Grid.Col span={{ base: 12, md: 6, lg: 4 }}>
+                                <Paper
+                                    p="md"
+                                    withBorder
+                                    style={{
+                                        height: "100%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: paperBg
+                                    }}
+                                >
+                                    <Center style={{ height: "100%" }}>
+                                        {mode === "xp" ? (
+                                            (() => {
+                                                const disciplinesAlreadyHave = new Set(
+                                                    character.disciplines.map(
+                                                        (power) => power.discipline
+                                                    )
+                                                )
+                                                const allDisciplines = Object.keys(
+                                                    disciplines
+                                                ) as DisciplineName[]
+                                                const availableDisciplines = allDisciplines.filter(
+                                                    (disciplineName) =>
+                                                        disciplineName !== "" &&
+                                                        !disciplinesAlreadyHave.has(disciplineName)
+                                                )
+
+                                                const costs = availableDisciplines.map(
+                                                    (disciplineName) =>
+                                                        getDisciplineCost(character, disciplineName)
+                                                )
+                                                const minCost =
+                                                    costs.length > 0 ? Math.min(...costs) : 0
+                                                const availableXP = getAvailableXP(character)
+                                                const canAfford = canAffordUpgrade(
+                                                    availableXP,
+                                                    minCost
+                                                )
+                                                const tooltipLabel = canAfford
+                                                    ? `${minCost} XP`
+                                                    : `Insufficient XP. Need ${minCost}, have ${availableXP}`
+
+                                                return (
+                                                    <Tooltip label={tooltipLabel}>
+                                                        <span style={{ display: "inline-block" }}>
+                                                            <ActionIcon
+                                                                size="xl"
+                                                                variant="light"
+                                                                color={primaryColor}
+                                                                radius="xl"
+                                                                disabled={!canAfford}
+                                                                onClick={() => {
+                                                                    setInitialDiscipline(null)
+                                                                    setModalOpened(true)
+                                                                }}
+                                                                style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                    cursor: canAfford
+                                                                        ? "pointer"
+                                                                        : "default"
+                                                                }}
+                                                            >
+                                                                <IconPlus size={24} />
+                                                            </ActionIcon>
+                                                        </span>
+                                                    </Tooltip>
+                                                )
+                                            })()
+                                        ) : (
+                                            <ActionIcon
+                                                size="xl"
+                                                variant="light"
+                                                color={primaryColor}
+                                                radius="xl"
+                                                onClick={() => {
+                                                    setInitialDiscipline(null)
+                                                    setModalOpened(true)
+                                                }}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center"
+                                                }}
+                                            >
+                                                <IconPlus size={24} />
+                                            </ActionIcon>
+                                        )}
+                                    </Center>
+                                </Paper>
+                            </Grid.Col>
+                        ) : null}
+                    </Grid>
+                </Box>
+            ) : null}
+
+            {character.rituals.length > 0 || canAddRituals ? (
+                <Box mt="xl">
+                    {character.disciplines.length > 0 ? <Divider mb="lg" /> : null}
+                    <Group justify="center" gap="sm" mb="lg">
+                        <Title order={2} ta="center">
+                            Rituals
+                        </Title>
+                        {canAddRituals ? (
+                            mode === "xp" ? (
+                                (() => {
+                                    const ownedRitualNames = new Set(
+                                        character.rituals.map((ritual) => ritual.name)
+                                    )
+                                    const availableCosts = Rituals.filter(
+                                        (ritual) =>
+                                            ritual.level <= bloodSorceryLevel &&
+                                            !ownedRitualNames.has(ritual.name)
+                                    ).map((ritual) => getRitualCost(ritual.level))
+                                    availableCosts.push(getRitualCost(1))
+                                    const minCost =
+                                        availableCosts.length > 0 ? Math.min(...availableCosts) : 0
+                                    const availableXP = getAvailableXP(character)
+                                    const canAfford = canAffordUpgrade(availableXP, minCost)
+                                    const tooltipLabel = canAfford
+                                        ? `${minCost} XP`
+                                        : `Insufficient XP. Need ${minCost}, have ${availableXP}`
+
+                                    return (
+                                        <Tooltip label={tooltipLabel}>
+                                            <span style={{ display: "inline-block" }}>
+                                                <ActionIcon
+                                                    size="lg"
+                                                    radius="xl"
+                                                    variant="light"
+                                                    color={primaryColor}
+                                                    disabled={!canAfford}
+                                                    onClick={() => setRitualModalOpened(true)}
+                                                    style={{
+                                                        cursor: canAfford ? "pointer" : "default"
+                                                    }}
+                                                >
+                                                    <IconPlus size={18} />
+                                                </ActionIcon>
+                                            </span>
+                                        </Tooltip>
+                                    )
+                                })()
+                            ) : (
+                                <ActionIcon
+                                    size="lg"
+                                    radius="xl"
+                                    variant="light"
+                                    color={primaryColor}
+                                    onClick={() => setRitualModalOpened(true)}
+                                >
+                                    <IconPlus size={18} />
+                                </ActionIcon>
+                            )
+                        ) : null}
+                    </Group>
+                    <Grid gutter="md">
+                        {character.rituals.map((ritual) => (
+                            <Grid.Col key={ritual.name} span={{ base: 12, md: 6 }}>
+                                <Paper p="md" withBorder>
+                                    <Group justify="space-between" align="flex-start" mb="xs">
+                                        <Text fw={700} size="lg">
+                                            {ritual.name}
+                                        </Text>
+                                        <Group gap="xs">
+                                            <Badge variant="light" color={primaryColor}>
+                                                {ritual.isCustom ? "Custom Ritual" : "Ritual"}
+                                            </Badge>
+                                            {ritual.isCustom && isFreeMode ? (
+                                                <ActionIcon
+                                                    size="sm"
+                                                    variant="subtle"
+                                                    color={primaryColor}
+                                                    onClick={() => {
+                                                        setEditingRitual(ritual)
+                                                        setCustomRitualModalOpened(true)
+                                                    }}
+                                                >
+                                                    <IconEdit size={16} />
+                                                </ActionIcon>
+                                            ) : null}
+                                            {isFreeMode ? (
+                                                <ActionIcon
+                                                    size="sm"
+                                                    variant="subtle"
+                                                    color="red"
+                                                    onClick={() => handleDeleteRitual(ritual)}
+                                                >
+                                                    <IconX size={16} />
+                                                </ActionIcon>
+                                            ) : null}
+                                        </Group>
+                                    </Group>
+                                    {ritual.summary ? (
+                                        <Text size="sm" c="dimmed" mt="xs">
+                                            {ritual.summary}
+                                        </Text>
+                                    ) : null}
+                                    {ritual.dicePool ? (
+                                        <Text size="xs" c="dimmed" mt="sm">
+                                            {ritual.dicePool.toUpperCase()}
+                                        </Text>
+                                    ) : null}
+                                </Paper>
+                            </Grid.Col>
+                        ))}
+                    </Grid>
+                </Box>
+            ) : null}
+            {character.ceremonies.length > 0 || canAddCeremonies ? (
+                <Box mt="xl">
+                    {character.disciplines.length > 0 || character.rituals.length > 0 ? (
+                        <Divider mb="lg" />
+                    ) : null}
+                    <Group justify="center" gap="sm" mb="lg">
+                        <Title order={2} ta="center">
+                            Ceremonies
+                        </Title>
+                        {canAddCeremonies ? (
+                            mode === "xp" ? (
+                                (() => {
+                                    const ownedCeremonyNames = new Set(
+                                        character.ceremonies.map((ceremony) => ceremony.name)
+                                    )
+                                    const availableCosts = Ceremonies.filter(
+                                        (ceremony) =>
+                                            ceremony.level <= oblivionLevel &&
+                                            !ownedCeremonyNames.has(ceremony.name)
+                                    ).map((ceremony) => getRitualCost(ceremony.level))
+                                    availableCosts.push(getRitualCost(1))
+                                    const minCost =
+                                        availableCosts.length > 0 ? Math.min(...availableCosts) : 0
+                                    const availableXP = getAvailableXP(character)
+                                    const canAfford = canAffordUpgrade(availableXP, minCost)
+                                    const tooltipLabel = canAfford
+                                        ? `${minCost} XP`
+                                        : `Insufficient XP. Need ${minCost}, have ${availableXP}`
+
+                                    return (
+                                        <Tooltip label={tooltipLabel}>
+                                            <span style={{ display: "inline-block" }}>
+                                                <ActionIcon
+                                                    size="lg"
+                                                    radius="xl"
+                                                    variant="light"
+                                                    color={primaryColor}
+                                                    disabled={!canAfford}
+                                                    onClick={() => setCeremonyModalOpened(true)}
+                                                    style={{
+                                                        cursor: canAfford ? "pointer" : "default"
+                                                    }}
+                                                >
+                                                    <IconPlus size={18} />
+                                                </ActionIcon>
+                                            </span>
+                                        </Tooltip>
+                                    )
+                                })()
+                            ) : (
+                                <ActionIcon
+                                    size="lg"
+                                    radius="xl"
+                                    variant="light"
+                                    color={primaryColor}
+                                    onClick={() => setCeremonyModalOpened(true)}
+                                >
+                                    <IconPlus size={18} />
+                                </ActionIcon>
+                            )
+                        ) : null}
+                    </Group>
+                    <Grid gutter="md">
+                        {character.ceremonies.map((ceremony) => (
+                            <Grid.Col key={ceremony.name} span={{ base: 12, md: 6 }}>
+                                <Paper p="md" withBorder>
+                                    <Group justify="space-between" align="flex-start" mb="xs">
+                                        <Text fw={700} size="lg">
+                                            {ceremony.name}
+                                        </Text>
+                                        <Group gap="xs">
+                                            <Badge variant="light" color={primaryColor}>
+                                                {ceremony.isCustom ? "Custom Ceremony" : "Ceremony"}
+                                            </Badge>
+                                            {ceremony.isCustom && isFreeMode ? (
+                                                <ActionIcon
+                                                    size="sm"
+                                                    variant="subtle"
+                                                    color={primaryColor}
+                                                    onClick={() => {
+                                                        setEditingCeremony(ceremony)
+                                                        setCustomCeremonyModalOpened(true)
+                                                    }}
+                                                >
+                                                    <IconEdit size={16} />
+                                                </ActionIcon>
+                                            ) : null}
+                                            {isFreeMode ? (
+                                                <ActionIcon
+                                                    size="sm"
+                                                    variant="subtle"
+                                                    color="red"
+                                                    onClick={() => handleDeleteCeremony(ceremony)}
+                                                >
+                                                    <IconX size={16} />
+                                                </ActionIcon>
+                                            ) : null}
+                                        </Group>
+                                    </Group>
+                                    {ceremony.summary ? (
+                                        <Text size="sm" c="dimmed" mt="xs">
+                                            {ceremony.summary}
+                                        </Text>
+                                    ) : null}
+                                    <Stack gap={2} mt="sm">
+                                        {ceremony.dicePool ? (
+                                            <Text size="xs" c="dimmed">
+                                                {ceremony.dicePool.toUpperCase()}
+                                            </Text>
+                                        ) : null}
+                                        <Text size="xs" c="dimmed">
+                                            Requires: {getCeremonyPrerequisiteLabel(ceremony)}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            Time: {ceremony.requiredTime}
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            </Grid.Col>
+                        ))}
+                    </Grid>
+                </Box>
+            ) : null}
+            <DisciplineSelectModal
+                opened={modalOpened}
+                onClose={() => {
+                    setModalOpened(false)
+                    setInitialDiscipline(null)
+                }}
+                options={options}
+                initialDiscipline={initialDiscipline}
+                hideBackButton={initialDiscipline !== null}
+            />
+            <RitualSelectModal
+                opened={ritualModalOpened}
+                onClose={() => setRitualModalOpened(false)}
+                options={options}
+            />
+            <CustomRitualModal
+                opened={customRitualModalOpened}
+                onClose={() => {
+                    setCustomRitualModalOpened(false)
+                    setEditingRitual(null)
+                }}
+                options={options}
+                editingRitual={editingRitual}
+            />
+            <CeremonySelectModal
+                opened={ceremonyModalOpened}
+                onClose={() => setCeremonyModalOpened(false)}
+                options={options}
+            />
+            <CustomCeremonyModal
+                opened={customCeremonyModalOpened}
+                onClose={() => {
+                    setCustomCeremonyModalOpened(false)
+                    setEditingCeremony(null)
+                }}
+                options={options}
+                editingCeremony={editingCeremony}
+            />
+            <CustomDisciplineModal
+                opened={customDisciplineModalOpened}
+                onClose={() => {
+                    setCustomDisciplineModalOpened(false)
+                    setEditingDisciplineName(null)
+                }}
+                options={options}
+                editingDisciplineName={editingDisciplineName}
+            />
+            <CustomPowerModal
+                opened={customPowerModalOpened}
+                onClose={() => {
+                    setCustomPowerModalOpened(false)
+                    setEditingDisciplineName(null)
+                    setEditingPower(null)
+                }}
+                options={options}
+                disciplineName={editingDisciplineName || ""}
+                editingPower={editingPower}
+            />
+            <Modal
+                opened={!!itemToDelete}
+                onClose={() => {
+                    setItemToDelete(null)
+                }}
+                title=""
+                centered
+                withCloseButton={false}
+            >
+                <Stack>
+                    <Text fz="xl" ta="center">
+                        {itemToDelete?.type === "power"
+                            ? `Delete power "${itemToDelete.power.name}"?`
+                            : itemToDelete?.type === "ritual"
+                              ? `Delete ritual "${itemToDelete.ritual.name}"?`
+                              : itemToDelete?.type === "ceremony"
+                                ? `Delete ceremony "${itemToDelete.ceremony.name}"?`
+                                : `Delete discipline "${itemToDelete ? upcase(itemToDelete.disciplineName) : ""}"?`}
+                    </Text>
+                    <Divider my="sm" />
+                    <Group justify="space-between">
+                        <Button
+                            color="yellow"
+                            variant="subtle"
+                            onClick={() => {
+                                setItemToDelete(null)
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button color="red" onClick={confirmDelete}>
+                            Delete
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+        </>
+    )
+}
+
+export default Disciplines

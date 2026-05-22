@@ -41,6 +41,7 @@ import {
   handleEditRenameModal,
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
+import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import {
   startHuntConsequenceMonitor,
@@ -237,6 +238,11 @@ void applyStartupConfigOverrides().then(() => {
     sheetsReconcileService.start();
     wikiSyncScheduler.start();
     startCubbyChannelMonitor(client);
+    startCharacterTicketMonitor(client, {
+      webBaseUrl: config.webAppBaseUrl,
+      creationRulesUrl: config.ccCreationRulesUrl,
+      ...(config.ccTicketCategoryIds.size > 0 ? { ticketCategoryIds: config.ccTicketCategoryIds } : {}),
+    });
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
   });
 

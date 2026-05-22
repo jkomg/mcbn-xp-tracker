@@ -1,0 +1,2414 @@
+import { z } from "zod"
+
+import animalismLogo from "../resources/Rombo_Disciplines/rombo_Animalism.svg"
+import auspexLogo from "../resources/Rombo_Disciplines/rombo_Auspex.svg"
+import celerityLogo from "../resources/Rombo_Disciplines/rombo_Celerity.svg"
+import dominateLogo from "../resources/Rombo_Disciplines/rombo_Dominate.svg"
+import fortitudeLogo from "../resources/Rombo_Disciplines/rombo_Fortitude.svg"
+import obfuscateLogo from "../resources/Rombo_Disciplines/rombo_Obfuscate.svg"
+import potenceLogo from "../resources/Rombo_Disciplines/rombo_Potence.svg"
+import presenceLogo from "../resources/Rombo_Disciplines/rombo_Presence.svg"
+import proteanLogo from "../resources/Rombo_Disciplines/rombo_Protean.svg"
+import bloodSorceryLogo from "../resources/Rombo_Disciplines/rombo_BloodSorcery.svg"
+import oblivionLogo from "../resources/Rombo_Disciplines/rombo_Oblivion.svg"
+import alchemyLogo from "../resources/Rombo_Disciplines/rombo_Alchemy.svg"
+import { clanNameSchema, DisciplineName, disciplineNameSchema } from "./NameSchemas.js"
+import type { Character } from "./Character"
+
+export const amalgamPrerequisiteSchema = z.object({
+    discipline: disciplineNameSchema,
+    level: z.number().min(1).int()
+})
+
+export type AmalgamPrerequisite = z.infer<typeof amalgamPrerequisiteSchema>
+
+export const powerSchema = z.object({
+    name: z.string(),
+    description: z.string(),
+    summary: z.string(),
+    dicePool: z.string(),
+    level: z.number().min(1).int(),
+    discipline: disciplineNameSchema,
+    rouseChecks: z.number().min(0).int(),
+    amalgamPrerequisites: amalgamPrerequisiteSchema.array(),
+    isCustom: z.boolean().optional()
+})
+
+export type Power = z.infer<typeof powerSchema>
+
+export const ritualSchema = z.object({
+    name: z.string(),
+    summary: z.string(),
+    rouseChecks: z.number().min(0).int(),
+    requiredTime: z.string(),
+    dicePool: z.string(),
+    ingredients: z.string(),
+    level: z.number().min(1).int(),
+    discipline: disciplineNameSchema.optional(),
+    isCustom: z.boolean().optional()
+})
+
+export type Ritual = z.infer<typeof ritualSchema>
+
+export const sanitizeCustomDisciplineLogoUrl = (value: string | undefined): string => {
+    const trimmed = value?.trim() ?? ""
+    if (!trimmed) return ""
+
+    try {
+        const parsed = new URL(trimmed)
+        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : ""
+    } catch {
+        return ""
+    }
+}
+
+const customDisciplineLogoSchema = z
+    .string()
+    .optional()
+    .default("")
+    .transform((value) => sanitizeCustomDisciplineLogoUrl(value))
+
+export const disciplineSchema = z.object({
+    clans: clanNameSchema.array(),
+    summary: z.string(),
+    powers: powerSchema.array(),
+    logo: z.string(),
+    isCustom: z.boolean().optional()
+})
+export type Discipline = z.infer<typeof disciplineSchema>
+
+export const customDisciplineSchema = z.object({
+    name: z.string(),
+    summary: z.string(),
+    logo: customDisciplineLogoSchema
+})
+export type CustomDiscipline = z.infer<typeof customDisciplineSchema>
+
+export const disciplines: Record<DisciplineName, Discipline> = {
+    animalism: {
+        clans: ["Nosferatu", "Gangrel", "Ravnos", "Tzimisce"],
+        summary: "Interact with and control animals",
+        logo: animalismLogo,
+        powers: [
+            {
+                name: "Bond Famulus",
+                description: "",
+                rouseChecks: 3,
+                amalgamPrerequisites: [],
+                summary:
+                    "bond an animal companion. It will listen to basic commands, but full communication is not possible (unless you have Feral Whispers)",
+                dicePool: "Charisma + Animal Ken",
+                level: 1,
+                discipline: "animalism"
+            },
+            {
+                name: "Sense the Beast",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "sense hostility and supernatural traits in people",
+                dicePool: "Resolve + Animalism",
+                level: 1,
+                discipline: "animalism"
+            },
+            {
+                name: "Feral Whispers",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "communicate with animals. You can also call for animals and if they are nearby, they will come.",
+                dicePool: "Manipulation / Charisma + Animalism",
+                level: 2,
+                discipline: "animalism"
+            },
+            {
+                name: "Atavism",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make an animal enrage or flee",
+                dicePool: "Composure + Animalism",
+                level: 2,
+                discipline: "animalism"
+            },
+            {
+                name: "Leash the Beast",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "fortitude", level: 1 }],
+                summary:
+                    "spend vitae to soften a critical, bestial failure, or failed frenzy resistance die",
+                dicePool: "",
+                level: 2,
+                discipline: "animalism"
+            },
+            {
+                name: "Animal Messenger",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 1 }],
+                summary: "send your famulus to deliver a short spoken message in your voice",
+                dicePool: "",
+                level: 2,
+                discipline: "animalism"
+            },
+
+            {
+                name: "Animal Succulence",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "Feed more effectively on animals. You can consume your famulus to temporarily gain their aspect",
+                dicePool: "",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Scent of Prey",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "Detect Mortals who saw Masquerade breaches",
+                dicePool: "Resolve + Animalism",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Messenger's Command",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary: "send Compel or Mesmerize through a message delivered by your famulus",
+                dicePool: "",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Plague of Beasts",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "mark a target so nearby animals harass them and make them easier to track",
+                dicePool: "Manipulation + Animalism",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Augury",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 1 }],
+                summary:
+                    "force a swarm, flock, or school to form an answer to one question about its range",
+                dicePool: "Manipulation + Animalism",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Awaken the Parasite",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "make vermin erupt inside a nearby body, harming speech, focus, and mortal survival",
+                dicePool: "Resolve + Animalism",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Quell the Beast",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "Shut down a target's drives and desires, pull vampires out of frenzy",
+                dicePool: "Charisma + Animalism",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Unliving Hive",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "obfuscate", level: 2 }],
+                summary:
+                    "extend animal influence to swarms of insects, treating a swarm as a single creature",
+                dicePool: "",
+                level: 3,
+                discipline: "animalism"
+            },
+            {
+                name: "Subsume the Spirit",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "transfer your mind into an animal's body, controlling it and using its senses",
+                dicePool: "Manipulation + Animalism",
+                level: 4,
+                discipline: "animalism"
+            },
+            {
+                name: "Sway the Flock",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "shift the mood of animals across a large area toward calm or aggression",
+                dicePool: "Composure + Animalism",
+                level: 4,
+                discipline: "animalism"
+            },
+            {
+                name: "Animal Dominion",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary: "command flocks and packs of animals as extensions of your own body",
+                dicePool: "Charisma + Animalism",
+                level: 5,
+                discipline: "animalism"
+            },
+            {
+                name: "Drawing Out the Beast",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "project your Beast at the moment of frenzy, transferring it into a nearby subject",
+                dicePool: "Wits + Animalism",
+                level: 5,
+                discipline: "animalism"
+            },
+            {
+                name: "Coax the Bestial Temper",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "subtly raise or lower the frenzy difficulty of nearby vampires while you hum or growl",
+                dicePool: "Manipulation + Animalism",
+                level: 5,
+                discipline: "animalism"
+            }
+        ]
+    },
+    auspex: {
+        clans: ["Toreador", "Tremere", "Malkavian", "Hecata", "Salubri"],
+        summary: "Supernatural senses and premonitions",
+        logo: auspexLogo,
+        powers: [
+            {
+                name: "Heightened Senses",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "your senses become supernaturally sharp; add Auspex rating to perception rolls",
+                dicePool: "",
+                level: 1,
+                discipline: "auspex"
+            },
+            {
+                name: "Sense the Unseen",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "sense supernatural activity",
+                dicePool: "Wits / Resolve + Auspex",
+                level: 1,
+                discipline: "auspex"
+            },
+            {
+                name: "Premonition",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "gain visions of the future",
+                dicePool: "",
+                level: 2,
+                discipline: "auspex"
+            },
+            {
+                name: "Obeah",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "fortitude", level: 1 }],
+                summary: "soothe a person's psychological turmoil",
+                dicePool: "Composure + Auspex",
+                level: 2,
+                discipline: "auspex"
+            },
+            {
+                name: "Panacea",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "fortitude", level: 1 }],
+                summary: "heal another person's Willpower damage and calm mortal distress",
+                dicePool: "Composure + Auspex",
+                level: 2,
+                discipline: "auspex"
+            },
+            {
+                name: "Reveal Temperament",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "smell a target's resonance, dyscrasias, or a vampire's last victim",
+                dicePool: "Intelligence + Auspex",
+                level: 2,
+                discipline: "auspex"
+            },
+            {
+                name: "Unerring Pursuit",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary: "create a bond with a target to spy on them",
+                dicePool: "Resolve + Auspex",
+                level: 2,
+                discipline: "auspex"
+            },
+
+            {
+                name: "Fatal Flaw",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "oblivion", level: 1 }],
+                summary: "determine a target's weakness",
+                dicePool: "Intelligence + Auspex",
+                level: 3,
+                discipline: "auspex"
+            },
+            {
+                name: "Scry the Soul",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "see people's auras",
+                dicePool: "Intelligence + Auspex",
+                level: 3,
+                discipline: "auspex"
+            },
+            {
+                name: "Share the Senses",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "sense through another person (eg. see through their eyes)",
+                dicePool: "Resolve + Auspex",
+                level: 3,
+                discipline: "auspex"
+            },
+            {
+                name: "Spirit's Touch",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "sense emotional residue left by those who handled an object or visited a location",
+                dicePool: "Intelligence + Auspex",
+                level: 4,
+                discipline: "auspex"
+            },
+            {
+                name: "Haruspex",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "oblivion", level: 1 }],
+                summary:
+                    "read a fresh death to prepare for one later dice pool with a potent reroll",
+                dicePool: "Resolve + Auspex",
+                level: 3,
+                discipline: "auspex"
+            },
+            {
+                name: "Heart Laid Bare",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "learn a target's strongest hidden fear or desire through conversation",
+                dicePool: "Intelligence + Auspex",
+                level: 4,
+                discipline: "auspex"
+            },
+            {
+                name: "Clairvoyance",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "gather information from a city-block sized area through mystical connection",
+                dicePool: "Intelligence + Auspex",
+                level: 5,
+                discipline: "auspex"
+            },
+            {
+                name: "Possession",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 3 }],
+                summary: "strip the will of a mortal and completely possess their body",
+                dicePool: "Resolve + Auspex",
+                level: 5,
+                discipline: "auspex"
+            },
+            {
+                name: "Unburdening the Bestial Soul",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 3 }],
+                summary:
+                    "remove another vampire's Stains or shield them from future Stains, at a cost",
+                dicePool: "Composure + Auspex",
+                level: 5,
+                discipline: "auspex"
+            },
+            {
+                name: "Telepathy",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "read minds and project thoughts into the minds of others",
+                dicePool: "Resolve + Auspex",
+                level: 5,
+                discipline: "auspex"
+            }
+        ]
+    },
+    celerity: {
+        clans: ["Toreador", "Brujah", "Banu Haqim"],
+        summary: "Move with supernatural speed",
+        logo: celerityLogo,
+        powers: [
+            {
+                name: "Cat's Grace",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "automatically pass balance tests",
+                dicePool: "",
+                level: 1,
+                discipline: "celerity"
+            },
+            {
+                name: "Rapid Reflexes",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "faster reactions & free minor actions",
+                dicePool: "",
+                level: 1,
+                discipline: "celerity"
+            },
+            {
+                name: "Fleetness",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "add Celerity rating for defense and Dexterity rolls",
+                dicePool: "",
+                level: 2,
+                discipline: "celerity"
+            },
+            {
+                name: "Rush Job",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "perform non-combat skill tasks in seconds or as minor actions",
+                dicePool: "",
+                level: 2,
+                discipline: "celerity"
+            },
+
+            {
+                name: "Blink",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "dash up to 50m at supernatural speed",
+                dicePool: "Dexterity + Athletics",
+                level: 3,
+                discipline: "celerity"
+            },
+            {
+                name: "Traversal",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "run across liquids or walls",
+                dicePool: "Dexterity + Athletics",
+                level: 3,
+                discipline: "celerity"
+            },
+            {
+                name: "Weaving",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "add Celerity rating to defense against ranged (Requires 'Rapid Reflexes')",
+                dicePool: "",
+                level: 3,
+                discipline: "celerity"
+            },
+            {
+                name: "A Thousand Cuts",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "add Celerity to a claw or edged attack that leaves victims bleeding and exposed",
+                dicePool: "",
+                level: 3,
+                discipline: "celerity"
+            },
+            {
+                name: "Blurred Momentum",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "move as a blur so weak attacks miss even when you cannot defend",
+                dicePool: "",
+                level: 4,
+                discipline: "celerity"
+            },
+            {
+                name: "Draught of Elegance",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "convey temporary Celerity power to anyone who drinks your Blood",
+                dicePool: "",
+                level: 4,
+                discipline: "celerity"
+            },
+            {
+                name: "Faster Than Light",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "use Blink to cross a brief patch of fire or sunlight without taking damage",
+                dicePool: "",
+                level: 4,
+                discipline: "celerity"
+            },
+            {
+                name: "Unerring Aim",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 2 }],
+                summary: "aim and fire any weapon at a target as if the target were stationary",
+                dicePool: "",
+                level: 4,
+                discipline: "celerity"
+            },
+            {
+                name: "Unseen Strike",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [{ discipline: "obfuscate", level: 4 }],
+                summary:
+                    "vanish, instantly close with an enemy, and potentially strike as a surprise attack",
+                dicePool: "Dexterity + Celerity",
+                level: 4,
+                discipline: "celerity"
+            },
+            {
+                name: "Lightning Strike",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "strike with fist or melee weapon at such speed that the opponent cannot defend",
+                dicePool: "",
+                level: 5,
+                discipline: "celerity"
+            },
+            {
+                name: "Split Second",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "react to events at a moment's notice, superseding the Storyteller's narration",
+                dicePool: "",
+                level: 5,
+                discipline: "celerity"
+            }
+        ]
+    },
+    dominate: {
+        clans: ["Ventrue", "Malkavian", "Tremere", "Lasombra", "Tzimisce", "Salubri"],
+        summary: "Control other's minds",
+        logo: dominateLogo,
+        powers: [
+            {
+                name: "Cloud Memory",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "make a person forget the past minute",
+                dicePool: "Charisma + Dominate",
+                level: 1,
+                discipline: "dominate"
+            },
+            {
+                name: "Compel",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "a single, short command with an immediate effect",
+                dicePool: "Charisma + Dominate",
+                level: 1,
+                discipline: "dominate"
+            },
+            {
+                name: "Mesmerize",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "allow issuing more complex commands",
+                dicePool: "Manipulation + Dominate",
+                level: 2,
+                discipline: "dominate"
+            },
+
+            {
+                name: "Domitor's Favor",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make it harder for thralls to resist you",
+                dicePool: "",
+                level: 2,
+                discipline: "dominate"
+            },
+            {
+                name: "Slavish Devotion",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "presence", level: 1 }],
+                summary:
+                    "strengthen the mind of your dominated victims against interference from other kindred",
+                dicePool: "",
+                level: 2,
+                discipline: "dominate"
+            },
+            {
+                name: "Dementation",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "obfuscate", level: 2 }],
+                summary: "trigger psychotic breaks or nervous breakdowns in others",
+                dicePool: "Manipulation + Dominate",
+                level: 2,
+                discipline: "dominate"
+            },
+            {
+                name: "The Stolen Voice",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "silence a victim so speech, writing, gestures, and other communication fail",
+                dicePool: "Composure + Dominate",
+                level: 2,
+                discipline: "dominate"
+            },
+            {
+                name: "Forgetful Mind",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "Rewrite memories",
+                dicePool: "Manipulation + Dominate",
+                level: 3,
+                discipline: "dominate"
+            },
+            {
+                name: "Implant Suggestion",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "presence", level: 1 }],
+                summary: "temporarily alter a target's desires, opinions, or intentions",
+                dicePool: "Manipulation + Dominate",
+                level: 3,
+                discipline: "dominate"
+            },
+            {
+                name: "Submerged Directive",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "When using Mesmerize you can give a command that stays dormant until triggered (requires Mesmerize)",
+                dicePool: "",
+                level: 3,
+                discipline: "dominate"
+            },
+            {
+                name: "Rationalize",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "victims believe anything they do under Dominate was their own free will",
+                dicePool: "",
+                level: 4,
+                discipline: "dominate"
+            },
+            {
+                name: "Ancestral Dominion",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "blood sorcery", level: 3 }],
+                summary:
+                    "command a descendant through the Blood, even without eye contact or spoken orders",
+                dicePool: "Manipulation + Dominate",
+                level: 4,
+                discipline: "dominate"
+            },
+            {
+                name: "Tabula Rasa",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "erase a restrained victim's memories and identity while leaving skills and powers",
+                dicePool: "Resolve + Dominate",
+                level: 4,
+                discipline: "dominate"
+            },
+            {
+                name: "Mass Manipulation",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "amplify any Dominate power to affect a group of people at once",
+                dicePool: "",
+                level: 5,
+                discipline: "dominate"
+            },
+            {
+                name: "Terminal Decree",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "issue commands that directly lead to the harm or death of the victim",
+                dicePool: "",
+                level: 5,
+                discipline: "dominate"
+            }
+        ]
+    },
+    fortitude: {
+        clans: ["Ventrue", "Gangrel", "Hecata", "Salubri"],
+        summary: "Resist damage and influence",
+        logo: fortitudeLogo,
+        powers: [
+            {
+                name: "Resilience",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "add Fortitude rating to health track",
+                dicePool: "",
+                level: 1,
+                discipline: "fortitude"
+            },
+            {
+                name: "Unswayable Mind",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "add extra defense against mind-swaying",
+                dicePool: "",
+                level: 1,
+                discipline: "fortitude"
+            },
+            {
+                name: "Toughness",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "reduce Superficial physical damage sustained",
+                dicePool: "",
+                level: 2,
+                discipline: "fortitude"
+            },
+            {
+                name: "Self-Assurance",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "absorb superficial Willpower damage during social conflict before it reaches you",
+                dicePool: "",
+                level: 2,
+                discipline: "fortitude"
+            },
+            {
+                name: "Earth's Perseverance",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "root yourself in place so only you can choose to move",
+                dicePool: "",
+                level: 2,
+                discipline: "fortitude"
+            },
+            {
+                name: "Invigorating Vitae",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 1 }],
+                summary: "your vitae heals living beings more effectively than normal",
+                dicePool: "",
+                level: 2,
+                discipline: "fortitude"
+            },
+            {
+                name: "Valeren",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 1 }],
+                summary: "use your blood to heal other vampires",
+                dicePool: "Intelligence + Fortitude",
+                level: 2,
+                discipline: "fortitude"
+            },
+            {
+                name: "Enduring Beasts",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "animalism", level: 1 }],
+                summary: "share a portion of your unnatural toughness with animals you influence",
+                dicePool: "Stamina + Animalism",
+                level: 2,
+                discipline: "fortitude"
+            },
+            // { name: "Obdurate", description: "", rouseChecks: 0, amalgamPrerequisites: [{ discipline: "potence", level: 2 }], summary: "maintain steady footing even when struck by massive force", dicePool: "", level: 2, discipline: "fortitude" },
+
+            {
+                name: "Defy Bane",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "turn aggravated damage to superficial",
+                dicePool: "",
+                level: 3,
+                discipline: "fortitude"
+            },
+            {
+                name: "Fortify the Inner Facade",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "resist auspex and similar powers",
+                dicePool: "",
+                level: 3,
+                discipline: "fortitude"
+            },
+            {
+                name: "Seal the Beast's Maw",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary: "ignore hunger for one scene",
+                dicePool: "",
+                level: 3,
+                discipline: "fortitude"
+            },
+            {
+                name: "Calloused Soul",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "commit a planned atrocity to numb your conscience against further Stains that night",
+                dicePool: "",
+                level: 3,
+                discipline: "fortitude"
+            },
+            {
+                name: "Draught of Endurance",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "convey temporary Fortitude power to anyone who drinks your Blood",
+                dicePool: "",
+                level: 4,
+                discipline: "fortitude"
+            },
+            {
+                name: "Gorgon's Scales",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "use your last-fed resonance for a specific defense against banes or powers",
+                dicePool: "",
+                level: 4,
+                discipline: "fortitude"
+            },
+            {
+                name: "Shatter",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "while Toughness is active, reflect some absorbed damage back into attackers or weapons",
+                dicePool: "Stamina + Fortitude",
+                level: 4,
+                discipline: "fortitude"
+            },
+            {
+                name: "Flesh of Marble",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "harden your skin to marble-like sheen, ignoring the first source of physical damage each turn",
+                dicePool: "",
+                level: 5,
+                discipline: "fortitude"
+            },
+            {
+                name: "Prowess from Pain",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "you no longer suffer dice penalties from health damage. Activate to increase a physical stat by 1 for each damaged health",
+                dicePool: "",
+                level: 5,
+                discipline: "fortitude"
+            },
+            {
+                name: "Meat Shields",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "draw strength from weak or injured mortals nearby, temporarily raising Fortitude",
+                dicePool: "",
+                level: 5,
+                discipline: "fortitude"
+            }
+        ]
+    },
+    obfuscate: {
+        clans: ["Nosferatu", "Malkavian", "Banu Haqim", "Ministry", "Ravnos"],
+        summary: "Remain undetected",
+        logo: obfuscateLogo,
+        powers: [
+            {
+                name: "Cloak of Shadows",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "blend into surroundings while motionless",
+                dicePool: "Wits + Obfuscate / Stealth",
+                level: 1,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Mask of Ages",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make yourself appear significantly older or younger until dawn",
+                dicePool: "",
+                level: 1,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Silence of Death",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "mute all sounds you make",
+                dicePool: "",
+                level: 1,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Unseen Passage",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "move while remaining hidden",
+                dicePool: "Wits + Obfuscate / Stealth",
+                level: 2,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Chimerstry",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "presence", level: 1 }],
+                summary: "create brief sensory hallucinations",
+                dicePool: "Manipulation + Obfuscate",
+                level: 2,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Ghost's Passing",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "animalism", level: 1 }],
+                summary: "extend your obfuscate powers to animals under your influence",
+                dicePool: "Wits + Obfuscate",
+                level: 2,
+                discipline: "obfuscate"
+            },
+            // { name: "Ventriloquism", description: "", rouseChecks: 0, amalgamPrerequisites: [{ discipline: "auspex", level: 2 }], summary: "choose who can and cannot hear you when speaking", dicePool: "", level: 2, discipline: "obfuscate" },
+
+            {
+                name: "Fata Morgana",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "presence", level: 2 }],
+                summary:
+                    "create an elaborate multi-sense hallucination that affects everyone who perceives it",
+                dicePool: "Manipulation + Obfuscate",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Ghost in the Machine",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "Obfuscate affects technology (eg. hide yourself from recordings)",
+                dicePool: "",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Mask of a Thousand Faces",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make yourself appear as a non-descript stranger to others",
+                dicePool: "",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Guise of the Departed",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "oblivion", level: 1 }],
+                summary:
+                    "touch a recent corpse to copy their appearance, bearing, and mannerisms until dawn",
+                dicePool: "Wits + Obfuscate",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Mental Maze",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary: "prevent someone from perceiving any exits or means of escape",
+                dicePool: "Charisma + Obfuscate",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Mask of Isolation",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary: "make a victim appear unrecognizable even to those who know them well",
+                dicePool: "Manipulation + Obfuscate",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Mind Masque",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 2 }],
+                summary:
+                    "hide your real mind behind a crafted false persona against supernatural reading",
+                dicePool: "Intelligence + Obfuscate",
+                level: 3,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Conceal",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 3 }],
+                summary: "cloak an inanimate object such as a door, car, or small house",
+                dicePool: "Intelligence + Obfuscate",
+                level: 4,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Seclusion",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary:
+                    "blind a victim to all people nearby, leaving them isolated and disoriented",
+                dicePool: "Manipulation + Obfuscate",
+                level: 4,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Vanish",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "activate Cloak of Shadows and Unseen Passage even while under direct observation",
+                dicePool: "Wits + Obfuscate",
+                level: 4,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Cloak the Gathering",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "shelter your companions under the cloak of Obfuscate",
+                dicePool: "",
+                level: 5,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Impostor's Guise",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make yourself appear as a specific individual of any build and gender",
+                dicePool: "Wits + Obfuscate",
+                level: 5,
+                discipline: "obfuscate"
+            }
+        ]
+    },
+    potence: {
+        clans: ["Nosferatu", "Brujah", "Lasombra"],
+        summary: "Gain supernatural strength",
+        logo: potenceLogo,
+        powers: [
+            {
+                name: "Lethal Body",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "cause serious physical damage to a mortals",
+                dicePool: "",
+                level: 1,
+                discipline: "potence"
+            },
+            {
+                name: "Soaring Leap",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "jump over long distance",
+                dicePool: "",
+                level: 1,
+                discipline: "potence"
+            },
+            {
+                name: "Prowess",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "add Potence rating to strength checks",
+                dicePool: "",
+                level: 2,
+                discipline: "potence"
+            },
+            {
+                name: "Relentless Grasp",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "add Potence as automatic successes when holding on or maintaining a grapple",
+                dicePool: "",
+                level: 2,
+                discipline: "potence"
+            },
+            {
+                name: "Brutal Feed",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "drain a person in seconds",
+                dicePool: "",
+                level: 3,
+                discipline: "potence"
+            },
+            {
+                name: "Uncanny Grip",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "grip and hold onto any surface, including walls and ceilings",
+                dicePool: "",
+                level: 3,
+                discipline: "potence"
+            },
+            {
+                name: "Wrecker",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "add double Potence rating to strength when destroying objects (requires 'Prowess')",
+                dicePool: "",
+                level: 3,
+                discipline: "potence"
+            },
+            {
+                name: "Exuberance",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "push Potence beyond its rating at the risk of aggravated self-inflicted strain",
+                dicePool: "",
+                level: 3,
+                discipline: "potence"
+            },
+            {
+                name: "Spark of Rage",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "presence", level: 3 }],
+                summary:
+                    "add Potence to any roll to incite violence; force Vampires to make frenzy tests",
+                dicePool: "Manipulation + Potence",
+                level: 3,
+                discipline: "potence"
+            },
+            {
+                name: "Draught of Might",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "temporarily convey half your Potence power to anyone who drinks your Blood",
+                dicePool: "",
+                level: 4,
+                discipline: "potence"
+            },
+            {
+                name: "Crash Down",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "land from Soaring Leap with a damaging area impact",
+                dicePool: "Strength + Potence",
+                level: 4,
+                discipline: "potence"
+            },
+            {
+                name: "Earthshock",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "slam fist or foot into the ground, creating a shockwave that throws opponents prone",
+                dicePool: "",
+                level: 5,
+                discipline: "potence"
+            },
+            {
+                name: "Subtle Hammer",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "channel full-body strength through small movements as minor actions",
+                dicePool: "",
+                level: 5,
+                discipline: "potence"
+            },
+            {
+                name: "Fist of Caine",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "bare hands can inflict grievous injuries, aggravated damage to both mortals and vampires",
+                dicePool: "",
+                level: 5,
+                discipline: "potence"
+            }
+        ]
+    },
+    presence: {
+        clans: ["Toreador", "Brujah", "Ventrue", "Ministry", "Ravnos"],
+        summary: "Supernatural appearance and vibe",
+        logo: presenceLogo,
+        powers: [
+            {
+                name: "Awe",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "become attractive and charismatic; add Presence rating to Persuasion and Performance checks",
+                dicePool: "",
+                level: 1,
+                discipline: "presence"
+            },
+            {
+                name: "Daunt",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "push people away and intimidate; add Presence rating to Intimidation checks",
+                dicePool: "",
+                level: 1,
+                discipline: "presence"
+            },
+            {
+                name: "Eyes of the Serpent",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "protean", level: 1 }],
+                summary: "Immobilize someone with eye contact",
+                dicePool: "Charisma + Presence",
+                level: 1,
+                discipline: "presence"
+            },
+            {
+                name: "Lingering Kiss",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "make mortals you feed from love you",
+                dicePool: "",
+                level: 2,
+                discipline: "presence"
+            },
+            {
+                name: "Melpominee",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "use Presence powers against targets that can't see, but only hear you.",
+                dicePool: "",
+                level: 2,
+                discipline: "presence"
+            },
+            {
+                name: "Dread Gaze",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "terrify an individual, causing them to submit, freeze, flee or terror-frenzy",
+                dicePool: "Charisma + Presence",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "Entrancement",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "cause infatuation, making a target do almost anything to remain in your good graces",
+                dicePool: "Charisma + Presence",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "Invigorating Display",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "draw a crowd's heightened resonance into yourself after a successful performance",
+                dicePool: "Composure + Presence",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "Passion Leech",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 2 }],
+                summary:
+                    "drain a mortal's powerful emotion to briefly feel more human while emptying them",
+                dicePool: "Composure + Auspex",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "True Love's Face",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "obfuscate", level: 3 }],
+                summary:
+                    "appear to a victim as someone they feel strongly about, helping manipulate emotions and resonance",
+                dicePool: "Manipulation + Presence",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "Thrown Voice",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 1 }],
+                summary: "project your voice to anywhere you can see",
+                dicePool: "",
+                level: 3,
+                discipline: "presence"
+            },
+            {
+                name: "Irresistible Voice",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 1 }],
+                summary: "use your voice alone to employ Dominate powers",
+                dicePool: "",
+                level: 4,
+                discipline: "presence"
+            },
+            {
+                name: "Suffuse the Edifice",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "imbue a building with a Presence power that affects those inside",
+                dicePool: "",
+                level: 4,
+                discipline: "presence"
+            },
+            {
+                name: "Inflame Desire",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "obfuscate", level: 1 }],
+                summary: "magnify a touched target's current desire into a scene-long obsession",
+                dicePool: "Manipulation + Presence",
+                level: 4,
+                discipline: "presence"
+            },
+            {
+                name: "Summon",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "call to yourself any person upon whom you've previously used Awe, Entrancement, or Majesty",
+                dicePool: "Manipulation + Presence",
+                level: 4,
+                discipline: "presence"
+            },
+            {
+                name: "Majesty",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "amplify your countenance to supernatural levels, making everyone unable to act against you",
+                dicePool: "Charisma + Presence",
+                level: 5,
+                discipline: "presence"
+            },
+            {
+                name: "Star Magnetism",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "Presence powers affect people viewing you on live feeds or hearing you over the phone",
+                dicePool: "",
+                level: 5,
+                discipline: "presence"
+            }
+        ]
+    },
+    protean: {
+        clans: ["Gangrel", "Ministry", "Tzimisce"],
+        summary: "Shape your body to gain power",
+        logo: proteanLogo,
+        powers: [
+            {
+                name: "Eyes of the Beast",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "your eyes start glowing and you can see in total darkness",
+                dicePool: "",
+                level: 1,
+                discipline: "protean"
+            },
+            {
+                name: "Squirm",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "dislocate and soften your body to escape restraints or squeeze through gaps",
+                dicePool: "",
+                level: 1,
+                discipline: "protean"
+            },
+            {
+                name: "Weight of the Feather",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "become weightless",
+                dicePool: "",
+                level: 1,
+                discipline: "protean"
+            },
+            {
+                name: "Feral Weapons",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "grow deadly claws",
+                dicePool: "",
+                level: 2,
+                discipline: "protean"
+            },
+            {
+                name: "Vicissitude",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 2 }],
+                summary: "reshape your own skin, muscles and bone at will",
+                dicePool: "Resolve + Protean",
+                level: 2,
+                discipline: "protean"
+            },
+
+            {
+                name: "Earth Meld",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "meld into the soil",
+                dicePool: "",
+                level: 3,
+                discipline: "protean"
+            },
+            {
+                name: "Shapechange",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "turn into a human-sized animal",
+                dicePool: "",
+                level: 3,
+                discipline: "protean"
+            },
+            {
+                name: "Fleshcrafting",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 2 }],
+                summary: "reshape another creature's flesh through Vicissitude",
+                dicePool: "Resolve + Protean",
+                level: 3,
+                discipline: "protean"
+            },
+            {
+                name: "Masque of Death",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "oblivion", level: 2 }],
+                summary: "assume the appearance of a corpse, able to endure harm while lying still",
+                dicePool: "",
+                level: 3,
+                discipline: "protean"
+            },
+            {
+                name: "Metamorphosis",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "grant an additional animal form, enabling you to change your size",
+                dicePool: "",
+                level: 4,
+                discipline: "protean"
+            },
+            {
+                name: "Horrid Form",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "dominate", level: 2 }],
+                summary:
+                    "twist your body into a monstrous battle form with enhanced physical power",
+                dicePool: "",
+                level: 4,
+                discipline: "protean"
+            },
+            {
+                name: "Mist Form",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "turn into a cloud of mist, perceivable but untouchable by anything save fire and sunlight",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "One With the Land",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "sense through the land around you while merged with earth",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "The Heart of Darkness",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "fortitude", level: 2 }],
+                summary:
+                    "remove and hide your heart, making staking much harder while dulling remorse",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "The Unfettered Heart",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "your heart detaches and moves freely within your chest, making you exceedingly hard to stake",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "Face of the Victim",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "take on the physical appearance and voice of the last person you fed from",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "Swarm",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "dissolve into a swarm of small creatures that can attack several targets at once",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            }
+        ]
+    },
+    "blood sorcery": {
+        clans: ["Tremere", "Banu Haqim"],
+        summary: "Use blood-related magic and rituals",
+        logo: bloodSorceryLogo,
+        powers: [
+            {
+                name: "Corrosive Vitae",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make your blood corrosive to dead substances",
+                dicePool: "",
+                level: 1,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "A Taste for Blood",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "Discern traits about someone by tasting a drop of their blood",
+                dicePool: "Resolve + Blood Sorcery",
+                level: 1,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Shape of the Sanguine Sacrament",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "manipulate blood to show simple messages or shapes",
+                dicePool: "Manipulation + Blood Sorcery",
+                level: 1,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Extinguish Vitae",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "increase another vampire's hunger",
+                dicePool: "Resolve + Blood Sorcery",
+                level: 2,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Scour Secrets",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "locate particular information in text",
+                dicePool: "Intelligence + Blood Sorcery",
+                level: 2,
+                discipline: "blood sorcery"
+            },
+
+            {
+                name: "Blood of Potency",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "temporarily increase your Blood Potency",
+                dicePool: "Resolve + Blood Sorcery",
+                level: 3,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Scorpion's Touch",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "turn your blood into paralyzing poison",
+                dicePool: "Strength + Blood Sorcery",
+                level: 3,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Transitive Bond",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "your blood can retain Blood Bonding properties even when stored in an object or a ghoul",
+                dicePool: "Intelligence + Blood Sorcery",
+                level: 3,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Theft of Vitae",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "open a wound in a major artery of a mortal victim, blood shooting out toward your open mouth",
+                dicePool: "Wits + Blood Sorcery",
+                level: 4,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Blood Aegis",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "form your vitae into a floating barrier that absorbs ranged damage",
+                dicePool: "",
+                level: 4,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Fulminating Vitae",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary: "charge a vial of your Blood to burst into cutting shrapnel when broken",
+                dicePool: "Stamina + Blood Sorcery",
+                level: 4,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Marionette",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "puppet spilled blood or a living victim's blood into violent physical action",
+                dicePool: "Manipulation + Blood Sorcery",
+                level: 4,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Baal's Caress",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "transmute your Blood into an extremely aggressive poison, lethal to mortal and Kindred alike",
+                dicePool: "Strength + Blood Sorcery",
+                level: 5,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Cauldron of Blood",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "boil the blood of a victim in their own veins, doing aggravated damage per margin over their Composure + Occult roll",
+                dicePool: "Resolve + Blood Sorcery",
+                level: 5,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Reclamation of Vitae",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "call back vitae from your ghouls at any distance, sating Hunger while harming them",
+                dicePool: "",
+                level: 5,
+                discipline: "blood sorcery"
+            }
+        ]
+    },
+    oblivion: {
+        clans: ["Lasombra", "Hecata"],
+        summary: "Shadow powers and necromancy",
+        logo: oblivionLogo,
+        powers: [
+            {
+                name: "Shadow Cloak",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "manipulate shadows for stealth or intimidation",
+                dicePool: "",
+                level: 1,
+                discipline: "oblivion"
+            },
+            {
+                name: "Oblivion's Sight",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "see in darkness and see ghosts",
+                dicePool: "",
+                level: 1,
+                discipline: "oblivion"
+            },
+            {
+                name: "Ashes to Ashes",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "use your vitae to disintegrate non-vampire corpses",
+                dicePool: "Stamina + Oblivion",
+                level: 1,
+                discipline: "oblivion"
+            },
+            {
+                name: "The Binding Fetter",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "identify objects and locations that are connected to ghosts",
+                dicePool: "",
+                level: 1,
+                discipline: "oblivion"
+            },
+            {
+                name: "Shadow Cast",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "summon a supernatural shadow you control",
+                dicePool: "",
+                level: 2,
+                discipline: "oblivion"
+            },
+            {
+                name: "Where the Shroud Thins",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "find places where ghosts can cross between worlds",
+                dicePool: "Intelligence + Oblivion",
+                level: 2,
+                discipline: "oblivion"
+            },
+            {
+                name: "Arms of Ahriman",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "potence", level: 2 }],
+                summary:
+                    "conjures shadow appendages that the user can control but the user is unable to do anything else",
+                dicePool: "Wits + Oblivion",
+                level: 2,
+                discipline: "oblivion"
+            },
+            {
+                name: "Fatal Prediction",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "auspex", level: 2 }],
+                summary: "foresee a mortal's likely death and exploit the omen",
+                dicePool: "Resolve + Oblivion",
+                level: 2,
+                discipline: "oblivion"
+            },
+            {
+                name: "Aura of Decay",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "decay everything around",
+                dicePool: "Stamina + Oblivion",
+                level: 3,
+                discipline: "oblivion"
+            },
+            {
+                name: "Shadow Perspective",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "project senses through shadows",
+                dicePool: "",
+                level: 3,
+                discipline: "oblivion"
+            },
+            {
+                name: "Shadow Servant",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "detach and animate your shadow as an independent servant",
+                dicePool: "",
+                level: 3,
+                discipline: "oblivion"
+            },
+            {
+                name: "Touch of Oblivion",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "decay a living or unliving body",
+                dicePool: "",
+                level: 3,
+                discipline: "oblivion"
+            },
+            {
+                name: "Passion Feast",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [{ discipline: "fortitude", level: 2 }],
+                summary:
+                    "feed on a wraith's driving passions, briefly reducing Hunger while damaging the spirit's will",
+                dicePool: "Resolve + Oblivion",
+                level: 3,
+                discipline: "oblivion"
+            },
+            {
+                name: "Necrotic Plague",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "infect a mortal by touch with a supernatural wasting disease that may become contagious",
+                dicePool: "Intelligence + Oblivion",
+                level: 4,
+                discipline: "oblivion"
+            },
+            {
+                name: "Stygian Shroud",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "spread suffocating supernatural darkness over a nearby area",
+                dicePool: "",
+                level: 4,
+                discipline: "oblivion"
+            },
+            {
+                name: "Profane the Sanctified",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "rot holy symbols or briefly smother a true believer's sacred protection",
+                dicePool: "Resolve + Oblivion",
+                level: 4,
+                discipline: "oblivion"
+            },
+            {
+                name: "Skuld Fulfilled",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "force old injuries, illnesses, or age back onto a victim who had escaped them",
+                dicePool: "Stamina + Oblivion",
+                level: 5,
+                discipline: "oblivion"
+            },
+            {
+                name: "Shadow Step",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "step into one shadow and emerge from another shadow in sight",
+                dicePool: "",
+                level: 5,
+                discipline: "oblivion"
+            },
+            {
+                name: "Tenebrous Avatar",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary: "become a two-dimensional shadow harmed only by fire and sunlight",
+                dicePool: "",
+                level: 5,
+                discipline: "oblivion"
+            },
+            {
+                name: "Withering Spirit",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "channel entropy into a victim's spirit, causing aggravated Willpower damage and risking their soul's destruction",
+                dicePool: "Resolve + Oblivion",
+                level: 5,
+                discipline: "oblivion"
+            },
+            {
+                name: "The Darkness Within",
+                description: "",
+                rouseChecks: 2,
+                amalgamPrerequisites: [],
+                summary:
+                    "draw out a victim's violent shadow-self as a hostile double bent on destroying them",
+                dicePool: "Manipulation + Oblivion",
+                level: 5,
+                discipline: "oblivion"
+            }
+        ]
+    },
+    "thin-blood alchemy": {
+        clans: [],
+        summary: "Craft potions and tinctures from blood and other ingredients",
+        logo: alchemyLogo,
+        powers: [
+            {
+                name: "Far Reach",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "use your mind to grab, hold, and push objects or people without touching them",
+                dicePool: "Resolve + Alchemy",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Haze",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "create a field of mist that follows you, rendering you more difficult to target with ranged weapons",
+                dicePool: "",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Mercurian Tongue",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "speak the native language of the mortal whose blood fueled the formula",
+                dicePool: "",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Plug-In",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "generate a low electrical current to power small devices by touch",
+                dicePool: "Resolve + Alchemy",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Profane Hieros Gamos",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "change your gender permanently through alchemical transformation",
+                dicePool: "",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Portable Shade",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "brew sun protection that delays daylight damage for several hours",
+                dicePool: "Stamina + Alchemy",
+                level: 1,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Envelop",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "create a mist that clings to a victim, blinding them and causing suffocation in mortals",
+                dicePool: "Wits + Alchemy",
+                level: 2,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Friends List",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "see silver threads connecting mortals to Kindred they are tied to",
+                dicePool: "Intelligence + Alchemy",
+                level: 2,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Defractionate",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "create an elixir that returns fractionated medical-supply blood to freshness",
+                dicePool: "",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Concoct Ashe",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "distill a destroyed vampire's ashes into Ashe, a dangerous drug that carries a trace of vampiric power",
+                dicePool: "Intelligence + Thin-Blood Alchemy",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Mandagloire",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "emit noxious gas that paralyzes mortals and cramps supernatural creatures",
+                dicePool: "Stamina + Alchemy",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Rumor",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "make a target believe they freely agreed with a statement",
+                dicePool: "Manipulation + Alchemy",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Tank",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "reduce the first damage you take in a scene",
+                dicePool: "",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Chemically-Induced Flashback",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "modify Ashe with a vampire's possession to relive one of the destroyed vampire's memories",
+                dicePool: "",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "On-Demand Sunburn",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "store a single charge of sunlight in your body to burn yourself and a target",
+                dicePool: "",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Bleed Out",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "turn a mortal victim's blood into a gruesome shared meal for a duskborn coterie",
+                dicePool: "",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Saraimu",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "create a short-lived sentient slime familiar from three vampires' vitae",
+                dicePool: "Resolve + Alchemy",
+                level: 3,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Airborne Momentum",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "lift yourself from the ground, achieving a state of swift flight or floating",
+                dicePool: "Strength + Alchemy",
+                level: 4,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Short Circuit",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "silently overload electronics or electrical systems by touch",
+                dicePool: "",
+                level: 4,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Toxic Personality",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "secrete caustic bile that corrodes materials and enhances touch attacks",
+                dicePool: "Strength or Dexterity + Alchemy",
+                level: 4,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Discipline Channeling",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "modify Ashe to temporarily channel one or two Discipline powers from the destroyed vampire",
+                dicePool: "",
+                level: 4,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Flowering Amaranth",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "share diablerie among thin-bloods to gain a first dot of a victim's clan Discipline",
+                dicePool: "Resolve + Alchemy",
+                level: 5,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Moment of Clarity",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "temporarily sharpen mental focus, resist mental Disciplines, and avoid bestial interference",
+                dicePool: "",
+                level: 5,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Awaken the Sleeper",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary:
+                    "create an elixir which, when added to human blood, can awaken a vampire from Torpor",
+                dicePool: "",
+                level: 5,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Da Bomb",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary:
+                    "turn a mortal vessel into a delayed explosive burst of gore and aggravated damage",
+                dicePool: "",
+                level: 5,
+                discipline: "thin-blood alchemy"
+            }
+        ]
+    },
+    "": {
+        clans: [],
+        summary: "",
+        logo: "",
+        powers: []
+    }
+}
+
+export const powerIsRitual = (p: Power | Ritual): p is Ritual => {
+    return (p as Ritual)["ingredients"] !== undefined
+}
+
+export const getAvailableDisciplines = (
+    character: Character
+): Record<DisciplineName, Discipline> => {
+    const availableDisciplines: Record<string, Discipline> = {}
+    for (const n of character.availableDisciplineNames) {
+        if (disciplines[n]) {
+            availableDisciplines[n] = disciplines[n]
+        } else if (character.customDisciplines?.[n]) {
+            const customDiscipline = character.customDisciplines[n]
+            availableDisciplines[n] = {
+                clans: [],
+                summary: customDiscipline.summary,
+                powers: character.disciplines.filter((p) => p.discipline === n && p.isCustom),
+                logo: sanitizeCustomDisciplineLogoUrl(customDiscipline.logo),
+                isCustom: true
+            }
+        }
+    }
+
+    return availableDisciplines
+}

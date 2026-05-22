@@ -16,11 +16,18 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(table, col):
+    conn = op.get_bind()
+    rows = conn.execute(sa.text(f'PRAGMA table_info("{table}")')).fetchall()
+    return any(row[1] == col for row in rows)
+
+
 def upgrade():
-    op.add_column(
-        'wiki_pages',
-        sa.Column('summary', sa.String(300), nullable=True, server_default=''),
-    )
+    if not _column_exists('wiki_pages', 'summary'):
+        op.add_column(
+            'wiki_pages',
+            sa.Column('summary', sa.String(300), nullable=True, server_default=''),
+        )
 
 
 def downgrade():

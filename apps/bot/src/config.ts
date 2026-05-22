@@ -151,6 +151,8 @@ const envSchema = z.object({
   DISCORD_GUILD_ID: z.string().optional(),
   APPROVE_PLAYER_SHEETS_CHANNEL_ID: z.string().optional(),
   APPROVE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
+  CC_CREATION_RULES_URL: z.string().url().optional(),
+  CC_TICKET_CATEGORY_IDS: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
@@ -349,6 +351,8 @@ export const config = {
   discordGuildId: env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
   approvePlayerSheetsChannelId: env.APPROVE_PLAYER_SHEETS_CHANNEL_ID ?? '',
   approveSheetInProgressRoleId: env.APPROVE_SHEET_IN_PROGRESS_ROLE_ID ?? '',
+  ccCreationRulesUrl: env.CC_CREATION_RULES_URL,
+  ccTicketCategoryIds: parseCsvIds(env.CC_TICKET_CATEGORY_IDS),
 };
 
 if (config.testRequesterDiscordId) {
