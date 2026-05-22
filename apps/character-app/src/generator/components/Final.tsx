@@ -17,6 +17,8 @@ type FinalProps = {
     onReset?: () => void
 }
 
+const NOTES_PLACEHOLDER = "Optional: anything the Storytellers should know about your character concept, background, or choices."
+
 const FONT_DISPLAY = "Cinzel, Georgia, serif"
 const FONT_BODY = "Crimson Text, Georgia, serif"
 const FONT_UI = "Inter, Segoe UI, sans-serif"
@@ -230,6 +232,62 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                         Your character is saved automatically as you work. You can close the tab
                         and return anytime to continue editing.
                     </p>
+                </div>
+
+                {/* Submission notes */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <label
+                        htmlFor="submission-notes"
+                        style={{
+                            fontFamily: FONT_DISPLAY,
+                            fontSize: "0.85rem",
+                            letterSpacing: "0.06em",
+                            color: C_GOLD,
+                        }}
+                    >
+                        Notes to Storytellers
+                        <span
+                            style={{
+                                fontFamily: FONT_UI,
+                                fontSize: 11,
+                                color: C_MUTED,
+                                marginLeft: 8,
+                                letterSpacing: 0,
+                                textTransform: "none",
+                            }}
+                        >
+                            (optional)
+                        </span>
+                    </label>
+                    <textarea
+                        id="submission-notes"
+                        value={character.submission_notes ?? ""}
+                        onChange={(e) =>
+                            setCharacter({ ...character, submission_notes: e.target.value })
+                        }
+                        placeholder={NOTES_PLACEHOLDER}
+                        rows={4}
+                        style={{
+                            width: "100%",
+                            boxSizing: "border-box",
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            border: `1px solid ${rgba(RAW_GOLD, 0.2)}`,
+                            background: "rgba(26, 20, 24, 0.7)",
+                            color: C_FG,
+                            fontFamily: FONT_BODY,
+                            fontSize: "0.92rem",
+                            lineHeight: 1.5,
+                            resize: "vertical",
+                            outline: "none",
+                        }}
+                        onFocus={(e) => {
+                            e.currentTarget.style.borderColor = rgba(RAW_GOLD, 0.45)
+                        }}
+                        onBlur={(e) => {
+                            e.currentTarget.style.borderColor = rgba(RAW_GOLD, 0.2)
+                        }}
+                    />
                 </div>
 
                 {/* Submit section */}

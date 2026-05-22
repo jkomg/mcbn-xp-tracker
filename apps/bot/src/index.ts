@@ -43,6 +43,7 @@ import {
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
+import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
 import {
   startHuntConsequenceMonitor,
   isHuntConsequenceButton,
@@ -118,6 +119,12 @@ void applyStartupConfigOverrides().then(() => {
     channelId: config.submissionNotifierChannelId,
     intervalMs: liveConfig.submissionNotifierIntervalMs ?? config.submissionNotifierIntervalMs,
     lookbackSeconds: config.submissionNotifierLookbackSeconds,
+  });
+
+  const characterSubmissionNotifier = new CharacterSubmissionNotifier(client, adapter, {
+    enabled: config.ccSubmissionNotifierEnabled,
+    intervalMs: config.ccSubmissionNotifierIntervalMs,
+    lookbackSeconds: config.ccSubmissionNotifierLookbackSeconds,
   });
 
   const claimReminderService = new ClaimReminderService(client, adapter, {
@@ -237,6 +244,7 @@ void applyStartupConfigOverrides().then(() => {
     passageOfTimeService.start();
     sheetsReconcileService.start();
     wikiSyncScheduler.start();
+    characterSubmissionNotifier.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,

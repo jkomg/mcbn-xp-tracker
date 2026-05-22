@@ -87,6 +87,7 @@ export const characterSchema = z.object({
   age_category: z.enum(["", "mortal", "fledgling", "ghoul", "neonate", "ancilla"]).optional().default(""),
   cc_xp_budget: z.number().optional().default(0),
   inherited_xp: z.number().optional().default(0),
+  submission_notes: z.string().optional().default(""),
 
   ephemeral: z.object({
     hunger: z.number().min(0).int(),
@@ -188,6 +189,7 @@ export const getEmptyCharacter = (): Character => {
     age_category: "",
     cc_xp_budget: 0,
     inherited_xp: 0,
+    submission_notes: "",
 
     ephemeral: {
       hunger: 0,
@@ -232,6 +234,7 @@ export const applyCharacterCompatibilityPatches = (
   if (!parsed["age_category"]) parsed["age_category"] = "";
   if (parsed["cc_xp_budget"] === undefined) parsed["cc_xp_budget"] = 0;
   if (parsed["inherited_xp"] === undefined) parsed["inherited_xp"] = 0;
+  if (parsed["submission_notes"] === undefined) parsed["submission_notes"] = "";
   if (!parsed["id"]) parsed["id"] = "";
   if (!parsed["player"]) parsed["player"] = "";
   if (!parsed["chronicle"]) parsed["chronicle"] = "";
