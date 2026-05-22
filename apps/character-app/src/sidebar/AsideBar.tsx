@@ -1,4 +1,4 @@
-import { Box, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core"
+import { Box, Divider, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core"
 import { IconCheck } from "@tabler/icons-react"
 import { Character } from "../data/Character"
 import {
@@ -8,6 +8,60 @@ import {
 } from "../generator/steps"
 import { isDefault } from "../generator/utils"
 import { globals } from "../globals"
+import { RAW_RED, rgba } from "../theme/colors"
+
+/** XP spent during character creation (disciplines purchased above free picks, loresheets, etc.)
+ *  Returns 0 until spending steps (loresheets, etc.) are wired in. */
+function computeCcXpSpent(_character: Character): number {
+    return 0
+}
+
+const XP_ONLY_CATEGORIES = new Set(["neonate", "ancilla"])
+
+function XpRow({
+    label,
+    value,
+    bold,
+    dim,
+    warn,
+}: {
+    label: string
+    value: number
+    bold?: boolean
+    dim?: boolean
+    warn?: boolean
+}) {
+    const color = warn
+        ? rgba(RAW_RED, 0.9)
+        : dim
+          ? "rgba(180, 170, 165, 0.35)"
+          : "rgba(220, 210, 205, 0.75)"
+    const displayValue = value > 0 ? `+${value}` : value === 0 ? "0" : String(value)
+    return (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <Text
+                size="xs"
+                style={{
+                    fontFamily: "Inter, Segoe UI, sans-serif",
+                    color,
+                    fontWeight: bold ? 600 : 400,
+                }}
+            >
+                {label}
+            </Text>
+            <Text
+                size="xs"
+                style={{
+                    fontFamily: "Cinzel, Georgia, serif",
+                    color,
+                    fontWeight: bold ? 700 : 500,
+                }}
+            >
+                {displayValue} XP
+            </Text>
+        </div>
+    )
+}
 
 export type AsideBarProps = {
     selectedStep: GeneratorStepId
@@ -169,6 +223,11 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
         )
     }
 
+    const showXpBudget = XP_ONLY_CATEGORIES.has(character.age_category ?? "")
+    const xpBudget = character.cc_xp_budget ?? 0
+    const xpSpent = computeCcXpSpent(character)
+    const xpRemaining = xpBudget - xpSpent
+
     const height = globals.viewportHeightPx
     const scrollerHeight = 940
     return (
@@ -180,6 +239,46 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
                     <>{getStagesList()}</>
                 )}
             </div>
+
+            {showXpBudget && (
+                <>
+                    <Divider color="rgba(125, 91, 72, 0.25)" />
+                    <div
+                        style={{
+                            borderRadius: 8,
+                            border: `1px solid ${rgba(RAW_RED, 0.2)}`,
+                            background: "rgba(26, 20, 24, 0.7)",
+                            padding: "10px 12px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}
+                    >
+                        <Text
+                            size="xs"
+                            style={{
+                                fontFamily: "Cinzel, Georgia, serif",
+                                letterSpacing: "0.15em",
+                                textTransform: "uppercase",
+                                color: rgba(RAW_RED, 0.7),
+                            }}
+                        >
+                            XP Budget
+                        </Text>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <XpRow label="Budget" value={xpBudget} />
+                            <XpRow label="Spent" value={-xpSpent} dim={xpSpent === 0} />
+                            <Divider color="rgba(125, 91, 72, 0.18)" my={2} />
+                            <XpRow
+                                label="Remaining"
+                                value={xpRemaining}
+                                bold
+                                warn={xpRemaining < 0}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </Stack>
     )
 }
