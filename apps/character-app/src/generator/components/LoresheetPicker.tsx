@@ -316,13 +316,11 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                                                 fontFamily: FONT_UI,
                                                                 fontSize: "0.65rem",
                                                                 letterSpacing: "0.1em",
-                                                                textTransform: "uppercase",
                                                                 color: purchased ? C_RED_DIM : C_MUTED,
                                                                 flexShrink: 0,
                                                             }}
                                                         >
-                                                            ●{"●".repeat(dotEntry.dot - 1) /* filled */}
-                                                            {"○".repeat(5 - dotEntry.dot) /* empty */}
+                                                            {"●".repeat(dotEntry.dot)}{"○".repeat(5 - dotEntry.dot)}
                                                         </span>
                                                         <span
                                                             style={{
