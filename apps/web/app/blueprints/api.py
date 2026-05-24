@@ -1569,6 +1569,68 @@ def delete_character(name):
     return jsonify({'ok': True, 'character_name': char_name}), 200
 
 
+@bp.route('/cc/submitted-drafts', methods=['GET'])
+@require_bot_scope('read')
+@_limit('30 per minute')
+def cc_submitted_drafts():
+    """Return recently-submitted character creation drafts since sinceEpoch.
+
+    Used by the bot's CharacterSubmissionNotifier to post ticket-channel
+    summaries when a player submits a character for ST review.
+    """
+    import json as _json
+    from app.db import CharacterDraft
+
+    try:
+        since_epoch = int(request.args.get('sinceEpoch', '0'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'sinceEpoch must be an integer'}), 400
+    if since_epoch < 0:
+        return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+    try:
+        limit = int(request.args.get('limit', '50'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be an integer'}), 400
+    if limit < 1 or limit > 200:
+        return jsonify({'error': 'limit must be between 1 and 200'}), 400
+
+    since_dt = datetime.fromtimestamp(since_epoch, tz=timezone.utc)
+    rows = (
+        CharacterDraft.query
+        .filter(
+            CharacterDraft.status == 'submitted',
+            CharacterDraft.submitted_at > since_dt,
+        )
+        .order_by(CharacterDraft.submitted_at.asc())
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    def _cd_field(draft, key):
+        try:
+            data = _json.loads(draft.character_data) if draft.character_data else {}
+            return data.get(key)
+        except Exception:
+            return None
+
+    events = [
+        {
+            'id': d.id,
+            'character_name': d.character_name or '',
+            'player_discord_id': d.player_discord_id,
+            'ticket_channel_id': d.ticket_channel_id,
+            'submitted_at_epoch': int(d.submitted_at.timestamp()),
+            'age_category': _cd_field(d, 'age_category') or '',
+            'clan': _cd_field(d, 'clan') or '',
+            'submission_notes': _cd_field(d, 'submission_notes') or '',
+        }
+        for d in rows
+    ]
+    return jsonify({'events': events, 'has_more': has_more})
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

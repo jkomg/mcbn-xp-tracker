@@ -16,20 +16,39 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(table, col):
+    conn = op.get_bind()
+    rows = conn.execute(sa.text(f'PRAGMA table_info("{table}")')).fetchall()
+    return any(row[1] == col for row in rows)
+
+
+def _index_exists(name):
+    conn = op.get_bind()
+    row = conn.execute(
+        sa.text("SELECT name FROM sqlite_master WHERE type='index' AND name=:n"),
+        {'n': name},
+    ).fetchone()
+    return row is not None
+
+
 def upgrade():
-    op.add_column(
-        'wiki_pages',
-        sa.Column('sync_locked', sa.Boolean(), nullable=False, server_default=sa.false()),
-    )
-    op.add_column(
-        'wiki_pages',
-        sa.Column('sync_locked_by', sa.String(length=100), nullable=False, server_default=''),
-    )
-    op.add_column(
-        'wiki_pages',
-        sa.Column('sync_locked_at', sa.DateTime(), nullable=True),
-    )
-    op.create_index('ix_wiki_pages_sync_locked', 'wiki_pages', ['sync_locked'])
+    if not _column_exists('wiki_pages', 'sync_locked'):
+        op.add_column(
+            'wiki_pages',
+            sa.Column('sync_locked', sa.Boolean(), nullable=False, server_default=sa.false()),
+        )
+    if not _column_exists('wiki_pages', 'sync_locked_by'):
+        op.add_column(
+            'wiki_pages',
+            sa.Column('sync_locked_by', sa.String(length=100), nullable=False, server_default=''),
+        )
+    if not _column_exists('wiki_pages', 'sync_locked_at'):
+        op.add_column(
+            'wiki_pages',
+            sa.Column('sync_locked_at', sa.DateTime(), nullable=True),
+        )
+    if not _index_exists('ix_wiki_pages_sync_locked'):
+        op.create_index('ix_wiki_pages_sync_locked', 'wiki_pages', ['sync_locked'])
 
 
 def downgrade():

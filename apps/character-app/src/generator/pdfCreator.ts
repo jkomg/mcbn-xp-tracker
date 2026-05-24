@@ -1,0 +1,491 @@
+import { notifications } from "@mantine/notifications"
+import fontkit from "@pdf-lib/fontkit"
+import { PDFBool, PDFDocument, PDFFont, PDFForm, PDFImage, PDFName } from "pdf-lib"
+import { Character } from "../data/Character"
+import { clans } from "../data/Clans"
+import { PredatorTypes } from "../data/PredatorType"
+import { SkillsKey, skillsKeySchema } from "../data/Skills"
+import checkPng from "../resources/CheckSolid.png"
+// import base64Pdf_renegade from '../resources/v5_charactersheet_fillable_v3.base64';
+import { attributesKeySchema } from "../data/Attributes"
+import { Power, Ritual, powerIsRitual } from "../data/Disciplines"
+import { Ceremony } from "../data/Ceremonies"
+import { upcase } from "./utils"
+import { DisciplineName } from "~/data/NameSchemas"
+import { potencyEffects } from "../data/BloodPotency"
+import { calculateBloodPotency } from "~/data/BloodPotency"
+
+let customFont: PDFFont
+let nerdbertTemplatePromise: Promise<string> | null = null
+
+const getNerdbertTemplate = () => {
+    nerdbertTemplatePromise ??=
+        import("../resources/VtM5e_ENG_CharacterSheet_2pMINI_noTxtRichFields.base64?raw").then(
+            (module) => module.default
+        )
+    return nerdbertTemplatePromise
+}
+
+const initPDFDocument = async (bytes: ArrayBufferLike): Promise<PDFDocument> => {
+    const pdfDoc = await PDFDocument.load(bytes as ArrayBuffer)
+
+    try {
+        if (fontkit && typeof fontkit === "object" && typeof fontkit.create === "function") {
+            pdfDoc.registerFontkit(fontkit)
+        }
+    } catch (error) {
+        // Fontkit might not be available in test environments
+        console.warn("Fontkit registration failed, continuing without it:", error)
+    }
+    const fontBytes = await fetch("fonts/Roboto-Regular.ttf").then((res) => res.arrayBuffer())
+    try {
+        customFont = await pdfDoc.embedFont(fontBytes) // enables writing characters like "старый"
+    } catch (error) {
+        // If font embedding fails (e.g., in tests without fontkit), try without custom font
+        console.warn("Custom font embedding failed, using default font:", error)
+    }
+
+    return pdfDoc
+}
+
+export const testTemplate = async (basePdf: string) => {
+    let form
+    try {
+        const bytes = base64ToArrayBuffer(basePdf)
+        const pdfDoc = await initPDFDocument(bytes)
+
+        form = pdfDoc.getForm()
+    } catch (_err) {
+        return {
+            success: false,
+            error: new Error("Can't get form from pdf - is it a fillable pdf?")
+        }
+    }
+    try {
+        form.getTextField("Name").setText("")
+        form.getTextField("Concept").setText("")
+        form.getTextField("Predator").setText("")
+        form.getTextField("Ambition").setText("")
+    } catch (_err) {
+        return {
+            success: false,
+            error: new Error(
+                "PDF doesn't contain required fields - is it v5_charactersheet_fillable_v3.pdf from renegadegamestudios?"
+            )
+        }
+    }
+
+    return { success: true, error: null }
+}
+
+const downloadPdf = (fileName: string, bytes: Uint8Array) => {
+    const blob = new Blob([bytes as BlobPart], { type: "application/pdf" })
+    const link = document.createElement("a")
+
+    link.href = window.URL.createObjectURL(blob)
+    link.download = fileName
+    link.click()
+
+    // Clean up the object URL to prevent memory leaks
+    setTimeout(() => {
+        if (typeof window !== "undefined") {
+            window.URL.revokeObjectURL?.(link.href)
+        }
+    }, 100)
+}
+
+export const setButtonImageOverlay = (
+    pdfDoc: PDFDocument,
+    form: PDFForm,
+    fieldName: string,
+    image: PDFImage
+) => {
+    const button = form.getButton(fieldName)
+    const widget = button.acroField.getWidgets()[0]
+
+    if (!widget) return
+
+    const pageRef = widget.P()
+    const page = pdfDoc.getPages().find((candidate) => candidate.ref === pageRef)
+
+    if (!page) return
+
+    const { x, y, width, height } = widget.getRectangle()
+    const insetX = width * 0.08
+    const insetY = height * 0.08
+
+    page.drawImage(image, {
+        x: x + insetX,
+        y: y + insetY,
+        width: width - insetX * 2,
+        height: height - insetY * 2
+    })
+}
+
+export const setHumanityTracker = (
+    pdfDoc: PDFDocument,
+    form: PDFForm,
+    image: PDFImage,
+    humanity: number
+) => {
+    const clampedHumanity = Math.max(0, Math.min(10, humanity))
+
+    for (let i = 1; i <= clampedHumanity; i++) {
+        // Humanity widgets in the template are push buttons, so we draw directly on the page
+        // instead of setting a button image that can be lost when appearances are regenerated.
+        setButtonImageOverlay(pdfDoc, form, `Humanity-${i}`, image)
+    }
+}
+
+export const createPdf_nerdbert = async (character: Character): Promise<Uint8Array> => {
+    const bytes = base64ToArrayBuffer(await getNerdbertTemplate())
+
+    const pdfDoc = await initPDFDocument(bytes)
+    const form = pdfDoc.getForm()
+
+    // Attributes
+    const attributes = character.attributes
+    ;[
+        "strength",
+        "dexterity",
+        "stamina",
+        "charisma",
+        "manipulation",
+        "composure",
+        "intelligence",
+        "wits",
+        "resolve"
+    ]
+        .map((a) => attributesKeySchema.parse(a))
+        .forEach((attr) => {
+            const lvl = attributes[attr]
+            for (let i = 1; i <= lvl; i++) {
+                form.getCheckBox(`${upcase(attr).slice(0, 3)}-${i}`).check()
+            }
+        })
+
+    // Skills
+    const setSpecialty = (skillName: SkillsKey, textFieldKey: string) => {
+        const allSpecialties = [
+            ...character.skillSpecialties,
+            ...character.predatorType.pickedSpecialties
+        ]
+        const specialties = allSpecialties
+            .filter((s) => s.skill === skillName)
+            .filter((s) => s.name !== "")
+            .map((s) => s.name)
+
+        if (specialties) form.getTextField(textFieldKey).setText(specialties.join(", "))
+    }
+
+    const skills = character.skills
+    ;["athletics", "brawl", "craft", "drive", "melee", "larceny", "survival"]
+        .map((s) => skillsKeySchema.parse(s))
+        .forEach((skill) => {
+            const lvl = skills[skill]
+            for (let i = 1; i <= lvl; i++) {
+                form.getCheckBox(`${upcase(skill).slice(0, 3)}-${i}`).check()
+            }
+            setSpecialty(skill, `spec${upcase(skill).slice(0, 3)}`)
+        })
+
+    const aniKenLvl = skills["animal ken"]
+    for (let i = 1; i <= aniKenLvl; i++) {
+        form.getCheckBox(`AniKen-${i}`).check()
+    }
+    setSpecialty("animal ken", "specAniKen")
+
+    // PDF-issue: Lead-1, but specLea  (4 letters vs 3 letters)
+    const leadLvl = skills["leadership"]
+    for (let i = 1; i <= leadLvl; i++) {
+        form.getCheckBox(`Lead-${i}`).check()
+    }
+    setSpecialty("leadership", "specLea")
+
+    const stealthLvl = skills["stealth"]
+    for (let i = 1; i <= stealthLvl; i++) {
+        form.getCheckBox(`Ste-${i}`).check()
+    }
+    setSpecialty("stealth", "specStea")
+
+    // PDF-issue: "Fri-1" instead of "Fir-1"
+    const fireLvl = skills["firearms"]
+    for (let i = 1; i <= fireLvl; i++) {
+        form.getCheckBox(`Fri-${i}`).check()
+    }
+    setSpecialty("firearms", "specFir")
+
+    // PDF-issue: Stre-1-1, but specStree  (4 letters vs 5 letters)
+    const streeLvl = skills["streetwise"]
+    for (let i = 1; i <= streeLvl; i++) {
+        form.getCheckBox(`Stre-${i}`).check()
+    }
+    setSpecialty("streetwise", "specStree")
+    ;[
+        "etiquette",
+        "insight",
+        "intimidation",
+        "performance",
+        "persuasion",
+        "subterfuge",
+        "academics",
+        "awareness",
+        "finance",
+        "investigation",
+        "medicine",
+        "occult",
+        "politics",
+        "science",
+        "technology"
+    ]
+        .map((s) => skillsKeySchema.parse(s))
+        .forEach((skill) => {
+            const lvl = skills[skill]
+            for (let i = 1; i <= lvl; i++) {
+                form.getCheckBox(`${upcase(skill).slice(0, 4)}-${i}`).check()
+            }
+
+            setSpecialty(skill, `spec${upcase(skill).slice(0, 4)}`)
+        })
+
+    // Health
+    let health = 3 + character.attributes["stamina"]
+    if (character.disciplines.find((power) => power.name === "Resilience")) {
+        const fortitudeLevel = character.disciplines.filter(
+            (power) => power.discipline === "fortitude"
+        ).length
+        health += fortitudeLevel
+    }
+    for (let i = 1; i <= health; i++) {
+        form.getCheckBox(`Health-${i}`).check()
+    }
+
+    // Willpower
+    const willpower = character.attributes["composure"] + character.attributes["resolve"]
+    for (let i = 1; i <= willpower; i++) {
+        form.getCheckBox(`WP-${i}`).check()
+    }
+
+    // Blood Potency
+    const bloodPotency = calculateBloodPotency(character)
+    for (let i = 1; i <= bloodPotency; i++) {
+        form.getCheckBox(`BloodPotency-${i}`).check()
+    }
+
+    const effects = potencyEffects[bloodPotency]
+    form.getTextField("BloodSurge").setText(`${effects.surge}`)
+    form.getTextField("Mend").setText(effects.mend)
+    form.getTextField("PowBonus").setText(effects.discBonus)
+    form.getTextField("ReRouse").setText(effects.discRouse)
+    form.getTextField("FeedPen").setText(effects.penalty)
+    form.getTextField("BaneSev").setText(`${effects.bane}`)
+
+    //Humanity
+    const humanity = Math.max(0, Math.min(10, character.humanity))
+    const checkImageBytes = await fetch(checkPng).then((res) => res.arrayBuffer())
+    const checkImage = await pdfDoc.embedPng(checkImageBytes)
+    setHumanityTracker(pdfDoc, form, checkImage, humanity)
+
+    // Top fields
+    form.getTextField("Name").setText(character.name)
+    // form.getTextField("Name").updateAppearances(customFont)
+    form.getTextField("pcDescription").setText(character.description)
+    form.getTextField("Predator type").setText(character.predatorType.name)
+    form.getTextField("Ambition").setText(character.ambition)
+
+    form.getTextField("Clan").setText(character.clan)
+    const baneText = clans[character.clan].bane.replace(
+        "BANE_SEVERITY",
+        `${effects.bane} (bane severity)`
+    )
+    form.getTextField("ClanBane").setText(baneText)
+    form.getTextField("ClanCompulsion").setText(clans[character.clan].compulsion)
+
+    form.getTextField("Sire").setText(character.sire)
+    form.getTextField("Desire").setText(character.desire)
+    form.getTextField("Title").setText(`${character.generation}`) // Yes, "Title" is the generation field
+
+    // Disciplines
+    const getDisciplineText = (power: Power | Ritual | Ceremony) => {
+        let text = power.name + ": " + power.summary
+        if (power.dicePool !== "") {
+            text += ` // ${power.dicePool}`
+        }
+        if (power.rouseChecks > 0) {
+            text += ` // ${power.rouseChecks} rouse check${power.rouseChecks > 1 ? "s" : ""}`
+        }
+
+        if (powerIsRitual(power)) {
+            text += ` // requires: ${power.ingredients}; ${power.requiredTime}`
+        }
+
+        return text
+    }
+
+    type PdfDisciplineSection = {
+        title: string
+        powers: Power[]
+        extras: Array<Ritual | Ceremony>
+    }
+
+    const powersByDiscipline = character.disciplines.reduce(
+        (acc, p) => {
+            if (!acc[p.discipline]) acc[p.discipline] = []
+            acc[p.discipline].push(p)
+            return acc
+        },
+        {} as Record<DisciplineName, Power[]>
+    )
+    const disciplineSections: PdfDisciplineSection[] = Object.values(powersByDiscipline).map(
+        (powers) => ({
+            title: upcase(powers[0].discipline),
+            powers,
+            extras: powers[0].discipline === "blood sorcery" ? character.rituals : []
+        })
+    )
+
+    if (character.ceremonies.length > 0) {
+        const ceremonySection: PdfDisciplineSection = {
+            title: "Oblivion Ceremonies",
+            powers: [],
+            extras: character.ceremonies
+        }
+        const oblivionIndex = disciplineSections.findIndex((section) =>
+            section.powers.some((power) => power.discipline === "oblivion")
+        )
+
+        if (oblivionIndex >= 0 && oblivionIndex < 3) {
+            const belowOblivionIndex = oblivionIndex + 3
+            if (disciplineSections[belowOblivionIndex]) {
+                disciplineSections.splice(belowOblivionIndex, 0, ceremonySection)
+            } else {
+                disciplineSections[belowOblivionIndex] = ceremonySection
+            }
+        } else if (oblivionIndex >= 0) {
+            disciplineSections.splice(oblivionIndex + 1, 0, ceremonySection)
+        } else {
+            disciplineSections.push(ceremonySection)
+        }
+    }
+
+    for (const [disciplineIndex, section] of disciplineSections.entries()) {
+        if (!section) continue
+
+        const di = disciplineIndex + 1
+        form.getTextField(`Disc${di}`).setText(section.title)
+        for (const [powerIndex, power] of section.powers.entries()) {
+            const pi = powerIndex + 1
+            form.getTextField(`Disc${di}_Ability${pi}`).setText(getDisciplineText(power))
+            form.getTextField(`Disc${di}_Ability${pi}`).disableRichFormatting()
+            form.getCheckBox(`Disc${di}-${pi}`).check()
+        }
+        for (const [extraIndex, extra] of section.extras.entries()) {
+            const ei = section.powers.length + extraIndex + 1
+            form.getTextField(`Disc${di}_Ability${ei}`).setText(getDisciplineText(extra))
+            form.getTextField(`Disc${di}_Ability${ei}`).disableRichFormatting()
+        }
+    }
+
+    // Merits & flaws
+    const characterMeritsFlaws = [...character.merits, ...character.flaws]
+    const predatorTypeMeritsFlaws = PredatorTypes[
+        character.predatorType.name
+    ].meritsAndFlaws.filter((m) => !characterMeritsFlaws.map((cm) => cm.name).includes(m.name))
+    const pickedPredatorTypeMeritsFlaws = character.predatorType.pickedMeritsAndFlaws
+    const meritsAndFlaws = [
+        ...predatorTypeMeritsFlaws,
+        ...pickedPredatorTypeMeritsFlaws,
+        ...characterMeritsFlaws
+    ]
+    meritsAndFlaws.forEach(({ name, level, summary }, i) => {
+        const fieldNum = i + 1
+        form.getTextField(`Merit${fieldNum}`).setText(name + ": " + summary)
+        for (let l = 1; l <= level; l++) {
+            form.getCheckBox(`Merit${fieldNum}-${l}`).check()
+        }
+    })
+
+    // Touchstones & Convictions
+    form.getTextField("Convictions").setText(
+        character.touchstones
+            .map(({ name, description, conviction }) => `${name}: ${conviction}\n${description}`)
+            .join("\n\n")
+    )
+
+    // Experience
+    const experience = (() => {
+        switch (character.generation) {
+            case 16:
+            case 15:
+            case 14:
+                return 0
+            case 13:
+            case 12:
+                return 15
+            case 11:
+            case 10:
+                return 35
+            default:
+                return 0
+        }
+    })()
+    form.getTextField("tEXP").setText(`${experience} XP`)
+
+    // Fixes bug where text that is too long for field doesn't show until clicked
+    // see https://github.com/Hopding/pdf-lib/issues/569#issuecomment-1087328416 and https://stackoverflow.com/questions/73058238/some-pdf-textfield-content-not-visible-until-clicked
+    // TODO: This breaks embedding the png in humanity-tracker!
+    form.acroForm.dict.set(PDFName.of("NeedAppearances"), PDFBool.True)
+
+    // Fixes embedded font not being applied on form fields
+    if (customFont) {
+        form.updateFieldAppearances(customFont)
+    }
+
+    return await pdfDoc.save({ updateFieldAppearances: true })
+}
+
+export const downloadCharacterSheet = async (character: Character) => {
+    const pdfBytes = await createPdf_nerdbert(character)
+    notifications.show({
+        title: "PDF template kindly provided by Nerdbert!",
+        message: "https://linktr.ee/nerdbert",
+        autoClose: 5000,
+        color: "grape"
+    })
+
+    downloadPdf(`progeny_${character.name}.pdf`, pdfBytes)
+}
+
+function base64ToArrayBuffer(base64: string) {
+    const binary_string = window.atob(base64)
+    const len = binary_string.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i)
+    }
+    return bytes.buffer
+}
+
+const getFields = (form: PDFForm): Record<string, string> => {
+    const fields = form.getFields()
+
+    const outFields: Record<string, string> = {}
+    fields.forEach((field) => {
+        const type = field.constructor.name
+        const name = field.getName()
+
+        outFields[name] = type
+    })
+
+    return outFields
+}
+
+export const printFieldNames = async () => {
+    const basePdf = await getNerdbertTemplate()
+    const bytes = base64ToArrayBuffer(basePdf)
+
+    const pdfDoc = await initPDFDocument(bytes)
+    const form = pdfDoc.getForm()
+
+    console.log(JSON.stringify(getFields(form), null, 2))
+}

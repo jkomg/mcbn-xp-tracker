@@ -140,6 +140,7 @@ def create_app():
     from .blueprints.local_status import bp as local_status_bp
     from .blueprints.settings import bp as settings_bp
     from .blueprints.wiki import bp as wiki_bp
+    from .blueprints.character_creator import bp as character_creator_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -152,7 +153,9 @@ def create_app():
     app.register_blueprint(local_status_bp)
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(wiki_bp, url_prefix='/wiki')
+    app.register_blueprint(character_creator_bp)
     csrf.exempt(api_bp)
+    csrf.exempt(character_creator_bp)
 
     # Inject auth helpers into all templates
     from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in, is_settings_admin as _is_settings_admin

@@ -6,6 +6,7 @@ Transactions use Turso's baton mechanism: BEGIN returns a baton that threads
 subsequent requests through the same server-side transaction until COMMIT/ROLLBACK
 closes it.
 """
+import http.client
 import json
 import sqlite3
 import urllib.error
@@ -154,6 +155,8 @@ class TursoConnection:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors='replace')
             raise sqlite3.OperationalError(f'Turso HTTP {exc.code}: {detail}') from exc
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as exc:
+            raise sqlite3.OperationalError(f'Turso connection error: {exc}') from exc
         # Baton is present while a transaction is open; absent (or None) once closed.
         self._baton = resp_body.get('baton')
         return resp_body['results']
