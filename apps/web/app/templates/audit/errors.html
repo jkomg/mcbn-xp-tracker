@@ -32,7 +32,7 @@
         <table class="table table-sm table-dark mb-0">
             <thead>
                 <tr>
-                    <th>Time (UTC)</th>
+                    <th>Time (Eastern)</th>
                     <th>Operation</th>
                     <th>Error</th>
                 </tr>
@@ -40,7 +40,7 @@
             <tbody>
                 {% for e in sync_errors %}
                 <tr>
-                    <td class="text-muted small text-nowrap">{{ e.timestamp }}</td>
+                    <td class="text-muted small text-nowrap">{{ e.timestamp | to_eastern }}</td>
                     <td><code>{{ e.operation }}</code></td>
                     <td class="text-warning small">{{ e.error }}</td>
                 </tr>
@@ -99,7 +99,7 @@
     <table class="table table-hover align-middle">
         <thead>
             <tr>
-                <th style="width: 160px;">Time (UTC)</th>
+                <th style="width: 160px;">Time (Eastern)</th>
                 <th style="width: 55px;">Src</th>
                 <th style="width: 60px;">Level</th>
                 <th style="width: 200px;">Event</th>
@@ -110,7 +110,7 @@
         <tbody>
             {% for entry in entries %}
             <tr id="log-row-{{ entry.id }}">
-                <td class="text-muted small text-nowrap">{{ entry.timestamp[:19] | replace('T', ' ') if entry.timestamp else '' }}</td>
+                <td class="text-muted small text-nowrap">{{ entry.timestamp | to_eastern }}</td>
                 <td><span class="badge bg-secondary">{{ entry.source }}</span></td>
                 <td>
                     <span class="badge {% if entry.level == 'error' %}bg-danger{% else %}bg-warning text-dark{% endif %}">

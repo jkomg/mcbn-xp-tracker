@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+_EASTERN = ZoneInfo('America/New_York')
 
 from flask import Blueprint, render_template, request, jsonify
 from app import db_service
@@ -182,7 +185,7 @@ def errors():
 
     return render_template(
         'audit/errors.html',
-        now=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        now=datetime.now(timezone.utc).astimezone(_EASTERN).strftime('%Y-%m-%d %H:%M %Z'),
         entries=entries,
         event_counts=sorted(event_counts.items(), key=lambda item: item[1], reverse=True)[:15],
         source_filter=source_filter,
