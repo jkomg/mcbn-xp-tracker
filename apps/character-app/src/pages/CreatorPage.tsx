@@ -60,11 +60,13 @@ export default function CreatorPage() {
     const setSelectedStep = (step: GeneratorStepId, options?: { replace?: boolean }) => {
         const nextHash = `#${step}`
         if (location.hash === nextHash) return
-        navigate({ to: "/create", hash: step, replace: options?.replace ?? false })
+        // Preserve the current pathname (/player/new or /player/<name>/sheet) so
+        // that navigating between steps doesn't redirect to /create, which Flask
+        // doesn't serve and would 404 on refresh.
+        navigate({ to: location.pathname as "/player/new", hash: step, replace: options?.replace ?? false })
     }
 
     useEffect(() => {
-        if (location.pathname !== "/create") return
         const normalized = routeHash
             ? normalizeGeneratorStepId(routeHash, character)
             : defaultGeneratorStepId
