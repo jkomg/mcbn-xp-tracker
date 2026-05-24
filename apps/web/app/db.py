@@ -1,6 +1,7 @@
 """SQLAlchemy models for MCbN XP Tracker."""
 
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import DateTime, Integer, String, Boolean, Text
@@ -196,6 +197,27 @@ class DbReminderPreference(db.Model):
     opt_out = db.Column(Boolean, default=False, nullable=False)
     snooze_until_epoch = db.Column(Integer, default=0, nullable=False)
     updated_at = db.Column(String(20), default='')
+
+
+class CharacterDraft(db.Model):
+    """In-progress and submitted character creation drafts."""
+    __tablename__ = 'character_drafts'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    player_discord_id = db.Column(db.String(32), nullable=False, index=True)
+    character_name = db.Column(db.String(200), nullable=True)
+    # draft | submitted | revision_requested | approved
+    status = db.Column(db.String(32), nullable=False, default='draft', index=True)
+    is_spc = db.Column(db.Boolean, nullable=False, default=False)
+    ticket_channel_id = db.Column(db.String(32), nullable=True)
+    character_data = db.Column(db.Text, nullable=True)  # JSON blob
+    roster_character_id = db.Column(db.Integer, db.ForeignKey('characters.id'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=True,
+                           onupdate=lambda: datetime.now(timezone.utc))
+    submitted_at = db.Column(db.DateTime, nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by = db.Column(db.String(32), nullable=True)
 
 
 class DbCharacterBackground(db.Model):
