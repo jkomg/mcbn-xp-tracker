@@ -802,16 +802,25 @@ def bot_restart_ack():
 @_limit('120 per minute')
 def bot_heartbeat_post():
     from datetime import datetime, timezone
-    from app.db import AppSetting, db
+    from app.db import db
+    from sqlalchemy import text
     ts = datetime.now(timezone.utc).isoformat()
-    record = db.session.get(AppSetting, 'BOT_LAST_HEARTBEAT')
-    if record:
-        record.value = ts
-        record.updated_at = datetime.now(timezone.utc)
-        record.updated_by = 'bot'
-    else:
-        record = AppSetting(key='BOT_LAST_HEARTBEAT', value=ts, updated_by='bot')
-        db.session.add(record)
+
+    # Use upsert (INSERT ... ON CONFLICT DO UPDATE) for all settings so that
+    # concurrent Cloud Run instances don't trigger SQLAlchemy StaleDataError
+    # from executemany() rowcount mismatches on the Turso HTTP driver.
+    def _upsert(key, val):
+        db.session.execute(
+            text(
+                "INSERT INTO app_settings (key, value, updated_by, updated_at)"
+                " VALUES (:key, :val, 'bot', :ts)"
+                " ON CONFLICT(key) DO UPDATE SET"
+                " value=excluded.value, updated_by=excluded.updated_by, updated_at=excluded.updated_at"
+            ),
+            {'key': key, 'val': val, 'ts': ts},
+        )
+
+    _upsert('BOT_LAST_HEARTBEAT', ts)
 
     # Store live flag state reported by the bot so the settings page can show
     # what the bot is actually doing, regardless of DB overrides or .env defaults.
@@ -826,16 +835,9 @@ def bot_heartbeat_post():
         'notionSyncCapable': 'BOT_LIVE_NOTION_SYNC_CAPABLE',
     }
     body = request.get_json(silent=True) or {}
-    live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(LIVE_FLAG_KEYS.values())).all()}
     for field, db_key in LIVE_FLAG_KEYS.items():
-        if field not in body:
-            continue
-        val = 'true' if body[field] else 'false'
-        if db_key in live_records:
-            live_records[db_key].value = val
-            live_records[db_key].updated_by = 'bot'
-        else:
-            db.session.add(AppSetting(key=db_key, value=val, updated_by='bot'))
+        if field in body:
+            _upsert(db_key, 'true' if body[field] else 'false')
 
     db.session.commit()
     return jsonify({'ok': True})
