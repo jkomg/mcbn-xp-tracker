@@ -2925,6 +2925,209 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Cults of the Blood Gods Loresheets ───────────────────────────────────
+    {
+        id: "criminal-puttanesca",
+        name: "The Criminal Puttanesca",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Friends in Low Places",
+                description: "Puttanesca Kindred have close ties to the street and usually have a few side hustles happening at any one time. You get two dots to spread between Allies and Resources, and you can reallocate those two dots at the start of each story. These Advantages are immediately subject to police scrutiny.",
+            },
+            {
+                dot: 2,
+                name: "Show Your Belly",
+                description: "Some members of your family survive by looking as harmless as possible to those more powerful than them. It's not dignified, but it buys time for revenge. You get three bonus dice to rolls to convince people not to hurt, endanger, or act against you.",
+            },
+            {
+                dot: 3,
+                name: "Show Your Fists",
+                description: "On the other hand, it's not all being pushed around. Against mortals you get two bonus dice for rolls to intimidate, and your unarmed damage modifier increases by one.",
+            },
+            {
+                dot: 4,
+                name: "Get the Squad Together",
+                description: "Occasionally you just need to get some people together for a good old ass-beating. Once per story, you can get a gang together for a brawl — any local Puttanesca Kindred plus mortals equivalent to five dots of Allies. You also get an automatic success in rolls to convince other characters that this beatdown is necessary.",
+            },
+            {
+                dot: 5,
+                name: "The Don",
+                description: "Against all odds, you've kissed and kicked ass in equal measure to earn respect, wealth, and influence. You have three additional dots each in Contacts, Influence, and Resources, but they must be assigned to criminal enterprise and require careful maintenance to avoid drawing FBI attention — agents of which can become potent versions of the Enemy Flaw.",
+            },
+        ],
+    },
+    {
+        id: "the-gorgons",
+        name: "The Gorgons (Lamiae)",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "The Serpent's Kiss",
+                description: "The bite of the Lamiae was once believed fatal, spreading disease like the Black Death. These nights it is no longer fatal, but some remnants of the disease remain in your system. Once per story, you can choose to infect your mortal prey with disease, causing them one Aggravated Health damage every night for three nights. This ability has no effect on vampires.",
+            },
+            {
+                dot: 2,
+                name: "Protection",
+                description: "You embody the original purpose of the Lamiae — protection of your charges, by any means necessary. You gain a two-dice bonus when using the Block maneuver to protect someone else.",
+            },
+            {
+                dot: 3,
+                name: "Four Humours",
+                description: "Many ancient Lamiae practiced manipulation of the four humors to control a victim's body or mind. Once per story you may bite a mortal and inflict a two-dice penalty on all actions which don't immediately further their current resonance, until the end of the night or their resonance changes humors. If their blood contains a Dyscrasia, increase this penalty to three dice.",
+            },
+            {
+                dot: 4,
+                name: "Controlling the Beast",
+                description: "Chaos and pain are key aspects of the Bahari faith, but mindless chaos does not lead to education. Once per session, you can convert a messy critical in combat into a critical.",
+            },
+            {
+                dot: 5,
+                name: "Medusa's Gaze",
+                description: "Once per session after you win an Intimidation or conflict roll, those who lost become unable to act on the following conflict turn. Outside combat, they become unable to move for a scene unless they spend 1 Willpower.",
+            },
+        ],
+    },
+    {
+        id: "calling-the-family-reunion",
+        name: "Calling the Family Reunion",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "The Kids' Table",
+                description: "You were present at the dinner where the final details of the Reunion were discussed. You didn't significantly impact the discussion, but you know what was debated — all the old animosities and arguments. You get two dice on any Persuasion checks against another Hecata who tries to resurrect old disagreements.",
+            },
+            {
+                dot: 2,
+                name: "Updating the Rolodex",
+                description: "Not everyone gets along in the new-and-improved Hecata, but since you were present during the initial dealmaking, you now have access to a lot of new contacts. When asking for information or small favors, you have the equivalent of three dots of Status within the Hecata clan.",
+            },
+            {
+                dot: 3,
+                name: "Hiding the Bodies",
+                description: "You were involved in the cleanup of a key murder, and a Hecata elder is greatly in your debt as a result. Once per story, you may remind them of that debt to cash in the effects of a minor boon or less. Once per chronicle, you may clear the debt in return for the effects of a major boon. Call upon them more often than that and they will become a persistent Adversary once your business concludes.",
+            },
+            {
+                dot: 4,
+                name: "Dealmaker",
+                description: "You were part of one of the backroom deals that made the Hecata reunification possible, and an influential elder owes you as a result. That elder counts as a five-dot Mawla Background but will become a potent Adversary if the secrets are ever revealed.",
+            },
+            {
+                dot: 5,
+                name: "Spiritual Assault",
+                description: "You were involved in the murder of Augustus Giovanni, the methuselah responsible for the alleged destruction of the Cappadocians — and you know it was his death that unleashed the maelstrom of wraiths coming after the Hecata. Anytime you or someone who consults you uses an Oblivion Ceremony to deal with a spectre or other antagonistic ghost, you gain two automatic successes.",
+            },
+        ],
+    },
+    {
+        id: "child-of-the-angel-michael",
+        name: "Child of the Angel Michael",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Great and the Good",
+                description: "Note: Unavailable to Nosferatu characters. Even just being around perfect and beautiful people has its advantages. You have two free dots to distribute between the Contacts, Fame, Herd, and Influence Backgrounds, though the kinds of followers you attract verge on the fanatical and dangerous to you and your loved ones.",
+            },
+            {
+                dot: 2,
+                name: "Outer Beauty",
+                description: "Your trips to the local Nephilim temple and accentuation of your inner beauty lead to outer effects — clear skin, lustrous hair, long and firm limbs. You get the Looks Merit at four dots, even after character creation. The downside is you must really disguise your appearance if you want to avoid attention; your face will be the one witnesses remember.",
+            },
+            {
+                dot: 3,
+                name: "Hedonistic Pleasure",
+                description: "Lots of long nights of excess have taught you a thing or two about having a good time. You gain two dice on any rolls to score drugs, get a date or sexual partner, or get yourself invited to a party. In addition, your exploits are legendary — take either two dots in Fame or two dots in Status.",
+            },
+            {
+                dot: 4,
+                name: "Michael's Calling",
+                description: "You've been in past cults worshiping the childer of Michael and see all of these fringe cults as the sham they are — but that won't stop you from leveraging them for your own gain. Once per story, you can use all of a cult member's appropriate Backgrounds as if they were your own.",
+            },
+            {
+                dot: 5,
+                name: "Wiping Away the Stains",
+                description: "You haven't lost the true path toward inner beauty and enlightenment. Once per story, you can spend a Willpower to remove a Stain from another vampire. The vampire must have sex with you, do drugs with you, or engage in some other hedonistic activity for at least an hour.",
+            },
+        ],
+    },
+    {
+        id: "servitor-of-irad",
+        name: "Servitor of Irad",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Shield of Irad",
+                description: "You can't do the work of the Antediluvians if you get discovered. You have a lot of experience shielding your true intentions from the gaze of outsiders. You gain an additional die on rolls involving lying to other Kindred.",
+            },
+            {
+                dot: 2,
+                name: "Sword of Irad",
+                description: "Sometimes you must act decisively in the name of the Third Generation, and that conviction adds strength to your act. Once per story, you can add three dice to a roll that is integral to your cult's plans.",
+            },
+            {
+                dot: 3,
+                name: "Know the Will of the Ancients",
+                description: "You are firmly convinced you know the will of the Antediluvians — perhaps you hear their voices or gain prophetic dreams. As long as you are a member of the cult, you can take an additional Conviction directly related to the goals of your infiltration (your membership acts as your Touchstone for this Conviction). If you infiltrate a new group, you can change your Conviction to reflect the new assignment.",
+            },
+            {
+                dot: 4,
+                name: "Do the Will of the Ancients",
+                description: "All actions are in service to the Third Generation. You have devoted your entire existence to fulfilling their goal. The blood you have inherited from your clan founder is secondary to this higher purpose — your clan Bane can be ignored once per story while you are a Servitor of Irad.",
+            },
+            {
+                dot: 5,
+                name: "Kill Thy Brother",
+                description: "Killing another vampire in the name of the Antediluvians just makes the Third Generation's job a little easier. Once per story, when using a weapon or power that inflicts Aggravated Health damage on a vampire, your attack inflicts two additional damage, and you don't need to roll to resist frenzy if that weapon or power involves fire.",
+            },
+        ],
+    },
+    {
+        id: "promise-of-1528",
+        name: "The Promise of 1528",
+        source: "cults-of-the-blood-gods",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Legal Scholar",
+                description: "You are an active student of the Promise. You don't know much, but that's more than most Kindred know — even knowing such a document exists gives you leverage. In legal disputes with Camarilla Kindred or members of the Hecata, you gain two dice on Persuasion rolls.",
+            },
+            {
+                dot: 2,
+                name: "Scrap of Information",
+                description: "You saw a scrap of a transcript of the Promise once — and you're reasonably sure this one is genuine. Once per story, if you allow Kindred access to your notes on the Promise fragment for research, you gain a temporary dot in Contacts, Herd, Influence, or Resources for the remainder of the story, and may call in a major boon from the vampire in future.",
+            },
+            {
+                dot: 3,
+                name: "Tick Tock",
+                description: "You know, or believe you know, the consequences of allowing the Promise to expire — and they aren't good. Once per story, you can give advice to members of your local faction and expect to be taken seriously. You will get an audience, and two automatic successes on any rolls which leverage your knowledge during the meeting.",
+            },
+            {
+                dot: 4,
+                name: "Faulty Memory",
+                description: "You read the Promise once, but for some reason you can never recall the text in full, even with powers that would normally unlock buried memories. But once in a while, snippets surface at just the right time. Once per story, you can add three dice to an appropriate roll where memory of the Promise would help you.",
+            },
+            {
+                dot: 5,
+                name: "Signatory",
+                description: "You are directly related to one of the signatories of the Promise — or you are a signatory yourself. Once per chronicle, you can leverage your knowledge of the Promise to force a Camarilla Prince or a Hecata anziani to permanently change a ruling or local law in your favor. However, you must decide why you are unable to ever speak of the details of the Promise — perhaps a thaumaturgical compulsion, a loved one's spirit held hostage, or extensive Dominate.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",

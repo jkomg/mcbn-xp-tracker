@@ -39,6 +39,7 @@ const SOURCE_LABELS: Record<string, string> = {
     "in-memoriam": "In Memoriam",
     "tattered-facade": "Tattered Facade",
     "blood-sigils": "Blood Sigils",
+    "cults-of-the-blood-gods": "Cults of the Blood Gods",
     custom: "Nashville",
 }
 
