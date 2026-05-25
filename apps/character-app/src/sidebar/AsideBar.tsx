@@ -228,8 +228,9 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
 
     const showXpBudget = XP_ONLY_CATEGORIES.has(character.age_category ?? "")
     const xpBudget = character.cc_xp_budget ?? 0
+    const inheritedXp = character.inherited_xp ?? 0
     const xpSpent = computeCcXpSpent(character)
-    const xpRemaining = xpBudget - xpSpent
+    const xpRemaining = xpBudget + inheritedXp - xpSpent
 
     const height = globals.viewportHeightPx
     const scrollerHeight = 940
@@ -270,6 +271,9 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
                         </Text>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             <XpRow label="Budget" value={xpBudget} />
+                            {inheritedXp > 0 && (
+                                <XpRow label="Inherited" value={inheritedXp} />
+                            )}
                             <XpRow label="Spent" value={-xpSpent} dim={xpSpent === 0} />
                             <Divider color="rgba(125, 91, 72, 0.18)" my={2} />
                             <XpRow
