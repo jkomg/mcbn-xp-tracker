@@ -2383,6 +2383,107 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Gehenna War Loresheets ────────────────────────────────────────────────
+    {
+        id: "tegyrius-the-vizier",
+        name: "Tegyrius the Vizier",
+        source: "gehenna-war",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Art of Negotiation",
+                description: "As a skilled diplomat, advisor, or negotiator reflecting the legacy of Tegyrius, when you mediate between two opposing individuals or groups you receive a two-dice bonus to Intimidation or Persuasion skill tests.",
+            },
+            {
+                dot: 2,
+                name: "The Pen is Mightier",
+                description: "Following in the footsteps of Tegyrius, you value knowledge and hone your mental abilities as much as your fighting skills. You have access to a Banu Haqim library transplanted from Alamut during the Schism — a two-dot Haven (••) with a two-dot Library (••) — but its contents are sought by one of the Shepherds of Ur-Shulgi, counting as a two-dot Adversary.",
+            },
+            {
+                dot: 3,
+                name: "Hear My Words",
+                description: "You are a known ally of Tegyrius, and when you speak, others listen. As a source of wisdom and restraint, you get three additional dice for any social test against a Banu Haqim of the same sect, and two additional dice for any social test against a Banu Haqim of a different sect.",
+            },
+            {
+                dot: 4,
+                name: "Perception is Power",
+                description: "You sat on the Council of Scrolls in Alamut, and under Tegyrius' guidance learned that one cannot fight what one cannot see. You have access to the Auspex Discipline and may buy dots using experience points as if it were one of your clan Disciplines.",
+            },
+            {
+                dot: 5,
+                name: "A Matter of Honor",
+                description: "Not only were you a guest of honor at the Vermillion Wedding, but Tegyrius himself owes you a debt of gratitude. Once per chronicle, Tegyrius functions as a five-dot Mawla and uses his lofty position to aid you as best he can, short of violating the alliance between the Camarilla and the Ashirra.",
+            },
+        ],
+    },
+    {
+        id: "the-eternal-arena",
+        name: "The Eternal Arena",
+        source: "gehenna-war",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Bloody Ancestry",
+                description: "You trail methuselahs by tracking their descendants. You own and maintain notes on vampiric ancestry concerning vampires in your region in physical or digital form. You receive a +2 dice bonus to all Occult tests when investigating the ancestry of any vampire.",
+            },
+            {
+                dot: 2,
+                name: "Bring It On",
+                description: "You've fought at the Eternal Arena or a similar Kindred blood tournament. Once per story, you can goad a target into a physical fight with you — for the rest of the scene, they'll engage in combat with only you. Targets that would put themselves in lethal danger by doing this must first be bested in a Charisma + Brawl vs. Composure + Insight test.",
+            },
+            {
+                dot: 3,
+                name: "Combat Analysis",
+                description: "Blood sports require a tactical mind. Once per session during a physical conflict, you may make an Intelligence + Awareness test at Difficulty 3 before making an attack. On a win, you receive two additional dice on your next physical attack action.",
+            },
+            {
+                dot: 4,
+                name: "Talented Manager",
+                description: "You're an organizer or coach in an underground fight club or gathering of Kindred pugilists. Once per session, when you lead a group through a fight involving Brawl or Melee, you gain four bonus dice on any Leadership tests.",
+            },
+            {
+                dot: 5,
+                name: "Die Hard",
+                description: "In your time in the pit, you've brushed up against final death many times. Once per story, when you face final death due to violent conflict or act, you survive — as long as you can describe how it happened and the Storyteller agrees it is plausible. This does not mend any more damage than is absolutely required to survive, nor does it guarantee you won't end up in worse hands.",
+            },
+        ],
+    },
+    {
+        id: "beckett",
+        name: "Beckett",
+        source: "gehenna-war",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Bloody Ancestry",
+                description: "You trail methuselahs by tracking their descendants. You own and maintain notes on vampiric ancestry concerning vampires in your region in physical or digital form. You receive a +2 dice bonus to all Occult tests when investigating the ancestry of any vampire.",
+            },
+            {
+                dot: 2,
+                name: "Dream Interpreter",
+                description: "Methuselahs and older vampires sometimes communicate to their progeny through the daysleep. Once per story, when a character tells you a dream, you may make an Intelligence + Occult test at Difficulty 2. On a win, you receive a number of actionable facts from your Storyteller equivalent to one plus the margin of win.",
+            },
+            {
+                dot: 3,
+                name: "Perks of Youth",
+                description: "From your contact with Beckett, you've learned that those with knowledge are targets for manipulation by older Kindred. Once per session, when a vampire of higher Blood Potency uses a supernatural coercive power on you, you receive a two-dice bonus to resist it.",
+            },
+            {
+                dot: 4,
+                name: "Ancestor Cult's Favor",
+                description: "You've entered the good graces of a cult worshiping a methuselah. Assign six dots in any way you like to the following Backgrounds: Influence, Haven, Herd, Resources, Retainers, or Status. You keep these benefits as long as you obey at least one of their requests once per story.",
+            },
+            {
+                dot: 5,
+                name: "Face to Face",
+                description: "If you seek out the Ancients, you risk finding them. Once per story, when facing a methuselah or elder, you can make an Intelligence + Occult test at Difficulty 4. On a success, you recollect a detail that prompts the vampire to answer a single question about their own past or the Kindred of bygone eras truthfully — at least from their own perspective — as long as it doesn't significantly jeopardize them or their plans.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
