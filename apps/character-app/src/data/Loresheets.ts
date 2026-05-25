@@ -1175,6 +1175,243 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Anarch Loresheets ────────────────────────────────────────────────────
+    {
+        id: "salvador-garcia",
+        name: "Salvador Garcia",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Garcia Network",
+                description: "You have connections to Anarch movements across the Americas. Once per story, you may call in a favor from an Anarch baron or gang in a city you are visiting, gaining temporary Haven (1) or a single piece of street-level information.",
+            },
+            {
+                dot: 2,
+                name: "Barrio Tactics",
+                description: "Garcia's street-fighting legacy lives in you. You gain a specialty in Brawl: Street Fighting, and once per session you may reroll one failed die on an unarmed or improvised-weapon attack.",
+            },
+            {
+                dot: 3,
+                name: "Voice of the Revolution",
+                description: "Your words carry the weight of the Anarch cause. Add two dice to Social rolls when appealing to Anarchs or mortals sympathetic to anti-establishment causes.",
+            },
+            {
+                dot: 4,
+                name: "Garcia's Chosen",
+                description: "Salvador Garcia himself acknowledges your efforts. You may contact him directly once per chronicle for guidance or support; he will provide meaningful assistance, though never at personal risk.",
+            },
+            {
+                dot: 5,
+                name: "Heir to the Anarch Revolt",
+                description: "You are recognized as a living symbol of the Anarch Movement. Anarchs worldwide will extend hospitality and aid without question. Camarilla and Sabbat agents will mark you as a significant target.",
+            },
+        ],
+    },
+    {
+        id: "agata-starek",
+        name: "Agata Starek",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Burner Phone Network",
+                description: "Starek's network of disposable contacts and prepaid phones is at your disposal. Once per session, you can reach any mortal or Anarch contact without leaving a traceable call record.",
+            },
+            {
+                dot: 2,
+                name: "Counter-Surveillance",
+                description: "Starek trained you to spot and defeat electronic monitoring. Add two dice to rolls to detect or evade surveillance technology, and gain a specialty in Technology: Counter-Surveillance.",
+            },
+            {
+                dot: 3,
+                name: "Dead Drop Mastery",
+                description: "You know Starek's global network of dead drops and safe houses. Once per story you may access a safe house in any major city, stocked with basic Haven (2) amenities and a cached set of false identities.",
+            },
+            {
+                dot: 4,
+                name: "Starek's Trust",
+                description: "Agata Starek considers you a genuine ally. She will share intelligence about Camarilla movements in your region and can arrange access to Anarch cells in Europe once per chronicle.",
+            },
+            {
+                dot: 5,
+                name: "Ghost in the Machine",
+                description: "Starek has woven you into her information blackout. Your digital footprint is effectively erased — Camarilla hunters and Second Inquisition analysts cannot locate you through electronic means without exceptional effort.",
+            },
+        ],
+    },
+    {
+        id: "hesha-ruhadze",
+        name: "Hesha Ruhadze",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Eye of Haroueris",
+                description: "You have studied the lore surrounding the Eye of Haroueris and related Set artifacts. Add two dice to Occult rolls related to Egyptian mythology, Setite history, or ancient artifacts.",
+            },
+            {
+                dot: 2,
+                name: "Ruhadze's Contacts",
+                description: "Hesha's network of mortal antiquarians, museum curators, and black-market dealers is partially at your disposal. Once per story you may arrange access to a rare artifact or occult document through these contacts.",
+            },
+            {
+                dot: 3,
+                name: "Serpent's Patience",
+                description: "Hesha has taught you the discipline of waiting and watching. You may spend a Willpower to perfectly conceal your emotional state and intentions for the rest of a scene; no supernatural power short of Dominate can read your surface thoughts.",
+            },
+            {
+                dot: 4,
+                name: "Heir to the Eye",
+                description: "Ministry characters only. You are entrusted with fragments of Ruhadze's research into the Eye. Once per chronicle, you may attempt to use this knowledge to unlock a single dot of a Setite ritual or power you do not possess, with Storyteller approval.",
+                clanRestriction: ["Ministry"],
+            },
+            {
+                dot: 5,
+                name: "Ruhadze's Chosen",
+                description: "Ministry characters only. Hesha Ruhadze names you his successor in the hunt for the Eye. He provides you with direct mentorship, access to his full network, and will intervene once per chronicle on your behalf — at significant personal cost to himself.",
+                clanRestriction: ["Ministry"],
+            },
+        ],
+    },
+    {
+        id: "church-of-set",
+        name: "The Church of Set",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Temple Initiate",
+                description: "You are recognized as an initiate of the Church of Set's outer mysteries. You may attend public ceremonies and have access to the church's mortal congregants as a minor resource pool.",
+            },
+            {
+                dot: 2,
+                name: "Inner Mysteries",
+                description: "You have been granted access to the Church's inner teachings. Add two dice to Occult rolls related to Setite theology, and once per story you may call on a mortal true believer for a significant favor.",
+            },
+            {
+                dot: 3,
+                name: "Temple Network",
+                description: "The Church of Set maintains hidden temples across the world. You may request sanctuary or resources at any Church temple once per story; the local priests will provide Haven (2) and basic support.",
+            },
+            {
+                dot: 4,
+                name: "Voice of Set",
+                description: "Ministry characters only. You speak with the authority of Set's teachings. Once per session, you may add three dice to a Manipulation or Persuasion roll when speaking to mortals or Kindred who are susceptible to religious or philosophical influence.",
+                clanRestriction: ["Ministry"],
+            },
+            {
+                dot: 5,
+                name: "High Priest",
+                description: "Ministry characters only. You hold a position of genuine authority within the Church of Set. Mortal followers will sacrifice significantly for you, and Ministry elders treat you as a peer. You may issue directives to the mortal congregation once per chronicle.",
+                clanRestriction: ["Ministry"],
+            },
+        ],
+    },
+    {
+        id: "ruins-of-carthage",
+        name: "Ruins of Carthage",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Carthaginian Lore",
+                description: "You have studied the history and legends of the Kindred utopia of Carthage. Add two dice to Occult or Academics rolls related to ancient Carthage, Brujah history, or pre-Roman Mediterranean civilization.",
+            },
+            {
+                dot: 2,
+                name: "Dream of Carthage",
+                description: "The ideal of Carthage inspires your rhetoric. Once per session you may invoke the Dream of Carthage in a speech or argument; add two dice to Social rolls when rallying Anarchs or idealists to a common cause.",
+            },
+            {
+                dot: 3,
+                name: "Carthaginian Relics",
+                description: "You possess or have access to artifacts from ancient Carthage. Once per story you may draw on these relics for a bonus: either a two-die bonus to an Occult roll or a prop that impresses or intimidates a Kindred with historical knowledge.",
+            },
+            {
+                dot: 4,
+                name: "Blood Memory",
+                description: "The blood memories of Carthage flow through you. Once per chronicle, you may enter a trance and access a vision of ancient Carthage — gaining a specific piece of historical knowledge or a clue relevant to the current story.",
+            },
+            {
+                dot: 5,
+                name: "Heir of Carthage",
+                description: "You are acknowledged as a keeper of Carthage's legacy. Brujah and Banu Haqim elders who venerate Carthage will treat you with deep respect. Once per chronicle, you may call on one such elder for significant aid.",
+            },
+        ],
+    },
+    {
+        id: "blood-plagued",
+        name: "Blood Plagued",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Plagued Blood",
+                description: "Your blood carries a subtle taint that can be sensed by those who know what to look for. You are known in certain circles as someone who has survived or carries blood-borne illness; gain a two-die bonus to rolls to contact thin-bloods or other marginalized Kindred.",
+            },
+            {
+                dot: 2,
+                name: "Carrier",
+                description: "You can pass a supernatural infection through your vitae. Once per story, you may deliberately taint a feeding or blood bond attempt; the target must make a Stamina roll or suffer a mild illness lasting a week.",
+            },
+            {
+                dot: 3,
+                name: "Plague Immunity",
+                description: "Your body has adapted to the taint. You are immune to blood-borne supernatural diseases and gain two dice to resist mundane illnesses and poisons.",
+            },
+            {
+                dot: 4,
+                name: "Virulent Blood",
+                description: "Your blood is a potent vector. Once per session, you may use your vitae as a weapon — anyone ingesting it without your consent suffers a serious supernatural illness at Storyteller discretion.",
+            },
+            {
+                dot: 5,
+                name: "Patient Zero",
+                description: "You are the source. The supernatural plague in your blood is uniquely virulent and may have chronicle-level implications. Kindred hunters of supernatural diseases will seek you out — for cure or destruction.",
+            },
+        ],
+    },
+    {
+        id: "anarch-revolt",
+        name: "Anarch Revolt",
+        source: "anarch",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Revolutionary History",
+                description: "You have studied the history of the Anarch Revolt in depth. Add two dice to Academics or Occult rolls related to Kindred political history, the Convention of Thorns, or the founding of the Camarilla.",
+            },
+            {
+                dot: 2,
+                name: "Revolt Contacts",
+                description: "You are connected to Anarchs who trace their lineage or ideology to the original Revolt. Once per story, you may call on one of these elders or their childer for a significant favor or piece of historical information.",
+            },
+            {
+                dot: 3,
+                name: "Spirit of Revolt",
+                description: "The fire of the Revolt burns in you. Add two dice to Intimidation or Leadership rolls when confronting or rallying against authority figures — Camarilla Princes, Sheriff's deputies, and similar.",
+            },
+            {
+                dot: 4,
+                name: "Thorns Knowledge",
+                description: "You know the hidden clauses and betrayals of the Convention of Thorns. Once per chronicle, you may use this knowledge to expose or shame a Camarilla elder, imposing a two-die penalty on their Social rolls against Anarchs for the remainder of the story.",
+            },
+            {
+                dot: 5,
+                name: "Voice of the First Revolt",
+                description: "You are a living symbol of Kindred rebellion. Your reputation among Anarchs worldwide is legendary. Anarchs will follow your lead in dangerous situations, and your words carry the weight of centuries of struggle.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
