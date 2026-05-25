@@ -3977,6 +3977,124 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── Forbidden Religions Loresheets ───────────────────────────────────────
+    {
+        id: "plagues-of-gehenna",
+        name: "Plagues of Gehenna",
+        source: "forbidden-religions",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Blister Marks",
+                description:
+                    "You're a member of a loose association of Kindred keeping vigil for any signs of blisters — those Kindred who willingly or ignorantly spread disease among the kine. Whenever you succeed on a Medicine roll to examine the health of a mortal, living or postmortem, you also discern whether any disease they may have was inflicted on them by a Kindred.",
+            },
+            {
+                dot: 2,
+                name: "Autoclave",
+                description:
+                    "Fearful of becoming a disease vector, you have three dots in Herd that will remain clean and uninfected even should sickness run rampant through the local population. You must maintain the purity of this blood source carefully — no one can draw upon the Herd more than once per story. If you share it with anyone, even once, you lose access to it yourself for the remainder of the story.",
+            },
+            {
+                dot: 3,
+                name: "Fire in the Blood",
+                description:
+                    "Strange diseases once wracked even your Kindred physiology with fever and bizarre phantasmagoria. While the sickness passed, it left its mark. Once per scene when you feed on a mortal and contract a disease you could spread to future victims, you mend one Superficial Health damage and one Superficial Willpower damage. You also immediately become aware whenever the blood of a vessel you feed from bears infectious disease.",
+            },
+            {
+                dot: 4,
+                name: "Firebreak",
+                description:
+                    "You've studied disease outbreaks in mortals and vampires alike and understand how far an infection can slither through Kindred society before being detected. You possess five dots in Influence solely for the purpose of controlling and quelling disease outbreaks among the kine that would affect the Kindred. When you exercise this Influence and succeed, you gain two dots in Status with your sect for the remainder of the story.",
+            },
+            {
+                dot: 5,
+                name: "Plague Sample",
+                description:
+                    "In your possession is a phial of blood drawn from a sick, maddened elder while in the throes of the Beckoning. It seethes with the contagious power of a plague that will affect Kindred with lethal results. What exactly it does to vampire victims, how it spreads, and what link it has to the Beckoning is up to the Storyteller — if you are ever desperate, brave, or mad enough to unleash it upon your fellow undead.",
+            },
+        ],
+    },
+    {
+        id: "praepositor",
+        name: "Praepositor",
+        source: "forbidden-religions",
+        requiresStPermission: true,
+        clanRestriction: ["Tremere"],
+        dots: [
+            {
+                dot: 1,
+                name: "Chastise the Wayward",
+                description:
+                    "You embrace the cult's ideology of war against those who oppose the clan — including renegades within the Tremere. You may reroll a single die in any dice pool to cause direct harm to another Tremere character if you believe them to be a renegade.",
+            },
+            {
+                dot: 2,
+                name: "Discreet Professionalism",
+                description:
+                    "You've been at the cutting edge of Praesidium efforts to build a network of clients and contracts to prop up a reinvigorated Clan Tremere. Once per story, you can draw on favors due or debts yet to be paid to acquire two dots in Status with any sect or clan for a single interaction. You can expect the person you leverage to want something in return in the next story, if not before.",
+            },
+            {
+                dot: 3,
+                name: "Guard the Clan",
+                description:
+                    "You joined this cult because you wanted to rebuild and protect what had gone before. Whenever you Rouse the Blood to protect your clan's members and secrets, you may roll two dice and pick the highest result.",
+            },
+            {
+                dot: 4,
+                name: "Expert Security",
+                description:
+                    "You're one of the cult's top experts in security and protection and have a team of Praepositor specialists on speed-dial. Once per story, you can spend a scene establishing a safehouse or strong-point to grant yourself or another character up to five dots of Haven that lasts until the end of the scene. This drains three dots of Resources for the remainder of the story, requiring outside funding if you do not possess these dots yourself.",
+            },
+            {
+                dot: 5,
+                name: "Blood Loyalty",
+                description:
+                    "The Praesidium's early experiments to rebuild the clan's Blood Bond bear unexpected discoveries. If you and another participant (mortal or vampire) sign a contract written using their blood or vitae, make one Rouse Check per level of Blood Bond you intend to initiate. Once signed, treat the contracted service as if the co-signee was Blood Bound to it — to breach the contract, they must succeed in a contest of Resolve + Intelligence vs. Bond Strength. Once the contract is complete or you destroy it, the simulated Blood Bond immediately ends.",
+            },
+        ],
+    },
+    {
+        id: "spear-of-orthia",
+        name: "Spear of Orthia",
+        source: "forbidden-religions",
+        requiresStPermission: true,
+        clanRestriction: ["Ventrue"],
+        dots: [
+            {
+                dot: 1,
+                name: "Tip of the Spear",
+                description:
+                    "You are a member of the new wave of Shattered Spear adherents spreading through Clan Ventrue. Once per session, when interacting with another Ventrue character, you may ask the Storyteller whether that Ventrue will be receptive to your faith, tolerant of it, or opposed to it should you reveal your allegiance.",
+            },
+            {
+                dot: 2,
+                name: "Soldier's Code",
+                description:
+                    "You have embraced the liturgy of the Spear with ardent zeal. Choose one of the Convictions of the Spear. Once per story, you may use it to mitigate Stains as if it was one of yours.",
+            },
+            {
+                dot: 3,
+                name: "The Enduring Faith",
+                description:
+                    "You know one or more Ventrue in the region are secretly followers of Orthia. If you can contact them and enlist their aid, they will provide you with four dots of either Allies or Mawla.",
+            },
+            {
+                dot: 4,
+                name: "Witness to Orthia",
+                description:
+                    "You went down beneath Lisbon with Elena and saw the revelation of Orthia with your own undead eyes. You speak with the conviction of the Voice herself, and your testimony stirs those of Ventrue Blood. Once per scene, after rolling the dice to convince one or more Ventrue of your beliefs, exhort them to violence, or lead them in battle, you may turn all 1s rolled into 10s.",
+            },
+            {
+                dot: 5,
+                name: "Splinter of the Spear",
+                description:
+                    "You possess a splinter of the spear of Orthia itself. As long as you have it about your person, channeling the power of Artemis Orthia grants you two automatic successes on Melee rolls when wielding spears or other piercing weapons — including stakes. However, committing an act of cowardice such as retreating before a foe or falling to terror frenzy is an insult to its legacy, and you suffer one point of Aggravated Willpower damage should such happen. Losing the splinter would be an utter disaster for you and for the Shattered Spear.",
+            },
+        ],
+    },
+
     // ── Trails of Ash and Bone Loresheets ───────────────────────────────────
     {
         id: "ruby-throat",
