@@ -5322,6 +5322,40 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    {
+        id: "wolves-in-sheeps-clothing",
+        name: "Wolves in Sheep's Clothing",
+        source: "winters-teeth",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "What Big Teeth You Have!",
+                description: "As their name suggests, the Wolves in Sheep's Clothing are deadly because, as ghouled mortals, Kindred tend to underestimate them — allowing them to get close enough to strike with lethal precision. You have learned to recognize the tell-tale signs of these abominations as your Beast instinctively finds itself agitated around these callous usurpers.",
+            },
+            {
+                dot: 2,
+                name: "Huntsman",
+                description: "You have engaged in a deadly game of cat-and-mouse with the Wolves in Sheep's Clothing for years. The lines between predator and prey have become blurred as you seek out these deadly foes while simultaneously ensuring your own safety during daylight hours. You gain an extra die to all Investigation rolls made to track down or investigate the Wolves in Sheep's Clothing, in addition to gaining an extra die to all rolls made to act during the daytime.",
+            },
+            {
+                dot: 3,
+                name: "Carrion Preservation",
+                description: "You have managed to replicate the way in which the Wolves harvest vampiric body parts without them immediately decaying into dust. While you cannot gain the benefits they do by grafting such parts onto yourself, such a talent can prove useful when preserving evidence or grisly keepsakes. By dousing the organ or extremity in one Rouse Check's worth of vitae and succeeding at a Resolve + Occult roll (diff. 3), you may embalm the object for a year, at which time the preservation needs to be renewed. Final Death of the caster immediately renders this preservation null.",
+            },
+            {
+                dot: 4,
+                name: "A Wolf in the Fold",
+                description: "You have been victimized by the Wolves in Sheep's Clothing, though you have managed to escape. To this night, some up-jumped ghoul stalks the streets wielding pieces of your body as their own. Once per Chronicle, you may attempt to inhabit the perception of your assailant, as per the Auspex power Share the Senses (using Resolve + Insight). Should you already possess Share the Senses, you instead reduce the difficulty of the roll by two.",
+            },
+            {
+                dot: 5,
+                name: "The Shepherd",
+                description: "You have made yourself a mysterious benefactor to the Wolves in Sheep's Clothing to such a degree that they have become your loyal, if ignorant, hounds. You gain Allies (••••) representing a cell of these redoubtable ghouls. Once per Chronicle, you may send this cell to dispatch a Kindred enemy. However, should the Wolves discover your true nature, said Allies may very easily become Enemies (••••) instead, not to mention any objections your local Camarilla may take to those who willingly aid and abet anathemas such as these.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
@@ -5364,28 +5398,28 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Langford's Legacy",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "The Land Listens",
+                description: "You have been recognized — however faintly — as relevant to the Langford site. Doors no longer slam closed randomly, and the temperature and humidity no longer rebel against your presence. Gain 1 extra die to Lien, Portillon, or similar spirit- or place-mediated actions conducted at or directly tied to the Plantation. Spirits, charms, or chimera associated with the land do not immediately treat you as an Intruder.",
             },
             {
                 dot: 2,
-                name: "Keeper of Secrets",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Keeper of the Threshold",
+                description: "You have gained knowledge of where the curtains between the land and other spaces are thin, and you know how to step carefully to manipulate or protect these spaces accordingly. Reduce the difficulty by 1 to open, stabilize, or traverse a known threshold connected to the Langford ley line.",
             },
             {
                 dot: 3,
-                name: "Old Debts",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Blood Writes on Stone",
+                description: "Your vitae has been accepted as part of the site's ongoing metaphysical structure. When performing a ritual, ceremony, or extended occult action that draws on the land, spirits, or ley flow at Langford, gain +1 die to the primary roll. Spirits or Fae convinced by you to assist may supply teamwork to such castings as determined by a Storyteller.",
             },
             {
                 dot: 4,
-                name: "Blood of the Line",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Warden's Claim",
+                description: "You are no longer merely Acknowledged — you are obeyed, albeit reluctantly. Once per story you may issue a binding directive to a spirit, guardian, or trod function tied to the Langford line. This spirit acts as Allies 4/2 and is controlled by the Storyteller. It may twist your words to suit its needs, and this control may be considered hostile.",
             },
             {
                 dot: 5,
-                name: "Warden's Authority",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Master of the Broken Chain",
+                description: "You hold the leash. The hold is not clean nor safe, but it is currently firm. You may open, close, reroute, or deny passage along the Langford Trod once per story without a roll, unless directly opposed by another entity of similar narrative weight. Opponents attempting to use or destabilize the trod must contend with you first, both narratively and mechanically. This control may bring friction and contact with other entities that rely on the Trod for transport and defense, and may also require occasional effort to defend the Trod as entities from the Deep Dreaming find their way to it and attempt crossing.",
             },
         ],
     },
@@ -5397,28 +5431,28 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Rat Paths",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "The Sound of Silence",
+                description: "You've come to understand the ambient noises under the city — dripping water, pipe expansion, hissing steam — and also the more intentional sounds: an entire language of banging on pipes that can carry for miles through cisterns and culverts. You have learned how to listen and decipher these patterns to learn things about the city above. Gain the Specialty Streetwise (Sewer Echoes) that may be used for rumors and other information gathering.",
             },
             {
                 dot: 2,
-                name: "Below the City",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "No, Really!",
+                description: "Nashville's sewers span thousands of miles of tunnels that exit anywhere in the city if you know how to navigate them. You are one such creature, and know how to avoid pitfalls and lairs along the way. You may navigate the sewers freely and safely, using them to appear nearly anywhere in Nashville given enough time to travel on foot. This is also useful for escaping pursuit.",
             },
             {
                 dot: 3,
-                name: "Old Bones",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "The Blood Flows",
+                description: "Deep within Nashville runs the mother of all sewers — a century-old line big enough to drive a dump truck through. This rarely used space has become a ramshackle marketplace called The Liminals, where most anything can be found for the right price. Gain the Side Hustler merit as well as Contacts 1: The Liminals.",
             },
             {
                 dot: 4,
-                name: "Tunnels' Memory",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "The Hollow Veins",
+                description: "Deep within Nashville's darkest sewer places lies the Hollowed Veins freehold, ruled by a motley of Sluagh called the Whispered Court. Thallain flock to the freehold, held in check by the sly and wicked Unseelie. You've met denizens or prisoners of the freehold and perhaps done work for them. You know an emissary of the dark Unseelie and may call upon them for information or favors — though as with any Fae dealing, the reward is often not what you expect. Gain Mawla (••••) to be used at your own peril.",
             },
             {
                 dot: 5,
-                name: "Master of the Deep",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Roiling Madness",
+                description: "The Whispered Court owes you favors, or you have proven yourself and gained the respect of the assembled Fae. You may call upon a motley of Thallain to do your bidding, boiling up from the sewers like mad howling ants upon sugar. You may or may not keep them in check once they have been pointed at a task, and they may stay and cause trouble after the task is complete if you do not word things perfectly, as Fae are wont to do. Be careful what you wish for. Gain Allies: Thallain Motley (••••).",
             },
         ],
     },
