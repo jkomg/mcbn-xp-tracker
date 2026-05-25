@@ -3977,6 +3977,199 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── The Fall of London Loresheets ────────────────────────────────────────
+    {
+        id: "court-of-shadows",
+        name: "Court of Shadows",
+        source: "fall-of-london",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Free Meals",
+                description:
+                    "The King of Shadows is aware their Kindred associates need to remain well-fed, and to this end they employ mortals across the city as willing vessels. Once per game session you may approach the Court of Shadows for sustenance. The vessel will be willing, of a random Resonance with no Dyscrasias, and compatible with your feeding restrictions.",
+            },
+            {
+                dot: 2,
+                name: "Rumor Mill",
+                description:
+                    "The Court of Shadows encourages a lively trade of information and rumors. Once each game session you may approach the network to exchange useful information. The veracity and accuracy of what you receive is left to the Storyteller's discretion, but should reflect the value of information you trade in return. If you cannot pay in kind, you may be asked to perform a service for the King instead.",
+            },
+            {
+                dot: 3,
+                name: "Contraband",
+                description:
+                    "The Court of Shadows is a place where you can find illegal narcotics, weapons, explosives, and other contraband. Once per story you may approach the Court for what you need. They will be willing to provide, but always at a price — paid in hard currency, information, or other goods of equivalently high value.",
+            },
+            {
+                dot: 4,
+                name: "Sanctuary",
+                description:
+                    "The Court has access to many buildings above ground and structures below ground, all claimed by the King as their domain. Once per story you may approach the Court of Shadows to request sanctuary. You will be blindfolded and not know where you are taken, but you can be sure you will be kept safe for as long as you need.",
+            },
+            {
+                dot: 5,
+                name: "Favored by the King",
+                description:
+                    "You are one of the few Kindred in London who has ever been in the presence of the King of Shadows. For some reason they have taken an interest in you and regularly correspond and meet with you. The King wears a mask and remains enigmatic, but you know more about them than most. Once per story you may call upon the King directly for aid — the manner and degree to which they respond is left to the Storyteller, but it should materially serve your needs in some way.",
+            },
+        ],
+    },
+    {
+        id: "hunt-club",
+        name: "Hunt Club",
+        source: "fall-of-london",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Huntsman's Newsletter",
+                description:
+                    "As a fledgling member of the Hunt Club, you are notified when important events occur, including when Blood Hunts are declared in the various Kindred domains in Avalon and the cities of western Europe. You can expect to receive such a notice once per story, but exactly when is left to the Storyteller's discretion.",
+            },
+            {
+                dot: 2,
+                name: "Experienced Diablerist",
+                description:
+                    "You have previously participated in a hunt and committed the act of diablerie on another vampire. Due to your prior experience, you may add one die to your pool in all future Strength + Resolve tests when attempting the same act again. This also means the signs of diablerie may be visible in your aura, and you would be wise to avoid this being detected.",
+            },
+            {
+                dot: 3,
+                name: "Huntsman's Dossier",
+                description:
+                    "The Hunt Club devotes significant resources to watching and researching elder vampires, assessing their defenses and suitability as targets. Once per story you may contact the organization to ask for information regarding the current whereabouts or favorite haunts of a named Kindred in the local domain.",
+            },
+            {
+                dot: 4,
+                name: "Huntsman's Steed",
+                description:
+                    "You have acquired and adapted a modern vehicle to perfectly complement your hunting pursuits. It will be a plain-colored van or truck with blacked-out windows, subtly armor-plated on the exterior, and with a sound-proofed interior reinforced with a metal cage strong enough to contain an angry Kindred. The vehicle can be registered to your name or one of your Masks.",
+            },
+            {
+                dot: 5,
+                name: "Leader of the Hunt",
+                description:
+                    "Your good standing within the Hunt Club gives you the right to name any Kindred as the next quarry for the organization's sport. Once per story you may circulate the name of your target, causing them to be taunted, harassed, and attacked by members of the organization. This will prove a significant inconvenience and distraction, but whether they survive is left to the Storyteller's discretion.",
+            },
+        ],
+    },
+    {
+        id: "london-under-london",
+        name: "London Under London",
+        source: "fall-of-london",
+        requiresStPermission: true,
+        clanRestriction: ["Nosferatu"],
+        dots: [
+            {
+                dot: 1,
+                name: "Tube Safety",
+                description:
+                    "Your knowledge of the Tube system places you at an advantage. You know the layout of each station and where all CCTV cameras are placed — including their blind spots. You may attempt a Wits + Stealth test at Difficulty 3 to pass through or hunt in any tube station undetected. Anyone traveling with you can benefit from your knowledge should you choose to share it.",
+            },
+            {
+                dot: 2,
+                name: "Somewhere to Hide",
+                description:
+                    "Your knowledge of London's underground infrastructure lets you hide in desperate situations — whether being pursued or caught too far from your haven near dawn. Attempt a Wits + Larceny test at Difficulty 3 to find a suitable hiding place below ground overlooked by anyone without similar knowledge: an old sewer pipe, a maintenance hatch, or an unused section of Underground tunnel.",
+            },
+            {
+                dot: 3,
+                name: "Network of Vermin",
+                description:
+                    "You have spent enough time below ground to become familiar with the multitudes of vermin and other creatures that live there. Your chances of finding useful creatures in any underground scene are increased, and you may add one die to your pool when using any Animalism powers concerning the interaction with bestial creatures below the surface of London, including Bond Famulus, Feral Whispers, Unliving Hive, and Animal Dominion.",
+            },
+            {
+                dot: 4,
+                name: "Personal Bolt-Hole",
+                description:
+                    "In addition to your regular haven aboveground, you maintain a secret underground hideout where no other Kindred can find you, and where you can store valuable items you dare not leave elsewhere. You do not use it frequently, as doing so would risk its discovery, but here you are safe from traditional means of discovery and the harmful rays of the sun. Note that this mundane location will not conceal you from supernatural tracking such as Auspex or Blood Sorcery.",
+            },
+            {
+                dot: 5,
+                name: "Freedom of the City",
+                description:
+                    "Your knowledge of London's subterranean landscape lets you travel between locations without ever stepping above ground. Once per story you may transit between two surface locations using underground routes in a manner undetected by anyone watching at ground level. This could mean illicitly accessing a private building — a bank vault, a secure office, or another Kindred's Haven — but will not protect you from any security measures you encounter inside.",
+            },
+        ],
+    },
+    {
+        id: "operation-antigen",
+        name: "Operation Antigen",
+        source: "fall-of-london",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Early Warning",
+                description:
+                    "You have a trusted insider who has made you a simple promise: if Antigen ever identifies you or plans your capture, they will give you advanced warning. This is a one-time thing — they won't stop or delay the agents, but they will do you the courtesy of letting you know they are coming.",
+            },
+            {
+                dot: 2,
+                name: "Tactical Dossier",
+                description:
+                    "You have acquired or been leaked a dossier covering typical Antigen operating procedures: surveillance protocols, how to plan raids, and tactical advice for engaging ICOs. During a scene involving Operation Antigen, you can use the dossier to predict and outwit their behavior. If the outcome reveals they have been outmaneuvered (agents killed, mission objectives thwarted), they will change their methods and the dossier becomes useless.",
+            },
+            {
+                dot: 3,
+                name: "Sympathetic Insider",
+                description:
+                    "You have a relationship with someone placed high up in Antigen's apparatus who knows a great deal about current operational activities and targets. Cautious and paranoid about being caught, they will share information through suitably clandestine methods. You may reach out to this four-dot Contact once per story to ask questions about Antigen's current activities.",
+            },
+            {
+                dot: 4,
+                name: "Get Out of Jail Free",
+                description:
+                    "You have leverage over someone in the upper echelons of Operation Antigen. They don't know it yet, and it can only be used once — once the organization knows this person is compromised, they will be cycled out. You can contact them and successfully blackmail them into performing one service: securing your release if captured, deflecting resources, or deleting sensitive information. Once used, your leverage is valueless and you will be placed on Antigen's watch list.",
+            },
+            {
+                dot: 5,
+                name: "Official Credentials",
+                description:
+                    "You have obtained or manufactured false credentials giving you temporary access to Antigen resources. You can briefly take command of Antigen personnel at a location under surveillance or at the scene of a raid. You can also use this identity to take custody of prisoners or evidence, or to infiltrate a location currently under Antigen control. How long your cover lasts depends on how well you can blend in. Once used, the cover is blown and cannot be used again.",
+            },
+        ],
+    },
+    {
+        id: "oskar-anasov",
+        name: "Oskar Anasov",
+        source: "fall-of-london",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Messaging Service",
+                description:
+                    "You are acquainted with Anasov well enough to use his messaging network — a reliable method for contacting other Kindred in London without risk of the communication being intercepted by Operation Antigen. Anasov promises successful delivery, regardless of how elusive the recipient might otherwise be.",
+            },
+            {
+                dot: 2,
+                name: "Personal Introduction",
+                description:
+                    "For a higher fee, Anasov can arrange a face-to-face meeting with any Kindred resident in London. Once per story you can name any Kindred known to be in London and the Nosferatu will arrange the meeting after receiving payment. Anasov facilitates the introduction but cannot vouch for the Kindred's behavior. If a meeting turns violent or ends badly for the Kindred you named, Anasov will refuse all future requests.",
+            },
+            {
+                dot: 3,
+                name: "Safe Passage",
+                description:
+                    "Anasov has the means to smuggle mortals and Kindred in and out of London without fear of detection by vampires or Antigen agents. Once each story you may call upon him to perform this service for a group of up to six individuals. If entering the city, they will be delivered to an address of your choice. If leaving, you may name a destination outside London's borders. International transit is possible for a higher fee.",
+            },
+            {
+                dot: 4,
+                name: "Mentor",
+                description:
+                    "You are personally acquainted with Anasov and your interactions are more than just business. You may count him as a four-dot Mawla and receive a significant discount when paying for his services. However, this also means he may call on you at least once per story to help with message delivery, people-smuggling, or another activity that furthers his interests.",
+            },
+            {
+                dot: 5,
+                name: "Landlord Council",
+                description:
+                    "Through Anasov, you will be notified and invited to any meeting of London's Kindred Landlords. Once per story, if you have a suitable justification, you may also ask Anasov to use his influence to call the Landlords of London to a meeting. Note that these Kindred are paranoid, fickle, and prideful — they will mark you as a fool or an enemy if they decide you are wasting their time.",
+            },
+        ],
+    },
+
     // ── Forbidden Religions Loresheets ───────────────────────────────────────
     {
         id: "plagues-of-gehenna",
