@@ -486,7 +486,6 @@ export const LORESHEETS: Loresheet[] = [
         name: "Jeanette/Therese Voerman",
         source: "core",
         requiresStPermission: true,
-        clanRestriction: ["Malkavian"],
         dots: [
             {
                 dot: 1,
@@ -794,7 +793,6 @@ export const LORESHEETS: Loresheet[] = [
         name: "Ambrus Maropis",
         source: "core",
         requiresStPermission: true,
-        clanRestriction: ["Nosferatu"],
         dots: [
             {
                 dot: 1,
@@ -833,7 +831,6 @@ export const LORESHEETS: Loresheet[] = [
         name: "Carmelita Neillson",
         source: "core",
         requiresStPermission: true,
-        clanRestriction: ["Toreador"],
         dots: [
             {
                 dot: 1,
@@ -872,7 +869,6 @@ export const LORESHEETS: Loresheet[] = [
         name: "Fiorenza Savona",
         source: "core",
         requiresStPermission: true,
-        clanRestriction: ["Ventrue"],
         dots: [
             {
                 dot: 1,
