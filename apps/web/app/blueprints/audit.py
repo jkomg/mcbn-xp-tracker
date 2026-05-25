@@ -8,14 +8,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-_EASTERN = ZoneInfo('America/New_York')
-
 from flask import Blueprint, render_template, request, jsonify
 from app import db_service
 from app.sheets_sync import get_recent_sync_errors as _get_recent_sync_errors
 from app.auth import require_staff
 
 bp = Blueprint('audit', __name__)
+
+_EASTERN = ZoneInfo('America/New_York')
 
 def _default_log_dir() -> Path:
     _parents = Path(__file__).resolve().parents

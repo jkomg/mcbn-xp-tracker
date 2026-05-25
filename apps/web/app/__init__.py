@@ -8,8 +8,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-_EASTERN = ZoneInfo('America/New_York')
-
 from flask import Flask, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -18,6 +16,8 @@ from .sheets import SheetsClient
 from .db import db
 from .db_service import DBService
 from .sheets_sync import SheetsSyncWorker
+
+_EASTERN = ZoneInfo('America/New_York')
 
 # Module-level singletons
 sheets_client: SheetsClient = None
