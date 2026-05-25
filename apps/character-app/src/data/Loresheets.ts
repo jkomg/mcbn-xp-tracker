@@ -1412,6 +1412,771 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Chicago by Night Loresheets ──────────────────────────────────────────
+    {
+        id: "annabelle",
+        name: "Annabelle",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Intern",
+                description: "Fledglings who want to learn Kindred politics often spend time working for Annabelle. Once per story, you may ask for Annabelle's guidance on a particular matter. She may decide to help you, though whether that's to your benefit or detriment is questionable.",
+            },
+            {
+                dot: 2,
+                name: "Glitterati",
+                description: "Your fame or name makes Annabelle's parties more interesting. Once per story, you can get on the guest list for an event to which you weren't previously invited by simply asking \"Do you know who I am?\"",
+            },
+            {
+                dot: 3,
+                name: "With Thanks to Our Donors",
+                description: "Annabelle knows someone at every museum and recording studio in town. Once per story, she will pull strings to get you a meeting with someone in charge, but the rest is up to you.",
+            },
+            {
+                dot: 4,
+                name: "Patronage",
+                description: "Your exceptional talents have drawn Annabelle's eye. When you perform for her associates or she brokers a deal for your artwork, your Resources increase by one dot until the end of the story. Once per story.",
+            },
+            {
+                dot: 5,
+                name: "Inner Circle",
+                description: "You've proven indispensable to Annabelle. She heeds your judgment and entrusts you with sensitive information. Once per story, she will present an issue of your choice before the Primogen council.",
+            },
+        ],
+    },
+    {
+        id: "ballard-industries",
+        name: "Ballard Industries",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Deep Pockets",
+                description: "Once per story, after any event that causes a reduction in your Resources, you may choose to immediately restore your Resources to their original value.",
+            },
+            {
+                dot: 2,
+                name: "Where the In-Crowd Goes",
+                description: "Once per story, you may invoke one of Ballard's false identities to receive three extra dice on a Social test in a corporate environment. If you invoke Ballard's real name instead, you automatically succeed, but it may be declared a Masquerade breach.",
+            },
+            {
+                dot: 3,
+                name: "I Fought the Law, and I Won",
+                description: "Ballard Industries owns top law firms and has law enforcement in its pocket. No matter what crimes you commit, you will always have access to Influence: Police (•••) in your home state or district.",
+            },
+            {
+                dot: 4,
+                name: "Favors for Favors",
+                description: "If you spend your resources for an SPC's benefit, you may declare they owe you a debt and add two dice to Intimidation or Persuasion if they resist. Once agreed, you may call in the debt at any time. You can hold as many debts as your total Status.",
+            },
+            {
+                dot: 5,
+                name: "The View from the Top",
+                description: "Ballard places you in charge of a piece of his empire. Name your company and choose two Backgrounds (one at ••••, one at •••) from: Haven, Herd, Influences, Resources, or Retainers. You also gain Enemy (••) and Enemy (•) from business rivals.",
+            },
+        ],
+    },
+    {
+        id: "blacksite-24",
+        name: "Blacksite 24",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Rumors",
+                description: "You know a lick who knows a lick who knows somebody that got scooped up by well-armed MIB-looking dudes in unmarked vehicles. Once per story, you may ask the Storyteller to feed you one rumor — which may or may not be based in reality.",
+            },
+            {
+                dot: 2,
+                name: "No, Really!",
+                description: "You are the lick the other lick knows. Whether a recent arrival who witnessed something in your travels or part of a Kindred operation helping ferry the desperate, you know what you've seen. Once per story, ask the Storyteller for a solid piece of information about the weirdness you've witnessed.",
+            },
+            {
+                dot: 3,
+                name: "Paranoia Strikes Deep",
+                description: "You know about the existence of FIRSTLIGHT and know they're active somewhere near — possibly inside — Chicago. You possess Contacts (••••) related to FIRSTLIGHT or government-sponsored vampire hunting operations; use them once per story before they go dark.",
+            },
+            {
+                dot: 4,
+                name: "It's My Job To Know This Stuff",
+                description: "As a security specialist for the Chicago Domain, you've uncovered considerable information about the government's vampire hunters, including that they have a permanent installation near Chicago. Grants Status (••) among Kindred and Influence (••) among kine.",
+            },
+            {
+                dot: 5,
+                name: "The One That Got Away",
+                description: "You escaped from Blacksite 24. You are likely being hunted by your former captors. Rötschreck and near-torpid starvation have clouded your memories — once per story, you may ask the Storyteller for one clear snippet of memory from your incarceration. You are immune to FIRSTLIGHT-induced Rötschreck.",
+            },
+        ],
+    },
+    {
+        id: "the-blue-velvet",
+        name: "The Blue Velvet",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Est. 1972",
+                description: "The club's history is your history. You're considered an authority on it — bands whose rise started here, Kindred rivalries that played out in the VIP lounge. Add two dice to any roll related to recalling and using the club's history.",
+            },
+            {
+                dot: 2,
+                name: "Who's Who",
+                description: "Everyone who's anyone stops in at the Blue Velvet. You know them all by name and keep tabs on who comes and goes. Once per story, ask your Storyteller for information on a fellow club-goer's movements — when they last visited, how they acted, and who they were with.",
+            },
+            {
+                dot: 3,
+                name: "Standing Gig",
+                description: "You've played or DJed at the club and appear on its calendar regularly. Once per story, when you perform, choose between gaining a three-dot Resource Background (until end of story) or a three-dot Herd from fans who attend your every performance.",
+            },
+            {
+                dot: 4,
+                name: "VIP Club",
+                description: "Your fame or influence draws others to the club. Bronwyn appreciates your patronage and acts as a four-dot Mawla. A table is always ready for you, and you have access to a private room in the VIP lounge for meetings and feedings.",
+            },
+            {
+                dot: 5,
+                name: "Backstage Pass",
+                description: "You are a trusted, high-level employee at The Blue Velvet. Ian Gibson relies on you for night-to-night operations and you're a member of Bronwyn's inner circle. Once per story, you may request and receive her aid — via influence, financial backing, or use of the club for a private endeavor.",
+            },
+        ],
+    },
+    {
+        id: "the-book-of-nod",
+        name: "The Book of Nod",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Precis",
+                description: "You are familiar with the broader concepts of the Book of Nod and some of the more commonly known prophecies. Once per story, add two dice to an Academics roll related to ancient Cainite history.",
+            },
+            {
+                dot: 2,
+                name: "Well-versed",
+                description: "Your sire or Mawla taught you certain passages from the book and may even have physical fragments. Once per story, you may seek their input on a matter regarding Noddist lore, gaining a two-dice bonus to any Occult test related to the book.",
+            },
+            {
+                dot: 3,
+                name: "Scholar",
+                description: "You've dedicated significant time to the Book of Nod and are familiar with at least one complete version. You can support theories with quotes and are aware of counterarguments. Once per session, add three dice to a Persuasion roll when debating its finer points.",
+            },
+            {
+                dot: 4,
+                name: "Collector",
+                description: "You own several fragments from the book or have memorized sections of Caine's history. Noddists seek you out hoping to examine your copies or hear you recite the tales. Once per story, when you grant someone access, gain three temporary dots in Resources or another appropriate Background, or the ability to call in a future favor.",
+            },
+            {
+                dot: 5,
+                name: "Noddist Master",
+                description: "Other Noddists look to you for insight and your theses are regarded as must-reads. Once per story, you may derive a fact or prophecy from the Book of Nod that automatically succeeds at a Persuasion test at the Storyteller's discretion.",
+            },
+        ],
+    },
+    {
+        id: "capone-gang",
+        name: "Capone Gang",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "A Favor for a Favor",
+                description: "The Capone Gang will do something for you if you do something for them. Favors include procuring drugs, weapons, information, or other illegal goods. Gain Contacts: Capone Gang (•) and Allies: Capone Gang (•) for one use each per story.",
+            },
+            {
+                dot: 2,
+                name: "In Debt",
+                description: "You've got a big ask of the Capone Gang — someone gone, cash laundered, or a clean-up job. No problem. Now you're in Eddie's debt. Once per story you can utilize this to fix some sort of problem, but at some point Eddie will call on you for a favor in return.",
+            },
+            {
+                dot: 3,
+                name: "Just One Job",
+                description: "When you help the Capone Gang with a heist, you get a cut. They plan the job and leave you to walk in, grab what's good, and walk out. Gain Resources (•••) from a successful completion of the job.",
+            },
+            {
+                dot: 4,
+                name: "One of Us",
+                description: "You've become an official member of the Capone Gang via a making ceremony. Gain Resources (••) and Allies: Capone Gang (••), allowing you to hire members for work — with Eddie Wu's permission. You gain one additional die to Streetwise rolls concerning organized crime.",
+            },
+            {
+                dot: 5,
+                name: "Prodigal Child",
+                description: "Eddie Wu has made you a trusted lieutenant. You're in on organizational meetings and help influence big decisions. Gain Allies: Capone Gang (••••), Mawla: Eddie Wu (••), and Haven: Capone Gang Safehouse (••). If you put your interests before the gang's, you lose all benefits — and possibly gain Eddie as an Enemy.",
+            },
+        ],
+    },
+    {
+        id: "the-cobweb",
+        name: "The Cobweb",
+        source: "chicago",
+        requiresStPermission: true,
+        clanRestriction: ["Malkavian"],
+        dots: [
+            {
+                dot: 1,
+                name: "A Break in the Static",
+                description: "The Cobweb is just barely perceptible to you. You catch sporadic snatches of conversation — a few distinct words or images. Enough to piece together a call for aid, though you cannot respond.",
+            },
+            {
+                dot: 2,
+                name: "Shared Condition",
+                description: "You recognize your own. As soon as an individual is introduced to you as a vampire, you can tell whether they are of Clan Malkavian.",
+            },
+            {
+                dot: 3,
+                name: "Across the Web",
+                description: "Your voice is one of the strongest on the Cobweb. You can hold more involved conversations with Malkavians in your city. Once per story you may initiate the Call, sending impressions of a time and gathering place to all who can hear — this does not guarantee obedience.",
+            },
+            {
+                dot: 4,
+                name: "Pluck the Strands",
+                description: "Once per story, you may use the Cobweb to piggyback on your sire's or one of your childer's senses. You are only an observer and cannot control their responses or movements.",
+            },
+            {
+                dot: 5,
+                name: "Malkav's Will",
+                description: "The entity in the Cobweb is awake and aware. It knows your name and tells you its secrets. Once per story, you may ask the Storyteller to divulge a secret about another Malkavian or reveal what orders the mind in the Cobweb wants you to follow.",
+            },
+        ],
+    },
+    {
+        id: "cultivar",
+        name: "Cultivar",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Dark Seedling",
+                description: "You are newly connected to the Cultivar movement and its promise of ancient power and stability. Once per story you may use two dots in Allies: Cultivars representing mortal cultists who come to your aid.",
+            },
+            {
+                dot: 2,
+                name: "Fresh Cutting",
+                description: "Under a current Cultivar's sponsorship, you are tested and pushed beyond your limits. You gain a free Skill Specialty in Occult (Bahari, Lilith, or the Ancestor) and a ritual scar conveying one dot in Status: Cultivar.",
+            },
+            {
+                dot: 3,
+                name: "Suppressing the Beast",
+                description: "Your sponsor grants you access to feeding grounds where mortal devotees spill blood in service to the Mother. This grants you a three-dot Herd and a one-dot Haven accessible once per story. You may never again feed from animals.",
+            },
+            {
+                dot: 4,
+                name: "Newly Made Initiate",
+                description: "A month of isolation and endurance earns you the title of Initiate. You enjoy Status: Cultivar (•••). Once per story, you may add two extra dice to a Willpower roll when calling to mind the harsh fasting endured during your initiation.",
+            },
+            {
+                dot: 5,
+                name: "Jewel in the Garden",
+                description: "Three drops of a methuselah's blood now sing within your veins. You are expected to maintain your own Garden and come when summoned by the Ancestor or the Blackwaters. As a Jewel, you receive four additional dice on rolls to resist frenzy.",
+            },
+        ],
+    },
+    {
+        id: "cult-of-shalim",
+        name: "Cult of Shalim",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Dark Whispers",
+                description: "You have heard rumors of the cult from those returning from the Gehenna Crusade. Once per story, gain two additional dice to either Insight or Investigation to look into the cult's myths or to identify if someone is a member.",
+            },
+            {
+                dot: 2,
+                name: "Cult Initiate",
+                description: "As an initiate, you know the Semitic phrase \"Shin-Lamedh-Mem\" as the identifier of other members. Speaking it to an initiated member immediately grants two dice on any Persuasion roll to gain their assistance. Speaking it to the uninitiated may expose you as a cult member.",
+            },
+            {
+                dot: 3,
+                name: "Power of Faith",
+                description: "The cult's reach extends deepest into the religious community. In the peace of any church or temple, your zeal allows you to ignore the negative effects of Impairment.",
+            },
+            {
+                dot: 4,
+                name: "Crush the Dreams of Life",
+                description: "When you succeed on an Insight roll against any character, the Storyteller reveals their foremost ambition. You may then reroll any failed dice in a Persuasion roll per scene against them. You may also roll Manipulation + Persuasion vs. Composure + Insight to plunge them into despair, inflicting one Aggravated Willpower damage. A total failure turns them against you.",
+            },
+            {
+                dot: 5,
+                name: "Shalim Is",
+                description: "You are a true servant of Shalim. Your position grants Herd (••) for your followers and Influence (•••) in the religious community of your choice. You gain the Dark Secret Flaw (•). You automatically pass any Composure-based roll to hide your membership in the cult.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-lodin",
+        name: "Descendant of Lodin",
+        source: "chicago",
+        requiresStPermission: true,
+        clanRestriction: ["Ventrue"],
+        dots: [
+            {
+                dot: 1,
+                name: "Baby of the Family",
+                description: "You are the youngest member of the lineage, embraced within the last decade and still treated with some indulgence. With other members of Clan Ventrue in Chicago, you always have a Mawla rating of at least one dot.",
+            },
+            {
+                dot: 2,
+                name: "Responsible Middle Childe",
+                description: "A steadfast and proud member of Lodin's bloodline, just coming into your own. Other Kindred of similar age and Generation look to you for leadership. With them you always carry a minimum of Status (••).",
+            },
+            {
+                dot: 3,
+                name: "Black Sheep of the Family",
+                description: "You are a descendant of Lodin who has split with the bloodline in some dramatic way. You have a little bit of dirt on every one of Lodin's childer. The Storyteller will reveal a secret about any one of them you encounter, once per story.",
+            },
+            {
+                dot: 4,
+                name: "Like Sire, Like Childe",
+                description: "Like your ancestor, you are a virtually unkillable cockroach of a vampire. Add two dice to your dice pools when making tests to avoid physical or supernatural injury outside of direct physical conflict.",
+            },
+            {
+                dot: 5,
+                name: "Long-Lost Relative",
+                description: "You are a descendant of one of the childer Lodin sired between his departure from Veracruz and his arrival in Chicago. Your arrival has sent a shockwave through the city. You enjoy Status (••••) among Ventrue and court officials, and a definite seat at the Prince's table.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-montano",
+        name: "Descendant of Montano",
+        source: "chicago",
+        requiresStPermission: true,
+        clanRestriction: ["Lasombra"],
+        dots: [
+            {
+                dot: 1,
+                name: "The Shadow of Yesterday",
+                description: "Once per story, you may write a letter to Montano asking for a single piece of information about either the Camarilla or Clan Lasombra. From his distant haven, he will respond with truth or clues leading to it.",
+            },
+            {
+                dot: 2,
+                name: "Siblings in Darkness",
+                description: "Montano's deeds and the honor of his line afford you respect even from clanmates in the Sabbat and elsewhere. Your Status: Lasombra (••) applies to Lasombra across all sects.",
+            },
+            {
+                dot: 3,
+                name: "Abyssal Apprentice",
+                description: "Montano cannot teach you everything due to the comparative weakness of your blood, but you've picked up a few tricks. Once per story, you may use an Oblivion power you do not already know that is at your current level or lower.",
+            },
+            {
+                dot: 4,
+                name: "Word of Mouth",
+                description: "You held fast to your place in the Camarilla even when the rest of your clan served the Sabbat. Your allies in the Camarilla have not forgotten. Your status among non-Lasombra Camarilla members remains constant no matter where you travel in your home country, even without a formal position.",
+            },
+            {
+                dot: 5,
+                name: "Purity of Remorse",
+                description: "Inspired by Montano's profound guilt and grief, you aspire to mourn for your sins as deeply as he does. Whenever you roll for Remorse, you never roll with fewer than two dice.",
+            },
+        ],
+    },
+    {
+        id: "fires-and-floods",
+        name: "Fires and Floods and Devil's Night",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Trivia Buff",
+                description: "Your knowledge of Chicago disasters is rock solid — dates, details, strange-but-true facts. Add two dice to Academics or Investigation rolls pertaining to the topic.",
+            },
+            {
+                dot: 2,
+                name: "Old Bones",
+                description: "New parts of the city were rebuilt on top of the old. Perhaps you've studied architectural records, or your old haunts were in the path of destruction. Parts of them still stand, and you know how to get into them. Once per story, you may hide in one of these places to throw off a pursuer.",
+            },
+            {
+                dot: 3,
+                name: "Devil's Night Survivor",
+                description: "You lived through the Great Fire and Devil's Night, and may have participated in Lodin's purges. Once per story, add three dice to a Social roll involving another person who survived the fire or their childer.",
+            },
+            {
+                dot: 4,
+                name: "Local Hero",
+                description: "You helped rebuild after disaster struck, or were one of the rescuers at the scene, and mortals remember you fondly. Once per story, you may leverage this goodwill to sway mortal opinion, granting you Influence: Goodwill (•••••) for a single session, once per chronicle.",
+            },
+            {
+                dot: 5,
+                name: "Puppetmaster",
+                description: "You were one of the primary orchestrators of a disaster. Work with the Storyteller to determine how you were involved and what resulted — your goals, who died, who knows, what rumors surround it, and what you gained.",
+            },
+        ],
+    },
+    {
+        id: "firstlight",
+        name: "FIRSTLIGHT",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Evasion Tactics",
+                description: "You know basic surveillance tactics and simple ways to avoid being followed or spied upon. You keep your online footprint minimal and own a white-noise generator, cell-phone jammer, or burner phone. Add one die on rolls to avoid being tailed or listened in on.",
+            },
+            {
+                dot: 2,
+                name: "Branch Office",
+                description: "Someone slipped up and you've got their scent. Whether through overheard conversation, a thinly disguised trap of a URL you hacked back, or another method — you know where FIRSTLIGHT's closest base of operations is located.",
+            },
+            {
+                dot: 3,
+                name: "What Do They Know",
+                description: "You've intercepted some communications between agencies — learned a dead drop location, decrypted their signal. Once per story, you may ask the Storyteller for a piece of information FIRSTLIGHT has on you or a coterie-mate that you've managed to seize.",
+            },
+            {
+                dot: 4,
+                name: "No Records Found",
+                description: "Through bribes, break-ins, and paranoia, you've erased yourself from FIRSTLIGHT's records. Your slate is clean — for now. Add three dice to Larceny, Stealth, or Survival rolls when handling FIRSTLIGHT operations.",
+            },
+            {
+                dot: 5,
+                name: "Friend on the Inside",
+                description: "You've got a mole on FIRSTLIGHT's payroll — controlled through supernatural coercion, threats, or a hefty periodic bribe. The mole alerts you if the organization is coming after you and once per story will commit an act of minor sabotage on your orders.",
+            },
+        ],
+    },
+    {
+        id: "kevin-jackson",
+        name: "Kevin Jackson",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "New Blood",
+                description: "A newcomer to the Prince's service, you have access to a specially constructed Mask worth two dots for use once per story, created using Jackson's Influence. If you cause a Masquerade breach using that Mask, you suffer no adverse consequences beyond a stern talking-to.",
+            },
+            {
+                dot: 2,
+                name: "Recent Graduate",
+                description: "You have emerged from one of the Prince's finishing schools, ready to help him achieve his goals. You have been granted the assistance of one of his ghouls equivalent to Retainers (••) who schools you in Chicago and assists you in whatever duties the Prince assigns.",
+            },
+            {
+                dot: 3,
+                name: "Up and Comer",
+                description: "The Prince has granted you provisional access to one of his non-criminal areas of interest, equivalent to Influence (•••). Once per story, you may invoke Jackson's name to automatically succeed in a Social test with a Kindred SPC whose interests overlap with the Prince's.",
+            },
+            {
+                dot: 4,
+                name: "Adjutant",
+                description: "The Prince knows your capabilities and values them. Once per story, you may call upon the Bloods to assist in an upcoming scene, where they count as Allies (Bloods) ••• and Contacts (Bloods) •• Background.",
+            },
+            {
+                dot: 5,
+                name: "The Prince's Lieutenant",
+                description: "You are the Prince's strong right hand, the vampire he turns to for decisive action and wise counsel. You possess Mawla •••• (Kevin Jackson). Once per story, you may request the opportunity to gift the mortal of your choosing the Embrace and the Prince will approve that request.",
+            },
+        ],
+    },
+    {
+        id: "kindred-iconography",
+        name: "Kindred Iconography",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Iconographer",
+                description: "You're versed in Kindred symbols, able to identify someone's clan by the motifs in their clothing and could lecture neonates on how the imagery has changed over the centuries. Add two dice to relevant Academics rolls.",
+            },
+            {
+                dot: 2,
+                name: "The Writing on the Wall",
+                description: "You've learned to look for marks other Kindred have left behind. Gain three dice on relevant Streetwise rolls when looking for information on local domains and vampires available in graffiti, posted flyers, or other artwork in the area.",
+            },
+            {
+                dot: 3,
+                name: "Trendsetter",
+                description: "Your style catches eyes in Elysium, and other Kindred look to see what you're wearing. Add two dice to Social rolls when decked out in the imagery of your clan or chosen affiliation.",
+            },
+            {
+                dot: 4,
+                name: "Graffiti Artist",
+                description: "Your murals are works of art and have drawn the eye of coteries and Toreador alike. You may even have attracted the attention of Annabelle herself. Craft rolls regarding your art receive three extra dice when involving Kindred iconography.",
+            },
+            {
+                dot: 5,
+                name: "Giorgio Who?",
+                description: "You've dressed Princes and Primogen, subtly weaving clan iconography into the lines of a suit or the cut of a dress. Once per story, an outfit of your design grants two dots of Status to a character of your choosing for the session. Alternatively, your scathing critique removes one dot of Status for the same period.",
+            },
+        ],
+    },
+    {
+        id: "the-labyrinth",
+        name: "The Labyrinth",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Tunnel Access",
+                description: "A Kindred from the Labyrinth has shown you which turns to take and markers to follow through its tunnels. If you follow that path, none in the Labyrinth will harm you, but if you stray you risk death or worse. Useful when escaping pursuers or hiding for a night.",
+            },
+            {
+                dot: 2,
+                name: "Boxcar Blues",
+                description: "The Labyrinth's inhabitants spread news through coded folk songs with double meanings representing political figures currently in power. You've been taught how to decipher these lyrics. Gain free Skill Specialties in Performance (Folk Song) and Streetwise (Labyrinth Rumors).",
+            },
+            {
+                dot: 3,
+                name: "Church",
+                description: "Once a month, a small club night is hosted in one of the larger concrete rooms — kitted out with lights, speakers, and bars, pumping dungeon synth and witch house music. You know its location and are welcome to bring a plus one anytime.",
+            },
+            {
+                dot: 4,
+                name: "Lydia's Lair",
+                description: "There's a blind Tremere oracle named Lydia who lives in the abandoned train ruins. She reads the future through Blood Sorcery with uncanny accuracy. If you bring her something to eat, she'll tell you one specific thing about the future. She counts as a Mawla (••••).",
+            },
+            {
+                dot: 5,
+                name: "Hideout",
+                description: "The Kindred living in the Labyrinth trust you enough to shelter you when you need to hide. It's a safe haven with no judgment — unless you commit crimes against the community, in which case you're quickly ousted. Gain Allies: Labyrinth Kindred Community (••••).",
+            },
+        ],
+    },
+    {
+        id: "lupine-expert",
+        name: "Lupine Expert",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Huntsman",
+                description: "You've developed a keen eye for tracking Lupines, even when they're pretending to be human. Once per session, you may receive three extra dice to any Mental test to pursue Lupines.",
+            },
+            {
+                dot: 2,
+                name: "Tactician",
+                description: "You've survived enough Lupine attacks to keep a cool head. When you and your allies use Teamwork against Lupines, the group can always assist each other — every character can contribute one die to the Teamwork roll, no matter what Skill the test requires.",
+            },
+            {
+                dot: 3,
+                name: "Soldier",
+                description: "A werewolf's ability for combat should never be underestimated. You know that more than anyone, but it won't stop you. When engaging you in Physical combat, a shifted Lupine only has a +2 damage modifier when using its claws and teeth.",
+            },
+            {
+                dot: 4,
+                name: "Trophy",
+                description: "You have slain a Lupine and have the evidence to prove it. Once per story, when you reveal this trophy to a werewolf, you may choose its initial reaction: it flees from you, or only targets you for Physical conflict. Revealing it more than once per story lets the Storyteller choose the reaction instead.",
+            },
+            {
+                dot: 5,
+                name: "Ambassador",
+                description: "Your knowledge of werewolves allows you to parley with them. Whenever you try to heal the rift between individual vampires and werewolves, or stir them to unite, receive two extra dice to Social tests. With sufficient effort and sacrifice, you may convince Kindred and Lupines of a city to act as one to accomplish a task once per chronicle.",
+            },
+        ],
+    },
+    {
+        id: "nathaniel-bordruff",
+        name: "Nathaniel Bordruff",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Recruit",
+                description: "Something about you has attracted Bordruff's attention. He has extended his hand in friendship in the form of Mawla (••) but requires you accept a one-step Blood Bond with him.",
+            },
+            {
+                dot: 2,
+                name: "Collaborator",
+                description: "You have accepted Bordruff's friendship or patronage in what seems like a reasonable quid pro quo arrangement. You have developed Resources (•) and Status (•) and a reputation as ambitious and hardworking, but with a certain stench clinging to you from your associations.",
+            },
+            {
+                dot: 3,
+                name: "Accomplice",
+                description: "Bordruff has begun offering greater favors in return for greater risks. You are beginning to comprehend the dimensions of his larger goals. His largesse has granted you Haven: Secured Room (•) in a parishioner's basement and Contacts: CoC Consistory (••).",
+            },
+            {
+                dot: 4,
+                name: "Conspirator",
+                description: "Bordruff has brought you fully into his confidence and asked you to join his conspiracy to bring down Kindred society from within. He has granted you access to his principal human minions — the pastor and consistory, all his ghouls with a virulent hatred of the undead — as Allies (••••).",
+            },
+            {
+                dot: 5,
+                name: "Betrayer",
+                description: "What course will you choose: betray the Kindred as a whole, or betray the one who chose to trust you to the Prince and the justice of the damned? Choose wisely. Either way you stand to gain (Status and potentially Mawla with the Prince) and lose.",
+            },
+        ],
+    },
+    {
+        id: "the-painted-lady",
+        name: "The Painted Lady",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Plus One",
+                description: "By a stroke of luck, your companion secured an invitation and asked you to be their plus one. You could only observe, but being there raised your social capital. Gain two dice to Persuasion and Status (••) in any encounter with a fan or regular of the Painted Lady who sees you during the week following the visit.",
+            },
+            {
+                dot: 2,
+                name: "Engraved Invitation",
+                description: "You hold a glossy, ruby-red business card inviting you to come and play. You receive Influence: Painted Lady Enthusiasts (••) and may participate in BDSM scenes, feeding upon any mortal willing to engage in blood play.",
+            },
+            {
+                dot: 3,
+                name: "Schedule an Appointment",
+                description: "Your slim matte metal membership card entitles you to attend one party per week and schedule appointments for standard tattoos or piercings. You attract the particular regard of one regular as Retainers (••), and a piercing or tattoo improves your Status among domain counter-culturalists by one dot.",
+            },
+            {
+                dot: 4,
+                name: "VIP",
+                description: "You may attend the salon on whatever nights you prefer and access more enticing scenes involving considerable pain and blood. Your character has access to Herd: Painted Lady Enthusiasts (•••) and gains Contacts: BDSM Community (••).",
+            },
+            {
+                dot: 5,
+                name: "A Beaubien Original",
+                description: "You have received a commissioned piece executed by Edith Beaubien herself in the Japanese tebori style — a tattoo that never disappears upon waking. A Beaubien original adds two dice to all Streetwise rolls, grants permanent Status (•••) among Painted Lady enthusiasts and art lovers, and permanent Status (••) among other Chicago Kindred.",
+            },
+        ],
+    },
+    {
+        id: "revenant-family-ducheski",
+        name: "Revenant Family: Ducheski",
+        source: "chicago",
+        requiresStPermission: true,
+        clanRestriction: ["Tremere"],
+        dots: [
+            {
+                dot: 1,
+                name: "Nourishing Blood",
+                description: "When you feed from your Ducheski revenant, they are not subject to the Human slake penalty of your Blood Potency. Feeding from them never risks a Blood Bond. The revenant is still harmed by your feeding like a human would be.",
+            },
+            {
+                dot: 2,
+                name: "Personal Library",
+                description: "Your revenant has added their personal library of ancient texts to yours. Choose two of these three Skills: Academics, Investigation, or Occult. Whenever you make a test with any Specialty in your chosen Skills, receive one extra die.",
+            },
+            {
+                dot: 3,
+                name: "Research Team",
+                description: "You have a tight-knit family unit of three to five Ducheski revenants in your care, represented by Retainer (••). Once per story, when you task your research team with studying a new Ritual, their dedication allows you to learn it in half the usual time.",
+            },
+            {
+                dot: 4,
+                name: "Ritual Assistant",
+                description: "Your Ducheski revenant has a special aptitude for Blood Sorcery. When your revenant is present and helps you prepare a known Ritual, the Difficulty of the roll to activate it is reduced by 1. If more than one Ritual Assistant is present, the Ritual pool increases by one die for every two additional Assistants.",
+            },
+            {
+                dot: 5,
+                name: "Ducheski Invention",
+                description: "You own a one-of-a-kind Ducheski creation — a clockwork device or modern technological marvel. Name it and choose a Skill; the Storyteller will name up to three components that make its function possible. It is a Specialty of that Skill providing three extra dice. If damaged, any Ducheski in your service knows how to fix it if all components are available.",
+            },
+        ],
+    },
+    {
+        id: "society-of-st-leopold",
+        name: "The Society of St. Leopold",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Postulant",
+                description: "You once seriously considered taking Holy Orders and dove deep into the history of the archdiocese, which may have included an office associated with the Society of St. Leopold. Once per story, you may ask the Storyteller for a piece of known information about the Society.",
+            },
+            {
+                dot: 2,
+                name: "Novice",
+                description: "Your interest in a profession of faith went deeper than most — you were on the verge of your novitiate when that life was torn away. You retain considerable potential contact with members of the local church. These Contacts (equivalent of ••) include your confessor, overseers, fellow novices, or congregational volunteers.",
+            },
+            {
+                dot: 3,
+                name: "Brother or Sister",
+                description: "Before your Embrace you were a member of the Church, sworn to a religious community. You possess detailed knowledge of the local diocese — members, properties, meeting schedules, and Society affiliates — granting two extra dice to Academics and Occult rolls related to the religious district. Once per story, find a safe Haven (•) among Church properties.",
+            },
+            {
+                dot: 4,
+                name: "Father or Mother",
+                description: "You were a fully professed and ordained priest or senior canoness prior to your Embrace. You know exactly who the Society members are in the city and where they meet, and have strategies to avoid or misdirect them — amounting to Influence (•••) with the diocese. You retain access to church properties as a permanent Haven (••). Comes with Infamy Flaw (•).",
+            },
+            {
+                dot: 5,
+                name: "Inquisitor",
+                description: "You are a former, fallen member of the Society of St. Leopold or one of its constituent organizations (the Condottieri, the Gladius Dei, the Office of the Censor, or the Order of St. Joan). Once per story, ask the Storyteller for one piece of true information about the Society's current activities. You gain Influence (••••) over any one branch of the Society — misuse it and it is lost until you regain their favor.",
+            },
+        ],
+    },
+    {
+        id: "talley",
+        name: "Talley",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Recognize the Signs",
+                description: "Like Talley, you have a sense of when danger approaches and it's time to change allegiance or flee a domain. Once per chapter, if an action is likely to cause severe social backlash, the Storyteller will tell you at your request.",
+            },
+            {
+                dot: 2,
+                name: "Secret Communications",
+                description: "You know Talley's mastery over sub-channels of Kindred communication. You can claim a prominent Camarilla member (such as a Prince) as a three-dot Mawla for use in a single session per story. How you treat this contact is up to you, but blackmail or warm relations will produce different results.",
+            },
+            {
+                dot: 3,
+                name: "Tangled Strings",
+                description: "You do not fight the elders like the Sabbat or the Anarchs; instead you manipulate the masters from beneath. Gain two bonus dice to Intelligence and Wits dice pools when determining whether you're being manipulated, and two additional bonus dice to Social rolls when directly manipulating the person attempting to control you.",
+            },
+            {
+                dot: 4,
+                name: "Trained Killer",
+                description: "Talley acts as your mentor in the art of killing. Once per story, Talley counts as a Mawla (••••) and can supply you with access to his transportable armory on the same night, allowing you to purchase automatic weapons, explosives, blades, and even flamethrowers if you have the cash.",
+            },
+            {
+                dot: 5,
+                name: "Personal Defender",
+                description: "Talley is your bodyguard. You have arranged payment — in cash, favors, or blood — and for the time being Talley is your loyal defender. He will accompany you anywhere, casting no judgment and offering no counsel unless requested. Once the contract ends at the end of the session, Talley will speak of no sins he witnessed you perpetrate.",
+            },
+        ],
+    },
+    {
+        id: "wauneka",
+        name: "Wauneka",
+        source: "chicago",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Secluded Meetup",
+                description: "Wauneka has decided you're okay enough to meet up with occasionally. Once per story, meet with him in a secluded place of his choosing and he'll dish on one secret you're after, as relayed through his underground whisper network.",
+            },
+            {
+                dot: 2,
+                name: "Spy Paths",
+                description: "You've proven you don't mind hanging out with the outcasts of society, and Wauneka's outsider family has noticed. Once per story they'll allow you access to their secret pathways to spy on someone from a hard-to-detect vantage point. Loud noise or excessive motion loses you your cover.",
+            },
+            {
+                dot: 3,
+                name: "Insider Connections",
+                description: "Wauneka knows someone inside almost every industry in Chicago — usually the people that go unnoticed, like janitors, sanitation workers, or food workers. Once per story, Wauneka can hook you up with someone to get you inside or get you the info you need. This individual counts as Retainers (••) for one session, but remains Contacts (•) if you spend the required Experience.",
+            },
+            {
+                dot: 4,
+                name: "Spy Skills",
+                description: "You've spent enough time with the underground that you've begun to pick up their subtle skills of going unnoticed. Once per story, gain three pieces of secret information through your learned spy skills or close bonds with the underground. Gain free Skill Specialties in Investigation (Espionage) and Insight (Secrets).",
+            },
+            {
+                dot: 5,
+                name: "Darkest Whispers",
+                description: "Wauneka has come to trust you like one of his family — a thing he does rarely. He welcomes you into his most secret places and confides the darkest things he learns about the Kindred in the city. Wauneka counts as Allies: Wauneka (•••) and his underground associates. Once per story he'll ask your advice on what move to make to influence Chicago's politics, and take it.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
