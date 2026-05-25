@@ -4172,6 +4172,83 @@ export const LORESHEETS: Loresheet[] = [
 
     // ── Forbidden Religions Loresheets ───────────────────────────────────────
     {
+        id: "chamber-1444",
+        name: "1444 Chamber",
+        source: "forbidden-religions",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Shadow of the Chamber",
+                description:
+                    "Other Hecata know that at least one member of the Chamber trusts you to carry out their will — and no one wants to cross one of the ancient monsters who sit at the heart of the Clan of Death's web. You have the equivalent of two additional dots of Status within the Hecata clan, but only for the purposes of forcing compliance or intimidating other Hecata.",
+            },
+            {
+                dot: 2,
+                name: "Mercenary Work",
+                description:
+                    "When outsiders need the Clan of Death's expertise, you're a go-between trusted to pursue the Chamber's agenda. Once per story, you can arrange the mercenary services of your fellow Hecata for a vampire who is not part of your coterie or clan, calling up to three dots in any appropriate Background that represents the mercenaries' talents.",
+            },
+            {
+                dot: 3,
+                name: "Gilded Promises",
+                description:
+                    "If there's one thing the Hecata aren't short of, it's money. If you satisfy the Chamber with your performance, you have access to four dots of Resources. The Clan of Death has little patience for talented students who fail to live up to their promise, however — disappoint your patron, and you lose these dots until you make things right.",
+            },
+            {
+                dot: 4,
+                name: "Deathly Slave",
+                description:
+                    "Never forget that the Chamber comprises the most powerful concentration of vampiric necromancers in existence. Once per story, you can request the service of a spectre or another form of wraith, naming a specific task. Unless it contravenes your patron's agenda, they will compel a single such ghost to perform that service for you.",
+            },
+            {
+                dot: 5,
+                name: "Anziani Patron",
+                description:
+                    "You directly serve one of the anziani who sits on the Board of Directors, making you one of the trusted few they confide in. Once per chronicle, you can call upon your patron to push the 1444 Chamber into action and call all loyal Hecata in the region to your aid regardless of their other priorities, as long as it does not contravene the agenda of your patron or the Chamber. The Chamber will expect you to repay this debt.",
+            },
+        ],
+    },
+    {
+        id: "blood-asceticism",
+        name: "Blood Asceticism",
+        source: "forbidden-religions",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Starveling Path",
+                description:
+                    "You're not quiet about your dedication to blood asceticism and your desire to conquer the red thirst. Other Kindred may think you're mad or a fool, but they can't doubt your devotion. Once per session, providing you've not fed that night, you may add two dice to any roll to prove your strength of will or to convince others of your dedication.",
+            },
+            {
+                dot: 2,
+                name: "Glade of the Sleeping Beast",
+                description:
+                    "You have found a place of quiet solitude to contemplate the shackles of your immortal hunger — your haven, if you have one, or a more remote location. While in your place of contemplation, as long as you are alone, you can re-roll one Rouse Check per session.",
+            },
+            {
+                dot: 3,
+                name: "Lesser Vessels",
+                description:
+                    "To subdue your thirst for human blood, you have learned to subsist on the lesser vitae of base animals. While you are alone, feeding from animals rather than humans slakes one more point of Hunger than it usually would for you, but never more than one level per scene. You also gain the Infamy Flaw: (•) Animal Drinker if news of your reliance on animal vitae gets out.",
+            },
+            {
+                dot: 4,
+                name: "Bloodless Pedestal",
+                description:
+                    "Whether or not you've really managed to conquer your hunger, your displays of ascetic self-denial have attracted other Kindred who desperately want your claims to be true. This provides you with the equivalent of five dots of Status solely among vampires who see you as some sort of holy figure. You lose the benefits of these dots for the duration of any scene in which they witness you drinking blood, and the following scene thereafter.",
+            },
+            {
+                dot: 5,
+                name: "Leash the Beast",
+                description:
+                    "You've starved your Beast so often that it's a weakened, feeble thing, bound beneath the chains of your willpower. Few other Kindred possess this level of self-control. The Difficulty of your Hunger frenzy rolls is always 2, regardless of the provocation.",
+            },
+        ],
+    },
+    {
         id: "plagues-of-gehenna",
         name: "Plagues of Gehenna",
         source: "forbidden-religions",
