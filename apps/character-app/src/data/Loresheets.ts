@@ -2177,6 +2177,212 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Players Guide Loresheets ─────────────────────────────────────────────
+    {
+        id: "bankers-of-dunsirn",
+        name: "Bankers of Dunsirn",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Money Obfuscates",
+                description: "The Dunsirn have worked in the shadows for centuries. You've spread some of your family's money around to create an alternate identity for yourself. You get two dots of the Mask Background for free, though you must maintain this Mask at least once per story.",
+            },
+            {
+                dot: 2,
+                name: "Money Talks",
+                description: "The Dunsirn find information in the most interesting places. Once per story, you can find information as if you had the Contacts Background with a number of dots equal to your Resources. This ability lasts for a single scene.",
+            },
+            {
+                dot: 3,
+                name: "Money Enhances",
+                description: "You always have access to the best that money can buy. When making a roll in which you can use your own equipment, you get a bonus die to the roll.",
+            },
+            {
+                dot: 4,
+                name: "Money Multiplies",
+                description: "You are (or are directly related to) a legitimate investment banker. Gain three dots (up to five) in Resources. In addition, anyone in your coterie loses the Destitute Flaw and can purchase dots in Resources at 2 XP per dot instead of the usual 3.",
+            },
+            {
+                dot: 5,
+                name: "Money Dictates",
+                description: "You are the head of the Dunsirn family accounts, with your undead finger on the pulse of the Hecata's finances. Gain three free dots of Status in the Hecata. Once per chronicle, you can either give every Hecata two additional dots of Resources or remove all Resource dots from every Hecata — lasting a single story; removals generate a chronicle-length Adversary Flaw.",
+            },
+        ],
+    },
+    {
+        id: "children-of-tenochtitlan",
+        name: "Children of Tenochtitlan",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Hiding from the Wolf",
+                description: "The remaining Pisanob survived because they are very good at hiding. You've learned all manner of techniques to remain out of sight of those that would hunt you — and those you would hunt. You get one extra die on any roll to hide, including via the use of Disciplines or Ceremonies.",
+            },
+            {
+                dot: 2,
+                name: "Ghostly Instincts",
+                description: "The original Kindred embraced in Tenochtitlan were extremely talented necromancers who carried on a wide variety of tips, tricks, and secrets. You've learned some of those secrets, granting two additional dice on any Oblivion Ceremony roll involving the summoning, control, or destruction of ghosts.",
+            },
+            {
+                dot: 3,
+                name: "Forward Thinking",
+                description: "After years of being hunted down by the Harbingers of Skulls, you've learned to always plan ahead. Once per story, you can reroll any Skill roll. You also get one free Skill reroll in any scene in which you work against another Hecata. If the Hecata is a Harbinger of Skulls, you get an additional success on that reroll.",
+            },
+            {
+                dot: 4,
+                name: "Necromantic Prodigy",
+                description: "The secrets of Oblivion are yours to command through study, your ancient bloodline, or secrets acquired from your cousins. Your mastery of necromantic ceremonies is unparalleled. You get two automatic successes on any roll necessary for activating a necromantic Oblivion Ceremony.",
+            },
+            {
+                dot: 5,
+                name: "Next in Line",
+                description: "Now that Pochtli has sacrificed himself, it is time for another to lead the Pisanob to future glory. You are one such individual, wielding a balance of necromantic skill and political savvy. You have an additional two dots of Status within the Hecata, and an ally among the Hecata leadership who acts as a five-dot Mawla once every other story.",
+            },
+        ],
+    },
+    {
+        id: "flesh-eaters",
+        name: "Flesh-Eaters (Nagaraja)",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Viscus",
+                description: "You can still eat flesh in lieu of drinking blood — biting a mortal and causing an Aggravated wound acts in all other ways like drinking blood for you. You can also eat fresh corpses, though the taste is not as good.",
+            },
+            {
+                dot: 2,
+                name: "Unseen Spirit",
+                description: "Some Nagaraja can make themselves unseen to ghosts and spirits. If you do not have Obfuscate, gain Cloak of Shadows at no cost — but only effective against spirits and ghosts. If you have (or later acquire) Obfuscate, all your Obfuscate powers work against ghosts and spirits in addition to their usual effects.",
+            },
+            {
+                dot: 3,
+                name: "The Perfect Murder",
+                description: "You have extensive experience planning murders. As long as you have at least a night to plan a cold-blooded, intentional murder, you get one extra success on all rolls for that murder scene. These successes are negated by someone who possesses the Send a Murderer bloodline ability.",
+            },
+            {
+                dot: 4,
+                name: "Send a Murderer",
+                description: "You're a serial killer, or have spent a lot of time studying them. You get two extra dice on rolls to study murder scenes or track down killers. You have three dots to spend between Contacts with the police force, Contacts with investigators in Kindred society, and Status.",
+            },
+            {
+                dot: 5,
+                name: "Monstrous Bite",
+                description: "When ready to attack or feed, your teeth extend to lengthy, splayed, and vicious daggers that protrude from your mouth. When attacking with your bite, you suffer no called shot penalty, gain one extra success on all Intimidation rolls, and increase your bite damage to 3.",
+            },
+        ],
+    },
+    {
+        id: "nasyon-san-an",
+        name: "Nasyon san an",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "CSI Shit",
+                description: "As an aspiring gede, you've learned a few tricks about death. By carefully examining a mortal corpse you can immediately know the cause of death. If the cause of death is supernaturally concealed, you gain the ability to roll despite that.",
+            },
+            {
+                dot: 2,
+                name: "Pound of Flesh",
+                description: "Something of your bloodline's original weakness remains with you. If you accept a gift freely given, you and whoever gave it to you receive a three-dice penalty from any pools used for any actions against one another for the remainder of that night.",
+            },
+            {
+                dot: 3,
+                name: "Treat Yourself",
+                description: "Once a night, you can indulge in a meal, a cigar, an alcoholic drink, or a sexual tryst just as a human would, regardless of any penalties Humanity might inflict and incurring no negative effects in terms of Hunger. Your consumption appears convincingly human to anyone paying attention.",
+            },
+            {
+                dot: 4,
+                name: "My Setite Friend",
+                description: "Your bloodline has a strange relationship with the Ministry, with a lot of overlap in interest. You have a connection with the Ministry, whether it's a wayward member or another Follower of Set. You can ask your friend for a favor once per story, equivalent to three dots in appropriate Backgrounds such as Allies, Influence, and Resources.",
+            },
+            {
+                dot: 5,
+                name: "The Silk Hat",
+                description: "No one is entirely sure who the Bloody Doctor is, but they know you have his favor and are next in line to his practice. Before you accept the role, you have the effect of Mawla at five dots, though the help comes in cryptic ways and via mysterious actions.",
+            },
+        ],
+    },
+    {
+        id: "harbingers-of-ashur",
+        name: "Harbingers of Ashur",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "The Ashen Mask",
+                description: "You don a plain mask made of ash wood — you respect the Harbinger traditions but care more about studying death than status or revenge. If a Touchstone of yours is dead or dies after purchase, studying their corpse allows you to transfer the Conviction they represent to another mortal. If they actually died peacefully, gain a one-die bonus to the Humanity test. If anyone else interferes with the corpse, test against fury frenzy at Difficulty 3.",
+            },
+            {
+                dot: 2,
+                name: "The Gold Mask",
+                description: "You don a rose gold mask, striving to balance existence between the living and the dead. You have the capacity to hide your actions and those of your coterie as you explore death. You have the equivalent of four dots of Influence when attempting to cover up a death.",
+            },
+            {
+                dot: 3,
+                name: "The White Mask",
+                description: "You don a bone-white mask, the mask of a respected Harbinger lost in a historic purge. You speak for the elders of your bloodline, and most Harbingers — and even other Hecata — listen to you. You add three dice to any social roll against another Harbinger, and two dice to any social roll against another Hecata.",
+            },
+            {
+                dot: 4,
+                name: "The Obsidian Mask",
+                description: "You don a polished black mask — you are truly half-dead, a wraith that has inhabited a vampire's body. You may learn Oblivion Ceremonies without a teacher (half the training time if you have one) due to your experience in the Underworld. You are vulnerable to effects targeting ghosts, suffering a two-dice penalty to resist them, but gain a two-dice bonus resisting effects that control your physical shell such as Dominate.",
+            },
+            {
+                dot: 5,
+                name: "The Lazarene Mask",
+                description: "You don the mask engraved in the image of one of the clan founders, for you know the true secret of the Harbingers: their crusade was never solely about destroying the Giovanni, but annihilating all who serve the Clan of Death. You incur no stains for any action taken in the pursuit of killing another Hecata Kindred or any character who serves the Hecata.",
+            },
+        ],
+    },
+    {
+        id: "la-famiglia-giovanni",
+        name: "La Famiglia Giovanni",
+        source: "players-guide",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "A Cousin's Ear",
+                description: "Even if family members hate each other, they live by a code to share information — that's how they've survived everything from the fall of the Roman Empire to the Second Inquisition. Once per session, you can ask a direct question of another Giovanni family member and get a straight answer, though you must answer a question in return. Once per story, ask a favor of mortal family members as if you had the Allies Background at three dots.",
+            },
+            {
+                dot: 2,
+                name: "Faded Glamor",
+                description: "Being a Giovanni still means something, even if it's no longer your clan's name. Old habits die hard, and the instinct to obey is still ingrained in much of the Clan of Death. Once per session, you can add one automatic success to any social roll against another Hecata Kindred, ghoul, or retainer.",
+            },
+            {
+                dot: 3,
+                name: "Petty Cash",
+                description: "The Giovanni started as merchants and still know the power of cold, hard cash. As one of the favored childer of the family, you have access to a substantial bank account. You get four dots to spread among the Resources and Retainers Backgrounds for free, though these dots can be pulled back by elder members of the family at any time, especially if you cross them.",
+            },
+            {
+                dot: 4,
+                name: "Spectre Servant",
+                description: "The family excels at enslaving the spirits of the dead to their will. You have inherited or personally captured a spectre to act as your servant. This Ally uses the spectre stats. The spectre wants nothing more than to break the leash and devour your spirit — until then, it can be summoned once per session and arrives within 10 hours.",
+            },
+            {
+                dot: 5,
+                name: "Aspiring Anziano",
+                description: "You have worked your way through the hidden politics of the Family Reunion and come out on top — through political skill, ruthless zeal, and knowing where the bodies are buried in every sense. You get five dots of Status among the Hecata and can get a private audience with the Capuchin every few stories. Don't push your luck.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
