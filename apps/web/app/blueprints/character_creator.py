@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, send_from_directory, session
 
 from app.auth import is_staff, require_login, require_character_owner
-from app.db import CharacterDraft, db
+from app.db import CharacterDraft, DbCharacter, db
 
 bp = Blueprint('character_creator', __name__)
 
@@ -127,13 +127,13 @@ def cc_get_draft(draft_id):
 @bp.route('/api/cc/characters/<draft_id>', methods=['PUT'])
 @require_login
 def cc_update_draft(draft_id):
-    """Save (auto-save) a draft. Only editable in draft/revision_requested states."""
+    """Save (auto-save) a draft. Editable while awaiting or under ST review; locked once approved."""
     draft = db.session.get(CharacterDraft, draft_id)
     if draft is None:
         return jsonify({'error': 'Not found'}), 404
     if draft.player_discord_id != _discord_id() and not is_staff():
         return jsonify({'error': 'Forbidden'}), 403
-    if draft.status not in ('draft', 'revision_requested'):
+    if draft.status not in ('draft', 'submitted', 'revision_requested'):
         return jsonify({'error': f'Cannot edit a draft with status: {draft.status}'}), 422
 
     body = request.get_json() or {}
@@ -174,24 +174,25 @@ def cc_submit_draft(draft_id):
 def cc_eligibility():
     """Check if the player is eligible to create an Ancilla character.
 
-    Eligibility requires at least one approved character with approved_at
-    at least 60 days ago (2 months on-server requirement).
+    Eligibility requires at least one active roster character added to the game
+    at least 60 days ago (2 months on-server requirement).  We use DbCharacter
+    (the roster) rather than CharacterDraft because approval sets roster entries
+    directly via the bot's /lasombra approve command.
     """
     discord_id = _discord_id()
-    cutoff = datetime.now(timezone.utc) - timedelta(days=60)
-    eligible_draft = (
-        CharacterDraft.query
+    cutoff_str = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
+    oldest = (
+        DbCharacter.query
         .filter(
-            CharacterDraft.player_discord_id == discord_id,
-            CharacterDraft.status == 'approved',
-            CharacterDraft.approved_at <= cutoff,
+            DbCharacter.player_discord == discord_id,
+            DbCharacter.active == True,  # noqa: E712
+            DbCharacter.date_added != '',
+            DbCharacter.date_added <= cutoff_str,
         )
-        .order_by(CharacterDraft.approved_at.asc())
+        .order_by(DbCharacter.date_added.asc())
         .first()
     )
     return jsonify({
-        'eligible': eligible_draft is not None,
-        'earliest_approved_at': (
-            eligible_draft.approved_at.isoformat() if eligible_draft else None
-        ),
+        'eligible': oldest is not None,
+        'earliest_approved_at': oldest.date_added if oldest else None,
     })

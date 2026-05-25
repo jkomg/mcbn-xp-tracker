@@ -55,6 +55,7 @@ function validateBaseUrl(value: string): string {
     host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '::1' ||
+    host === 'host.docker.internal' ||
     host.endsWith('.local') ||
     !host.includes('.'); // Docker service name (e.g. "web")
 
@@ -151,14 +152,18 @@ const envSchema = z.object({
   DISCORD_GUILD_ID: z.string().optional(),
   APPROVE_PLAYER_SHEETS_CHANNEL_ID: z.string().optional(),
   APPROVE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
-  CC_CREATION_RULES_URL: z.string().url().optional(),
+  CC_CREATION_RULES_URL: z.string().transform(v => v || undefined).pipe(z.string().url().optional()),
   CC_TICKET_CATEGORY_IDS: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_INTERVAL_MS: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
 });
 
-const env = envSchema.parse(process.env);
+// Strip empty strings so optional fields behave as if absent.
+const rawEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, v]) => v !== ''),
+);
+const env = envSchema.parse(rawEnv);
 
 function parseCsvIds(input: string | undefined): Set<string> {
   if (!input) {

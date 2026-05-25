@@ -1,5 +1,7 @@
 import { Character, containsBloodSorcery, containsOblivion } from "~/data/Character"
 
+const XP_ONLY_AGE_CATEGORIES = new Set(["neonate", "ancilla"])
+
 type GeneratorProgressKey =
     | "clan"
     | "attributes"
@@ -23,6 +25,7 @@ export type GeneratorStepId =
     | "ceremonies"
     | "touchstones"
     | "merits"
+    | "loresheet"
     | "final"
 
 export type GeneratorStep = {
@@ -43,6 +46,7 @@ const allGeneratorSteps: GeneratorStep[] = [
     { id: "ceremonies", label: "Ceremonies" },
     { id: "touchstones", label: "Touchstones", progressKey: "touchstones" },
     { id: "merits", label: "Merits & Flaws", progressKey: "merits" },
+    { id: "loresheet", label: "Loresheets" },
     { id: "final", label: "Review & Submit" },
 ]
 
@@ -54,6 +58,9 @@ const isStepAvailable = (character: Character, stepId: GeneratorStepId) => {
     }
     if (stepId === "ceremonies") {
         return containsOblivion(character.disciplines)
+    }
+    if (stepId === "loresheet") {
+        return XP_ONLY_AGE_CATEGORIES.has(character.age_category ?? "")
     }
     return true
 }

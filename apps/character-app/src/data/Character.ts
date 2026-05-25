@@ -88,6 +88,10 @@ export const characterSchema = z.object({
   cc_xp_budget: z.number().optional().default(0),
   inherited_xp: z.number().optional().default(0),
   submission_notes: z.string().optional().default(""),
+  loresheet_purchases: z
+    .array(z.object({ loresheet_id: z.string(), dot: z.number().min(1).max(5).int() }))
+    .optional()
+    .default([]),
 
   ephemeral: z.object({
     hunger: z.number().min(0).int(),
@@ -190,6 +194,7 @@ export const getEmptyCharacter = (): Character => {
     cc_xp_budget: 0,
     inherited_xp: 0,
     submission_notes: "",
+    loresheet_purchases: [],
 
     ephemeral: {
       hunger: 0,
@@ -235,6 +240,7 @@ export const applyCharacterCompatibilityPatches = (
   if (parsed["cc_xp_budget"] === undefined) parsed["cc_xp_budget"] = 0;
   if (parsed["inherited_xp"] === undefined) parsed["inherited_xp"] = 0;
   if (parsed["submission_notes"] === undefined) parsed["submission_notes"] = "";
+  if (!Array.isArray(parsed["loresheet_purchases"])) parsed["loresheet_purchases"] = [];
   if (!parsed["id"]) parsed["id"] = "";
   if (!parsed["player"]) parsed["player"] = "";
   if (!parsed["chronicle"]) parsed["chronicle"] = "";

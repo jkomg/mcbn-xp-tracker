@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from flask import Flask, request, session
 from flask_limiter import Limiter
@@ -15,6 +16,8 @@ from .sheets import SheetsClient
 from .db import db
 from .db_service import DBService
 from .sheets_sync import SheetsSyncWorker
+
+_EASTERN = ZoneInfo('America/New_York')
 
 # Module-level singletons
 sheets_client: SheetsClient = None
@@ -156,6 +159,20 @@ def create_app():
     app.register_blueprint(character_creator_bp)
     csrf.exempt(api_bp)
     csrf.exempt(character_creator_bp)
+
+    # Jinja2 filter: convert UTC ISO timestamp string to Eastern time display
+    def _to_eastern(ts: str) -> str:
+        if not ts:
+            return ''
+        try:
+            dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(_EASTERN).strftime('%Y-%m-%d %H:%M %Z')
+        except (ValueError, TypeError):
+            return str(ts)
+
+    app.jinja_env.filters['to_eastern'] = _to_eastern
 
     # Inject auth helpers into all templates
     from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in, is_settings_admin as _is_settings_admin

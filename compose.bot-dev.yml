@@ -1,0 +1,21 @@
+services:
+  bot-dev:
+    container_name: lasombra-dev
+    build:
+      context: ./apps/bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - apps/bot/.env.dev
+    environment:
+      NODE_ENV: development
+      TZ: ${TZ:-America/Chicago}
+    volumes:
+      - ./apps/bot/data-dev:/app/data
+      - ./packages:/packages:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "10"
