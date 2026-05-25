@@ -5359,34 +5359,34 @@ export const LORESHEETS: Loresheet[] = [
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
-        name: "Castoff Court",
+        name: "The Castoff Court",
         source: "custom",
         requiresStPermission: true,
         dots: [
             {
                 dot: 1,
-                name: "Forgotten Face",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Recognized Scent",
+                description: "The Castoffs no longer treat you as immediate prey. Gain +1 die to Social tests involving scavengers, outcasts, sewer denizens, or frightened people. Lesser chimera, animated objects, and small nightmare-things hesitate before attacking or exposing you unless directly threatened. Not fondness. Recognition. There is a difference.",
             },
             {
                 dot: 2,
-                name: "Among the Discarded",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Proper Manners",
+                description: "You understand the etiquette of dangerous things: gifts, silence, honest fear, and knowing when not to stare. Reduce Difficulty by 1 on Social rolls against Thallain, hostile changelings, scavenger spirits, or supernatural predators — provided you approach without aggression. Once per session, offer a symbolic gift to de-escalate a hostile encounter long enough to speak. It does not guarantee safety afterward.",
             },
             {
                 dot: 3,
-                name: "Strength in Numbers",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Little Stories",
+                description: "The underside of the city has started attaching rumors to you. Scavenger gossip, sightings, stray memories — the Castoff ecosystem knows your name, after a fashion. Once per story, declare: \"Something down here remembers me.\" Choose one: a chimera stands down; a hidden watcher leaves information; an abandoned object reveals a clue; a scavenger warns you of approaching danger. Gain +1 die to resist ambush or stalking in abandoned or subterranean locations.",
             },
             {
                 dot: 4,
-                name: "Court's Ear",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "Mercy's Good Side",
+                description: "Crackjaw Mercy has decided you are useful, entertaining, or simply too inconvenient to eat safely. Once per story, request temporary shelter, scavenged intelligence, protection from lesser tunnel predators, or direct intervention. Functions as Allies 3/2 or Contacts 3/2 depending on the situation. Be aware: the Castoffs solve problems the way nightmares do — violently, indirectly, with no regard for collateral damage. Their help tends to create additional problems.",
             },
             {
                 dot: 5,
-                name: "Voice of the Castoffs",
-                description: "Placeholder — fill in with actual dot text.",
+                name: "One of the Things Below",
+                description: "You are no longer treated as entirely separate from the hidden ecosystem beneath Nashville. Once per story, without a roll, you may: disappear into the urban underside, break off pursuit underground, shelter among nightmare-things, or pass safely through an actively dangerous subterranean space. Predatory supernatural creatures must succeed on a Resolve + Awareness test (Difficulty 4) before immediately attacking you on first encounter in sewers, flooded tunnels, or urban nightmare spaces. Something about you registers as possibly belonging here. Predators pause. Sometimes that is enough.",
             },
         ],
     },
