@@ -2484,6 +2484,207 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── In Memoriam Loresheets ────────────────────────────────────────────────
+    {
+        id: "birth-of-the-anarch-free-states",
+        name: "Birth of the Anarch Free States",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Fake Revolutionary",
+                description: "You've been telling people stories of your exploits in Los Angeles in the first nights of the Revolt — they're not true, but you'll take the status that comes with it. Gain a bonus die to all attempts to rally, cajole, and manipulate Anarchs. However, if you meet someone who genuinely was in Los Angeles at that time, you must succeed at a Manipulation + Subterfuge test (Difficulty 4) to convince them of your claim.",
+            },
+            {
+                dot: 2,
+                name: "Connections",
+                description: "You were not there for the Revolt, but you know someone who was. Once per story, you can contact them and ask a question related to Anarch politics or the history of the Free States and get an honest answer.",
+            },
+            {
+                dot: 3,
+                name: "Original Rebel",
+                description: "You were in Los Angeles at the time of the Second Anarch Revolt and fought to free your city from Camarilla oppression. You know how to rebel and receive a bonus die to all tests involving a revolution against Camarilla hegemony.",
+            },
+            {
+                dot: 4,
+                name: "Hero of the Revolution",
+                description: "You were pivotal to the success of the Revolt and your compatriots know it. Once per story, you may call on former allies to summon an Anarch gang to your aid — five neonates, each with 4 dots in Disciplines (no power higher than level three) and a General Difficulty of 4/3. They only help if the action can be presented as part of the righteous struggle against the Camarilla.",
+            },
+            {
+                dot: 5,
+                name: "Legacy of the Revolution",
+                description: "What has happened before can happen again. Once per chronicle, you can ignite a proper, domain-wide Anarch Revolt in any city you visit, subject to Storyteller approval. The Revolt has a decent chance of success, but you will need to participate in decisive battles and risk your unlife to see it through.",
+            },
+        ],
+    },
+    {
+        id: "childe-of-the-revolution",
+        name: "Childe of the Revolution",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Rousing Speech",
+                description: "You underwent a time of unique political change and breathed an atmosphere of contestation. When arguing in favor of going against the established order, you can add two dice to a Persuasion or Leadership test.",
+            },
+            {
+                dot: 2,
+                name: "Under the Guillotine",
+                description: "You participated in frantic celebrations under the Guillotine, where people slathered themselves with blood, and learned to keep a cool head amid complete crowd chaos. Once per story, you may reroll a failed Hunger Frenzy test.",
+            },
+            {
+                dot: 3,
+                name: "Bal des Victimes",
+                description: "You attended the famed Bal des Victimes, where mourners of revolutionary violence connected over shared grief. You get +2 dice on social tests if you find a way to connect to your target through grief, or +3 if the target was another Bal des Victimes participant.",
+            },
+            {
+                dot: 4,
+                name: "Friend of Beaumont",
+                description: "You were close to Félicien Beaumont and helped him advance his political agenda in the heat of the Revolution, remaining in his circle of proteges ever since. Beaumont counts as a five-dot Mawla, but once per story he'll request something from you in return, the equivalence of one minor boon.",
+            },
+            {
+                dot: 5,
+                name: "Bohemian Affinities",
+                description: "Your influence with the reformist Revolutionary faction is extensive — you provided help to their cause or were Embraced in their group. You get five dots to distribute among Haven, Contacts, and Resources, and can access the Halls of Montmartre as a hideout from time to time.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-dracula",
+        name: "Descendant of Dracula",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Blood of the Dragon",
+                description: "Your vitae carries a hint of Dracula's legendary strength. Once per story, you can amplify your physical prowess, gaining an additional die to all Physical tests for one scene.",
+            },
+            {
+                dot: 2,
+                name: "Of the Earth",
+                description: "Your connection to the land is profound. Once per story, you can dig yourself down in the ground to mend all levels of Aggravated Willpower or Physical damage over 48 hours. The use of Earth Meld is optimal, though a shovel is permissible.",
+            },
+            {
+                dot: 3,
+                name: "Charisma of the Count",
+                description: "Your lineage grants you an otherworldly charm. You gain a free specialty in Persuasion and receive a bonus die to all tests involving seduction or charm.",
+            },
+            {
+                dot: 4,
+                name: "Whispers in the Blood",
+                description: "Vlad has taught himself countless Disciplines, and your Blood is full of potential and unawakened powers. Once per story, you may use any power you don't already know as long as it is at a current or lower level of a Discipline you already have levels in.",
+            },
+            {
+                dot: 5,
+                name: "Dracula's Chosen",
+                description: "Among the descendants of the Dragon, you're considered the main heir. You gain the grudging respect and jealousy of your bloodline. Once per story, you can call in a favor equivalent to up to a major boon from your relations — though your relatives will expect you to favor them in turn, or at least prove yourself worthy of the title.",
+            },
+        ],
+    },
+    {
+        id: "order-of-repentants",
+        name: "The Order of Repentants",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Sponsorship",
+                description: "Repenting is easier with someone to support you and keep you focused on the horrors you've committed. You gain a three-dot Mawla from the Order who'll help you once per story. They may also interfere in other ways if they hear of you straying from your path.",
+            },
+            {
+                dot: 2,
+                name: "Surface Empathy",
+                description: "Being part of a community that requires you to lay bare your worst regrets has taught you to look beyond the surface. Once per session, you get +2 dice in an Insight or Persuasion test.",
+            },
+            {
+                dot: 3,
+                name: "Flagellation",
+                description: "Self-punishment is the key to keeping the Beast in check. You get one extra die to resist Frenzy but must severely punish yourself for it later that night, inflicting 1 Aggravated damage. If you forget, you automatically fail your next Frenzy test.",
+            },
+            {
+                dot: 4,
+                name: "Superior Focus",
+                description: "Monastic methods of self-regulation have taught you to focus on what you want, whether obsessing over your own evil or moving toward a goal. You can reroll one bestial failure roll per story without sacrificing Willpower.",
+            },
+            {
+                dot: 5,
+                name: "Benevolence",
+                description: "You are devoted to saving your immortal soul, or at least acting as though you could. You can reroll one failed Remorse test per story, or let another player reroll theirs.",
+            },
+        ],
+    },
+    {
+        id: "the-red-lady",
+        name: "The Red Lady",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "You Gotta Know Somebody",
+                description: "You have a contact who can get you into one of the Red Lady's famous parties.",
+            },
+            {
+                dot: 2,
+                name: "Person of Interest",
+                description: "The Red Lady is known for her tastes in younger Kindred, and you happen to possess some quality she currently favors. Add one die in Charisma tests when in her presence or toward her partygoers.",
+            },
+            {
+                dot: 3,
+                name: "A Pretty Pet",
+                description: "To be one of the Red Lady's favorites comes with a long list of perks, as she happily shares her vast resources. You are one of her current pets. She is the equivalent of a two-dot Mawla, and you also gain a dot in Herd and one in Resources. These dots stay as long as you have her good graces.",
+            },
+            {
+                dot: 4,
+                name: "A Trusted Friend",
+                description: "You are one of her recruiters and a trusted enforcer of her will. Once per story, the Red Lady will attend one of your gatherings and grant you a favor as a token of your glorious mutual history. When this occurs, also add one dot in Status (Camarilla).",
+            },
+            {
+                dot: 5,
+                name: "Red Haze",
+                description: "The Red Lady's tastes range from the pedestrian to the forbidden — the amaranth. Not wanting to display telltale signs of a murderous appetite, she has had a devoted acolyte develop a method to remove these pesky marks. Once per story, the Red Lady will cleanse your Blood and aura of any evidence of diablerie.",
+            },
+        ],
+    },
+    {
+        id: "the-vanderbilt-ventrue",
+        name: "The Vanderbilt Ventrue",
+        source: "in-memoriam",
+        requiresStPermission: true,
+        clanRestriction: ["Ventrue"],
+        dots: [
+            {
+                dot: 1,
+                name: "Well-connected",
+                description: "You are a cousin or descendant of the Vanderbilt Ventrue. Once per story, you can call upon a distant relative for a minor favor — access to a social event, a small financial loan, or a recommendation from someone influential.",
+            },
+            {
+                dot: 2,
+                name: "Financial Problem-solving",
+                description: "Gain an additional dot in Resources. Additionally, you can spend a level of Willpower to gain a temporary Retainer (such as a private investigator, legal counsel, or mortal bodyguard) for the duration of the story.",
+            },
+            {
+                dot: 3,
+                name: "Someone of Worth",
+                description: "You were one of the Four Hundred, the crème de la crème of fashionable New York society. Gain an extra die in Social tests when interacting with high society figures, both mortal and Kindred. Additionally, you have a knack for reading social situations, allowing an extra die to gauge someone's intentions regardless of their status.",
+            },
+            {
+                dot: 4,
+                name: "In the Know",
+                description: "You became privy to some of the most closely guarded secrets in the Vanderbilt inner circle. Once per story, you can blackmail a suitable ancilla or elder Storyteller character — even antagonists. You can attempt an additional victim but must succeed at Manipulation + Intimidation or Persuasion at Difficulty 5. The consequence of failure is never mild.",
+            },
+            {
+                dot: 5,
+                name: "Ancient Pact",
+                description: "You know the occult ritual William Henry and Alva Vanderbilt performed to double the family fortune and can perform it yourself. It requires the sacrifice of a mortal of great promise (a rare Dyscrasia). If performed, you gain +2 successes on any test connected to finances or financial crime. However, you get −1 die to all tests that would incur final death if failed. The pact lasts for a story and must then be renewed.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
