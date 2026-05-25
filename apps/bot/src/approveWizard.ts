@@ -4,10 +4,14 @@ import {
   ButtonStyle,
   ChannelType,
   GuildChannel,
+  ModalBuilder,
   OverwriteType,
   StringSelectMenuBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   type ButtonInteraction,
   type ChatInputCommandInteraction,
+  type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
   type TextChannel,
 } from 'discord.js';
@@ -44,13 +48,50 @@ const APPROVAL_ROLE_NAMES = [
   'Tzimisce', 'Ventrue',
 ];
 
+const WELCOME_CHANNEL_CHILDREN_OF_THE_NIGHT = '1168655581486252042'; // #children-of-the-night
+const WELCOME_CHANNEL_STANDARD_ROLLS         = '1170108585146056744'; // #standard-rolls
+const WELCOME_CHANNEL_THE_BASICS             = '1458780176476405760'; // #the-basics
+const WELCOME_CHANNEL_HOUSE_RULES            = '1458869902638190663'; // #house-rules
+const WELCOME_CHANNEL_LOOKING_FOR_RP         = '1225527235574759454'; // #looking-for-rp
+const WELCOME_CHANNEL_RUMORS                 = '1170107198748237885'; // #rumors
+
+function ch(id: string): string {
+  return id ? `<#${id}>` : '*(channel TBD)*';
+}
+
 function welcomeMessage(playerMention: string): string {
-  return (
-    `This is approved and processed. Welcome to Music City, ${playerMention}! ` +
-    `Don't sleep on <#1170107198748237885> or <#1225527235574759454> — they're there for you. ` +
-    `You can bring questions to <#1170106212453453834> or <#1168654464308228217> and your feedback is welcome in <#1194292553864990770>. ` +
-    `Ping staff with questions!`
-  );
+  return [
+    `✅ Attributes`,
+    `✅ Skills`,
+    `✅ Predator Type`,
+    `✅ Disciplines`,
+    `✅ Character Thresholds (Health, Humanity, Willpower and Blood Potency)`,
+    `✅ : Merits/Flaws`,
+    `✅ : Convictions & Tenets`,
+    `✅ : XP Spend`,
+    `✅ : Backstory`,
+    ``,
+    `Character Approved`,
+    `Welcome to Music City, ${playerMention}!`,
+    ``,
+    `If you want you can create your character profile in:`,
+    ch(WELCOME_CHANNEL_CHILDREN_OF_THE_NIGHT),
+    ``,
+    `And you can put your character in Realm of Darkness now in here:`,
+    ch(WELCOME_CHANNEL_STANDARD_ROLLS),
+    ``,
+    `There is alot of helpful information about house rules and server ettiquette here`,
+    ch(WELCOME_CHANNEL_THE_BASICS),
+    ch(WELCOME_CHANNEL_HOUSE_RULES),
+    ``,
+    `After that you can look for RP scenes here:`,
+    ch(WELCOME_CHANNEL_LOOKING_FOR_RP),
+    ``,
+    `You can also search for rumors here:`,
+    ch(WELCOME_CHANNEL_RUMORS),
+    ``,
+    `If you need help with anything just let staff know!`,
+  ].join('\n');
 }
 
 // ── Custom IDs ─────────────────────────────────────────────────────────────
@@ -61,11 +102,14 @@ export const APPROVE_SECT_SELECT_ID = 'approve:sect:select';
 export const APPROVE_ROLES_SELECT_ID = 'approve:roles:select';
 export const APPROVE_CONFIRM_ID = 'approve:confirm';
 export const APPROVE_CANCEL_ID = 'approve:cancel';
+export const APPROVE_NAME_MODAL_ID = 'approve:name:modal';
+export const APPROVE_NAME_INPUT_ID = 'approve:name:input';
 
 // ── State ──────────────────────────────────────────────────────────────────
 
 type ApproveState = {
   channelId: string;
+  /** Canonical display name used for roster and messages (may differ from channel slug). */
   characterName: string;
   playerId: string | null;
   pdfUrl: string | null;
@@ -255,6 +299,24 @@ export async function startApproveWizard(
       content: `⚠️ This channel is already in **${channel.parent?.name}**. Run \`/lasombra approve\` from a Character Tickets channel.`,
       ephemeral: true,
     });
+    return;
+  }
+
+  // If the channel still has a default ticket name (starts with "ticket"),
+  // the character name hasn't been set yet — show a modal to collect it and
+  // rename the channel before proceeding with the rest of the wizard.
+  if (/^ticket/i.test(channel.name)) {
+    const modal = new ModalBuilder()
+      .setCustomId(APPROVE_NAME_MODAL_ID)
+      .setTitle('Set Character Name');
+    const input = new TextInputBuilder()
+      .setCustomId(APPROVE_NAME_INPUT_ID)
+      .setLabel('Character name (as it should appear on the roster)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g. Sylvester Glass')
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+    await interaction.showModal(modal);
     return;
   }
 
@@ -523,5 +585,75 @@ export async function handleApproveWizardButton(
   });
 
   await interaction.editReply({ content: results.join('\n'), components: [] });
+  return true;
+}
+
+// ── Name modal handler ─────────────────────────────────────────────────────
+
+export async function handleApproveNameModal(
+  interaction: ModalSubmitInteraction,
+  _ctx: CommandContext,
+): Promise<boolean> {
+  if (interaction.customId !== APPROVE_NAME_MODAL_ID) return false;
+
+  const characterName = interaction.fields.getTextInputValue(APPROVE_NAME_INPUT_ID).trim();
+  if (!characterName) {
+    await interaction.reply({ content: '⚠️ Character name cannot be empty.', ephemeral: true });
+    return true;
+  }
+
+  const channel = interaction.channel;
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    await interaction.reply({ content: '⚠️ Could not resolve channel.', ephemeral: true });
+    return true;
+  }
+
+  // Rename the channel to a Discord-safe slug of the character name.
+  const slug = characterName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  try {
+    await channel.setName(slug, `Character ticket renamed to: ${characterName}`);
+  } catch (err) {
+    await interaction.reply({
+      content: `⚠️ Could not rename channel: ${errorToMessage(err)}`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  await interaction.deferReply({ ephemeral: false });
+
+  const guild = interaction.guild!;
+  const [playerId, pdf, guildRoles] = await Promise.all([
+    findPlayerInChannel(channel, config.testerDiscordIds),
+    findLatestPdf(channel),
+    guild.roles.fetch(),
+  ]);
+
+  const availableRoles = APPROVAL_ROLE_NAMES
+    .map((name) => {
+      const role = guildRoles.find((r) => r.name.toLowerCase() === name.toLowerCase());
+      return role ? { id: role.id, name: role.name } : null;
+    })
+    .filter((r): r is { id: string; name: string } => r !== null);
+
+  const state: ApproveState = {
+    channelId: channel.id,
+    characterName,
+    playerId,
+    pdfUrl: pdf?.url ?? null,
+    pdfFilename: pdf?.name ?? null,
+    age: null,
+    clan: null,
+    sect: null,
+    roleIds: [],
+    availableRoles,
+  };
+
+  pending.set(interaction.user.id, state);
+
+  await interaction.editReply({
+    content: `✅ Channel renamed to \`${slug}\`.\n\n${buildStatusContent(state)}`,
+    components: buildComponents(state),
+  });
   return true;
 }
