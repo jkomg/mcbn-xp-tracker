@@ -3128,6 +3128,933 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Chicago Folios Loresheets ────────────────────────────────────────────
+    {
+        id: "archons",
+        name: "Archons",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Undercover",
+                description:
+                    "You perform your work undercover, assuming a false identity to get close to your prey. You maintain a false identity as a minor member of the faction you are investigating and gain one bonus die to all rolls related to maintaining your cover. This advantage may be purchased multiple times to represent a range of false identities.",
+            },
+            {
+                dot: 2,
+                name: "Watcher in the Dark",
+                description:
+                    "You have access to a vast repository of Camarilla contacts, records, and informants when prosecuting your duties. Once per chapter, you gain two automatic successes on any Investigation or Academics test concerning the subject of your investigation.",
+            },
+            {
+                dot: 3,
+                name: "Red Phone",
+                description:
+                    "You have a reliable way of contacting your patron Justicar. Their response varies depending on their current workload and can range from silence, to providing valuable information, exerting political influence, or even deployment of further Archons. The precise game effects are up to the Storyteller.",
+            },
+            {
+                dot: 4,
+                name: "Color of Authority",
+                description:
+                    "Your Status as a duly appointed Archon of the Camarilla gives you sweeping powers, including the right of destruction. You may sit in, and pronounce formal judgement over, any Camarilla Kindred without retaliation from your fellow sect members. You hold the equivalent of four dots of Status in most Camarilla domains, but stand the risk of earning Adversaries if you judge other Kindred arbitrarily.",
+            },
+            {
+                dot: 5,
+                name: "Justicar's Blood",
+                description:
+                    "You have access to the potent vitae of the Justicar you serve and are authorized to use it in the line of duty. You gain three bonus dice for rolls related to one of the three clan Disciplines (player's choice) of your patron Justicar for the remainder of the night. You may use this once per story.",
+            },
+        ],
+    },
+    {
+        id: "convention-of-chicago",
+        name: "The Convention of Chicago",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Rabble Rouser",
+                description:
+                    "You managed to disrupt one of the convention's important after parties, embarrassing the host and damaging the status of multiple Kindred. Once per story, you can assemble a small group of fledgling Anarchs to your cause. They count as a three-dot Ally group that will perform one dangerous action for you once per story.",
+            },
+            {
+                dot: 2,
+                name: "Convention Attendee",
+                description:
+                    "You attended the convention and navigated its web of intrigue successfully. Gain two dots to distribute between Allies and Contacts, and once per story ask the Storyteller for a piece of information related to the convention — either public record or a behind-the-scenes detail.",
+            },
+            {
+                dot: 3,
+                name: "Troubleshooter",
+                description:
+                    "You are an agent of Prince Jackson, the Archons, or some other group whose best interests were served by the convention's success. Gain two dots of Status among the Kindred of Chicago and a 'get out of jail free' card from the Prince. Once per chronicle, the authorities of your domain turn a blind eye toward a minor violation of the Traditions.",
+            },
+            {
+                dot: 4,
+                name: "Formal Delegate",
+                description:
+                    "You were one of the formal delegates to the convention and successfully prosecuted the objectives of your patron Prince or Primogen. Gain four dots to distribute among Allies, Contacts, Retainers, and Resources related to the convention. You also have a standing invitation to Elysium events in Chicago or your home domain.",
+            },
+            {
+                dot: 5,
+                name: "Mover and Shaker",
+                description:
+                    "You played an active role in the Convention of Chicago's success and know who sleeps with who, which closets hide skeletons, and why that BMW trunk is moaning. Once per story, you can collect a Major Boon from a convention attendee in your debt. Work with the Storyteller to determine the identity of the Kindred and the nature of their aid.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-menele",
+        name: "Descendant of Menele",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        clanRestriction: ["Brujah"],
+        dots: [
+            {
+                dot: 1,
+                name: "Symposium",
+                description:
+                    "Menele always liked a good argument and sired many childer after debating the mysteries of life. All of your Persuasion rolls gain the ability of a single die reroll.",
+            },
+            {
+                dot: 2,
+                name: "Carthago Delenda Est",
+                description:
+                    "Menele maintained an elaborate network of spies, informants, and retainers. His network fragmented upon his destruction, but you managed to claim a portion for your own. You have three dots to split between Retainers, Influence, Allies, and Resources — with the absolute certainty that Helena and her agents will attempt to take them from you.",
+            },
+            {
+                dot: 3,
+                name: "Know Thyself",
+                description:
+                    "Menele believed the Brujah needed to return to their roots as thinkers and positive agents of change. You are trained to resist the pull of your Brujah fury. Once per session, you can spend a Willpower point to re-roll a frenzy check affected by your Brujah clan bane.",
+            },
+            {
+                dot: 4,
+                name: "Knowledge is Power",
+                description:
+                    "Menele was impossibly old and held many secrets about the Kindred of Chicago and beyond. You were the steward of those secrets before the Beckoning drew him away. Once per story, you may request a single secret from the Storyteller about a clan or Kindred in Chicago or a similar domain that felt Menele's influence.",
+            },
+            {
+                dot: 5,
+                name: "The Greater Mysteries",
+                description:
+                    "Menele spent years learning meditative practices to perceive the astral plane. You inherited a portion of his ability and remain fully cognizant of your surroundings during your daily slumber. Reduce the difficulty of all Humanity tests to awaken during the day by two. Once per session, you may roll Resolve + Occult to interpret daytime visions; each success brings the vision into greater focus and the Storyteller may offer one cryptic hint relevant to your character.",
+            },
+        ],
+    },
+    {
+        id: "goblin-roads",
+        name: "Goblin Roads",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Night Rider",
+                description:
+                    "You are a frequent passenger on the Goblin Roads and have become accustomed to their nature. Your knowledge grants you two additional dice to all Survival tests related to surviving the Goblin Roads if you become isolated in the Weird.",
+            },
+            {
+                dot: 2,
+                name: "Summon the Ferryman",
+                description:
+                    "You have arranged passage on the Goblin Roads with Prince Decker, Rosa Hernandez, or one of their Psychopomps. The price can take the form of cash, a minor boon, or something else entirely (Storyteller's discretion). Once per story, you can enlist a Psychopomp to ferry yourself and your coterie between Chicago and Milwaukee.",
+            },
+            {
+                dot: 3,
+                name: "Psychopomp",
+                description:
+                    "You are a Psychopomp and travel the Goblin Roads at will. This journey requires 24 hours of preparation to attune yourself to the proper rites and sacrifices necessary for safe passage. You gain two dots of Status reflecting your occupation.",
+            },
+            {
+                dot: 4,
+                name: "Weird Ally",
+                description:
+                    "You led an expedition into the Weird or were separated from your Psychopomp for a protracted period. During that time you encountered and formed a pact with a supernatural denizen of the Weird. You gain a four-dot Ally that is a werewolf, mage, wraith, changeling, or something stranger still. Once per game, your Ally will come to your aid within 10 hours of your summons.",
+            },
+            {
+                dot: 5,
+                name: "One with the Weird",
+                description:
+                    "You spent many nights looking into the Weird, and one evening, it looked back. You have unraveled one of the deeper mysteries of the Weird — perhaps the hidden nature of the Goblin Roads oasis, the true name of a powerful spirit, a potent ritual, the dark secret of a mist-shrouded town, or the location of an artifact of great power. Work with the Storyteller to define its exact nature. The Weird does not reveal its secrets casually, and there will be a price.",
+            },
+        ],
+    },
+    {
+        id: "justicar-lucinde",
+        name: "Justicar Lucinde",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Snake Charmer",
+                description:
+                    "Lucinde bears a unique ire for members of the Ministry and knows them well. You gain one additional die for all Investigation rolls related to the Ministers.",
+            },
+            {
+                dot: 2,
+                name: "Patient Hunter",
+                description:
+                    "Lucinde's investigation skills are legendary, skills she imparted to you. Once per story, you automatically succeed on one Investigation test related to a member of the Anathema or other Kindred who poses a threat to the Camarilla. This success will point you in the right direction, though it may not reveal an immediate location.",
+            },
+            {
+                dot: 3,
+                name: "Legend Killer",
+                description:
+                    "You have destroyed, or participated in the destruction, of a member of the Red List. This fame (or notoriety) precedes you wherever you go and allows you to automatically succeed on one test per chronicle where the tale of this event might be of assistance.",
+            },
+            {
+                dot: 4,
+                name: "Lucinde's Revenge",
+                description:
+                    "Lucinde has begun instructing chosen Kindred in her astonishing resistance to Presence. Once per story, Lucinde's Revenge renders you immune to a single use of Presence wielded against you, as long as the vampire assailing you is of equal or higher generation. Vampires of a lower generation than you are unaffected by this ability.",
+            },
+            {
+                dot: 5,
+                name: "Alastor",
+                description:
+                    "You have joined Lucinde as an Alastor and hunt Kindred on the Red List. You operate under deep cover and enjoy immunity from prosecution by any Prince, reporting solely to the Camarilla's Inner Circle. You have a two-dot Mask and are Zeroed, plus three additional dice to resist all attempts to uncover your identity. Revealing your identity grants the equivalent of four dots of Status — but you have also earned the undying enmity of those who oppose the Camarilla, and an Anathema designated by the Storyteller hunts you as their Adversary.",
+            },
+        ],
+    },
+    {
+        id: "khalid-al-rashid",
+        name: "Khalid Al-Rashid",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Safe Haven",
+                description:
+                    "Khalid's tutelage provides two dots to divide between the Haven Merits of Postern and Security System.",
+            },
+            {
+                dot: 2,
+                name: "Deadly Stroke",
+                description:
+                    "Khalid was a master swordsman in life, and more so in death. You may have fought beside him during the War of Chicago or studied at his feet as your Mawla. Whenever you wield a sword, its damage rating increases by one.",
+            },
+            {
+                dot: 3,
+                name: "Khalid's Notebook",
+                description:
+                    "Khalid recorded his suspicions about the eternal war between Helena and Menele in a coded notebook, secreting pages about Chicago and beyond. You have acquired pages from this book. Once per story, you may ask the Storyteller for one secret Khalid would have access to about Helena, Menele, or the identity of a Kindred under their control.",
+            },
+            {
+                dot: 4,
+                name: "Wicked Garden",
+                description:
+                    "You learned from Khalid or discovered his notes about strange entities in Lake Michigan, including oblique references to the creature known as Nerissa Blackwater. Once per story, this knowledge reduces the difficulty of all Investigation tests involving Nerissa Blackwater or the being she serves by four. Total Failure means Nerissa becomes aware of your inquiry.",
+            },
+            {
+                dot: 5,
+                name: "Unbeholden",
+                description:
+                    "Khalid assembled a coterie of 'wild card' Kindred free from the influence of Helena and Menele. You are not presently under the control or dominion of Helena, Menele, or a similarly ancient vampire. Once per chronicle, you automatically escape one attempt by an ancient to ensnare you in their Jyhad. Work with the Storyteller to determine exactly how this feat occurs.",
+            },
+        ],
+    },
+    {
+        id: "kindred-dueling",
+        name: "Kindred Dueling",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Honorable Combatant",
+                description:
+                    "You are familiar with the rules, strictures, and customs of Kindred Dueling. You gain +2 dice to all Etiquette tests related to Kindred Dueling.",
+            },
+            {
+                dot: 2,
+                name: "Fight Club",
+                description:
+                    "You have established a flourishing Kindred dueling society in your domain. This society is a lucrative venture and excellent way for Kindred to settle their differences, but is frowned upon by the Prince and/or Primogen. Gain three dots to distribute between Resources, Allies, or Contacts reflecting the profits and connections made through your society.",
+            },
+            {
+                dot: 3,
+                name: "Stake Fighter",
+                description:
+                    "You honed your stake fighting skills to a razor's edge through years of Camarilla honor duels or Anarch street fights. You ignore the −2 penalty for called shots when attempting to stake another vampire.",
+            },
+            {
+                dot: 4,
+                name: "Fire Eater",
+                description:
+                    "Duels with torches and flaming brands are increasingly popular and have become a rite of passage for many Anarchs. Once per chapter, you can call upon your experience with fire duels, ignoring the regular provocation to terror frenzy provided by a bonfire. The difficulty to resist terror frenzy induced by being burned is also reduced by one for the scene.",
+            },
+            {
+                dot: 5,
+                name: "Trials of Death",
+                description:
+                    "You are a veteran of countless Trials of Death or learned at the feet of a true master. You suffer no called shot penalty when making bite attacks outside of grapples. Opponents directing bite attacks against you without a grapple suffer a called shot penalty of two. After a successful bite attack, your opponent increases their Hunger by two instead of one.",
+            },
+        ],
+    },
+    {
+        id: "malkavian-family",
+        name: "Malkavian Family",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        clanRestriction: ["Malkavian"],
+        dots: [
+            {
+                dot: 1,
+                name: "Family Secrets",
+                description:
+                    "Attending Son's mandatory therapy sessions gives you glimpses into your clanmates' schemes and goals. Gain two dice on an Awareness or Insight roll involving another Malkavian.",
+            },
+            {
+                dot: 2,
+                name: "Sibling Bond",
+                description:
+                    "You've grown extremely close to another member of your clan, someone who is like a favorite sibling. You share a two-dot Haven and a one-dot Herd, and once per story can call on this person for a significant favor. However, they will ask for your assistance in turn and may lay their burdens at your door.",
+            },
+            {
+                dot: 3,
+                name: "Tangled Web",
+                description:
+                    "Your frequent contact with other Oracles has heightened your ability to sense and use the Cobweb. Once per story, you may extend your perceptions along it to locate a specific clan member in the city — either catching a short glimpse of where they are and who they're with, or delivering one short sentence into their mind.",
+            },
+            {
+                dot: 4,
+                name: "A Little Peace and Quiet",
+                description:
+                    "With Son constantly forcing you to share space and secrets, you've carved out creative ways to get some alone time. Once per story, you may use an Auspex, Dominate, or Obfuscate power you haven't yet learned (at your current level or below) to hide in plain sight, escape a crowded area, or avoid detection.",
+            },
+            {
+                dot: 5,
+                name: "Favorite Childe",
+                description:
+                    "A respected elder member of the clan has taken a shine to you and appointed themselves your surrogate parent, favorite aunt or uncle, or doting grandparent. Gain them as a five-dot Mawla. Once per story, this person will act as a buffer between you and Son, relieving you of whatever obligation the Primogen was attempting to impose.",
+            },
+        ],
+    },
+    {
+        id: "occult-artifacts",
+        name: "Occult Artifacts",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        clanRestriction: ["Tremere", "Banu Haqim"],
+        dots: [
+            {
+                dot: 1,
+                name: "Rowan Ring",
+                description:
+                    "A feared tool of assassination employed by elder members of the Banu Haqim or their trusted neonates. After making a Rouse Check, the ring mystically sharpens and elongates into a wooden stake that can be used to make a stake attack. The stake detaches after use and the ring falls off its wielder's finger.",
+            },
+            {
+                dot: 2,
+                name: "Cloak of Abalone",
+                description:
+                    "Woven by the Tremere as a powerful weapon against Toreador, the Cloak of Abalone appears dull black on the outside but opens to reveal a scintillating, mesmerizing lining. After a Rouse Check, the targeted Toreador is immediately treated as if they rolled a Bestial Failure and their Toreador Obsession is in effect. The cloak only works on one target at a time.",
+            },
+            {
+                dot: 3,
+                name: "Powder of Rigidity",
+                description:
+                    "An uncommon mixture of rare herbs, Gangrel blood, and wolfsbane hurled at a target in an opposed Dexterity + Athletics test. On success, the tube shatters and coats them in viscous purple dust. The target — whether a user of Protean, a Lupine, or other shape changer — loses all ability to change shape for the next four hours.",
+            },
+            {
+                dot: 4,
+                name: "Monocle of Clarity",
+                description:
+                    "Designed by the Tremere to detect Obfuscated spies. After a Rouse Check, roll Wits or Resolve + three dice against the target's Wits + Obfuscate. Success pierces the target's Obfuscate. Total Failure pierces the veil between worlds, exposing the user to things best left unseen and inflicting one point of aggravated Willpower damage.",
+            },
+            {
+                dot: 5,
+                name: "Tapestry of Blood",
+                description:
+                    "A rare and powerful artifact said to have graced the halls of the Vienna Chantry. The user must make five Rouse Checks and spend a full evening contemplating the weave. As the first rays of dawn strike, roll Wits or Resolve + Occult — each success grants greater clarity of vision directly related to the user's fate. Total Failure triggers an immediate compulsion as detailed in the V5 core book.",
+            },
+        ],
+    },
+    {
+        id: "pony-express",
+        name: "The Pony Express",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Access to the Network",
+                description:
+                    "You have access to the Express and can send or receive a secure message or packet to or from any domain the Express operates in. Delivery will arrive within three nights to a week (Storyteller's discretion).",
+            },
+            {
+                dot: 2,
+                name: "Station Agent",
+                description:
+                    "You collect the mail in your domain and facilitate the handoff to a driver. You have two dots in Mask and are Zeroed. You also have access to the local Express station — a two-dot Haven with a one-dot Postern, owned by Praxton but available to you while on official Express business. Expect accountability if expected deliveries do not reach their recipients.",
+            },
+            {
+                dot: 3,
+                name: "Driver",
+                description:
+                    "You are a driver for the Express, granting you access to a wide array of vehicles and bolt holes across the nation. Once per story, you can acquire a vehicle appropriate to your journey's needs (car, truck, boat, small aircraft, or motorcycle). You also have access to the full Pony Express station network — a collection of two-dot Havens within one night's travel of each other.",
+            },
+            {
+                dot: 4,
+                name: "World Tour",
+                description:
+                    "Praxton recently took the Pony Express international, and you are at the forefront of this new initiative. Once per story, you gain access to an international mode of travel tailored to the unique needs of Kindred — likely something fast like a Lear jet or slow and clandestine like a berth on a freighter. Two-dot Haven stations anchor each end of your journey.",
+            },
+            {
+                dot: 5,
+                name: "Passenger Service",
+                description:
+                    "Always the innovator, Praxton operates a clandestine passenger service for special clients. Once per story, you and your coterie obtain passage from your domain to any destination the Express operates in (Storyteller's discretion).",
+            },
+        ],
+    },
+    {
+        id: "sheriff-damien",
+        name: "Sheriff Damien",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Fan Club",
+                description:
+                    "You've been a Baby Chorus fan for decades, collecting their albums and bootlegged recordings. Damien recognizes you as a frequent face in the front row, and other fans see you as an authority on the band. Gain two dots of Influence among other Baby Chorus devotees.",
+            },
+            {
+                dot: 2,
+                name: "Patroller",
+                description:
+                    "Damien frequently taps you for patrol duty, sending you out among Chicago's feeding grounds to keep an eye on Kindred activity. Your reports are clear and concise, alerting the Sheriff to trouble before it lands on the Prince's plate. Once per story, add three dice to an Insight, Intimidation, or Streetwise roll. While this position grants some authority, others consider you a snitch.",
+            },
+            {
+                dot: 3,
+                name: "Guest Artist",
+                description:
+                    "You played with Baby Chorus in one of its interim incarnations, and Damien occasionally invites you to open for them or play a set. Once per story, you may use Damien as a three-dot Mawla in the entertainment world.",
+            },
+            {
+                dot: 4,
+                name: "Postcards From the Road",
+                description:
+                    "You've made a deep connection with Damien — perhaps bonded over music or had his back in an ugly brawl. Damien acts as your four-dot Mawla. Once per story, you may also ask him to put you in touch with one of his contacts around the country.",
+            },
+            {
+                dot: 5,
+                name: "Loyal Hound",
+                description:
+                    "Prince Jackson handed Damien a crew full of wannabe diplomat Hounds, but the Sheriff wants fighters — and you've got a reputation for solving problems with your fists. Gain Contacts: Hound's Agents (••••) and Status: Camarilla (••). You may act with the Sheriff's authority on Kindred matters, and must respond when Damien requires your assistance.",
+            },
+        ],
+    },
+    {
+        id: "wolf-pack",
+        name: "The Wolf Pack",
+        source: "chicago-folios",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Prospect",
+                description:
+                    "Surviving Tyrus' initiation into the Wolf Pack requires a certain degree of resilience. Reduce the difficulty of all Survival rolls related to travel and outdoorsmanship by one.",
+            },
+            {
+                dot: 2,
+                name: "Member",
+                description:
+                    "Rule one of joining the Wolf Pack is that you have to be able to ride. Your association with the Pack grants you a two-die bonus to all Drive tests while riding a motorcycle.",
+            },
+            {
+                dot: 3,
+                name: "White Line Nightmare",
+                description:
+                    "The Wolf Pack lives frugally but spares no expense on its bikes. Once per chapter, you can call on the Wolf Pack's contacts in the motorcycle community to obtain immediate access to a custom motorcycle that conveys three dots of Influence among biker gangs and two dots of Resources should the bike be sold (and the gang's ire earned).",
+            },
+            {
+                dot: 4,
+                name: "Dread Riders",
+                description:
+                    "Your association with Anthius gives you access to a veritable army of Midwestern motorcycle gangs. Once per story, you can call on Anthius' influence to assemble hundreds of Hell's Angels anywhere in the continental United States within three nights (with the first groups arriving within hours). These bikers provide a five-dot Ally group directed toward a single objective of your choosing — with high potential for collateral damage and government involvement.",
+            },
+            {
+                dot: 5,
+                name: "Gives No...",
+                description:
+                    "Tyrus infuses you with a measure of his hard-headed, hard-hearted, hard-riding personality. You never take anything from anybody and are willing to stare down Caine himself. Once per session, you can ignore even the most formidable attempt to intimidate you — becoming immune to any single attempt to intimidate, cow, or make you back down or retreat (mundane or supernatural). This ability disappears at the start of the next scene.",
+            },
+        ],
+    },
+
+    // ── Children of the Blood Loresheets ────────────────────────────────────
+    {
+        id: "little-siblings",
+        name: "Little Siblings (Rossellini)",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Grave Attitude",
+                description:
+                    "Your experience commanding wraiths taught you that even the Kindred will eventually cross the Shroud. This certainty gives you peace. In any attempt to intimidate or manipulate you, your aggressors always suffer a one die penalty, which stacks with other penalties.",
+            },
+            {
+                dot: 2,
+                name: "Ghostly Dominance",
+                description:
+                    "You brook no tolerance for the pleas and threats of the intangible dead. They are your tools. When you damage a wraith's fetter, loved ones, or ectoplasmic form, you receive three bonus dice to any rolls to command them.",
+            },
+            {
+                dot: 3,
+                name: "Necromantic Expertise",
+                description:
+                    "You know Oblivion is more than a means to an end — it's a wondrous art that rewards those with the patience and ruthlessness to examine its depths. When you perform an Oblivion Ceremony, decrease the Difficulty level by one.",
+            },
+            {
+                dot: 4,
+                name: "Stolen Will",
+                description:
+                    "When you bite into the fetter of a ghost under your command hard enough to damage it or cause injury, the fetter bleeds ectoplasm drawn from the ghost's corpus. Consuming this bitter, stringy substance mends an amount of Aggravated or Superficial Willpower damage equivalent to the ghost's current Willpower rating.",
+            },
+            {
+                dot: 5,
+                name: "Purge",
+                description:
+                    "You shred corpuses with ease. Any attack made on a ghost always causes Aggravated Health damage, even outside of the Shadowlands. You are also capable of striking them when they are intangible.",
+            },
+        ],
+    },
+    {
+        id: "grudge-masters",
+        name: "Grudge Masters (Milliner)",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "You Know Who I Am",
+                description:
+                    "The Milliners are a true American dynasty, and the name carries power even now and outside the United States. Once per story, when you invoke the legacy of the Milliner line, you may add three dice to a Social roll.",
+            },
+            {
+                dot: 2,
+                name: "Family Bank",
+                description:
+                    "Once per story, you may borrow money from a new or existing Milliner SPC. You have Resources 5 for the rest of the story but owe that SPC a favor that must be fulfilled before the story ends. Your Storyteller will tell you the favor, and the consequences if the debt isn't repaid.",
+            },
+            {
+                dot: 3,
+                name: "Perfect Grudges",
+                description:
+                    "The Milliners are known for their grudges, but you're the true poster child. When you are slighted or beaten on a roll by an SPC, you may create a Project dedicated to taking revenge. Its Launch Roll automatically succeeds, and you may add two dice to any Goal Rolls. You can have as many grudge Projects as your dots in Composure; any beyond that limit are regular Projects.",
+            },
+            {
+                dot: 4,
+                name: "You Owe Me",
+                description:
+                    "The Milliners always get their due, even at the worst possible times. Once per story, you may spend a Willpower and declare an SPC in the scene owes you a favor in secret, and it's now due. The SPC must fulfill that favor to the best of their ability by the end of the story, as decided by the Storyteller.",
+            },
+            {
+                dot: 5,
+                name: "Friends in High Places",
+                description:
+                    "The Milliners' connections in law enforcement turned them onto would-be vampire hunters. Pick a faction within the Second Inquisition (FIRSTLIGHT, the Entity, a local intelligence agency, etc.). Once per story, when that faction acts against you, you may automatically redirect that action onto any enemy Kindred SPC. If they survive, that SPC will know you are to blame.",
+            },
+        ],
+    },
+    {
+        id: "ashfinders",
+        name: "The Ashfinders",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        clanRestriction: ["Thin-Blood"],
+        dots: [
+            {
+                dot: 1,
+                name: "Influencer",
+                description:
+                    "As a member of the Cinder Institute, the Ashfinders' mortal-facing front, you've developed some sway among mortals. Pick a local subculture. You receive two dots of Influence over that subculture.",
+            },
+            {
+                dot: 2,
+                name: "Shard Defense",
+                description:
+                    "Beast Shards — the monstrous remains of dead vampires used in the Ashe creation process — flicker in and out of existence and manipulate human emotions. You've become an expert at hunting and destroying Shards. When you are hit by spectral claws or other forms of semi-material weaponry, you always take −1 damage.",
+            },
+            {
+                dot: 3,
+                name: "Addiction Resistance",
+                description:
+                    "Ashe addiction drives a Duskborn into a vicious cycle of hunger and frenzy. You've developed a natural resistance to that cycle. When you use Ashe, you no longer make a Rouse Check.",
+            },
+            {
+                dot: 4,
+                name: "Strange New Forms",
+                description:
+                    "Ashfinder alchemists quickly become versatile in multiple forms of distillation, and you're no different. When you learn an additional Thin-Blood Alchemy distillation, you may choose up to four formulae to carry over to that new form without spending experience points. Ashfinder Blood Alchemy cannot carry over to other forms of distillation.",
+            },
+            {
+                dot: 5,
+                name: "Cook",
+                description:
+                    "As an important part of the Ashfinders' supply line, you've had plenty of opportunities to hone your craft. It's improved your overall prowess with Thin-Blood Alchemy. All times to research formulae are halved.",
+            },
+        ],
+    },
+    {
+        id: "amaranthan",
+        name: "Amaranthan",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Judge",
+                description:
+                    "You know time and supernatural forces hide the telltale black veins in a diablerist's aura. You've been taught to look for psychological signs instead. Whenever you interrogate suspected diablerists, you receive three dice to all relevant rolls.",
+            },
+            {
+                dot: 2,
+                name: "Jury",
+                description:
+                    "You are capable of granting clemency. Once per story, when you catch a diablerist, expose their crime beyond any doubt, and argue truly for the sparing of their life, you may take that vampire (if they survive sentencing) as a two-dot Mawla until you feel their crime has been repaid.",
+            },
+            {
+                dot: 3,
+                name: "Executioner",
+                description:
+                    "While you may take pleasure in turning diablerists to ash, there is a process to the execution that must be obeyed. When you deliver a diablerist's final message or complete their final wish, you may erase one Stain from your Humanity tracker.",
+            },
+            {
+                dot: 4,
+                name: "Tense Respect",
+                description:
+                    "Your refusal to acquiesce to sect and domain traditions regarding diablerie doesn't make you well-liked, but it does bring about grudging admiration. Even if you hold no position in your domain, you have a Status equivalent to three dots in the eyes of any Kindred who view diablerie negatively. Conversely, you earn a one-dot Adversary who holds diablerie as sacred.",
+            },
+            {
+                dot: 5,
+                name: "The Final Hunt",
+                description:
+                    "Unlike other Amaranthans, you're dedicated to hunting down and consuming the cannibalistic descendants of Amarantha's murderer. When you perform diablerie on a confirmed descendant of Amarantha's diablerist, you do not suffer an automatic drop in Humanity, but may still lose Humanity if you roll poorly in the contest between souls. All other effects still apply.",
+            },
+        ],
+    },
+    {
+        id: "cleopatras",
+        name: "Cleopatras",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        clanRestriction: ["Nosferatu"],
+        dots: [
+            {
+                dot: 1,
+                name: "Close Examination",
+                description:
+                    "You remember things the woman told you at just the right time. Once per story, you may select an SPC and tell the Storyteller you want to discover their deepest flaw. You gain three bonus dice to a Wits + Insight roll against that individual, with a critical success conveying the desired information. Revealing this knowledge is a certain way to earn a long-term Adversary.",
+            },
+            {
+                dot: 2,
+                name: "Clothed in Power",
+                description:
+                    "You know how to make the ideal self in your dreams a reality. Pick an outfit, perfume, hair style, make-up routine, or skin-care routine. When you use this, you may reroll a Social roll failure or roll to resist fury frenzy once per story.",
+            },
+            {
+                dot: 3,
+                name: "Dream Appearance",
+                description:
+                    "Your Bane fades while you experience daysleep, allowing you to look like you did as a mortal until you wake — though you still bear wounds if suffering damage. The return of your horrific appearance is incredibly traumatic; if anyone witnesses your Bane return, they undoubtedly know what you are.",
+            },
+            {
+                dot: 4,
+                name: "Figure-in-Waiting",
+                description:
+                    "Following your dreams paid off. Name a titled position in the domain. The current titleholder considers you next in line should something happen to them, granting four dots to spread between Mawla (the present titleholder) and Status. However, this also earns you a one-dot Adversary in the form of a vampire who also wants the position.",
+            },
+            {
+                dot: 5,
+                name: "The Beauty Within",
+                description:
+                    "You are destined to rule the Kindred, and not even Caine's curse hinders you. Once per story, when you are dressed in your finest clothes, you may negate your clan's Bane entirely for the duration of a session for the purposes of interaction with other vampires. Your appearance has not changed, but your intense confidence radiates and negates your blemishes. This Lore has no effect on kine.",
+            },
+        ],
+    },
+    {
+        id: "meneleans",
+        name: "Meneleans",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Mortal Empathy",
+                description:
+                    "You believe in the importance of cleaving to humanity and ensure you see mortals as people, not just as food. Once per session, you may reroll up to three dice on a Social roll involving mortals without spending Willpower.",
+            },
+            {
+                dot: 2,
+                name: "Peacemaker",
+                description:
+                    "Menele's school taught you the importance of conflict resolution. Once per session, when you are involved in a social or physical conflict, you gain two bonus dice in an attempt to resolve things through diplomacy. If one of your allies then breaks the terms of your negotiation, you must roll to resist fury frenzy.",
+            },
+            {
+                dot: 3,
+                name: "Show of Defiance",
+                description:
+                    "Tyranny is the enemy of peace. Once per story, when you chastise or humiliate someone in a higher position of authority than you, you may add the number of dots you possess in Status as bonus dice to your roll. The outcome is a likely Adversary possessing dots equivalent to your target's power level.",
+            },
+            {
+                dot: 4,
+                name: "Becoming the Mask",
+                description:
+                    "You've assimilated into humanity so well that you have a separate, almost mortal life. You receive an identity represented by Mask 2 and may split two dots between Contacts, Resources, and Influence. When you take on this Mask, you take on mortal connections including family and friends, though they pose risks to your security and privacy.",
+            },
+            {
+                dot: 5,
+                name: "Bond Breaker",
+                description:
+                    "The dissipation of Menele's Blood Bond permanently changed you. You've become Unbondable, and feeding a Rouse Check's worth of vitae to a thrall immediately breaks the regent's hold. However, you are incapable of creating your own Blood Bonds.",
+            },
+        ],
+    },
+    {
+        id: "one-true-way",
+        name: "The One True Way",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Trust Me",
+                description:
+                    "Showing vulnerability is dangerous among Kindred, but it's necessary for the One True Way. You know how to sidestep a vampire's hesitance and get them to say things they'd never tell their closest friends. When you speak to a vampire with genuine empathy, the Difficulty of any roll to get them to tell the truth is lowered by one.",
+            },
+            {
+                dot: 2,
+                name: "Secret Keeper",
+                description:
+                    "Attending or running meetings let you in on so many secrets the Nosferatu consider you a trusted source. Once per story, when you act on a secret, a single roll concerning that secret gains two extra dice.",
+            },
+            {
+                dot: 3,
+                name: "Beast Communion",
+                description:
+                    "You see your Beast as a separate persona. When it comes to the surface, it finds details you've missed. Whenever you roll a Messy Critical or a Bestial Failure, you may ask one question about the situation to your character's Beast. Your Storyteller gives you a truthful answer in the voice of the Beast.",
+            },
+            {
+                dot: 4,
+                name: "Calling the Wave",
+                description:
+                    "You see your Beast as a companion, and it'd be wrong to keep a companion locked away forever. Once per story, you spend a point of Willpower to immediately enter frenzy and Ride the Wave.",
+            },
+            {
+                dot: 5,
+                name: "The Road from Hunedoara",
+                description:
+                    "When the Master of Ravens himself invited you to journey to Hunedoara, Romania to meet him, you accepted. He taught you much, and you have returned a near apex predator. No matter what heinous acts you commit in frenzy, you never suffer more than 1 Stain. This can only be applied once per story, and Convictions cannot further reduce these Stains.",
+            },
+        ],
+    },
+    {
+        id: "starfall-ranch",
+        name: "Starfall Ranch",
+        source: "children-of-the-blood",
+        requiresStPermission: true,
+        clanRestriction: ["Malkavian"],
+        dots: [
+            {
+                dot: 1,
+                name: "Herd Mindset",
+                description:
+                    "Your time on the ranch brought you closer to your fellow wayward Malkavians — sometimes a bit too close, and parts of their identities still linger within you. Once per session, you may either take two dots in a Skill you do not know for a single roll, or ask the Storyteller for one fact about an SPC that you do not know.",
+            },
+            {
+                dot: 2,
+                name: "Clarity of Mind",
+                description:
+                    "Starfall Ranch is a peaceful place where Malkavians from all levels of society can rest and reflect. When you start a Project at Starfall Ranch, you receive three bonus dice to the Launch roll.",
+            },
+            {
+                dot: 3,
+                name: "New Perspectives",
+                description:
+                    "You understand some basics of the One Moon and are starting to discover how you are only a single aspect of a greater person. Once per story, you may take one Skill rating and replace it with that of another One Moon cultist (another player's character or an SPC). This Lore is in effect for the remainder of that story.",
+            },
+            {
+                dot: 4,
+                name: "Starr and Marta",
+                description:
+                    "You've had the chance to see Marta with your own eyes, and it changed you forever. You may take Dr. Starr as a four-dot Mawla. Once per story, Marta will speak through him — you may ask her any question relevant to the story, and she answers truthfully to the best of her knowledge.",
+            },
+            {
+                dot: 5,
+                name: "But I Saw You Die",
+                description:
+                    "Starr is infamous for cheating death, and he's shared his secret with you. Once, when you undergo final death, you may select another One Moon cultist SPC. This SPC is now you, even taking on your physical likeness if possible. Your Skills, Advantages, Flaws, and any out-of-clan Discipline dots remain, but you must redistribute your Attributes and your in-clan Discipline dots.",
+            },
+        ],
+    },
+
+    // ── Book of Nod Apocrypha Loresheets ────────────────────────────────────
+    {
+        id: "book-of-nod",
+        name: "The Book of Nod",
+        source: "book-of-nod-apocrypha",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Precis",
+                description:
+                    "You are familiar with the broader concepts of the Book of Nod and some of the more commonly known prophecies. Once per story, add two dice to an Academics roll related to ancient Cainite history.",
+            },
+            {
+                dot: 2,
+                name: "Well-Versed",
+                description:
+                    "Your sire or Mawla taught you certain passages from the book, and may even have physical fragments in their possession. Once per story, you may seek their input on a matter regarding Noddist lore, gaining a two-dice bonus to any Occult test related to the book.",
+            },
+            {
+                dot: 3,
+                name: "Scholar",
+                description:
+                    "You've dedicated significant time and study to the Book of Nod and are familiar with at least one complete version of the text. You can support your theories with quotes and are aware of counterarguments and alternative interpretations. Once per session, add three dice to a Persuasion roll when debating the Book of Nod's finer points.",
+            },
+            {
+                dot: 4,
+                name: "Collector",
+                description:
+                    "You own several fragments from the book or have memorized sections of Caine's history. Noddists seek you out hoping to examine your copies or hear you recite the tales. Once per story, when you grant someone access to your collection, gain three temporary dots in Resources (or other appropriate Background as approved by your Storyteller) for the remainder of the story, or the ability to call in a future favor from the Noddist.",
+            },
+            {
+                dot: 5,
+                name: "Noddist Master",
+                description:
+                    "Other Noddists look to you for insight and interpretation on the texts, and your theses are regarded as must-reads. Once per story, you may derive a fact or prophecy from the Book of Nod that your character can apply to sway a decision, automatically succeeding at a Persuasion test at the Storyteller's discretion.",
+            },
+        ],
+    },
+    {
+        id: "gehenna-cults",
+        name: "Gehenna Cults",
+        source: "book-of-nod-apocrypha",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Mark the Bloody Trail",
+                description:
+                    "Once per session when you begin investigating or researching the presence of a blood cult you've not previously used this lore for, the Storyteller gives you one free clue to help locate the cult or to understand their current plans.",
+            },
+            {
+                dot: 2,
+                name: "Faithful Bloodhound",
+                description:
+                    "You've exposed and taken down at least one Gehenna cult already and shown your mettle. Either the Camarilla or the Anarchs trust you as an expert on Gehenna cults. You wield three dots of Status while taking action to investigate or persecute a cult on behalf of that sect.",
+            },
+            {
+                dot: 3,
+                name: "Dogma",
+                description:
+                    "You're steeped in the lore of Gehenna and have learned many permutations of warped faiths. Once per session, when you discuss a vampire's faith with them or observe them practicing it, you can extrapolate the rough nature of the doctrines, Convictions, or code the religion focuses on. The Storyteller must convey the primary themes, limitations, and beliefs, even those not evident in what the vampire has said or done.",
+            },
+            {
+                dot: 4,
+                name: "Cult Breaker",
+                description:
+                    "You know how to shatter the illusions of millenarian cults and tear apart the foundations of their faith. Once per story for a scene, while socially interacting with you, cult members do not benefit from any dots in Status they may have within their own cult. If they are unable to overcome you in a conflict, they lose any such Status dots for the rest of the story.",
+            },
+            {
+                dot: 5,
+                name: "Red Truths",
+                description:
+                    "Investigating the rising tide of blood cults has put you in a prime position to sift precious grains of truth from the lies at the heart of most misbegotten faiths. Once you have studied the practices or texts of any blood cult, you are able to learn any Rituals or other unusual supernatural capabilities they possess without need of a teacher, although you must pay any experience point costs as normal.",
+            },
+        ],
+    },
+    {
+        id: "machinations-of-saulot",
+        name: "Machinations of Saulot",
+        source: "book-of-nod-apocrypha",
+        requiresStPermission: true,
+        clanRestriction: ["Salubri", "Tremere"],
+        dots: [
+            {
+                dot: 1,
+                name: "Rumors and Signs",
+                description:
+                    "Those aware of the age-old conflicts of the Salubri are on the lookout for signs of their recurrence. You can ask the Storyteller if an event or location shows signs of Salubri or Tremere influence. You can ask this question once per session.",
+            },
+            {
+                dot: 2,
+                name: "Prolonged Conflict",
+                description:
+                    "While Saulot's words were gentle, his actions are said to have spurred on conflict between the Salubri and Tremere. You have learned to defend from these forces. Once per session, gain two bonus dice when resisting Auspex, Blood Sorcery, Dominate, or Oblivion powers.",
+            },
+            {
+                dot: 3,
+                name: "Saulot's Smile",
+                description:
+                    "When Tremere committed diablerie on Saulot, the sire of all Salubri smiled. Once per story when witnessing another Kindred perform an action, you can ask the Storyteller what their motivation was for doing so.",
+            },
+            {
+                dot: 4,
+                name: "The Madness of Blood",
+                description:
+                    "When Saulot was destroyed, his childer supposedly went mad, drawn to the site of Saulot's awakening. Once per story, you can summon your sire or one of your childer or someone who has tasted your Blood as per the Presence power Summon, using your Auspex or Dominate rating instead of Presence. You can also ignore such a summons yourself, once per story.",
+            },
+            {
+                dot: 5,
+                name: "Ultimate Disguise",
+                description:
+                    "Your expertise in Saulot's ways gives you an advantage few others have. You possess traits of both Clans Salubri and Tremere. You may learn Blood Sorcery or Fortitude as if they were a Clan Discipline if they weren't already, but suffer both Clan Banes and Compulsions.",
+            },
+        ],
+    },
+    {
+        id: "servitor-of-irad",
+        name: "Servitor of Irad",
+        source: "book-of-nod-apocrypha",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Shield of Irad",
+                description:
+                    "You can't do the work of the Antediluvians if you get discovered by others. You have a lot of experience shielding your true intentions from the gaze of outsiders. You gain an additional die on rolls involving lying to other Kindred.",
+            },
+            {
+                dot: 2,
+                name: "Sword of Irad",
+                description:
+                    "Sometimes you must act decisively in the name of the Third Generation, and that conviction adds strength to your act. Once per story, you can add three dice to a roll that is integral to your cult's plans.",
+            },
+            {
+                dot: 3,
+                name: "Know the Will of the Ancients",
+                description:
+                    "You are firmly convinced you know the will of the Antediluvians — perhaps you even hear their voices or gain prophetic dreams from them. As long as you are a member of the cult, you can take an additional Conviction directly related to the goals of your infiltration (your cult membership acts as your touchstone for this Conviction). If you infiltrate a new group, you can change your Conviction to reflect the new assignment.",
+            },
+            {
+                dot: 4,
+                name: "Do the Will of the Ancients",
+                description:
+                    "All actions are in service to the Third Generation. There is nothing you won't do to fulfill that goal, and you have devoted your entire existence to it. Your clan Bane can be ignored once per story while you are a Servitor of Irad.",
+            },
+            {
+                dot: 5,
+                name: "Kill Thy Brother",
+                description:
+                    "When the Third Generation eventually rise, most of Caine's errant childer will be destroyed — so killing another vampire in the name of the Antediluvians just makes their job a little easier. Once per story, when using a weapon or power that inflicts Aggravated Health damage on a vampire, your attack inflicts two additional damage, and you don't need to roll to resist frenzy if that weapon or power involves fire.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
