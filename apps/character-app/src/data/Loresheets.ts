@@ -3591,45 +3591,6 @@ export const LORESHEETS: Loresheet[] = [
 
     // ── Children of the Blood Loresheets ────────────────────────────────────
     {
-        id: "little-siblings",
-        name: "Little Siblings (Rossellini)",
-        source: "children-of-the-blood",
-        requiresStPermission: true,
-        clanRestriction: ["Hecata"],
-        dots: [
-            {
-                dot: 1,
-                name: "Grave Attitude",
-                description:
-                    "Your experience commanding wraiths taught you that even the Kindred will eventually cross the Shroud. This certainty gives you peace. In any attempt to intimidate or manipulate you, your aggressors always suffer a one die penalty, which stacks with other penalties.",
-            },
-            {
-                dot: 2,
-                name: "Ghostly Dominance",
-                description:
-                    "You brook no tolerance for the pleas and threats of the intangible dead. They are your tools. When you damage a wraith's fetter, loved ones, or ectoplasmic form, you receive three bonus dice to any rolls to command them.",
-            },
-            {
-                dot: 3,
-                name: "Necromantic Expertise",
-                description:
-                    "You know Oblivion is more than a means to an end — it's a wondrous art that rewards those with the patience and ruthlessness to examine its depths. When you perform an Oblivion Ceremony, decrease the Difficulty level by one.",
-            },
-            {
-                dot: 4,
-                name: "Stolen Will",
-                description:
-                    "When you bite into the fetter of a ghost under your command hard enough to damage it or cause injury, the fetter bleeds ectoplasm drawn from the ghost's corpus. Consuming this bitter, stringy substance mends an amount of Aggravated or Superficial Willpower damage equivalent to the ghost's current Willpower rating.",
-            },
-            {
-                dot: 5,
-                name: "Purge",
-                description:
-                    "You shred corpuses with ease. Any attack made on a ghost always causes Aggravated Health damage, even outside of the Shadowlands. You are also capable of striking them when they are intangible.",
-            },
-        ],
-    },
-    {
         id: "grudge-masters",
         name: "Grudge Masters (Milliner)",
         source: "children-of-the-blood",
@@ -4016,41 +3977,194 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── Download / Choice of Games Loresheets ───────────────────────────────
     {
-        id: "servitor-of-irad",
-        name: "Servitor of Irad",
-        source: "book-of-nod-apocrypha",
+        id: "stories-of-the-daughters",
+        name: "Stories of the Daughters",
+        source: "download",
         requiresStPermission: true,
         dots: [
             {
                 dot: 1,
-                name: "Shield of Irad",
+                name: "Aspiring Idol",
                 description:
-                    "You can't do the work of the Antediluvians if you get discovered by others. You have a lot of experience shielding your true intentions from the gaze of outsiders. You gain an additional die on rolls involving lying to other Kindred.",
+                    "Whether trained daily before your Embrace or naturally gifted, your voice carries power. Receive two additional dice to any roll involving singing, but if you fail, suffer an immediate Compulsion for the shame you brought on yourself.",
             },
             {
                 dot: 2,
-                name: "Sword of Irad",
+                name: "Surprise Performance",
                 description:
-                    "Sometimes you must act decisively in the name of the Third Generation, and that conviction adds strength to your act. Once per story, you can add three dice to a roll that is integral to your cult's plans.",
+                    "The talent lies dormant within you and comes to light in the most unexpected moments. Once per story, receive two extra successes on a roll involving public speaking. This can be done after the roll has been made and can be paired with using Presence.",
             },
             {
                 dot: 3,
-                name: "Know the Will of the Ancients",
+                name: "Wayward Daughter",
                 description:
-                    "You are firmly convinced you know the will of the Antediluvians — perhaps you even hear their voices or gain prophetic dreams from them. As long as you are a member of the cult, you can take an additional Conviction directly related to the goals of your infiltration (your cult membership acts as your touchstone for this Conviction). If you infiltrate a new group, you can change your Conviction to reflect the new assignment.",
+                    "Whatever you've heard about Daughters of Cacophony, you turned it into your identity. You successfully (so far) pretend to be a Daughter in your domain and have convinced local Kindred society to treat you like a big deal. Receive four dots to distribute among Status, Herd, and Mawla. However, someone — like your sire — knows your secret and might use it against you. If exposed, lose your gained advantages and gain Flaw: Suspect among the faction you're most acquainted with.",
             },
             {
                 dot: 4,
-                name: "Do the Will of the Ancients",
+                name: "Songstress Supreme",
                 description:
-                    "All actions are in service to the Third Generation. There is nothing you won't do to fulfill that goal, and you have devoted your entire existence to it. Your clan Bane can be ignored once per story while you are a Servitor of Irad.",
+                    "Whether vitae of the Daughters really flows in your veins or you're just exceptionally talented, your voice surpasses most mortal singers. Gain four additional dice to any vocal performances. Your talent has earned unwanted attention — gain the Stalkers Flaw and a single powerful Adversary who feels either jealous or possessive of you.",
             },
             {
                 dot: 5,
-                name: "Kill Thy Brother",
+                name: "Rejuvenating Voice",
                 description:
-                    "When the Third Generation eventually rise, most of Caine's errant childer will be destroyed — so killing another vampire in the name of the Antediluvians just makes their job a little easier. Once per story, when using a weapon or power that inflicts Aggravated Health damage on a vampire, your attack inflicts two additional damage, and you don't need to roll to resist frenzy if that weapon or power involves fire.",
+                    "Your voice is almost supernaturally soothing. Gain two additional dice to non-intimidation Presence rolls and while using Quell the Beast or Obeah. Once per story, you can restore three levels of Superficial Willpower damage to everyone capable of hearing your voice. This performance must last for one scene — if interrupted, all listeners suffer one point of Superficial Willpower damage instead.",
+            },
+        ],
+    },
+    {
+        id: "road-courier",
+        name: "Road Courier",
+        source: "download",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Bucket",
+                description:
+                    "As long as you're in an urban area or along a major road, you rarely have problems finding a ride for the night. Add two extra dice to your Intelligence + Streetwise rolls while looking for a temporary vehicle. Every success above the margin of difficulty gives some extra comfort and ensures you won't instantly alert the police.",
+            },
+            {
+                dot: 2,
+                name: "Six in the Morning",
+                description:
+                    "You know a hundred forgotten caves, empty garages, and abandoned warehouses. Once per story, receive a four-dice bonus to a Survival test to find shelter, as long as you're on a road or street and have a vehicle. Your temporary haven is big enough for a large van.",
+            },
+            {
+                dot: 3,
+                name: "Ride or Die",
+                description:
+                    "Unlife is filled with uncertainties, but at least there's one thing you know you can always count on. Select one vehicle that you've had for at least one entire story; the bonus for operating and working on this vehicle is three dice.",
+            },
+            {
+                dot: 4,
+                name: "Highway Harbinger",
+                description:
+                    "You've been delivering bad news long enough that vampires know your arrival spells trouble. For the first three nights in a new city after you announce yourself, you gain a three-dice bonus to all Intimidation, Investigation, and Streetwise tests with vampires. However, a paranoid Prince or other notable vampire makes it their business to end you or drive you out — gain a two-dot Adversary for as long as you stay in the city.",
+            },
+            {
+                dot: 5,
+                name: "Midnight Express",
+                description:
+                    "You know spotters, scouts, and fellow couriers across the country. They function as two dots in Contacts. Once per story, you can order them to watch and clear the roads ahead of you for a single night, letting you maintain highway speed in even the worst bucket and 150 mph in a high-end vehicle. Your spotters clear mundane problems but can't protect you from vampires, Lupines, or other supernatural threats — though they can warn you or provide alternate routes.",
+            },
+        ],
+    },
+    {
+        id: "amanda-chastain",
+        name: "Amanda Chastain",
+        source: "download",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Pulse",
+                description:
+                    "In frequent talks with Chastain, you receive stock tips, insider trading offers, and invitations to investment clubs, all of which prove fruitful. Once per story, gain three extra dice in any Finance dice pools.",
+            },
+            {
+                dot: 2,
+                name: "Boss Lady",
+                description:
+                    "You have a personal relationship with Chastain. Not only does she consider you an associate, but she has taken you under her wing and acts as your mentor. You possess Mawla (••) (Amanda Chastain). If you're too public with this relationship, you may risk attracting the attention of one of Amanda's enemies (•).",
+            },
+            {
+                dot: 3,
+                name: "Hacking the System",
+                description:
+                    "Having access to many of Chastain's contacts, you have made acquaintance with a group of mortal hackers. This grants you a permanent Contact (•). The group can help you out for the right price, and once per story you can add three extra dice to your pool while hacking. Each hack comes with risks — failing may result in compromising your Mask or Haven at the Storyteller's discretion.",
+            },
+            {
+                dot: 4,
+                name: "Blood Work",
+                description:
+                    "Chastain has access to the Circulatory System and is willing to share the blood for a favor or two. You can perform long-distance tasks for her (no more than twice per story, difficulty 4). Upon succeeding, you receive a vessel bearing a resonance of your choice. Failing at fulfilling Amanda's orders may pose additional risks depending on the nature of the task.",
+            },
+            {
+                dot: 5,
+                name: "Learning the System",
+                description:
+                    "Chastain considers you a close personal friend and has taught you her system of setting up a domain. She has given you the tools of her rather ruthless and influential trade. Gain Influence (••). When dealing with mortal politicians, law enforcement, or the media, add two extra dice to all Social dice pools. Once per story, you may ask for Chastain's assistance and receive it (at the Storyteller's discretion).",
+            },
+        ],
+    },
+    {
+        id: "sheriff-qui",
+        name: "Sheriff Qui",
+        source: "download",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Ally of an Ally",
+                description:
+                    "You've worked for Qui in the past — but not directly. You've never actually met the Sheriff, but that doesn't stop you from using the association to your advantage. Once per story, you may successfully talk your way out of (or into) trouble by invoking Qui's name at the Storyteller's discretion.",
+            },
+            {
+                dot: 2,
+                name: "He Calls His Car 'She'",
+                description:
+                    "Before his appointment as Sheriff, Qui was known as a discreet and reliable fixer. You were one of his favored suppliers, gaining his gratitude for procuring a silver sedan he still favors for stakeouts. Gain a two-dice bonus on Finance, Streetwise, or Persuasion tests involving selling or obtaining vehicles and vehicle parts.",
+            },
+            {
+                dot: 3,
+                name: "Private Eye",
+                description:
+                    "You were tutored by Qui in the subtle art of sleuthing and have spent years honing your skills. In a rare moment of candor, the Sheriff professed you were one of the most capable students he'd ever trained. Gain Specialty (Sleuthing) to either Investigation or Streetwise, and once per story, add four dice to a roll using this specialty.",
+            },
+            {
+                dot: 4,
+                name: "Comrades in Arms",
+                description:
+                    "Many years ago, you assisted Qui in the successful defense of Ottawa against Montreal's Sabbat raiders. Those few who survived regard you as an ally. These comrades count as a three-dot Mawla and will fight on your behalf once per story (with 24 hours' notice). In addition to battle prowess, they give one automatic success in any conflict involving the Sabbat.",
+            },
+            {
+                dot: 5,
+                name: "Dangerous Secrets",
+                description:
+                    "You've worked closely with Qui and learned a key piece of the secret to his subversion of the Nosferatu curse. Powerful Kindred believe it's true and will offer a major boon in exchange for everything you know. If you choose to sell, gain six dots to spend on any combination of Contacts, Influence, Haven, and Resources — but Qui becomes a four-dot Adversary. Keeping the secret earns Qui's respect, and you may call on him once per chronicle as a four-dot Mawla.",
+            },
+        ],
+    },
+    {
+        id: "parthenon-troupe",
+        name: "The Parthenon Troupe",
+        source: "download",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Silent Actor",
+                description:
+                    "Your life as a ghoul is over, but your silent years allowed you to cultivate extraordinary powers of observation. It's amazing what one can discover if they can keep their mouth shut. Once per story, you can ask the Storyteller for a piece of information that is hidden from everyone else but obvious to you.",
+            },
+            {
+                dot: 2,
+                name: "It Speaks",
+                description:
+                    "You proved yourself to the Prince and were finally given speaking parts in the troupe, performing in front of Kindred and mortals. Gain Fame (•) and two extra dice whenever performing plays you learned with the troupe. One of the troupe ghouls is jealous of you, earning you Enemy (•).",
+            },
+            {
+                dot: 3,
+                name: "No Longer in the Shadows",
+                description:
+                    "Years spent on stage made you crave attention, and you know you shine best when all the lights are on you. Whenever members of your coterie make a significant attempt to stay low (using Stealth or Composure rolls) with you present, you can automatically cause them to fail in exchange for three additional dice to your next Charisma roll.",
+            },
+            {
+                dot: 4,
+                name: "Diva",
+                description:
+                    "You have been part of the Prince's troupe for as long as you can remember, surviving long years of hard work, abusive impresarios, and the jealousy of fellow players. Distribute three dots among Fame and Herd, and gain two additional dice to your performances while on stage. Gain Enemy (••) Stalker.",
+            },
+            {
+                dot: 5,
+                name: "Impresario",
+                description:
+                    "Long gone are the days of stage fright before a dead-hearted audience. You know the ins and outs of the Prince's court and exactly how to put together a show that brings results. Gain three dots to distribute among Influence and Status. Once per story, gain three dice to a Performance roll meant to sway the minds of others to your gain. A Messy Critical or Bestial Failure may end in disastrous consequences to your cause.",
             },
         ],
     },
