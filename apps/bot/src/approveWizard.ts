@@ -107,14 +107,23 @@ export async function findLatestPdf(
   channel: TextChannel,
 ): Promise<{ url: string; name: string } | null> {
   try {
-    const messages = await channel.messages.fetch({ limit: 50 });
-    // Collection is newest-first by default
-    for (const msg of messages.values()) {
-      for (const att of msg.attachments.values()) {
-        if (att.name?.toLowerCase().endsWith('.pdf')) {
-          return { url: att.url, name: att.name };
+    let before: string | undefined;
+    // Search up to 3 pages of 100 (300 messages) to handle active channels
+    // where the PDF may have been posted well before recent review discussion.
+    for (let page = 0; page < 3; page++) {
+      const opts: { limit: number; before?: string } = { limit: 100 };
+      if (before) opts.before = before;
+      const messages = await channel.messages.fetch(opts);
+      if (messages.size === 0) break;
+      // Collection is newest-first; return the most recent PDF found.
+      for (const msg of messages.values()) {
+        for (const att of msg.attachments.values()) {
+          if (att.name?.toLowerCase().endsWith('.pdf')) {
+            return { url: att.url, name: att.name };
+          }
         }
       }
+      before = messages.last()?.id;
     }
   } catch {
     // ignore fetch errors
