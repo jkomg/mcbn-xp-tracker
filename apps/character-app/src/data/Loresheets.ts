@@ -5253,6 +5253,75 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Winter's Teeth Loresheets ─────────────────────────────────────────────
+    {
+        id: "minneapolis",
+        name: "Minneapolis",
+        source: "winters-teeth",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "The Nod Lot",
+                description: "You have cultivated a small Herd (••) in the unofficial northwest district known as the Nod Lot. The blood resonance of your herd varies from melancholic to completely absent. However, feeding from such victims presents a high risk of transferring blood-borne pathogens. You must take the Flaw Addiction (•) or Dark Secret - Plague Bearer (•).",
+            },
+            {
+                dot: 2,
+                name: "The Artist Formerly Known As...",
+                description: "You are one of the lucky few who has made a name for themselves within the music industry as a performing artist. Since your Embrace, your renown has become a double-edged sword, especially after the highly publicized reports of your death. You gain Fame (•••), however, you must also take the Flaw Mask (Known Corpse).",
+            },
+            {
+                dot: 3,
+                name: "The Revolution",
+                description: "Minneapolis has a strong tradition of fighting for equal rights and representation. You were once an active force for change within your community, or have become familiar to those who are. You gain four dots to spend among Allies, Contacts, or Influence, representing affiliation with prominent grassroots movements, local leaders, or institutions. However, this activism has made you a target among your elite Camarilla enemies — you must take the Flaw Status: Shunned - Camarilla (*).",
+            },
+            {
+                dot: 4,
+                name: "The River Rats",
+                description: "You have managed to ingratiate yourself to the Nosferatu cabal of secret-seekers who infest Minneapolis from the sewers and riverfront to the dark corners of the skywalk and ruins of ancient flour mills. You may distribute three dots between Contacts and Mawla (Nosferatu Mawla only), and once per story you may gain one valuable piece of information (at Storyteller's discretion) relevant to your character's Ambition.",
+            },
+            {
+                dot: 5,
+                name: "The Minneapolis Six",
+                description: "In 2003, a riot following a University of Minneapolis hockey victory was blamed on the Anarch community. Prince Merrain capitalized on the opportunity and had three of the six perpetrators put to Final Death; the remaining three were forcibly blood bound to the Prince. You are one of the surviving three. Your blood bond has broken, and now you and your kin hunger for retribution. Once per chronicle, you may evoke the memory of the Minneapolis Six to sway the Anarch community to your cause, at the Storyteller's discretion.",
+            },
+        ],
+    },
+    {
+        id: "the-nictuku",
+        name: "The Nictuku",
+        source: "winters-teeth",
+        requiresStPermission: true,
+        clanRestriction: ["Nosferatu"],
+        dots: [
+            {
+                dot: 1,
+                name: "Signal-to-Noise",
+                description: "Mysterious deaths and disappearances are often attributed by conspiracy-minded Sewer Rats to the dreaded Nictuku. Once per story, by examining the tell-tale signs (or lack thereof), you may definitively know whether such a crime was committed by your ancestral enemy or some other circumstance.",
+            },
+            {
+                dot: 2,
+                name: "Morbid Curiosity",
+                description: "Whether through legend, gossip, or indirect exposure, you have grown obsessed with the concept of these ancestral nemeses and devoted your unlife to the study of the Nictuku. When making an Occult or Investigation roll regarding the Nictuku, you may add +2 dice to the roll.",
+            },
+            {
+                dot: 3,
+                name: "Blindspot",
+                description: "The Hidden have had to hone their skills to counter not only the perceptive Tremere regent on whom they are spying, but also the unknown shadows that haunt their every step. Once per session, when contesting against a power such as Sense the Unseen, you may add two dice to your Obfuscate roll.",
+            },
+            {
+                dot: 4,
+                name: "Deathmark",
+                description: "You have attracted the attention of one of the Nictuku (or something that appears as one), and it is but a matter of time before they catch up with you. You gain Adversary (••••); however, you may spend an equal number of points on haven merits relating to the added security measures taken against your phantom nemesis. Once per story, you may permanently sacrifice up to three dots in Backgrounds to make a clean getaway, at the Storyteller's discretion.",
+            },
+            {
+                dot: 5,
+                name: "Hunted-Becomes-Hunter",
+                description: "You have developed skills of survival and combat against more than just the Nictuku. You have honed yourself into a defensive weapon against any Kindred who would seek to consume the vitae within you. You gain the specialization Brawl (Kindred) and may add an additional +2 dice to all conflicted rolls against cannibalistic Kindred (diableriests, Blood Leeches, and the like).",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
