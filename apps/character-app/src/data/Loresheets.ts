@@ -2685,6 +2685,110 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Tattered Facade Loresheets ────────────────────────────────────────────
+    {
+        id: "descendant-of-the-ankou",
+        name: "Descendant of the Ankou",
+        source: "tattered-facade",
+        requiresStPermission: true,
+        clanRestriction: ["Malkavian"],
+        dots: [
+            {
+                dot: 1,
+                name: "Bleed Them Dry",
+                description: "You gain three of the following specialties: a fangs specialty for Brawl, a blades specialty for Melee, a blood specialty for Occult, or a hematology specialty for Science. These ignore the normal specialty limits and you benefit even if you have no dots in the Skill. Your penchant for bloody work leaves every Haven you occupy with the Creepy Flaw.",
+            },
+            {
+                dot: 2,
+                name: "Crimson Visionary",
+                description: "You learn Oblivion at the in-clan rate without needing to drink another Kindred's Blood. However, your first Oblivion power must relate to perception or gaining information (e.g., Oblivion's Sight, Fatal Prediction, Shadow Perspective). You must have two such powers by your third, and three by your fifth. Upon learning your first dot of Oblivion, you gain a one-dot Folkloric Bane or Block Flaw.",
+            },
+            {
+                dot: 3,
+                name: "Bloody Work",
+                description: "Add a two-die bonus to any Auspex dice pool or Occult dice pools for Rituals or Ceremonies designed to gain information, so long as you spill at least two additional Rouse Check's worth of human blood or kill an animal. The spilled blood cannot slake any Hunger. You may still use a Blood Surge on the same test.",
+            },
+            {
+                dot: 4,
+                name: "Focus of Clarity",
+                description: "You have an object — high quality, antique, or cutting edge — that helps you focus on your craft and resist the Beast. Choose one Skill. Once per session when you use that object in conjunction with that Skill, you may change a single 1 or 10 on a Hunger die to a failure, potentially avoiding a Messy Critical or Bestial Failure. A suitable replacement cannot be found until the start of the next story if it is lost or destroyed.",
+            },
+            {
+                dot: 5,
+                name: "The Prophet of Death Reborn",
+                description: "Your visions have brought you local renown. Luminaries — mortal and Kindred alike — seek you out for your prophecies. At the start of each story, you can temporarily gain two dots of Contacts, Influence, Resources, or a minor Boon from a local Kindred, callable once during that story.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-baron-vollgirre",
+        name: "Descendant of Baron Vollgirre",
+        source: "tattered-facade",
+        requiresStPermission: true,
+        clanRestriction: ["Toreador"],
+        dots: [
+            {
+                dot: 1,
+                name: "The Seven Arts",
+                description: "Your curriculum of study has been passed down from Baron Vollgirre's love of the classics. Choose three specialties for Academics, Crafts, Etiquette, Performance, Persuasion, Science, or Subterfuge related to grammar, logic, rhetoric, geometry, mathematics, astronomy, or music. These do not count towards the standard specialty limits and benefit you even without dots in the Skill. You also gain the Disliked Flaw.",
+            },
+            {
+                dot: 2,
+                name: "Prodigy of Flesh",
+                description: "Vollgirre's Blood is infused with fleshcrafting. You learn Protean at in-clan costs without needing to drink another Kindred's Blood, and may use Presence in lieu of Dominate or Blood Sorcery when selecting Protean amalgams. Upon learning your second dot of Protean you must select the Vicissitude Power; at your fourth dot you must select a Power with Vicissitude as a prerequisite. You gain Dark Secret (•): Vicissitude upon learning it.",
+            },
+            {
+                dot: 3,
+                name: "Sadistic Hunger",
+                description: "Pain and fear help sustain you. Sadism slakes one additional Hunger so long as you deal 3 levels of damage to a vessel's Health or Willpower immediately before or during your feeding. This cannot reduce Hunger below your Blood Potency's limit, or below 1 unless you also drain the victim.",
+            },
+            {
+                dot: 4,
+                name: "Unusual Connections",
+                description: "You maintain connections with one of those distrusted by the city. Gain a five-dot Mawla that is a current Sabbat member, another descendant of Vollgirre, or a Tzimisce. This connection awakens a yearning in your Blood to be bound — you gain either the Bondslave, Bond Junkie, or Long Bond Flaw, or lose any Bonding Merits you have.",
+            },
+            {
+                dot: 5,
+                name: "Voice of Treachery",
+                description: "Your Blood causes those of similar bloodlines to cower before you. Once per story, while determining success in a social dice pool related to intimidation, torture, or influencing Sabbat members, Toreador, Tzimisce, or anyone possessing Vicissitude, you may set any one die you just rolled to a 10, even a Hunger die.",
+            },
+        ],
+    },
+    {
+        id: "little-siblings",
+        name: "Little Siblings (Rossellini)",
+        source: "tattered-facade",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Grave Attitude",
+                description: "Your experience commanding wraiths has led you to believe that even Kindred may eventually cross the Shroud. This certainty gives you peace. In any attempt to intimidate or manipulate you, your aggressors always suffer a one-die penalty, which stacks with other penalties.",
+            },
+            {
+                dot: 2,
+                name: "Ghostly Dominance",
+                description: "You brook no tolerance for the pleas and threats of the intangible dead. When you damage a wraith's fetter, loved ones, or intangible form, you receive three bonus dice to any tests to command them.",
+            },
+            {
+                dot: 3,
+                name: "Necromantic Expertise",
+                description: "You know Oblivion is more than a means to an end — it is a wondrous art that rewards patience and ruthlessness. When you perform an Oblivion Ceremony, decrease the Difficulty level by one.",
+            },
+            {
+                dot: 4,
+                name: "Stolen Will",
+                description: "When you bite into the fetter of a ghost under your command hard enough to damage it or cause it injury, the fetter bleeds raw passions drawn from the ghost's corpus. Consuming this bitter substance heals a level of Aggravated or Superficial Willpower damage.",
+            },
+            {
+                dot: 5,
+                name: "Purge",
+                description: "You shred ephemeral bodies with ease. Any attack made on a ghost always causes Aggravated Health damage, even outside of the lands of the dead. You are also capable of striking them when they are intangible.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",

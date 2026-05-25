@@ -37,6 +37,7 @@ const SOURCE_LABELS: Record<string, string> = {
     "players-guide": "Players Guide",
     "gehenna-war": "Gehenna War",
     "in-memoriam": "In Memoriam",
+    "tattered-facade": "Tattered Facade",
     custom: "Nashville",
 }
 
