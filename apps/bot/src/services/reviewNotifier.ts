@@ -195,10 +195,40 @@ export class ReviewNotifier {
         if (saved) {
           this.cursorEpoch = saved.cursorEpoch;
           this.cursorEventKey = saved.cursorEventKey;
+
+          // Re-seed seenEventKeys for the boundary epoch window.
+          //
+          // Event keys embed the DB row ID as a plain string (e.g. "spend:14:..." vs
+          // "spend:136:..."), so the server-side string comparison used to filter the
+          // same-epoch boundary can produce wrong results: "spend:14" > "spend:136"
+          // lexicographically even though 14 < 136.  In normal operation seenEventKeys
+          // catches these; on a cold restart it's empty, causing duplicates.
+          //
+          // Fix: fetch a 5-minute window ending at the cursor and mark everything at or
+          // before the cursor as seen before the first real poll runs.
+          try {
+            const warmup = await this.adapter.getReviewEvents({
+              sinceEpoch: Math.max(0, this.cursorEpoch - 300),
+              limit: 250,
+            });
+            for (const event of warmup.events) {
+              if (
+                event.reviewedAtEpoch < this.cursorEpoch ||
+                (event.reviewedAtEpoch === this.cursorEpoch &&
+                  event.eventKey <= this.cursorEventKey)
+              ) {
+                this.seenEventKeys.add(event.eventKey);
+              }
+            }
+          } catch {
+            // Non-fatal: worst case is one duplicate notification on this restart cycle.
+          }
+
           this.initialized = true;
           logEvent('info', 'review_notifier_resumed', {
             cursorEpoch: this.cursorEpoch,
             cursorEventKey: this.cursorEventKey,
+            seenOnResume: this.seenEventKeys.size,
           });
           return;
         }

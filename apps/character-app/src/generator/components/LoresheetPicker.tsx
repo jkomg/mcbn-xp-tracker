@@ -1,7 +1,7 @@
 import { Button, ScrollArea, Stack, Text, Title } from "@mantine/core"
 import { IconCheck } from "@tabler/icons-react"
 import { Character } from "~/data/Character"
-import { LORESHEETS, loresheetDotCost } from "~/data/Loresheets"
+import { Loresheet, LoresheetDot, LORESHEETS, loresheetDotCost } from "~/data/Loresheets"
 import { RAW_RED, rgba } from "~/theme/colors"
 import {
     generatorScrollableAreaStyle,
@@ -28,6 +28,34 @@ const C_RED_DIM = rgba(RAW_RED, 0.45)
 const C_RED_GLOW = `0 0 18px ${rgba(RAW_RED, 0.28)}`
 const C_GOLD = "rgba(195, 155, 90, 0.85)"
 const C_GOLD_DIM = "rgba(195, 155, 90, 0.4)"
+
+const SOURCE_LABELS: Record<string, string> = {
+    core: "Core",
+    camarilla: "Camarilla",
+    anarch: "Anarch",
+    chicago: "Chicago by Night",
+    "players-guide": "Players Guide",
+    "gehenna-war": "Gehenna War",
+    "in-memoriam": "In Memoriam",
+    "tattered-facade": "Tattered Facade",
+    "blood-sigils": "Blood Sigils",
+    "cults-of-the-blood-gods": "Cults of the Blood Gods",
+    custom: "Nashville",
+}
+
+function sourceLabel(source: string): string {
+    return SOURCE_LABELS[source] ?? source
+}
+
+function isLoresheetAvailable(loresheet: Loresheet, clan: string): boolean {
+    if (!loresheet.clanRestriction || loresheet.clanRestriction.length === 0) return true
+    return loresheet.clanRestriction.includes(clan)
+}
+
+function isDotAvailable(dot: LoresheetDot, clan: string): boolean {
+    if (!dot.clanRestriction || dot.clanRestriction.length === 0) return true
+    return dot.clanRestriction.includes(clan)
+}
 
 function isPurchased(character: Character, loresheetId: string, dot: number): boolean {
     return (character.loresheet_purchases ?? []).some(
@@ -56,6 +84,9 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
     const spent = totalXpSpent(character)
     const remaining = budget - spent
     const overBudget = remaining < 0
+    const clan = character.clan ?? ""
+
+    const visibleLoresheets = LORESHEETS.filter((ls) => isLoresheetAvailable(ls, clan))
 
     return (
         <div style={generatorScrollableShellStyle}>
@@ -97,7 +128,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                             maw={560}
                             style={{ fontFamily: FONT_BODY, fontSize: "1.1rem", color: C_MUTED }}
                         >
-                            Purchase dots from Nashville-specific loresheets using your XP budget.
+                            Purchase dots from loresheets using your XP budget.
                             All loresheets require Storyteller approval.
                         </Text>
                     </Stack>
@@ -175,7 +206,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                             margin: "0 auto",
                         }}
                     >
-                        {LORESHEETS.map((loresheet) => (
+                        {visibleLoresheets.map((loresheet) => (
                             <div
                                 key={loresheet.id}
                                 style={{
@@ -224,30 +255,39 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                             </p>
                                         )}
                                     </div>
+                                    {/* Source badge */}
+                                    <span
+                                        style={{
+                                            flexShrink: 0,
+                                            padding: "3px 8px",
+                                            borderRadius: 4,
+                                            border: `1px solid rgba(125, 91, 72, 0.3)`,
+                                            fontFamily: FONT_UI,
+                                            fontSize: "0.62rem",
+                                            letterSpacing: "0.1em",
+                                            textTransform: "uppercase",
+                                            color: C_MUTED,
+                                        }}
+                                    >
+                                        {sourceLabel(loresheet.source)}
+                                    </span>
                                 </div>
 
                                 {/* Dots */}
                                 <div style={{ padding: "8px 0" }}>
                                     {loresheet.dots.map((dotEntry) => {
-                                        const purchased = isPurchased(
-                                            character,
-                                            loresheet.id,
-                                            dotEntry.dot,
-                                        )
+                                        const purchased = isPurchased(character, loresheet.id, dotEntry.dot)
+                                        const dotAvailable = isDotAvailable(dotEntry, clan)
                                         const cost = loresheetDotCost(dotEntry.dot)
 
                                         return (
                                             <button
                                                 key={dotEntry.dot}
-                                                onClick={() =>
-                                                    setCharacter(
-                                                        togglePurchase(
-                                                            character,
-                                                            loresheet.id,
-                                                            dotEntry.dot,
-                                                        ),
-                                                    )
-                                                }
+                                                onClick={() => {
+                                                    if (!dotAvailable) return
+                                                    setCharacter(togglePurchase(character, loresheet.id, dotEntry.dot))
+                                                }}
+                                                disabled={!dotAvailable}
                                                 style={{
                                                     display: "flex",
                                                     alignItems: "flex-start",
@@ -259,15 +299,15 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                                         : "transparent",
                                                     border: "none",
                                                     borderBottom: `1px solid rgba(125, 91, 72, 0.12)`,
-                                                    cursor: "pointer",
+                                                    cursor: dotAvailable ? "pointer" : "not-allowed",
                                                     textAlign: "left",
                                                     fontFamily: "inherit",
                                                     transition: "background 150ms ease",
+                                                    opacity: dotAvailable ? 1 : 0.38,
                                                 }}
                                                 onMouseEnter={(e) => {
-                                                    if (!purchased)
-                                                        e.currentTarget.style.background =
-                                                            "rgba(255, 255, 255, 0.04)"
+                                                    if (!dotAvailable || purchased) return
+                                                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"
                                                 }}
                                                 onMouseLeave={(e) => {
                                                     e.currentTarget.style.background = purchased
@@ -284,33 +324,19 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                                         marginTop: 1,
                                                         borderRadius: 4,
                                                         border: `1.5px solid ${purchased ? C_RED : "rgba(125, 91, 72, 0.5)"}`,
-                                                        background: purchased
-                                                            ? rgba(RAW_RED, 0.15)
-                                                            : "transparent",
+                                                        background: purchased ? rgba(RAW_RED, 0.15) : "transparent",
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent: "center",
                                                         transition: "all 150ms ease",
                                                     }}
                                                 >
-                                                    {purchased && (
-                                                        <IconCheck
-                                                            size={12}
-                                                            color={C_RED}
-                                                            strokeWidth={2.5}
-                                                        />
-                                                    )}
+                                                    {purchased && <IconCheck size={12} color={C_RED} strokeWidth={2.5} />}
                                                 </div>
 
                                                 {/* Dot label + description */}
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "baseline",
-                                                            gap: 8,
-                                                        }}
-                                                    >
+                                                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                                                         <span
                                                             style={{
                                                                 fontFamily: FONT_UI,
@@ -327,11 +353,24 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                                                 fontFamily: FONT_BODY,
                                                                 fontSize: "0.92rem",
                                                                 fontWeight: 600,
-                                                                color: purchased ? C_FG : C_FG,
+                                                                color: C_FG,
                                                             }}
                                                         >
                                                             {dotEntry.name}
                                                         </span>
+                                                        {!dotAvailable && dotEntry.clanRestriction && (
+                                                            <span
+                                                                style={{
+                                                                    fontFamily: FONT_UI,
+                                                                    fontSize: "0.62rem",
+                                                                    letterSpacing: "0.08em",
+                                                                    textTransform: "uppercase",
+                                                                    color: C_GOLD_DIM,
+                                                                }}
+                                                            >
+                                                                {dotEntry.clanRestriction.join(" / ")} only
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <p
                                                         style={{
