@@ -3977,6 +3977,351 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── Let the Streets Run Red Loresheets ───────────────────────────────────
+    {
+        id: "anubi",
+        name: "The Anubi",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Argent Fury",
+                description:
+                    "Your connection to the Anubi or a similar organization provides access to hidden caches of silver weapons and those who manufacture them. Once per story, you can equip yourself with a silver hand-held weapon or ammunition of your choice.",
+            },
+            {
+                dot: 2,
+                name: "What Big Eyes You Have",
+                description:
+                    "A Lupine must be located before it can be slain. Your organization has seeded your city with a web of informants, contacts, and surveillance devices to facilitate the hunt. Once per story, you gain two automatic successes on an Investigation roll related to locating Lupines within your domain.",
+            },
+            {
+                dot: 3,
+                name: "Brick House",
+                description:
+                    "The hunter often becomes the hunted when Lupines are involved. You spend substantial resources outfitting your haven for just such occasions. You gain four points to spend on Haven and/or Retainers relating to defense against Lupines.",
+            },
+            {
+                dot: 4,
+                name: "In the City, In the Woods",
+                description:
+                    "Choose one path: War Eternal — your advanced knowledge of Lupine hunting grants two bonus damage from all Firearms and Athletics rolls when fighting Lupines. Strange Bedfellows — your organization seeks peace with Lupines; gain two bonus dice to all Persuasion rolls when dealing with Lupines and a two-dot werewolf Ally reflecting your contact in the local Lupine community. Most Dangerous Game — your nightly hunt grants access to Lupine blood; once per story, you can slake two Hunger via werewolf blood with all attendant benefits and drawbacks.",
+            },
+            {
+                dot: 5,
+                name: "Summon the Pack",
+                description:
+                    "You are a formal member of the Anubi or a similar Lupine-hunting organization and can call on these Kindred for aid at a moment's notice when Lupines are near. Your membership grants you a temporary Mawla (•••) and four dots of Allies (Anubi Bikers) — representing mortal bikers who follow the Anubi — who can be called on once per story when Lupines are involved. Situations not involving Lupines may require favor trading and/or boons.",
+            },
+        ],
+    },
+    {
+        id: "eletria",
+        name: "Eletria",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Muse",
+                description:
+                    "Eletria saw great potential in you and fanned the embers of your talent. All Craft (Painting or Sculpture) or Performance (Music) tests have their difficulty reduced by one.",
+            },
+            {
+                dot: 2,
+                name: "Portrait of a Woman",
+                description:
+                    "Eletria entrusted you with a rare and precious piece of art of deep importance to her — a portrait, sculpture, or piece of music created by her hand. Once per session, you can spend an hour meditating on this piece and make a Resolve + Craft (Painting or Sculpture) or Performance (Music) test at Difficulty 4 before resting for the day. If successful, you awaken having recovered all Superficial Willpower damage.",
+            },
+            {
+                dot: 3,
+                name: "This is Sparta",
+                description:
+                    "You served under Eletria in Veracruz during her war against the Sabbat or fought by her side during the War of Chicago. You gain a bonus die to all Investigation, Academics, and Occult rolls related to defending your city against hostile sect incursions.",
+            },
+            {
+                dot: 4,
+                name: "Ageless Beauty",
+                description:
+                    "You shared blood with Eletria and inherited a measure of her ability to see the past. You can see a person as they were at any point in their life (or unlife). Make a Wits + Resolve or Auspex test (difficulty assigned by the Storyteller depending on how far back you attempt to see). Success captures a photographic image of the subject with perfect accuracy and grants two bonus dice to a relevant Craft test to replicate it. This ability can be used once per session.",
+            },
+            {
+                dot: 5,
+                name: "Conspicuous Consumption",
+                description:
+                    "Your search for Eletria leads to Helena. You become part of the circle of vampires used to slake her thirst and keep the Beckoning at bay. Gain five dots to distribute between Mawla, Resources, Allies, Herd, and Contacts. You also have access to Helena once per story, although she has compelled you not to reveal her presence. If lucky, your perilous association may reveal Eletria's fate.",
+            },
+        ],
+    },
+    {
+        id: "kindred-social-media-influencer",
+        name: "Kindred Social Media Influencer",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Friends Everywhere",
+                description:
+                    "You have a small following, mostly consisting of friends and close acquaintances. Once per chapter, you can crowdsource a solution to a problem — providing you have enough time to consult your followers — allowing you to roll two dice in a Skill you don't possess or adding two automatic successes in an area you already have familiarity.",
+            },
+            {
+                dot: 2,
+                name: "Niche Following",
+                description:
+                    "Your knowledge in a specific area grants you a degree of online authority. Your threads occasionally go viral, and you've been paid to write articles thanks to your unique voice. Gain two dots of Influence in your field. Once per story, you may temporarily increase your Resources by one dot when you pen an article or do a video hangout for a small audience.",
+            },
+            {
+                dot: 3,
+                name: "Internet Famous",
+                description:
+                    "Your follower count is in the tens of thousands across several platforms. Loyal fans provide ad revenue and buy branded swag, providing you with an additional two dots in Resources. Once per story, you can arrange a small local meetup and feed from one of the attendees, granting you one dot in Herd.",
+            },
+            {
+                dot: 4,
+                name: "Collabs and Sponsorships",
+                description:
+                    "Everyone interested in your subject matter knows your name. Companies offer to work with you to create branded products and woo you with freebies they hope you'll promote. In addition to two dots in Fame, gain Allies (••) from among your fans and declare a two-dot Contact at one of the companies you've promoted.",
+            },
+            {
+                dot: 5,
+                name: "Superstar",
+                description:
+                    "Your social media presence makes you a household name. You set trends and pull in a sizable income from products, promotions, ad revenue, and patron donations. This grants you three dots in both Fame and Resources. However, your notoriety also puts you in a precarious position with Kindred elders — should they or FIRSTLIGHT discover your vampiric identity, punishment will be swift and deadly.",
+            },
+        ],
+    },
+    {
+        id: "juggler",
+        name: "Juggler",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "For the Cause",
+                description:
+                    "You've run with the Anarchs in Chicago under Juggler's direction. Gain one reroll per session on Brawl, Melee, and Streetwise rolls when going up against members of the Camarilla.",
+            },
+            {
+                dot: 2,
+                name: "Guns to a Knife Fight",
+                description:
+                    "Juggler learned hard lessons about Princes who blame the Anarchs first. Once per story, you have access to a weapons cache that Juggler has secreted away in Gary and can buy up to Resources (•••) worth of gear.",
+            },
+            {
+                dot: 3,
+                name: "Rabble Rouser",
+                description:
+                    "You have a knack for dirty fighting. Juggler put you in charge of a group of Anarchs who Get Shit Done around Gary. Once per story, you can call upon a small group (3–5 people) to sow chaos in Gary's streets or back you up in a brawl. This counts as a temporary Allies Background at an effectiveness of two dots; they are Kindred carrying Disciplines. They cease following you for the rest of this story.",
+            },
+            {
+                dot: 4,
+                name: "Coordination is Key",
+                description:
+                    "Juggler set you up as a key part of Anarch communications. Other Kindred slip you information about their activities, which you pass along to those who need to know. Gain Status: Anarchs (•••) and Influence: Gary (•••). Once per story, ask your Storyteller for a piece of intel that's recently come across your desk.",
+            },
+            {
+                dot: 5,
+                name: "Rust Never Sleeps",
+                description:
+                    "Juggler trusted you with his plans and valued your input in his strikes against the Camarilla and Modius. He is your four-dot Mawla (in his absence, Evelyn Stephens fills this role). Once per story, work with your Storyteller to name a member of the Movement in another city whose skills or access are useful to you. A friend of Juggler's is a friend of theirs — they act as a three-dot Contact for you until the end of that story.",
+            },
+        ],
+    },
+    {
+        id: "lost-secrets-milwaukee-chantry",
+        name: "Lost Secrets of the Milwaukee Chantry",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Carna's Primogen Files",
+                description:
+                    "While nominally apolitical, Carna managed to collect significant information about her fellow Kindred during her tenure as Primogen. You have access to Carna's Primogen Files and gain a bonus die on all Politics rolls involving the Kindred of Milwaukee.",
+            },
+            {
+                dot: 2,
+                name: "Abandoned Real Estate",
+                description:
+                    "Carna and Victor maintained numerous havens throughout the wealthier areas of Milwaukee. Your search uncovers one such haven, providing you with a two-dot Haven in Milwaukee equipped with a two-dot Occult Library (Carna) or two-dot Hidden Armory (Victor), and potential clues to additional havens or Tremere secrets. Tremere agents are certain to follow — take up permanent residence with extreme caution.",
+            },
+            {
+                dot: 3,
+                name: "Victor's Grimoire",
+                description:
+                    "Victor was the deadly enforcer of the Milwaukee Tremere with access to a potent array of unique rituals. You have located Victor's Grimoire and cache of occult rituals. Blood Sorcerers may immediately learn one ritual with a roleplaying justification to learn additional rituals through standard experience expenditure. Non-Tremere are hunted mercilessly for mere possession of this knowledge.",
+            },
+            {
+                dot: 4,
+                name: "Objects of Desire",
+                description:
+                    "You have uncovered the subject of Tremere study in Milwaukee — a strange Null Zone where magic does not function, centered on Marquette University. Tremere records indicate objects of incredible power are located somewhere in the zone, but opposition from Clan Tremere, Lupines, and/or Magi is extremely likely. You gain a precarious Haven Background rated at four dots, though with it comes an Adversary at two dots and an Enemy at two dots.",
+            },
+            {
+                dot: 5,
+                name: "Dr. Mortius's Haven",
+                description:
+                    "You have located Dr. Mortius's haven — a 'haunted' house near Marquette University. It is a three-dot Haven with an awe-inspiring, utterly disorganized occult library that grants a three-dot bonus to all Academics and Occult rolls. At the Storyteller's discretion, the library may contain access to Blood Sorcery, magic items, information about Milwaukee's Null Zone, theories on ancient Kindred in Lake Michigan, and even a copy of The Book of the Grave-War. Mortius's haven may contain a variety of mundane and mystical defenses to penetrate prior to entry.",
+            },
+        ],
+    },
+    {
+        id: "mark-decker",
+        name: "Mark Decker",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Good Graces",
+                description:
+                    "Decker has put a small amount of trust in you, assigning you to patrol duty around the city and allowing you to act with his authority in minor breaches of his laws. Still, he requires you to enter a one-step Blood Bond in case that feeling is misplaced.",
+            },
+            {
+                dot: 2,
+                name: "Tyrant's Recognition",
+                description:
+                    "Decker is aware of the body count you've racked up protecting Milwaukee. He grants you feeding rights to a small rack, providing you with a two-dot Herd and a one-dot Haven.",
+            },
+            {
+                dot: 3,
+                name: "One Strike",
+                description:
+                    "Your penchant for not only upholding but enforcing the Prince's laws has caused Decker to loosen his reins on you. Once per story he allows you to plead your case if you're caught for a minor infraction. Rather than the final death, he'll impose sanctions.",
+            },
+            {
+                dot: 4,
+                name: "The Prince's Trust",
+                description:
+                    "You've fought at Decker's side against the Lupines and rooted out Anarch incursions. You've learned how to talk to him without setting him off. Decker listens to your counsel, and his trust gives you a little leeway in the city. Gain Mark Decker as a five-dot Mawla. Additionally, once per story, you may dine with him at the Hyatt or join him in his private suite at Brewers Stadium for an audience.",
+            },
+            {
+                dot: 5,
+                name: "Childe of Mark Decker",
+                description:
+                    "Decker granted you the gift of his Embrace and expects you to treat such an honor accordingly. He's trained you as one of his Anubi and placed you in a position of power in the city. Work with your Storyteller to determine where your authority lies. Decker provides you with a three-dot Haven and two-dot Status, and you gain one free Skill Specialty in Athletics, Brawl, or Melee. Many Kindred despise Decker, and this antipathy extends to his childer — you earn three dots in Adversaries, made into one vampire or split across two or three.",
+                clanRestriction: ["Gangrel"],
+            },
+        ],
+    },
+    {
+        id: "maxwell",
+        name: "Maxwell",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Tactician",
+                description:
+                    "You've studied Maxwell's strategies as Prince of Chicago and sussed out some of the secrets of his rule. Add two bonus dice to an Academics, Politics, or Subterfuge roll relating to political planning or military maneuvers.",
+            },
+            {
+                dot: 2,
+                name: "Travelling Companion",
+                description:
+                    "While Kindred considered him dead after Devil's Night, Maxwell roamed the world building up allies in other countries. One thing he learned in these hyper-surveilled modern nights is how to evade detection while travelling. You traveled with him during this time, and he's willing to share his contacts. Once per story, you can call on Maxwell's allies for reliable and secure transportation between cities.",
+            },
+            {
+                dot: 3,
+                name: "Vanguard",
+                description:
+                    "You're a member of Gary's Vanguard, trusted by Eric Sharpe and Maxwell alike. Gain Status: Gary (•••). Sharpe has granted you territory in the city, where you have a two-dot Haven and feeding rights.",
+            },
+            {
+                dot: 4,
+                name: "The Art of Disappearing",
+                description:
+                    "If your enemies think you're dead, they stop worrying about how you're plotting against them. Maxwell has taught you tricks for staying hidden and working from the shadows. Once per story, he'll help you create a two-dot Mask under which you can anonymously further a goal — or help you convincingly fake the death of one of your current Masks and transfer its resources to a new identity without leaving a paper trail.",
+            },
+            {
+                dot: 5,
+                name: "The Once and Future Prince",
+                description:
+                    "You're one of the highly placed Kindred Maxwell is counting on in Chicago. He's guided and financed your rise, helped rid you of enemies, and provided information about Prince Jackson's machinations. Gain Resources (•••••); two dots must be spent securing Maxwell's plans, but the remaining three are yours. You have a list of Kindred in Chicago who owe Maxwell boons — once per story, you can call in a minor boon from someone on the list; once per chronicle, you can call in a major boon. Maxwell expects an account of how you've spent his favors. Using them foolishly will earn his ire.",
+            },
+        ],
+    },
+    {
+        id: "milwaukee-null-zone",
+        name: "The Milwaukee Null Zone",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Legends of Usla",
+                description:
+                    "You know the legend of the battle between Usla and Chiclena and discern something extremely important to the Lupines is buried inside the Null Zone. You don't know exactly where it's buried, but you are on the hunt. Gain one bonus die to all Investigation and Occult rolls related to the Null Zone.",
+            },
+            {
+                dot: 2,
+                name: "Into the Zone",
+                description:
+                    "You have access to the Milwaukee Null Zone and can linger there for brief periods. Within the zone, all Auspex uses have difficulty reduced by one. Protean does not require Rouse checks, but you must spend one Willpower per scene to prevent transformative powers from activating automatically. All Blood Sorcery rolls require seven successes to succeed and its rituals fail automatically. Failure on any of these delivers levels of Aggravated damage equal to the margin of failure; Total Failure also leaves a mystical mark on your aura as a powerful beacon to all local Lupines.",
+            },
+            {
+                dot: 3,
+                name: "St. Joan of Arc Chapel",
+                description:
+                    "You discover that a powerful mage had the medieval St. Joan of Arc Chapel moved and reconstructed directly over the center of the Null Zone in the 1960s. The chapel is surrounded by extremely powerful wards against Lupines, and the presence of the Joan of Arc Stone makes it almost unbearable to Kindred (equivalent to True Faith 5). A secret staircase beneath the altar leads to underground tunnels used by the mage in his investigation. Any entrance will be opposed by Lupines, magi, or agents of the Society of St. Leopold stationed on the Marquette campus.",
+            },
+            {
+                dot: 4,
+                name: "Church of Isis",
+                description:
+                    "Mount Mary College hosts the Church of Isis, an occult society composed of humans and magick users from the Cult of Isis who are eager to recover Usla's talismans. Formerly affiliated with Dr. Mortius, they seek new Kindred allies. You forge an alliance with the Church of Isis, allowing you to call upon their aid once per chronicle. They count as a five-dot Ally group that can provide both mundane and sorcerous assistance.",
+            },
+            {
+                dot: 5,
+                name: "Usla's Talismans",
+                description:
+                    "Choose one talisman: Eye of the Coyote — with Storyteller's permission you know where to find the Eye; you have the equivalent of five dots of Auspex and the difficulty of a single Blood Sorcery roll made against you is increased by four while the Eye is on your person; usable once per story, but you are hunted day and night by all Lupines until it is recovered. Talon of the Eagle — with Storyteller's permission you know the location of the Talon; all your physical Attributes are doubled (max five) and you have the equivalent of five dots of Protean once per story; you are hunted day and night by all Lupines until it is recovered.",
+            },
+        ],
+    },
+    {
+        id: "modius",
+        name: "Modius",
+        source: "let-the-streets-run-red",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Followers",
+                description:
+                    "You believe in Modius's capability, even if most others don't understand why. You're in contact with a few like-minded Kindred. Once per chapter, you can call on one of them to do a small favor for you in Gary.",
+            },
+            {
+                dot: 2,
+                name: "Windy City Ally",
+                description:
+                    "You were one of the few who backed naming Modius as Prince of Chicago this last go-round. It earned you sneers and enmity within the city, but word of your support got back to the pauper Prince. As thanks, he sent one of his employees to you and permitted you to make them your two-dot Retainer.",
+            },
+            {
+                dot: 3,
+                name: "Keys to the Mansion",
+                description:
+                    "Modius values your strategic mind, especially when it comes to outthinking the Anarchs. He's provided you with keys to the guest quarters at the governor's mansion (Haven •••) and access to his files with intel on Juggler's plans. Once per story, ask your Storyteller for a piece of information on recent Anarch movements in the city.",
+            },
+            {
+                dot: 4,
+                name: "Since 1913",
+                description:
+                    "You were part of Modius's original attempt at seizing praxis and took part in attacks on Lodin's loyalists. He's never forgotten your service and made sure the vampires in Gary heard about your deeds. Gain Status: Gary Camarilla (••••). Modius has also declared that you may feed anywhere in Gary, though the Anarchs are unlikely to abide by that if you wander into their territory.",
+            },
+            {
+                dot: 5,
+                name: "Pauper Dynasty",
+                description:
+                    "Whatever Chicago's Kindred think, Modius is a Prince and has been one for over half a century. He has insight into what it takes to rule and imparts that wisdom to you in the hopes you'll seize praxis in some other domain — provided it's neither Gary nor Chicago. Gain Modius as a five-dot Mawla, and gain Influence (••) in a city of your choosing to reflect the groundwork he's helped you lay there.",
+            },
+        ],
+    },
+
     // ── The Fall of London Loresheets ────────────────────────────────────────
     {
         id: "court-of-shadows",
