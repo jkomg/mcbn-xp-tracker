@@ -3977,6 +3977,123 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── Trails of Ash and Bone Loresheets ───────────────────────────────────
+    {
+        id: "ruby-throat",
+        name: "The Ruby Throat",
+        source: "trails-of-ash-and-bone",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Rubbing Shoulders",
+                description:
+                    "You've sat at the table for a game or two at the Ruby Throat. You didn't win, but you picked up a little knowledge on the other Kindred at the table. By name-dropping a significant individual around Atlantic City, you gain one die on rolls to get into places or acquire information otherwise out of your league — but pick the wrong name and it's likely to get back to them.",
+            },
+            {
+                dot: 2,
+                name: "What's in Your Sleeves",
+                description:
+                    "Someone accused you of cheating at the Ruby Throat and you publicly put them in their place. You dealt with the situation so well, you were offered work as a bouncer. This role allows a two-dice bonus to all Intimidation rolls when dealing with Kindred in the criminal scene, and you can put names to faces of almost any Kindred who might frequent Atlantic City night spots.",
+            },
+            {
+                dot: 3,
+                name: "Chicken Dinner",
+                description:
+                    "A hand went your way recently and you got your choice of coveted prizes. Once per story, you gain a human vessel with a Dyscrasia of your choice to feed from as desired. Unless specified, the Dyscrasia does not fade after use. You are responsible for this retainer for the time you use them, and if anything happens to them, you will owe the house significant reparations.",
+            },
+            {
+                dot: 4,
+                name: "High Roller",
+                description:
+                    "You've had a string of luck at the Ruby Throat that got attention — some even said it was unrealistic. Any existing Resources Background is increased by two (to a maximum of four), and you gain access to Herd (••) whenever you are within Atlantic City, each vessel with a resonance of your choosing. You also suffer Adversary (•), as a fellow Kindred thinks you're gaming the house.",
+            },
+            {
+                dot: 5,
+                name: "Dead Man's Hand",
+                description:
+                    "You've been invited to play at the Johnson table, the highest risk game the Ruby Throat offers. The annual event draws spectators and is the talk of the Kindred underworld. Word gets out about the players involved, and up until the game comes to pass, you benefit from Status (•••) among Kindred in Atlantic City and the ability to access any lesser games and gambits without a roll.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-de-camden",
+        name: "Descendant of Roger de Camden",
+        source: "trails-of-ash-and-bone",
+        requiresStPermission: true,
+        clanRestriction: ["Hecata"],
+        dots: [
+            {
+                dot: 1,
+                name: "Proud Childe",
+                description:
+                    "Your grandsire is among the most storied and respected of any to walk among the Clan of Death. While within any Hecata controlled domain, haven, or social gathering, you have two dots of Status (••).",
+            },
+            {
+                dot: 2,
+                name: "Corpsense",
+                description:
+                    "You follow in your ancestor's footsteps with a fascination and understanding of the deceased. You gain two dice to any pool for investigating the cause of injury or death of a body. At any time, if a nearby wraith chooses to, they can always communicate with you with ease.",
+            },
+            {
+                dot: 3,
+                name: "Eye to Eye",
+                description:
+                    "Roger de Camden's relationship with the Ventrue Mithras was deep, complex, and the gossip of generations. While the Blue Bloods respect little outside their own clan, they recognize how significant de Camden was to one of their greatest. You receive two dice to all Persuasion or Intimidation pools when dealing with Kindred of Clan Ventrue, and careful mentions of your lineage could get you through doors non-Ventrue might never pass.",
+            },
+            {
+                dot: 4,
+                name: "The Way of All Flesh",
+                description:
+                    "The bloodline of de Camden screams out to the spirits of the recently deceased, dragging them back to the physical realm long after they should have departed forever. You can perform the Embrace as normal on an old corpse so long as it has not rotted beyond recognition. This rebirth is far more traumatic than usual, and the fledgling is deeply affected by whatever they experienced in their brief time between lives.",
+            },
+            {
+                dot: 5,
+                name: "Perchance to Dream",
+                description:
+                    "Like your forefather before you, you are forever preoccupied with the world of the dead, their souls so close you can almost reach out to touch them. Occasionally during your daily rest or torpor, your spirit wanders into the Shadowlands. What you may see there, or what wraiths may be drawn to your presence, is anyone's guess. If you are attacked while in the Shadowlands, you are immediately returned to your physical form, suffering one level of Superficial Willpower damage.",
+            },
+        ],
+    },
+    {
+        id: "relics-of-the-veil",
+        name: "Relics of the Veil",
+        source: "trails-of-ash-and-bone",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Torn Shroud",
+                description:
+                    "This small fragment of torn material resembles a frail, semi-translucent shroud — cold to the touch, with a fleshy, almost biological consistency. While holding the shroud, you gain one die to your pools to use any Oblivion Discipline. The shroud is delicate, and with constant use it simply dissolves to nothing.",
+            },
+            {
+                dot: 2,
+                name: "Burning Effigy",
+                description:
+                    "The origin of this odd little doll is unknown — made of nothing more than a jumble of sticks and colored string, yet it looks a little like you. Once, you can ignite the doll and burn it to ashes. Upon waking next dusk, you heal up to two extra levels of Aggravated Health damage. Somewhere, possibly far away, this pain is felt by something else. After a story, you find the effigy in your haven untouched by flames.",
+            },
+            {
+                dot: 3,
+                name: "The Gaunt Robe",
+                description:
+                    "The plain gray robe has existed in your family for generations. Threadbare and falling apart, it needs careful care to keep together. When the robe is around your shoulders, it's oddly comforting, like being held closely. While wearing the robe, you can spend one Willpower point to gain two automatic successes in any roll to resist the abilities of wraiths.",
+            },
+            {
+                dot: 4,
+                name: "The Nails of Dismus",
+                description:
+                    "Three of these 8-inch gnarled lengths of unidentifiable metal are known to exist, usually on display in old-world cathedrals. Somehow you possess one. They function as a light piercing weapon with a +2 damage value and can incapacitate a vampire as if made of wood. Any Kindred staked with the Nail of Dismus suffers a level of Aggravated Willpower damage at dawn every night they remain staked, as the nail drives their waking moments into constant visions of suffering and horror.",
+            },
+            {
+                dot: 5,
+                name: "Codex Caecitus",
+                description:
+                    "Bound in white flesh from a pig fed on human remains, this massive book is held shut with a locking brass latch. Page after page is filled with maddened scrawling, nightmarish biological sketching, and blocks of text in an unknown cipher. Allegedly penned by a blind monk under the service of Cappadocius. Once per story, the current owner can — after long hours of meditation — decipher one coded passage, revealing powerful secrets of the dead: the names of significant wraiths, the fetter of a particular wraith, or the knowledge of any chosen Oblivion ritual. If held by a non-Hecata, the Necromancers aggressively seek to reclaim it.",
+            },
+        ],
+    },
+
     // ── Live From the Succubus Club Loresheets ───────────────────────────────
     {
         id: "descendant-of-idder",
