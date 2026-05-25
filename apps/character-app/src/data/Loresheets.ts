@@ -3977,6 +3977,240 @@ export const LORESHEETS: Loresheet[] = [
             },
         ],
     },
+    // ── Live From the Succubus Club Loresheets ───────────────────────────────
+    {
+        id: "descendant-of-idder",
+        name: "Descendant of Idder",
+        source: "succubus-club",
+        requiresStPermission: true,
+        clanRestriction: ["Banu Haqim"],
+        dots: [
+            {
+                dot: 1,
+                name: "Animal Affinity",
+                description:
+                    "Idder's descendants have a knack for animal ghouls. You may reroll any Rouse checks to maintain animal ghouls. If you possess the Bond Famulus power, you may have two Famuli.",
+            },
+            {
+                dot: 2,
+                name: "Shepherd",
+                description:
+                    "Your sire passed down collected wisdom related to maintaining a Herd. This wisdom allows you to slake one additional Hunger from your Herd per session.",
+            },
+            {
+                dot: 3,
+                name: "Never Unprepared",
+                description:
+                    "Your Blood tells you where mortals may be and when they are easy pickings. The first time you hunt mortals in a new city or environment, you gain a two-dice bonus to the attempt.",
+            },
+            {
+                dot: 4,
+                name: "Safe Haven",
+                description:
+                    "Fear of the Sun doesn't drive you like it does other Kindred, as your Blood knows where to find shelter. If you ever need sanctuary from the sun, so long as you are not restrained and you have 30 minutes before sunrise, your Beast finds you shelter from the sun at the cost of gaining one Hunger.",
+            },
+            {
+                dot: 5,
+                name: "Haqim's Justice",
+                description:
+                    "Your Blood drives you to protect your own. Whenever your Herd, Contacts, Allies, Touchstones, or other close Relationship Map connections are threatened, you gain a two-dice bonus to all actions in a scene to defend them or seek retribution. Once per story, you can declare a vendetta and gain a two-dice bonus against one specific target until justice or vengeance has been served.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-kerwiya",
+        name: "Descendant of Kerwiya",
+        source: "succubus-club",
+        requiresStPermission: true,
+        clanRestriction: ["Gangrel"],
+        dots: [
+            {
+                dot: 1,
+                name: "Hidden Predator",
+                description:
+                    "Kerwiya's vitae cloaks you from others. You do not need to drink the Blood of another Kindred who knows Obfuscate to learn it, though it is still counted as a non-clan Discipline for the purpose of experience cost.",
+            },
+            {
+                dot: 2,
+                name: "Politically Adept",
+                description:
+                    "You develop an instinctive sense for Kindred politics. You gain a specialty for Politics, Insight, and Subterfuge usable against other vampires (or the first dot in any of these you lack). Your focus on the politics of the dead has made you ignore the nuances of mortal assembly — you can't take specialties related to mortal politics or social customs.",
+            },
+            {
+                dot: 3,
+                name: "Actions Have Consequences",
+                description:
+                    "Your Blood warns you before you make foolish mistakes. Once per story, you can ask the Storyteller if the decision you're making increases the danger you're in regarding other Kindred. The Storyteller gives a yes or no answer. You can use this again if the Storyteller cannot answer clearly.",
+            },
+            {
+                dot: 4,
+                name: "The Boon Economy",
+                description:
+                    "You leverage prestation better than most, noting minor causes for Boons that others might miss. Once per story, you may upgrade a trivial or minor boon owed to you by one degree (e.g., trivial to minor, minor to major).",
+            },
+            {
+                dot: 5,
+                name: "Echoes of Constantinople",
+                description:
+                    "The Greek Gangrel of Constantinople were renowned for their political insight, and you have the same knack for winning political battles with one decisive move. When your dice pool involves Insight, Subterfuge, or Politics, you can set any single die to a 10 after rolling.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-phaedyme",
+        name: "Descendant of Phaedyme",
+        source: "succubus-club",
+        requiresStPermission: true,
+        clanRestriction: ["Ravnos"],
+        dots: [
+            {
+                dot: 1,
+                name: "Skilled Traveler",
+                description:
+                    "Your Blood has given you an instinct to keep you safe on your travels. Select a specialty for Athletics, Brawl, or Melee, and another for Drive or Stealth (or gain the first dot if you lack a rating). These do not count against your specialty limit. All your time on the road has kept you from delving into realms of knowledge — you can't take specialties in Academics, Science, or Medicine.",
+            },
+            {
+                dot: 2,
+                name: "Safe Routes",
+                description:
+                    "You keep track of your options and don't need a map app to tell you which routes will likely be blocked or under construction. Once per session, you can evade roadblocks and obstacles by taking the longer route, possibly suffering the consequences of arriving late instead.",
+            },
+            {
+                dot: 3,
+                name: "Renown Guardian",
+                description:
+                    "The name of your ancestors carries weight. Once per story, if you ask the Prince, Baron, Justicar, or other local authority for responsibility in security, they'll grant it to you — possibly with minor conditions, without reward, or even officially deputizing you as a temporary Hound or Archon.",
+            },
+            {
+                dot: 4,
+                name: "Honor Among the Honorless",
+                description:
+                    "The blood of your ancestor offers succor through honor and duty. Choose one additional Conviction related to duty, honor, or chivalry. You can maintain this Conviction without recourse to a Touchstone.",
+            },
+            {
+                dot: 5,
+                name: "Defender",
+                description:
+                    "Phaedyme's Blood drives you to defend your charges, quickening your limbs and strengthening your attacks. Once per story, when defending someone or something important to you (a Touchstone, coterie-mate, or other Relationship Map connection — not merely yourself), you reroll all Rouse checks for Blood Surges for any dice pools related to defending your charge for the entire scene.",
+            },
+        ],
+    },
+    {
+        id: "descendant-of-the-fallen-lord",
+        name: "Descendant of the Fallen Lord",
+        source: "succubus-club",
+        requiresStPermission: true,
+        clanRestriction: ["Salubri"],
+        dots: [
+            {
+                dot: 1,
+                name: "Instinct for Death",
+                description:
+                    "The Fallen Lord's Blood gives you a knack for violence. You gain two combat-related specialties divided among Athletics, Brawl, Firearms, or Melee (or gain the first dot if you have no existing rating). These do not count against your specialty maximum. Unfortunately your violent demeanor increases the Difficulty of Social tests with Kindred of Humanity 9 or 10 or particularly humane mortals by 1.",
+            },
+            {
+                dot: 2,
+                name: "Tracker's Mark",
+                description:
+                    "The Fallen Lord's Blood sings to you a sacred rite to hunt your enemies. You gain a two-dice bonus on all checks to track any opponent you have attacked in combat.",
+            },
+            {
+                dot: 3,
+                name: "Fury's Strike",
+                description:
+                    "You embody the warriors of old, feeding your Beast on violence. Once per scene, you may activate a Discipline Power against one target immediately after hitting them in close combat. You are considered to have eye contact or touch them if required by the power.",
+            },
+            {
+                dot: 4,
+                name: "What Must Be Done",
+                description:
+                    "You possess a righteous anger and the right to do what must be done, whether in combat or cold-blooded murder. You gain an additional Conviction that cannot be lost and is not tied to a Touchstone. This Conviction must be related to destroying your enemies.",
+            },
+            {
+                dot: 5,
+                name: "Vengeful Eye",
+                description:
+                    "Your gaze terrifies your enemies and helps your blade strike true. When you spend Willpower to re-roll dice in melee combat, you can reroll one additional die, which can be a Hunger die. Your third eye reveals itself to your adversary, which may violate the Masquerade or draw unwanted attention.",
+            },
+        ],
+    },
+    {
+        id: "succubus-club-copycat",
+        name: "Succubus Club Copycat",
+        source: "succubus-club",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Finger on the Pulse",
+                description:
+                    "The club acts as the nexus point for anyone who's anyone, and as the owner, you know them all. You receive a one-die bonus to Social pools involving important mortals, as they seek to curry your favor (or discretion).",
+            },
+            {
+                dot: 2,
+                name: "Energizing Beat",
+                description:
+                    "A success owes much to the club's hedonistic vibe and world-class set lists. For the Kindred guests, this makes for a rich hunting ground. All blood Resonance is considered Intense for you when hunting in the club.",
+            },
+            {
+                dot: 3,
+                name: "Damage Control",
+                description:
+                    "Trained staff are on standby to negate the worst impacts of a feed gone wrong, no questions asked. Once per session while hunting in the club, if you get a Messy Critical on a test or fail a Frenzy test, you can reroll all dice.",
+            },
+            {
+                dot: 4,
+                name: "Loyalty",
+                description:
+                    "Your staff are dedicated to you in a way that's hard to explain, almost as if the club itself had its hooks into them to ensure their unwavering loyalty. Any attempts by other Kindred to blood bond, Dominate, or sway your staff with Presence automatically fail if it would negatively impact you or the club.",
+            },
+            {
+                dot: 5,
+                name: "Destination of Choice",
+                description:
+                    "The reputation and mystique of the Succubus Club is legendary, so much so that even its clones carry that same seductive atmosphere of excess, edge, and danger. If the city's undead leaders are hosting a gathering, you can successfully petition to have it hosted in your club, should you wish, once per session.",
+            },
+        ],
+    },
+    {
+        id: "temple-of-boom-contract",
+        name: "Temple of Boom Contract",
+        source: "succubus-club",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Chocolate Drop",
+                description:
+                    "You're the newest employee of Temple of Boom, either as a performer or promoter in your city. Gain a dot in Fame and a dot in Contacts. Your newfound status has a downside: gain the Stalker Flaw.",
+            },
+            {
+                dot: 2,
+                name: "Got Connections",
+                description:
+                    "Temple of Boom is always looking for new talent and is not above poaching from competitors. At the Storyteller's discretion, you may request an advance on your salary and add two dots of Resources or Contacts for the rest of the current story, in exchange for procuring new talent for Temple of Boom.",
+            },
+            {
+                dot: 3,
+                name: "This is Fine",
+                description:
+                    "Once per story, you may name-drop Victor Temple and gain three extra dice to Social tests in a business or entertainment environment (such as gaining entrance to a nightclub) for the remainder of the scene. Should you do this, you will automatically become a person of interest to someone who has beef with Victor Temple or Temple of Boom. Gain the Enemy Flaw at one dot for the rest of the current story.",
+            },
+            {
+                dot: 4,
+                name: "Maharaja/Maharani",
+                description:
+                    "Temple of Boom isn't just a recording label, but also a coveted name in the nightclub business. By demonstrating loyalty to the Temple of Boom business family, Victor Temple has granted you the right to open one of his clubs as a franchise in your city. Your Haven, Fame, Resources, and Herd all increase by one dot, and you receive a specialty in either Finance (Accounting) or Performance (Showmanship). Due to Victor Temple's tactic of hiding in plain sight, your association with the club grants the Compromised Haven Flaw.",
+            },
+            {
+                dot: 5,
+                name: "If Not Now, When?",
+                description:
+                    "Victor Temple owes you a Major Boon. Whether you obtained this from him personally or through transfers, it is the most valuable currency you own. At Storyteller discretion, you may personally request something significant from the wealthy, influential Ventrue — such as access to Hunter weapons or even the phone number of a local Werewolf. Should you do this, the Ivory Tower will not be able to ignore your connection to the Anarch Movement. Gain the Shunned (Camarilla) Flaw.",
+            },
+        ],
+    },
+
     // ── Download / Choice of Games Loresheets ───────────────────────────────
     {
         id: "stories-of-the-daughters",
