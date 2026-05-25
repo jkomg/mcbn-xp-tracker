@@ -2789,6 +2789,142 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── Blood Sigils Loresheets ───────────────────────────────────────────────
+    {
+        id: "descendant-of-al-ashrad",
+        name: "Descendant of Al-Ashrad",
+        source: "blood-sigils",
+        requiresStPermission: true,
+        clanRestriction: ["Banu Haqim"],
+        dots: [
+            {
+                dot: 1,
+                name: "Stories of Old",
+                description: "You've learned from the stories passed down from al-Ashrad, and know how to apply those lessons in these nights. When you invoke the legacy of al-Ashrad and Haqim to motivate others, you receive a two-dice bonus to Leadership tests and contests.",
+            },
+            {
+                dot: 2,
+                name: "Sight Beyond Sight",
+                description: "A fraction of al-Ashrad's legendary diamond eye power passed to you. Once per session, you (or your Storyteller) may use the Auspex power Sense the Unseen as if you had the Discipline, using your Blood Potency in place of Auspex when actively using it. If you already possess this power, you receive a +2 dice bonus when actively using it.",
+            },
+            {
+                dot: 3,
+                name: "Vengeful Sorcery",
+                description: "You've never forgiven your clanmates for the Schism, and you channel your rage into your sorcery. Once per session, in a violent conflict you may take a two-dice bonus to use any Blood Sorcery power intended to harm another vampire.",
+            },
+            {
+                dot: 4,
+                name: "Banish the Intangible",
+                description: "Al-Ashrad's hatred for malevolent spirits is legendary. Though incorporeal beings are not necessarily malevolent, they still cower when they realize whose blood you share. Any Blood Sorcery power or Ritual that brings harm to corporeal things also affects incorporeal creatures with the same effect.",
+            },
+            {
+                dot: 5,
+                name: "Amr-in-Waiting",
+                description: "Al-Ashrad has chosen you to succeed him as Amr should he face final death before the schism is resolved and the sorcerers regain their place in the clan. Gain Status ••••• (Banu Haqim) and one free Ritual at your Blood Sorcery level or below. Gain Adversary ••• in the form of a leader of Ur-Shulgi's blood sorcerers and your brother-in-blood.",
+            },
+        ],
+    },
+    {
+        id: "student-of-kirin-taunk",
+        name: "Student of Kirin Taunk",
+        source: "blood-sigils",
+        requiresStPermission: true,
+        clanRestriction: ["Thin-Blood"],
+        dots: [
+            {
+                dot: 1,
+                name: "Stunning Efficiency",
+                description: "Kirin Taunk's brewing speed was legendary. You've matched it, and surpassing it is within sight. All distillation times for formulae are halved.",
+            },
+            {
+                dot: 2,
+                name: "Professional Mindset",
+                description: "Studying Taunk's life taught you to let your work speak for itself. Once per session and at the Storyteller's discretion, you may use your dot rating in Thin-Blood Alchemy in lieu of any Social skill at a lower rating.",
+            },
+            {
+                dot: 3,
+                name: "A Taunk Formula",
+                description: "Through hard work or a great deal, you've obtained a sliver of Kirin Taunk's alchemical notes. Choose one formula of any level — you may purchase it with no experience cost, though you cannot use it until your Thin-Blood Alchemy reaches its level. Add two dice to your Distillation roll for that formula.",
+            },
+            {
+                dot: 4,
+                name: "Diplomatic Power",
+                description: "Kirin Taunk was a social force of nature, capable of fitting in amongst Camarilla and Anarch alike. You carry yourself with enough grace and charm that these divisions mean little to you. You have Status •• (Camarilla) and Status •• (Anarch).",
+            },
+            {
+                dot: 5,
+                name: "Taunk's Patron",
+                description: "Kirin's mysterious benefactor took an interest in you, and still has it to this night. Gain Mawla ••••• (Taunk's Patron). Every story, pick three formulae you know — if your Mawla approves of your actions, they send rare or magically potent ingredients that give each formula a two-dice bonus to the Distillation roll. Your Storyteller creates the patron's identity and may reveal it at their leisure.",
+            },
+        ],
+    },
+    {
+        id: "veins-of-the-earth",
+        name: "Veins of the Earth",
+        source: "blood-sigils",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Seeking a Vein",
+                description: "You've developed a knack for finding weird things, and you now realize it's because you just know where the planet's blood converges. Once per story at the Storyteller's discretion, you may declare that the location you are on is a furcus — a place of converging earth energy.",
+            },
+            {
+                dot: 2,
+                name: "Drawing the Flies",
+                description: "Some kine are drawn to the venae terrae just like you are. You've gotten to know quite a few people seeking out the planet's energies, and they seek your knowledge for a small price in return. Gain Herd ••• representing this group — but without new and interesting information about Tiamat's coils, they could fall away.",
+            },
+            {
+                dot: 3,
+                name: "Revelations of the Earth",
+                description: "You listen to the veins of the Earth and hear who passes along them. Once per session, when you meditate for at least a half hour on a furcus, you may ask the Storyteller one question about one Kindred's location, direction of movement, and speed at that moment. The Storyteller answers truthfully. The venae cannot locate a Kindred who is in the air at that moment.",
+            },
+            {
+                dot: 4,
+                name: "Channeling the Earth",
+                description: "You know how to use the planet's power for your own benefit. Once per session, when you meditate for at least a half hour on a furcus, add one die to a Discipline pool in addition to any provided by Blood Potency.",
+            },
+            {
+                dot: 5,
+                name: "Tiamat's Exchange",
+                description: "Your knowledge of the veins of the Earth is so great that it feels like the Blood Serpent itself blesses you — for a price. Once per story, if you provide a large (human-sized or larger) offering of flesh or blood to a furcus at the beginning of the story, you may automatically gain three additional successes on a test or contest of your choosing.",
+            },
+        ],
+    },
+    {
+        id: "vienna-zero",
+        name: "Vienna Zero",
+        source: "blood-sigils",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Inside Knowledge",
+                description: "Requires Blood Sorcery. The knowledge you picked up from scavenging Vienna Zero is invaluable. When rolling Occult for anything related to blood craft, or when rolling Politics for anything related to the Tremere, you always have a +2 dice bonus.",
+            },
+            {
+                dot: 2,
+                name: "Off the Back of a Truck",
+                description: "Some of the material officially destroyed from Vienna Zero ends up in your hands. Gain Contacts ••• (The Slow Drip), a disgruntled contractor from Vienna Zero who can sometimes source the good stuff if you've got something to offer.",
+            },
+            {
+                dot: 3,
+                name: "Instrument of Power",
+                description: "Through a friend of a friend, you've gotten your hands on something special from Vienna Zero. Agree with the Storyteller on one Artifact, and add a one-die bonus to your pool for whatever tests it requires. However, every session you use it, succeed on a Wits + Stealth test against Difficulty 3 or higher to avoid attracting attention from the Leopoldites, FIRSTLIGHT, or another Coalition force.",
+            },
+            {
+                dot: 4,
+                name: "The Very Last Copy",
+                description: "By chance or incredible heist, you own the last remaining copy of a Tremere grimoire. Name the grimoire and name four rituals you do not yet know — these may be at any level. You can learn these rituals without a teacher at half the learning time. Experience cost remains the same.",
+            },
+            {
+                dot: 5,
+                name: "Deep Clearance",
+                description: "You're not just read in on Vienna Zero — you're a valued member of the team. Gain Mask ••• (Zeroed) and describe your place on the excavation project. Once per story, you may take one artifact from the Vienna Zero site and use it as you wish, though the team will notice it's gone. You also have Enemy ••• (Effectiveness 3, Reliability 2) — a FIRSTLIGHT or St. Leopold team member who suspects your true nature.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
