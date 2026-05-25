@@ -981,6 +981,200 @@ export const LORESHEETS: Loresheet[] = [
         ],
     },
 
+    // ── V5 Camarilla Book Loresheets ─────────────────────────────────────────
+    {
+        id: "fatima-al-faqadi",
+        name: "Fatima al-Faqadi",
+        source: "camarilla",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Weapons Locker",
+                description:
+                    "Your connection to Fatima or her network gives you access to a hidden weapons locker somewhere in your domain or the domain you are visiting. Once per chronicle, use this knowledge to equip yourself with a hand-held weapon of your choice, subject to Storyteller approval.",
+            },
+            {
+                dot: 2,
+                name: "Extended Web",
+                description:
+                    "You are a member of the Extended Web — former Web of Knives cultists who followed Fatima toward the Camarilla. Gain three dots to allocate among Allies, Contacts, and Mentor representing Extended Web members. Unlike regular Backgrounds, use of these dots requires payment, often severe.",
+            },
+            {
+                dot: 3,
+                name: "Missed Hit",
+                description:
+                    "You survived an assassination attempt by the Hand of Vengeance. Your reputation as someone Fatima couldn't bring down grants you two dots in Status and one bonus die to Social rolls when your survival story can be used for good effect.",
+            },
+            {
+                dot: 4,
+                name: "Recognized Judge",
+                description:
+                    "Trained in the Banu Haqim ways of judgement — by Fatima or by Ur-Shulgi's dictates — in any non-Camarilla domain you may formally announce judgement and execute a Kindred without open retaliation from the ruling sect. Subtle reprisals are not prevented.",
+            },
+            {
+                dot: 5,
+                name: "Open Contract",
+                description:
+                    "Fatima has agreed to eliminate any one opponent of your choice and will not ask questions. Her success is not guaranteed, but is likely. This favor reflects trust, care, or a debt she owes you. Usable once per chronicle.",
+            },
+        ],
+    },
+    {
+        id: "pure-ventrue-lineage",
+        name: "Pure Ventrue Lineage",
+        source: "camarilla",
+        requiresStPermission: true,
+        clanRestriction: ["Ventrue"],
+        dots: [
+            {
+                dot: 1,
+                name: "Sire of Renown",
+                description:
+                    "Your sire is a Ventrue notable for nobility and adherence to clan values. Gain one die on appropriate Social checks where naming your sire could have impact. If your sire still exists, they may resent being used as a line of credit.",
+            },
+            {
+                dot: 2,
+                name: "A Lineage of Title",
+                description:
+                    "You come from a line of Princes, Primogen, or Barons. When you attempt to acquire title in any domain, Ventrue — even those you've never met — will automatically support your claim unless they have sufficient reason to oppose you.",
+            },
+            {
+                dot: 3,
+                name: "Recitation",
+                description:
+                    "You can name your ancestors all the way to a methuselah of the Fourth Generation. Reciting the full lineage (30+ minutes) gives you one bonus die to all Social-based tests against Kindred for the rest of the scene. Once per story.",
+            },
+            {
+                dot: 4,
+                name: "Legendary Lineage",
+                description:
+                    "Choose one legendary Ventrue line: the Line of Alexander (add two dice to Persuasion and Performance in crowds; fury frenzy check Diff 3 if interrupted), the Line of Antonius (add two dice to Academics and Leadership when planning domain defense or construction; fury frenzy check Diff 3 if disrupted mid-plan), or the Line of Mithras (reduce Difficulty to resist fear frenzy from fire by two; suffer two dice penalty to resist Dominate from older Mithras-line vampires).",
+            },
+            {
+                dot: 5,
+                name: "Name the Antediluvian",
+                description:
+                    "You know one of the true names or titles of the Ventrue Antediluvian. Once per chronicle, announce yourself as its descendant to force all Ventrue in the vicinity to stop what they are doing, fall silent, and sometimes drop to their knees. The name vanishes from the minds of all who hear it.",
+            },
+        ],
+    },
+    {
+        id: "cult-of-mithras",
+        name: "The Cult of Mithras",
+        source: "camarilla",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Neophyte",
+                description:
+                    "Your service to Mithras is in its infancy, but you have learned to manipulate mortals with talk of religion and grandeur. You can effectively lead a small mortal cult, gaining one bonus die to all Social rolls when interacting with your herd or retainers.",
+            },
+            {
+                dot: 2,
+                name: "Nymphus",
+                description:
+                    "Mithraists award the title of Nymphus to new sires within the cult. You gain knowledge of Ventrue lineage and customs of Embrace, two bonus dice to all rolls in which Ventrue or Mithraic customs are discussed or studied, and the equivalent of two dots in Status among Ventrue.",
+            },
+            {
+                dot: 3,
+                name: "Leo",
+                description:
+                    "Among the most honored members of the cult, a Leo is entrusted to carry clandestine messages between Mithraists and sometimes beyond the order. Mithraists trust you without hesitation, and you gain one die to all non-Discipline rolls when getting other vampires to trust you.",
+            },
+            {
+                dot: 4,
+                name: "Perses",
+                description:
+                    "The Perses is the master of ritual bloodletting and sacrifice in the cult. A vampire declared Perses receives a short sword and the authority to murder cult enemies, with guaranteed protection (alibis, safe havens, resources) if their identity becomes known. Gain three Background dots to allocate in any domain where the Cult of Mithras is present.",
+            },
+            {
+                dot: 5,
+                name: "Unconquered",
+                description:
+                    "You carry the spark of Mithras within you — perhaps from his diablerist Monty Coven, or from Mithras himself during a Blood Bond. Mithras occasionally speaks to you in command or guidance, though not powerfully enough to compel. When you please him, gain three additional dice in Dominate, Fortitude, or Presence tests (choose one) for the remainder of the night.",
+            },
+        ],
+    },
+    {
+        id: "the-pyramid",
+        name: "The Pyramid",
+        source: "camarilla",
+        requiresStPermission: true,
+        clanRestriction: ["Tremere"],
+        dots: [
+            {
+                dot: 1,
+                name: "Apprentice",
+                description:
+                    "Most Tremere sires still readily award their fledglings the rank of Apprentice. You are one such Apprentice, or the master of one, granting you the equivalent of a one-dot Mawla within the clan hierarchy.",
+            },
+            {
+                dot: 2,
+                name: "Savant",
+                description:
+                    "You have drawn the attention of greater members through a successful experiment, the creation of a new minor ritual, or the recovery of lost clan lore. Once per chronicle, call in a major boon from a Regent and remain on good terms with them afterward, provided the request is not insulting.",
+            },
+            {
+                dot: 3,
+                name: "Regent",
+                description:
+                    "You are the Regent of a chantry, responsible for the tutelage and protection of all Tremere in your domain, and sometimes their Primogen representation. Gain one dot in Tremere Status and three dots in Haven representing the chantry, along with the duties that come with them.",
+            },
+            {
+                dot: 4,
+                name: "Pontifex",
+                description:
+                    "You are a Pontifex — appointed as the clan's foremost expert in a particular field (art, economics, supernatural studies, etc.). Gain three bonus dice to any information-gathering roll relating to your field when you have access to your library, plus three dots in Tremere Status.",
+            },
+            {
+                dot: 5,
+                name: "The New Council",
+                description:
+                    "You are considered one of the potential members of the new Council of Seven, assembled after the Second Inquisition's devastating attack on Vienna. What you uniquely offer the Tremere and how you wield your power is for you and the Storyteller to determine. Gain four dots in Tremere Status.",
+            },
+        ],
+    },
+    {
+        id: "victoria-ash",
+        name: "Victoria Ash",
+        source: "camarilla",
+        requiresStPermission: true,
+        dots: [
+            {
+                dot: 1,
+                name: "Ashen Kiss",
+                description:
+                    "At some point you have danced, kissed, or slept with Victoria Ash — you are not a rarity, but you are remembered. Victoria has a perfect memory for faces and intimate encounters going back centuries. Reduce the difficulty of Social rolls involving Victoria Ash or those connected to her by 1.",
+            },
+            {
+                dot: 2,
+                name: "Vermilion Invitation",
+                description:
+                    "You attended or know an attendee of the Vermilion Wedding, including who was there, their function, and where they stood on Camarilla-Ashirra union. Once per story, use this knowledge to blackmail, spin tale, or relate to other attendees, gaining three bonus dice to a Social test with a plausible explanation.",
+            },
+            {
+                dot: 3,
+                name: "What Makes Them Tick",
+                description:
+                    "Victoria Ash is an expert at reading people and exploiting their vulnerabilities, and she has taught you her methods. Gain two extra dice to Insight rolls when scrutinizing a target for their weaknesses.",
+            },
+            {
+                dot: 4,
+                name: "Celebrity Affectations",
+                description:
+                    "Emulating Victoria Ash's methods, you maintain a well-stocked tour bus for ease of transit between domains and a small crew of roadies, whatever your cover as an entertainer. Gain the equivalent of two dots in Haven (Mobile Home) and two dots in Herd or Retainers (Roadies).",
+            },
+            {
+                dot: 5,
+                name: "Patron, Lover, Companion",
+                description:
+                    "You occupy an important place in Victoria's heart. Once per chronicle she will move heaven and earth to protect you — potentially cashing in her considerable goodwill with the Camarilla for egregious crimes. For an entire session she counts as a five-dot Mawla and provides three dots of Status.",
+            },
+        ],
+    },
+
     // ── Custom Game Loresheets ───────────────────────────────────────────────
     {
         id: "castoff-court",
