@@ -160,6 +160,7 @@ const envSchema = z.object({
   CUBBY_SYNC_GUILD_ID: z.string().optional(),
   CUBBY_SYNC_STAFF_CHANNEL_ID: z.string().optional(),
   CUBBY_RETIRED_CATEGORY_ID: z.string().optional(),
+  LASOMBRA_COMMAND_NAME: z.string().regex(/^[-_a-z0-9]{1,32}$/, 'LASOMBRA_COMMAND_NAME must be 1-32 chars, lowercase letters/numbers/hyphens/underscores only').optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -378,6 +379,7 @@ export const config = {
   cubbySyncGuildId: env.CUBBY_SYNC_GUILD_ID ?? env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
   cubbySyncStaffChannelId: env.CUBBY_SYNC_STAFF_CHANNEL_ID ?? '',
   cubbyRetiredCategoryId: env.CUBBY_RETIRED_CATEGORY_ID ?? '1225070632799043685',
+  lasombraCommandName: env.LASOMBRA_COMMAND_NAME ?? 'lasombra',
 };
 
 if (config.testRequesterDiscordId) {

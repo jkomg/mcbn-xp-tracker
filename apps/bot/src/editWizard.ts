@@ -215,7 +215,7 @@ export async function handleEditWizardStringSelect(
 
   const state = pending.get(interaction.user.id);
   if (!state) {
-    await interaction.update({ content: 'Session expired — run `/lasombra edit` again.', components: [] });
+    await interaction.update({ content: 'Session expired — run `/${config.lasombraCommandName} edit` again.', components: [] });
     return true;
   }
 
@@ -256,7 +256,7 @@ export async function handleEditWizardButton(
   if (interaction.customId === EDIT_RENAME_ID) {
     const state = pending.get(interaction.user.id);
     if (!state) {
-      await interaction.update({ content: 'Session expired — run `/lasombra edit` again.', components: [] });
+      await interaction.update({ content: 'Session expired — run `/${config.lasombraCommandName} edit` again.', components: [] });
       return true;
     }
     const modal = new ModalBuilder()
@@ -282,7 +282,7 @@ export async function handleEditWizardButton(
   pending.delete(interaction.user.id);
 
   if (!state) {
-    await interaction.update({ content: 'Session expired — run `/lasombra edit` again.', components: [] });
+    await interaction.update({ content: 'Session expired — run `/${config.lasombraCommandName} edit` again.', components: [] });
     return true;
   }
 
@@ -389,7 +389,7 @@ export async function handleEditRenameModal(
   pending.delete(interaction.user.id);
 
   if (!state) {
-    await interaction.reply({ content: 'Session expired — run `/lasombra edit` again.', ephemeral: true });
+    await interaction.reply({ content: 'Session expired — run `/${config.lasombraCommandName} edit` again.', ephemeral: true });
     return true;
   }
 

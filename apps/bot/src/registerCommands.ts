@@ -39,7 +39,7 @@ export async function registerCommands(client: BotClient) {
 
   const token = config.botToken;
   const clientId = config.clientId;
-  const guildId = config.testGuildId;
+  const guildId = config.testGuildId ?? config.discordGuildId;
 
   if (!token || !clientId) {
     logEvent('warn', 'command_registration_skipped_missing_env', {
