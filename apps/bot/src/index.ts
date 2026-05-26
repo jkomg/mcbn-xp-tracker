@@ -16,7 +16,6 @@ import {
   PASSAGE_SUNSET_MESSAGE,
 } from './services/passageOfTimeService';
 import { SheetsReconcileService } from './services/sheetsReconcileService';
-import { WikiSyncScheduler } from './services/wikiSyncScheduler';
 import { BotLogForwarder } from './services/botLogForwarder';
 
 const ASSETS_DIR = path.resolve(__dirname, '..', 'assets');
@@ -192,25 +191,12 @@ void applyStartupConfigOverrides().then(() => {
     intervalMs: config.sheetsReconcileIntervalMs,
   });
 
-  const wikiSyncScheduler = new WikiSyncScheduler(adapter, {
-    enabled: config.wikiSyncEnabled,
-    hourLocal: config.wikiSyncHourLocal,
-    minuteLocal: config.wikiSyncMinuteLocal,
-    timezone: config.wikiSyncTimezone,
-    intervalMs: config.wikiSyncIntervalMs,
-  });
-
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
-  const notionSyncCapable = Boolean(config.notionToken && config.discordGuildId);
-  const botHeartbeatService = new BotHeartbeatService(
-    adapter,
-    config.botHeartbeatIntervalMs,
-    { notionSyncCapable },
-  );
+  const botHeartbeatService = new BotHeartbeatService(adapter, config.botHeartbeatIntervalMs);
   const backgroundBlankReleaseService = new BackgroundBlankReleaseService(
     client,
     adapter,
-    config.claimReminderGuildId ?? config.reviewNotifierGuildId ?? config.discordGuildId,
+    config.claimReminderGuildId ?? config.reviewNotifierGuildId ?? config.testGuildId,
     Math.max(60_000, config.botHeartbeatIntervalMs),
   );
   const botLogForwarder = new BotLogForwarder(adapter);
@@ -244,7 +230,6 @@ void applyStartupConfigOverrides().then(() => {
     claimReminderService.start();
     passageOfTimeService.start();
     sheetsReconcileService.start();
-    wikiSyncScheduler.start();
     characterSubmissionNotifier.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {

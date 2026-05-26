@@ -751,7 +751,6 @@ def bot_config():
         'BOT_PASSAGE_OF_TIME_ENABLED': 'passageOfTimeEnabled',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
         'BOT_RESTART_REQUESTED': 'restartRequested',
-        'BOT_NOTION_SYNC_REQUESTED': 'notionSyncRequested',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -832,7 +831,6 @@ def bot_heartbeat_post():
         'claimReminderEnabled': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
         'passageOfTimeEnabled': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'huntConsequenceEnabled': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
-        'notionSyncCapable': 'BOT_LIVE_NOTION_SYNC_CAPABLE',
     }
     body = request.get_json(silent=True) or {}
     for field, db_key in LIVE_FLAG_KEYS.items():
@@ -1124,97 +1122,6 @@ def set_reminder_pref(discord_id):
     opt_out = bool(data.get('optOut', False))
     snooze_until_epoch = int(data.get('snoozeUntilEpoch', 0))
     db_service.set_reminder_pref(discord_id, opt_out, snooze_until_epoch)
-    return jsonify({'ok': True})
-
-
-@bp.route('/notion-sync-ack', methods=['POST'])
-@require_bot_scope('write')
-@_limit('30 per minute')
-def notion_sync_ack():
-    """Bot calls this to report Notion sync status."""
-    from datetime import datetime, timezone
-    from app.db import AppSetting, NotionSyncEvent, db
-    data = request.get_json(silent=True) or {}
-    status = data.get('status')
-    if status not in ('running', 'success', 'error'):
-        return jsonify({'error': 'status must be running, success, or error'}), 400
-    source = str(data.get('source', 'manual')).strip().lower()
-    if source not in ('manual', 'scheduled'):
-        return jsonify({'error': 'source must be manual or scheduled'}), 400
-    run_id = str(data.get('runId', '')).strip()
-    if len(run_id) > 64:
-        return jsonify({'error': 'runId must be at most 64 characters'}), 400
-    now = datetime.now(timezone.utc).isoformat()
-
-    def upsert(key, value):
-        rec = db.session.get(AppSetting, key)
-        if rec:
-            rec.value = value
-            rec.updated_at = datetime.now(timezone.utc)
-            rec.updated_by = 'bot'
-        else:
-            db.session.add(AppSetting(key=key, value=value, updated_by='bot'))
-
-    def delete_key(key):
-        rec = db.session.get(AppSetting, key)
-        if rec:
-            db.session.delete(rec)
-
-    if status == 'running':
-        if source == 'manual':
-            delete_key('BOT_NOTION_SYNC_REQUESTED')
-        upsert('BOT_NOTION_SYNC_STATUS', 'running')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
-        if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
-        else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_STARTED_AT', now)
-        delete_key('BOT_NOTION_SYNC_FINISHED_AT')
-        delete_key('BOT_NOTION_SYNC_ERROR')
-    elif status == 'success':
-        upsert('BOT_NOTION_SYNC_STATUS', 'success')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
-        if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
-        else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
-        delete_key('BOT_NOTION_SYNC_ERROR')
-    else:
-        upsert('BOT_NOTION_SYNC_STATUS', 'error')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
-        if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
-        else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
-        upsert('BOT_NOTION_SYNC_ERROR', data.get('error', 'unknown error'))
-
-    db.session.add(
-        NotionSyncEvent(
-            ts=now,
-            run_id=run_id,
-            source=source,
-            status=status,
-            error=(str(data.get('error') or '')[:2000]),
-            created_at=datetime.now(timezone.utc),
-        )
-    )
-    db.session.commit()
-
-    # Keep a bounded sync history to avoid unbounded growth.
-    cutoff_query = (
-        db.session.query(NotionSyncEvent.id)
-        .order_by(NotionSyncEvent.created_at.desc())
-        .offset(500)
-        .limit(1)
-        .scalar()
-    )
-    if cutoff_query:
-        db.session.query(NotionSyncEvent).filter(NotionSyncEvent.id <= cutoff_query).delete()
-        db.session.commit()
-
     return jsonify({'ok': True})
 
 

@@ -119,22 +119,6 @@ Requires: `HUNT_CONSEQUENCE_ENABLED=true`, `HUNT_CONSEQUENCE_CHANNEL_IDS`, `HUNT
 
 Polls `GET /api/bot-config` periodically (default every 60 seconds, configurable via `CONFIG_SYNC_INTERVAL_MS`) to pick up feature flag changes made on the web app Settings page. This allows toggling bot services at runtime without restarting the bot process.
 
-Also handles **manual Notion/Wiki sync requests** from Settings (`BOT_NOTION_SYNC_REQUESTED=true`) and reports lifecycle updates to `POST /api/notion-sync-ack`.
-
-### wikiSyncScheduler
-
-Runs a nightly scheduled wiki sync at configured local time (`WIKI_SYNC_*` env vars).
-Scheduled runs default to **wiki-only refresh** (no Notion archival import) and report status through `POST /api/notion-sync-ack` with `source=scheduled`.
-
-### Wiki/Notion sync lock semantics
-
-Manual and scheduled sync triggers share an in-process lock (`wikiSyncLock`):
-- Manual trigger owner: `manual`
-- Scheduler owner: `scheduled`
-
-Only one owner can run at a time. If a run is active, the other trigger logs a
-`*_lock_busy` event and skips. This prevents overlapping sync writes across web/wiki/notion surfaces.
-
 ### botHeartbeatService
 
 POSTs to `POST /api/bot-heartbeat` on a configurable interval (default 60 seconds, `BOT_HEARTBEAT_INTERVAL_MS`). The web app records the timestamp, which is displayed on the Settings page so staff can verify the bot is alive.

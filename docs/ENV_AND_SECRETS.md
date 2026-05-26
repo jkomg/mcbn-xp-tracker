@@ -65,7 +65,6 @@ At least one token must be set for the bot API to function. If only scoped token
 | `BOT_API_REPLAY_WINDOW_SECONDS` | No | `300` | Max drift between bot request timestamp and server time. |
 | `BOT_API_NONCE_TTL_SECONDS` | No | `600` | How long nonces are tracked. |
 | `BOT_API_NONCE_CACHE_SIZE` | No | `10000` | Max nonces held in memory. |
-| `BOT_NOTION_SYNC_STALE_AFTER_SECONDS` | No | `3600` | Settings UI threshold before a running sync is marked stale. |
 
 ### Auto-Period Management
 
@@ -155,19 +154,6 @@ cp apps/bot/.env.example apps/bot/.env
 | `AUTO_PERIOD_CLOSER_ENABLED` | No | `false` | Enable bot-side trigger. Also requires `AUTO_CLOSE_PERIODS_ENABLED=true` on web. |
 | `AUTO_PERIOD_CLOSER_GUILD_ID` | No | falls back to `REVIEW_NOTIFIER_GUILD_ID` | Guild ID for close notifications in character cubby channels. |
 | `AUTO_PERIOD_CLOSER_INTERVAL_MS` | No | `3600000` | Poll interval (ms). |
-
-### Wiki/Notion Sync
-
-| Var | Required | Default | Description |
-|-----|----------|---------|-------------|
-| `WIKI_SYNC_ENABLED` | No | `false` | Enable nightly scheduled wiki sync trigger. |
-| `WIKI_SYNC_HOUR_LOCAL` | No | `4` | Local hour (0–23) for scheduled run. |
-| `WIKI_SYNC_MINUTE_LOCAL` | No | `0` | Local minute (0–59) for scheduled run. |
-| `WIKI_SYNC_TIMEZONE` | No | `America/Chicago` | IANA timezone for scheduler calculations. |
-| `WIKI_SYNC_INTERVAL_MS` | No | `300000` | Tick interval for scheduler window checks (ms). |
-| `DISCORD_GUILD_ID` | Conditional | `TEST_GUILD_ID` fallback | Discord guild used by sync scripts and channel discovery. |
-| `NOTION_TOKEN` | Conditional | — | Required for manual runs that include Notion import/archive sync. |
-| `NOTION_SYNC_MSG_LIMIT` | No | `200` | Max Discord messages fetched per source channel during sync. |
 
 ### Claim Reminder Service
 

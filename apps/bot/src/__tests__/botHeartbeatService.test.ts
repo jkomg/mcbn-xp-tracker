@@ -49,16 +49,4 @@ describe('BotHeartbeatService', () => {
     });
   });
 
-  it('beat includes static capability state when provided', async () => {
-    const adapter = { postHeartbeat: vi.fn(async () => {}) } as unknown as TrackerAdapter;
-    const service = new BotHeartbeatService(adapter, 60_000, { notionSyncCapable: true });
-
-    await service.beat();
-
-    expect(adapter.postHeartbeat).toHaveBeenCalledWith(
-      expect.objectContaining({
-        notionSyncCapable: true,
-      }),
-    );
-  });
 });

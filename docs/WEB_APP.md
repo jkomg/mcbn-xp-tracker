@@ -95,16 +95,11 @@ The Settings page includes web-app runtime controls plus bot operations panels.
 | Default period gap | 0 | Days between periods |
 | Replay protection window | 300 s | How far bot request timestamps can differ from server time |
 | Nonce TTL | 600 s | How long nonces are tracked for replay detection |
-| Notion sync stale threshold | 3600 s | Marks sync status as stale after this running duration |
 | Session lifetime | 43200 s | Staff session cookie lifetime |
 | Sheets cache TTL | 30 s | How long Sheets reads are cached |
 
-**Bot Status + Notion Sync** — operational controls for bot lifecycle and wiki/notion sync:
+**Bot Status** — operational controls for bot lifecycle:
 - Bot heartbeat status (Online / Delayed / Offline) with restart/rebuild controls.
-- Manual **Run Notion Sync** queue button for staff (disabled when the bot reports missing `NOTION_TOKEN` or `DISCORD_GUILD_ID` prerequisites).
-- Live sync state badges (Queued / Running / Success / Error / Stale).
-- `Reset Stale` action for settings admins to clear stuck sync status keys and safely requeue.
-- Recent sync runs table (run ID, source, started/finished, duration, final status, error) aggregated from persisted `notion_sync_events`.
 
 ![Settings](screenshots/settings.png)
 

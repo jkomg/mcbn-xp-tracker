@@ -141,17 +141,6 @@ class AppSetting(db.Model):
     updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
-class NotionSyncEvent(db.Model):
-    """Append-only history of Notion/wiki sync lifecycle events."""
-    __tablename__ = 'notion_sync_events'
-    id = db.Column(Integer, primary_key=True)
-    ts = db.Column(String(30), nullable=False)
-    run_id = db.Column(String(64), default='', index=True)
-    source = db.Column(String(16), nullable=False)  # manual | scheduled
-    status = db.Column(String(16), nullable=False)  # running | success | error
-    error = db.Column(Text, default='')
-    created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
-
 
 class DbSheetsSyncError(db.Model):
     __tablename__ = 'sheets_sync_errors'

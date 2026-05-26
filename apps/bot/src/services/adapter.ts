@@ -25,7 +25,6 @@ export interface BotConfigResponse {
   passageOfTimeEnabled: boolean | null;
   huntConsequenceEnabled: boolean | null;
   restartRequested: boolean | null;
-  notionSyncRequested: boolean | null;
   passageOfTimeIntervalMs: number | null;
   reviewNotifierIntervalMs: number | null;
   submissionNotifierIntervalMs: number | null;
@@ -73,12 +72,6 @@ export interface TrackerAdapter {
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
   ackBotRestart(): Promise<void>;
-  ackNotionSync(
-    status: 'running' | 'success' | 'error',
-    error?: string,
-    source?: 'manual' | 'scheduled',
-    runId?: string,
-  ): Promise<void>;
   postBotLog(entries: Array<Record<string, unknown>>): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
   getAllReminderPrefs(): Promise<Record<string, { optOut: boolean; snoozeUntilEpoch: number }>>;
@@ -781,21 +774,6 @@ export class WebAppAdapter implements TrackerAdapter {
       headers: this.writeAuthHeaders(),
     });
     if (!res.ok) throw new Error(`bot-restart-ack POST failed: ${res.status}`);
-  }
-
-  async ackNotionSync(
-    status: 'running' | 'success' | 'error',
-    error?: string,
-    source: 'manual' | 'scheduled' = 'manual',
-    runId?: string,
-  ): Promise<void> {
-    const url = `${this.baseUrl}/api/notion-sync-ack`;
-    const res = await this.fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, source, ...(runId ? { runId } : {}), ...(error ? { error } : {}) }),
-    });
-    if (!res.ok) throw new Error(`notion-sync-ack POST failed: ${res.status}`);
   }
 
   async postBotLog(entries: Array<Record<string, unknown>>): Promise<void> {

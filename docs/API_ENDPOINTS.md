@@ -64,7 +64,7 @@ No authentication required. Liveness check.
 
 Called by the bot on startup and then on its heartbeat loop interval (default every 60 seconds, configurable with bot env `BOT_HEARTBEAT_INTERVAL_MS`) to record a liveness timestamp.
 The web app stores the timestamp in `AppSetting` under key `BOT_LAST_HEARTBEAT`.
-Optional live-state fields in the POST body are also persisted for Settings UI status cards (for example, `notionSyncCapable` stores to `BOT_LIVE_NOTION_SYNC_CAPABLE`).
+Optional live-state fields in the POST body are also persisted for Settings UI status cards.
 
 **Response 200:**
 ```json
@@ -126,41 +126,6 @@ Each field is `true`, `false`, or `null` (if the flag has never been set in the 
 
 Bot shutdown handshake endpoint. Called just before bot process exit when
 `restartRequested=true` is seen from `/api/bot-config`.
-
-**Response 200:**
-```json
-{ "ok": true }
-```
-
----
-
-## POST /api/notion-sync-ack
-
-**Scope:** write | **Rate limit:** 30/min | **Replay protection:** exempt
-
-Bot status callback for wiki/Notion sync runs.
-
-**Body:**
-```json
-{
-  "status": "running",
-  "source": "manual",
-  "runId": "run-manual-1"
-}
-```
-
-| Field | Required | Values | Notes |
-|-------|----------|--------|-------|
-| `status` | Yes | `running`, `success`, `error` | Current sync lifecycle state |
-| `source` | No | `manual`, `scheduled` | Defaults to `manual` when omitted |
-| `runId` | No | string (<=64 chars) | Correlation ID for one sync run lifecycle |
-| `error` | When `status=error` | string | Human-readable error summary |
-
-Behavior notes:
-- `status=running` with `source=manual` clears `BOT_NOTION_SYNC_REQUESTED`.
-- `status=running` with `source=scheduled` **does not** clear `BOT_NOTION_SYNC_REQUESTED` (prevents scheduled runs from consuming staff-queued manual runs).
-- Web stores `BOT_NOTION_SYNC_SOURCE` for UI/operator context.
-- Each ack appends a row to `notion_sync_events` (bounded history) including `runId` when provided.
 
 **Response 200:**
 ```json
