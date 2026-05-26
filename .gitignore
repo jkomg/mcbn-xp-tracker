@@ -46,3 +46,5 @@ apps/web/app/static/character-app/
 
 # Local unrelated sandbox repo
 /tg-local/
+prod-snapshot.sql
+scripts/overwrite-snapshots/
