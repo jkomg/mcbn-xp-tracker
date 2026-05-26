@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, send_from_directory, session
 
 from app.auth import is_staff, require_login, require_character_owner
+from app.blueprints.api import require_bot_scope
 from app.db import CharacterDraft, DbCharacter, db
 
 bp = Blueprint('character_creator', __name__)
@@ -163,6 +164,49 @@ def cc_submit_draft(draft_id):
     draft.submitted_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify(_draft_to_dict(draft))
+
+
+# ---------------------------------------------------------------------------
+# Bot-facing: submitted drafts feed (for CharacterSubmissionNotifier)
+# ---------------------------------------------------------------------------
+
+@bp.route('/api/cc/submitted-drafts')
+@require_bot_scope('read')
+def cc_submitted_drafts():
+    """Return recently submitted drafts for the bot to post ticket-channel notifications.
+
+    Query params:
+      sinceEpoch  — Unix timestamp (seconds); only drafts submitted at or after this time
+      limit       — max results (default 50, max 200)
+    """
+    since_epoch = request.args.get('sinceEpoch', type=float)
+    limit = min(int(request.args.get('limit', 50)), 200)
+
+    query = CharacterDraft.query.filter_by(status='submitted')
+    if since_epoch:
+        since_dt = datetime.fromtimestamp(since_epoch, tz=timezone.utc)
+        query = query.filter(CharacterDraft.submitted_at >= since_dt)
+    query = query.order_by(CharacterDraft.submitted_at.asc())
+
+    # Fetch one extra to determine has_more
+    rows = query.limit(limit + 1).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    def _to_event(draft):
+        char_data = json.loads(draft.character_data) if draft.character_data else {}
+        return {
+            'id': draft.id,
+            'character_name': draft.character_name or '',
+            'player_discord_id': draft.player_discord_id or '',
+            'ticket_channel_id': draft.ticket_channel_id,
+            'submitted_at_epoch': int(draft.submitted_at.timestamp()) if draft.submitted_at else 0,
+            'age_category': char_data.get('age_category') or '',
+            'clan': char_data.get('clan') or '',
+            'submission_notes': char_data.get('submission_notes') or '',
+        }
+
+    return jsonify({'events': [_to_event(d) for d in rows], 'has_more': has_more})
 
 
 # ---------------------------------------------------------------------------
