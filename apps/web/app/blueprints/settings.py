@@ -162,13 +162,13 @@ def index():
             'description': 'How long a nonce is remembered to detect replays.',
         },
         {
-            'label': 'Notion sync stale threshold',
-            'key': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS',
-            'env': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS',
-            'value': _eff_int('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', 3600)),
-            'overridden': 'BOT_NOTION_SYNC_STALE_AFTER_SECONDS' in overrides,
+            'label': 'Wiki sync stale threshold',
+            'key': 'BOT_WIKI_SYNC_STALE_AFTER_SECONDS',
+            'env': 'BOT_WIKI_SYNC_STALE_AFTER_SECONDS',
+            'value': _eff_int('BOT_WIKI_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_WIKI_SYNC_STALE_AFTER_SECONDS', 3600)),
+            'overridden': 'BOT_WIKI_SYNC_STALE_AFTER_SECONDS' in overrides,
             'editable': True,
-            'description': 'Marks Notion sync as stale after this many seconds in running state.',
+            'description': 'Marks Wiki sync as stale after this many seconds in running state.',
         },
         {
             'label': 'Session lifetime',
@@ -229,7 +229,7 @@ def index():
         'BOT_PASSAGE_OF_TIME_ENABLED': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
     }
-    from app.db import AppSetting, NotionSyncEvent
+    from app.db import AppSetting, WikiSyncEvent
     live_keys = list(LIVE_KEY_MAP.values())
     live_records = {r.key: r for r in AppSetting.query.filter(AppSetting.key.in_(live_keys)).all()}
 
@@ -399,48 +399,48 @@ def index():
 
     _restart_pending = 'BOT_RESTART_REQUESTED' in overrides and overrides['BOT_RESTART_REQUESTED'].value.lower() in ('true', '1', 'yes')
 
-    # ── Notion sync status ─────────────────────────────────────────────────
-    _notion_sync_requested = 'BOT_NOTION_SYNC_REQUESTED' in overrides and overrides['BOT_NOTION_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
-    _notion_status_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_STATUS')
-    _notion_run_id_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_RUN_ID')
-    _notion_started_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_STARTED_AT')
-    _notion_finished_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_FINISHED_AT')
-    _notion_error_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_ERROR')
-    _notion_source_rec = db.session.get(AppSetting, 'BOT_NOTION_SYNC_SOURCE')
-    _notion_capable_rec = db.session.get(AppSetting, 'BOT_LIVE_NOTION_SYNC_CAPABLE')
-    _notion_capable = None if _notion_capable_rec is None else _is_truthy(_notion_capable_rec.value)
-    _notion_stale_after_seconds = max(
+    # ── Wiki sync status ────────────────────────────────────────────────────
+    _wiki_sync_requested = 'BOT_WIKI_SYNC_REQUESTED' in overrides and overrides['BOT_WIKI_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
+    _wiki_status_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_STATUS')
+    _wiki_run_id_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_RUN_ID')
+    _wiki_started_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_STARTED_AT')
+    _wiki_finished_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_FINISHED_AT')
+    _wiki_error_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_ERROR')
+    _wiki_source_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_SOURCE')
+    _wiki_capable_rec = db.session.get(AppSetting, 'BOT_LIVE_WIKI_SYNC_CAPABLE')
+    _wiki_capable = None if _wiki_capable_rec is None else _is_truthy(_wiki_capable_rec.value)
+    _wiki_stale_after_seconds = max(
         60,
-        int(get_app_setting('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_NOTION_SYNC_STALE_AFTER_SECONDS', 3600))),
+        int(get_app_setting('BOT_WIKI_SYNC_STALE_AFTER_SECONDS', cfg.get('BOT_WIKI_SYNC_STALE_AFTER_SECONDS', 3600))),
     )
-    _notion_started_at = _notion_started_rec.value if _notion_started_rec else None
-    _notion_started_dt = _parse_iso_utc(_notion_started_at)
-    _notion_running_age_seconds = None
-    _notion_is_stale = False
-    if _notion_status_rec and _notion_status_rec.value == 'running' and _notion_started_dt:
-        _notion_running_age_seconds = int((datetime.now(timezone.utc) - _notion_started_dt).total_seconds())
-        _notion_is_stale = _notion_running_age_seconds >= _notion_stale_after_seconds
+    _wiki_started_at = _wiki_started_rec.value if _wiki_started_rec else None
+    _wiki_started_dt = _parse_iso_utc(_wiki_started_at)
+    _wiki_running_age_seconds = None
+    _wiki_is_stale = False
+    if _wiki_status_rec and _wiki_status_rec.value == 'running' and _wiki_started_dt:
+        _wiki_running_age_seconds = int((datetime.now(timezone.utc) - _wiki_started_dt).total_seconds())
+        _wiki_is_stale = _wiki_running_age_seconds >= _wiki_stale_after_seconds
 
-    notion_sync = {
-        'requested': _notion_sync_requested,
-        'status': _notion_status_rec.value if _notion_status_rec else None,
-        'run_id': _notion_run_id_rec.value if _notion_run_id_rec else None,
-        'started_at': _notion_started_at,
-        'finished_at': _notion_finished_rec.value if _notion_finished_rec else None,
-        'error': _notion_error_rec.value if _notion_error_rec else None,
-        'source': _notion_source_rec.value if _notion_source_rec else None,
-        'capable': _notion_capable,
-        'running_age_seconds': _notion_running_age_seconds,
-        'stale_after_seconds': _notion_stale_after_seconds,
-        'is_stale': _notion_is_stale,
+    wiki_sync = {
+        'requested': _wiki_sync_requested,
+        'status': _wiki_status_rec.value if _wiki_status_rec else None,
+        'run_id': _wiki_run_id_rec.value if _wiki_run_id_rec else None,
+        'started_at': _wiki_started_at,
+        'finished_at': _wiki_finished_rec.value if _wiki_finished_rec else None,
+        'error': _wiki_error_rec.value if _wiki_error_rec else None,
+        'source': _wiki_source_rec.value if _wiki_source_rec else None,
+        'capable': _wiki_capable,
+        'running_age_seconds': _wiki_running_age_seconds,
+        'stale_after_seconds': _wiki_stale_after_seconds,
+        'is_stale': _wiki_is_stale,
     }
-    _history_rows = NotionSyncEvent.query.order_by(NotionSyncEvent.created_at.desc()).limit(120).all()
-    _run_buckets: dict[str, list[NotionSyncEvent]] = {}
+    _history_rows = WikiSyncEvent.query.order_by(WikiSyncEvent.created_at.desc()).limit(120).all()
+    _run_buckets: dict[str, list[WikiSyncEvent]] = {}
     for row in _history_rows:
         key = (row.run_id or '').strip() or f'legacy-{row.id}'
         _run_buckets.setdefault(key, []).append(row)
 
-    notion_sync_runs = []
+    wiki_sync_runs = []
     for run_key, rows in _run_buckets.items():
         rows_sorted = sorted(rows, key=lambda r: r.created_at or datetime.min)
         latest = rows_sorted[-1]
@@ -457,7 +457,7 @@ def index():
             (r for r in reversed(rows_sorted) if r.status == 'error' and str(r.error or '').strip()),
             None,
         )
-        notion_sync_runs.append(
+        wiki_sync_runs.append(
             {
                 'run_key': run_key,
                 'run_id': (latest.run_id or '').strip(),
@@ -472,11 +472,11 @@ def index():
                 'event_count': len(rows_sorted),
             }
         )
-    notion_sync_runs.sort(
+    wiki_sync_runs.sort(
         key=lambda row: _parse_iso_utc(row['latest_at']) or datetime.min.replace(tzinfo=timezone.utc),
         reverse=True,
     )
-    notion_sync_runs = notion_sync_runs[:12]
+    wiki_sync_runs = wiki_sync_runs[:12]
 
     # ── Staff members (DB-managed) ─────────────────────────────────────────
     from app.db import AppSetting as _AppSetting
@@ -504,24 +504,24 @@ def index():
         bot_heartbeat_age=bot_heartbeat_age,
         bot_heartbeat_ts=bot_heartbeat_ts,
         bot_restart_pending=_restart_pending,
-        notion_sync=notion_sync,
-        notion_sync_runs=notion_sync_runs,
+        wiki_sync=wiki_sync,
+        wiki_sync_runs=wiki_sync_runs,
         staff_members=staff_members,
     )
 
 
-@bp.route('/request-notion-sync', methods=['POST'])
+@bp.route('/request-wiki-sync', methods=['POST'])
 @require_staff
-def request_notion_sync():
+def request_wiki_sync():
     if not is_settings_admin():
-        flash('You do not have permission to run the Notion sync.', 'danger')
+        flash('You do not have permission to run the Wiki sync.', 'danger')
         return redirect(url_for('settings.index'))
 
     from app.db import AppSetting, db
-    notion_capability = db.session.get(AppSetting, 'BOT_LIVE_NOTION_SYNC_CAPABLE')
-    if notion_capability is not None and not _is_truthy(notion_capability.value):
+    wiki_capability = db.session.get(AppSetting, 'BOT_LIVE_WIKI_SYNC_CAPABLE')
+    if wiki_capability is not None and not _is_truthy(wiki_capability.value):
         flash(
-            'Bot reports Notion sync prerequisites are missing (NOTION_TOKEN and/or DISCORD_GUILD_ID). '
+            'Bot reports Wiki sync prerequisites are missing (DISCORD_GUILD_ID). '
             'Update bot .env and restart the bot before running sync.',
             'danger',
         )
@@ -532,27 +532,27 @@ def request_notion_sync():
         or session.get('staff_user')
         or session.get('discord_id', 'unknown')
     )
-    set_app_setting('BOT_NOTION_SYNC_REQUESTED', 'true', updated_by)
-    flash('Notion sync queued. The bot will start it within ~60 seconds.', 'success')
+    set_app_setting('BOT_WIKI_SYNC_REQUESTED', 'true', updated_by)
+    flash('Wiki sync queued. The bot will start it within ~60 seconds.', 'success')
     return redirect(url_for('settings.index'))
 
 
-@bp.route('/reset-notion-sync', methods=['POST'])
+@bp.route('/reset-wiki-sync', methods=['POST'])
 @require_staff
-def reset_notion_sync():
+def reset_wiki_sync():
     if not is_settings_admin():
-        flash('You do not have permission to reset Notion sync status.', 'danger')
+        flash('You do not have permission to reset Wiki sync status.', 'danger')
         return redirect(url_for('settings.index'))
 
     from app.db import AppSetting, db
     reset_keys = (
-        'BOT_NOTION_SYNC_REQUESTED',
-        'BOT_NOTION_SYNC_STATUS',
-        'BOT_NOTION_SYNC_RUN_ID',
-        'BOT_NOTION_SYNC_STARTED_AT',
-        'BOT_NOTION_SYNC_FINISHED_AT',
-        'BOT_NOTION_SYNC_ERROR',
-        'BOT_NOTION_SYNC_SOURCE',
+        'BOT_WIKI_SYNC_REQUESTED',
+        'BOT_WIKI_SYNC_STATUS',
+        'BOT_WIKI_SYNC_RUN_ID',
+        'BOT_WIKI_SYNC_STARTED_AT',
+        'BOT_WIKI_SYNC_FINISHED_AT',
+        'BOT_WIKI_SYNC_ERROR',
+        'BOT_WIKI_SYNC_SOURCE',
     )
     deleted = 0
     for key in reset_keys:
@@ -562,7 +562,7 @@ def reset_notion_sync():
             deleted += 1
     if deleted:
         db.session.commit()
-    flash('Notion sync state reset. You can safely queue a fresh run.', 'success')
+    flash('Wiki sync state reset. You can safely queue a fresh run.', 'success')
     return redirect(url_for('settings.index'))
 
 

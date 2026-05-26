@@ -141,8 +141,8 @@ class AppSetting(db.Model):
     updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
-class NotionSyncEvent(db.Model):
-    """Append-only history of Notion/wiki sync lifecycle events."""
+class WikiSyncEvent(db.Model):
+    """Append-only history of wiki sync lifecycle events."""
     __tablename__ = 'notion_sync_events'
     id = db.Column(Integer, primary_key=True)
     ts = db.Column(String(30), nullable=False)

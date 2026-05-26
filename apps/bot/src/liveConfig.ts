@@ -14,6 +14,6 @@ export const liveConfig = {
   claimReminderIntervalMs: null as number | null,
   /** DB-override channel IDs (null = use .env default). Applied on next bot restart. */
   announcementsChannelId: null as string | null,
-  /** Set to true by configSyncWorker when the web UI requests a Notion sync run. */
-  notionSyncRequested: false,
+  /** Set to true by configSyncWorker when the web UI requests a wiki sync run. */
+  wikiSyncRequested: false,
 };

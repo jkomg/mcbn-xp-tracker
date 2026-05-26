@@ -201,11 +201,11 @@ void applyStartupConfigOverrides().then(() => {
   });
 
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
-  const notionSyncCapable = Boolean(config.notionToken && config.discordGuildId);
+  const wikiSyncCapable = Boolean(config.discordGuildId);
   const botHeartbeatService = new BotHeartbeatService(
     adapter,
     config.botHeartbeatIntervalMs,
-    { notionSyncCapable },
+    { wikiSyncCapable },
   );
   const backgroundBlankReleaseService = new BackgroundBlankReleaseService(
     client,

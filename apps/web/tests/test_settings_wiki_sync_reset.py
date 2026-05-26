@@ -1,4 +1,4 @@
-"""Tests for settings-side Notion sync reset controls."""
+"""Tests for settings-side Wiki sync reset controls."""
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Blueprint, Flask
 
 from app.blueprints.settings import bp as settings_bp
-from app.db import AppSetting, NotionSyncEvent, db
+from app.db import AppSetting, WikiSyncEvent, db
 
 _TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
 _STATIC_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
@@ -47,13 +47,13 @@ def _app():
 def _seed_sync_records(app: Flask):
     with app.app_context():
         for key, value in (
-            ('BOT_NOTION_SYNC_REQUESTED', 'true'),
-            ('BOT_NOTION_SYNC_STATUS', 'running'),
-            ('BOT_NOTION_SYNC_RUN_ID', 'run-abc'),
-            ('BOT_NOTION_SYNC_STARTED_AT', '2026-04-17T00:00:00+00:00'),
-            ('BOT_NOTION_SYNC_FINISHED_AT', '2026-04-17T00:10:00+00:00'),
-            ('BOT_NOTION_SYNC_ERROR', 'boom'),
-            ('BOT_NOTION_SYNC_SOURCE', 'manual'),
+            ('BOT_WIKI_SYNC_REQUESTED', 'true'),
+            ('BOT_WIKI_SYNC_STATUS', 'running'),
+            ('BOT_WIKI_SYNC_RUN_ID', 'run-abc'),
+            ('BOT_WIKI_SYNC_STARTED_AT', '2026-04-17T00:00:00+00:00'),
+            ('BOT_WIKI_SYNC_FINISHED_AT', '2026-04-17T00:10:00+00:00'),
+            ('BOT_WIKI_SYNC_ERROR', 'boom'),
+            ('BOT_WIKI_SYNC_SOURCE', 'manual'),
         ):
             db.session.merge(AppSetting(key=key, value=value, updated_by='test'))
         db.session.commit()
@@ -67,44 +67,44 @@ def _set_session(client, discord_id: str):
         sess['staff_user'] = 'Tester'
 
 
-def test_reset_notion_sync_clears_sync_state_for_admin():
+def test_reset_wiki_sync_clears_sync_state_for_admin():
     app = _app()
     _seed_sync_records(app)
     with app.test_client() as client:
         _set_session(client, '12345')
-        res = client.post('/settings/reset-notion-sync')
+        res = client.post('/settings/reset-wiki-sync')
         assert res.status_code == 302
 
     with app.app_context():
         for key in (
-            'BOT_NOTION_SYNC_REQUESTED',
-            'BOT_NOTION_SYNC_STATUS',
-            'BOT_NOTION_SYNC_RUN_ID',
-            'BOT_NOTION_SYNC_STARTED_AT',
-            'BOT_NOTION_SYNC_FINISHED_AT',
-            'BOT_NOTION_SYNC_ERROR',
-            'BOT_NOTION_SYNC_SOURCE',
+            'BOT_WIKI_SYNC_REQUESTED',
+            'BOT_WIKI_SYNC_STATUS',
+            'BOT_WIKI_SYNC_RUN_ID',
+            'BOT_WIKI_SYNC_STARTED_AT',
+            'BOT_WIKI_SYNC_FINISHED_AT',
+            'BOT_WIKI_SYNC_ERROR',
+            'BOT_WIKI_SYNC_SOURCE',
         ):
             assert db.session.get(AppSetting, key) is None
 
 
-def test_reset_notion_sync_denied_for_non_admin():
+def test_reset_wiki_sync_denied_for_non_admin():
     app = _app()
     _seed_sync_records(app)
     with app.test_client() as client:
         _set_session(client, '99999')
-        res = client.post('/settings/reset-notion-sync')
+        res = client.post('/settings/reset-wiki-sync')
         assert res.status_code == 302
 
     with app.app_context():
-        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_STATUS') is not None
+        assert db.session.get(AppSetting, 'BOT_WIKI_SYNC_STATUS') is not None
 
 
 def test_settings_index_shows_sync_run_summary_rows():
     app = _app()
     with app.app_context():
         db.session.add(
-            NotionSyncEvent(
+            WikiSyncEvent(
                 ts='2026-04-17T00:00:00+00:00',
                 run_id='run-111',
                 source='manual',
@@ -114,7 +114,7 @@ def test_settings_index_shows_sync_run_summary_rows():
             )
         )
         db.session.add(
-            NotionSyncEvent(
+            WikiSyncEvent(
                 ts='2026-04-17T00:10:00+00:00',
                 run_id='run-111',
                 source='manual',
@@ -124,7 +124,7 @@ def test_settings_index_shows_sync_run_summary_rows():
             )
         )
         db.session.add(
-            NotionSyncEvent(
+            WikiSyncEvent(
                 ts='2026-04-17T01:00:00+00:00',
                 run_id='run-222',
                 source='scheduled',
@@ -147,33 +147,33 @@ def test_settings_index_shows_sync_run_summary_rows():
         assert 'sync failed' in body
 
 
-def test_request_notion_sync_denied_when_bot_reports_missing_prereqs():
+def test_request_wiki_sync_denied_when_bot_reports_missing_prereqs():
     app = _app()
     with app.app_context():
-        db.session.merge(AppSetting(key='BOT_LIVE_NOTION_SYNC_CAPABLE', value='false', updated_by='bot'))
+        db.session.merge(AppSetting(key='BOT_LIVE_WIKI_SYNC_CAPABLE', value='false', updated_by='bot'))
         db.session.commit()
 
     with app.test_client() as client:
         _set_session(client, '12345')
-        res = client.post('/settings/request-notion-sync')
+        res = client.post('/settings/request-wiki-sync')
         assert res.status_code == 302
 
     with app.app_context():
-        assert db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED') is None
+        assert db.session.get(AppSetting, 'BOT_WIKI_SYNC_REQUESTED') is None
 
 
-def test_request_notion_sync_allowed_when_bot_reports_capable():
+def test_request_wiki_sync_allowed_when_bot_reports_capable():
     app = _app()
     with app.app_context():
-        db.session.merge(AppSetting(key='BOT_LIVE_NOTION_SYNC_CAPABLE', value='true', updated_by='bot'))
+        db.session.merge(AppSetting(key='BOT_LIVE_WIKI_SYNC_CAPABLE', value='true', updated_by='bot'))
         db.session.commit()
 
     with app.test_client() as client:
         _set_session(client, '12345')
-        res = client.post('/settings/request-notion-sync')
+        res = client.post('/settings/request-wiki-sync')
         assert res.status_code == 302
 
     with app.app_context():
-        requested = db.session.get(AppSetting, 'BOT_NOTION_SYNC_REQUESTED')
+        requested = db.session.get(AppSetting, 'BOT_WIKI_SYNC_REQUESTED')
         assert requested is not None
         assert requested.value == 'true'

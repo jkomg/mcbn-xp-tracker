@@ -27,7 +27,7 @@ EDITABLE_KEYS = {
     'BOT_HUNT_CONSEQUENCE_ENABLED',
     # Bot restart / sync signals
     'BOT_RESTART_REQUESTED',
-    'BOT_NOTION_SYNC_REQUESTED',
+    'BOT_WIKI_SYNC_REQUESTED',
     # Bot channel IDs (polled by bot via /api/bot-config; take effect after restart)
     'BOT_ANNOUNCEMENTS_CHANNEL_ID',
     # Bot tuning (polled by bot via /api/bot-config; take effect after restart)
@@ -41,7 +41,7 @@ EDITABLE_KEYS = {
     'AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS',
     'BOT_API_REPLAY_WINDOW_SECONDS',
     'BOT_API_NONCE_TTL_SECONDS',
-    'BOT_NOTION_SYNC_STALE_AFTER_SECONDS',
+    'BOT_WIKI_SYNC_STALE_AFTER_SECONDS',
     'SHEETS_CACHE_TTL',
 }
 
