@@ -21,10 +21,10 @@ import { errorToMessage, logEvent } from '../logger';
 import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
 import { startEditWizard } from '../editWizard';
 
-export const name = 'lasombra';
+export const name = config.lasombraCommandName;
 
 export const data = new SlashCommandBuilder()
-  .setName('lasombra')
+  .setName(config.lasombraCommandName)
   .setDescription('Lasombra utility commands')
   .addSubcommand((s) =>
     s
