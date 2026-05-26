@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}CC Admin — Character Drafts{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0">Character Drafts</h2>
+      <small class="text-muted">Review submitted character drafts and approve or request revisions.</small>
+    </div>
+  </div>
+
+  {# ── Status tabs ── #}
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'submitted' %}active{% endif %}"
+         href="{{ url_for('cc_admin.draft_list', status='submitted') }}">
+        Submitted
+        {% if counts.submitted %}
+          <span class="badge bg-danger ms-1">{{ counts.submitted }}</span>
+        {% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'revision_requested' %}active{% endif %}"
+         href="{{ url_for('cc_admin.draft_list', status='revision_requested') }}">
+        Revision Requested
+        {% if counts.revision_requested %}
+          <span class="badge bg-warning text-dark ms-1">{{ counts.revision_requested }}</span>
+        {% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}"
+         href="{{ url_for('cc_admin.draft_list', status='approved') }}">
+        Approved
+        {% if counts.approved %}
+          <span class="badge bg-success ms-1">{{ counts.approved }}</span>
+        {% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'all' %}active{% endif %}"
+         href="{{ url_for('cc_admin.draft_list', status='all') }}">
+        All
+      </a>
+    </li>
+  </ul>
+
+  {% if not drafts %}
+    <div class="text-muted py-4 text-center">No drafts with status "{{ status_filter }}".</div>
+  {% else %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Character</th>
+            <th>Clan</th>
+            <th>Age</th>
+            <th>Player</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for draft, cd in drafts_with_data %}
+            <tr>
+              <td class="fw-semibold">{{ draft.character_name or '(unnamed)' }}</td>
+              <td>{{ cd.get('clan', '—') }}</td>
+              <td class="text-capitalize">{{ cd.get('age_category', '—') }}</td>
+              <td>
+                <span class="text-muted font-monospace small">{{ draft.player_discord_id }}</span>
+              </td>
+              <td>
+                {% if draft.submitted_at %}
+                  <span title="{{ draft.submitted_at.isoformat() }}">
+                    {{ draft.submitted_at.strftime('%Y-%m-%d') }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if draft.status == 'submitted' %}
+                  <span class="badge bg-danger">Submitted</span>
+                {% elif draft.status == 'revision_requested' %}
+                  <span class="badge bg-warning text-dark">Revision Requested</span>
+                {% elif draft.status == 'approved' %}
+                  <span class="badge bg-success">Approved</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ draft.status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('cc_admin.draft_review', draft_id=draft.id) }}"
+                   class="btn btn-sm btn-outline-secondary">Review</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}
