@@ -1,0 +1,95 @@
+name: Deploy Bot to Ursula
+
+on:
+  # Trigger after CI completes on main — only deploy when CI passes
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deploy'
+        required: false
+        default: 'manual trigger'
+
+jobs:
+  deploy:
+    name: Deploy Bot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: |
+      github.repository == 'jkomg/mcbn-xp-tracker' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
+
+    steps:
+      - name: Resolve deploy SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (for commit message)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+
+      - name: Deploy to Ursula via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.URSULA_SSH_HOST }}
+          username: ${{ secrets.URSULA_SSH_USER }}
+          key: ${{ secrets.URSULA_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.URSULA_BOT_DIR }}
+            git fetch origin main
+            git checkout main
+            git pull origin main
+            cd apps/bot
+            npm run ops:docker:up
+
+      - name: Notify Discord
+        if: always()
+        continue-on-error: true
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+          STATUS: ${{ job.status }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          [ -z "$WEBHOOK" ] && exit 0
+
+          SHORT_SHA="${SHA:0:7}"
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
+          COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
+
+          if [ "$STATUS" = "success" ]; then
+            COLOR=3066993
+            ICON="✅"
+            TITLE="Bot deployed"
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) is live on Ursula.\n${COMMIT_MSG}"
+          else
+            COLOR=15158332
+            ICON="❌"
+            TITLE="Bot deploy failed"
+            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) did not deploy. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
+          fi
+
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${ICON} ${TITLE}\",
+                \"description\": \"${BODY}\",
+                \"color\": ${COLOR},
+                \"footer\": { \"text\": \"triggered by ${TRIGGER}\" }
+              }]
+            }"
