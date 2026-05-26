@@ -17,7 +17,7 @@ on:
 jobs:
   deploy:
     name: Deploy Bot
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     if: |
       github.repository == 'jkomg/mcbn-xp-tracker' && (
@@ -35,25 +35,17 @@ jobs:
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout (for commit message)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.sha.outputs.sha }}
+      - name: Pull latest code
+        run: |
+          cd ${{ secrets.URSULA_BOT_DIR }}
+          git fetch origin main
+          git checkout main
+          git pull origin main
 
-      - name: Deploy to Ursula via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.URSULA_SSH_HOST }}
-          username: ${{ secrets.URSULA_SSH_USER }}
-          key: ${{ secrets.URSULA_SSH_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.URSULA_BOT_DIR }}
-            git fetch origin main
-            git checkout main
-            git pull origin main
-            cd apps/bot
-            npm run ops:docker:up
+      - name: Rebuild and restart bot
+        run: |
+          cd ${{ secrets.URSULA_BOT_DIR }}/apps/bot
+          npm run ops:docker:up
 
       - name: Notify Discord
         if: always()
@@ -69,7 +61,7 @@ jobs:
 
           SHORT_SHA="${SHA:0:7}"
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
-          COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
+          COMMIT_MSG=$(git -C ${{ secrets.URSULA_BOT_DIR }} log -1 --format="%s" "$SHA")
 
           if [ "$STATUS" = "success" ]; then
             COLOR=3066993
