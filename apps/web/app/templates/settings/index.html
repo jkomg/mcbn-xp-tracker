@@ -12,6 +12,20 @@
     {% endif %}
   </div>
 
+  {# ═══ Character Creator ═══ #}
+  <h5 class="text-muted text-uppercase small mb-2 mt-4">Character Creator</h5>
+  <div class="card mb-4">
+    <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <div class="fw-semibold mb-1"><i class="bi bi-person-badge me-2 text-danger"></i>Loresheet Restrictions</div>
+        <small class="text-muted">Ban or allow specific loresheets in the character creator. Banned loresheets are hidden from players immediately.</small>
+      </div>
+      <a href="{{ url_for('cc_admin.loresheet_list') }}" class="btn btn-sm btn-outline-danger text-nowrap">
+        <i class="bi bi-slash-circle me-1"></i> Manage Loresheets
+      </a>
+    </div>
+  </div>
+
   {# ═══ Web App — Feature Flags ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Feature Flags</h5>
   <div class="card mb-4">

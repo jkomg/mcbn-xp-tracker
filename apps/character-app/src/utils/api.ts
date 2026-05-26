@@ -103,6 +103,9 @@ export const cc = {
 
     getEligibility: () =>
         apiRequest<EligibilityResult>("/cc/eligibility"),
+
+    getRestrictions: () =>
+        apiRequest<{ loresheets: string[] }>("/cc/restrictions"),
 }
 
 export const api = {

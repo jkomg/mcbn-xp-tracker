@@ -1,8 +1,10 @@
 import { Button, ScrollArea, Stack, Text, Title } from "@mantine/core"
 import { IconCheck } from "@tabler/icons-react"
+import { useEffect, useState } from "react"
 import { Character } from "~/data/Character"
 import { Loresheet, LoresheetDot, LORESHEETS, loresheetDotCost } from "~/data/Loresheets"
 import { RAW_RED, rgba } from "~/theme/colors"
+import { cc } from "~/utils/api"
 import {
     generatorScrollableAreaStyle,
     generatorScrollableContentStyle,
@@ -34,12 +36,22 @@ const SOURCE_LABELS: Record<string, string> = {
     camarilla: "Camarilla",
     anarch: "Anarch",
     chicago: "Chicago by Night",
-    "players-guide": "Players Guide",
+    "players-guide": "Player's Guide",
     "gehenna-war": "Gehenna War",
     "in-memoriam": "In Memoriam",
     "tattered-facade": "Tattered Facade",
     "blood-sigils": "Blood Sigils",
     "cults-of-the-blood-gods": "Cults of the Blood Gods",
+    "chicago-folios": "Chicago Folios",
+    "children-of-the-blood": "Children of the Blood",
+    "book-of-nod-apocrypha": "Book of Nod Apocrypha",
+    "let-the-streets-run-red": "Let the Streets Run Red",
+    "fall-of-london": "The Fall of London",
+    "forbidden-religions": "Forbidden Religions",
+    "trails-of-ash-and-bone": "Trails of Ash and Bone",
+    "live-from-the-succubus-club": "Live From the Succubus Club",
+    download: "Download / Choice of Games",
+    "winters-teeth": "Winter's Teeth",
     custom: "Nashville",
 }
 
@@ -86,7 +98,14 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
     const overBudget = remaining < 0
     const clan = character.clan ?? ""
 
-    const visibleLoresheets = LORESHEETS.filter((ls) => isLoresheetAvailable(ls, clan))
+    const [bannedIds, setBannedIds] = useState<Set<string>>(new Set())
+    useEffect(() => {
+        cc.getRestrictions().then((r) => setBannedIds(new Set(r.loresheets))).catch(() => {})
+    }, [])
+
+    const visibleLoresheets = LORESHEETS.filter(
+        (ls) => isLoresheetAvailable(ls, clan) && !bannedIds.has(ls.id),
+    )
 
     return (
         <div style={generatorScrollableShellStyle}>

@@ -114,6 +114,14 @@
                             <i class="bi bi-exclamation-triangle"></i> <span>Error Alerts</span>
                         </a>
                     </li>
+                    {% if is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('cc_admin.') %}active{% endif %}"
+                           href="{{ url_for('cc_admin.loresheet_list') }}">
+                            <i class="bi bi-person-badge"></i> <span>Char. Creator</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if is_admin %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('settings.') %}active{% endif %}"

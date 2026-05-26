@@ -220,6 +220,23 @@ class CharacterDraft(db.Model):
     approved_by = db.Column(db.String(32), nullable=True)
 
 
+class CcRestriction(db.Model):
+    """Staff-controlled bans on character creator components (loresheets, merits, etc.)."""
+    __tablename__ = 'cc_restrictions'
+    __table_args__ = (
+        db.UniqueConstraint('component_type', 'component_id', name='uq_cc_restriction'),
+    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    # e.g. 'loresheet' — extensible to 'merit', 'background', etc.
+    component_type = db.Column(db.String(50), nullable=False, index=True)
+    # matches the id field in the SPA data (e.g. 'minneapolis')
+    component_id = db.Column(db.String(100), nullable=False, index=True)
+    reason = db.Column(db.Text, nullable=False, default='')
+    updated_by = db.Column(db.String(100), nullable=False, default='')
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+
+
 class DbCharacterBackground(db.Model):
     __tablename__ = 'character_backgrounds'
     __table_args__ = (
