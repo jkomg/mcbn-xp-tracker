@@ -218,6 +218,7 @@ class CharacterDraft(db.Model):
     submitted_at = db.Column(db.DateTime, nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     approved_by = db.Column(db.String(32), nullable=True)
+    revision_notes = db.Column(db.Text, nullable=True)
 
 
 class CcRestriction(db.Model):

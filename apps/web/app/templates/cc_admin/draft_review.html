@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Review — {{ draft.character_name or 'Draft' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 900px;">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <a href="{{ url_for('cc_admin.draft_list') }}" class="text-muted small mb-1 d-inline-block">
+        ← Back to drafts
+      </a>
+      <h2 class="mb-0">{{ draft.character_name or '(unnamed)' }}</h2>
+      <div class="text-muted small mt-1">
+        Player: <span class="font-monospace">{{ draft.player_discord_id }}</span>
+        {% if draft.submitted_at %}
+          · Submitted {{ draft.submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if draft.status == 'submitted' %}
+        <span class="badge bg-danger fs-6">Awaiting Review</span>
+      {% elif draft.status == 'revision_requested' %}
+        <span class="badge bg-warning text-dark fs-6">Revision Requested</span>
+      {% elif draft.status == 'approved' %}
+        <span class="badge bg-success fs-6">Approved</span>
+        {% if draft.approved_by %}
+          <div class="text-muted small mt-1">by {{ draft.approved_by }}
+            {% if draft.approved_at %}· {{ draft.approved_at.strftime('%Y-%m-%d') }}{% endif %}
+          </div>
+        {% endif %}
+      {% else %}
+        <span class="badge bg-secondary fs-6">{{ draft.status }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Character overview ── #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <div class="text-muted small">Clan</div>
+          <div class="fw-semibold">{{ char_data.get('clan') or '—' }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted small">Age Category</div>
+          <div class="fw-semibold text-capitalize">{{ char_data.get('age_category') or '—' }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted small">XP Budget</div>
+          <div class="fw-semibold">
+            {% set budget = char_data.get('cc_xp_budget', 0) %}
+            {% set inherited = char_data.get('inherited_xp', 0) %}
+            {{ budget }} XP
+            {% if inherited %}<span class="text-muted small">(+{{ inherited }} inherited)</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted small">Predator Type</div>
+          <div>{{ char_data.get('predatorType', {}).get('name') or '—' }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted small">Sire</div>
+          <div>{{ char_data.get('sire') or '—' }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted small">Is SPC</div>
+          <div>{{ 'Yes' if draft.is_spc else 'No' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Ambition / Desire ── #}
+  {% if char_data.get('ambition') or char_data.get('desire') %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Ambition & Desire</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-sm-6">
+          <div class="text-muted small">Ambition</div>
+          <div>{{ char_data.get('ambition') or '—' }}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small">Desire</div>
+          <div>{{ char_data.get('desire') or '—' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Background / description ── #}
+  {% if char_data.get('description') %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Background</div>
+    <div class="card-body">
+      <p class="mb-0" style="white-space: pre-wrap;">{{ char_data.get('description') }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Attributes ── #}
+  {% set attrs = char_data.get('attributes', {}) %}
+  {% if attrs %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Attributes</div>
+    <div class="card-body">
+      <div class="row g-2 small">
+        <div class="col-sm-4">
+          <div class="text-muted mb-1">Physical</div>
+          {% for a in ['strength', 'dexterity', 'stamina'] %}
+            <div class="d-flex justify-content-between"><span class="text-capitalize">{{ a }}</span><span>{{ attrs.get(a, 1) }}</span></div>
+          {% endfor %}
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted mb-1">Social</div>
+          {% for a in ['charisma', 'manipulation', 'composure'] %}
+            <div class="d-flex justify-content-between"><span class="text-capitalize">{{ a }}</span><span>{{ attrs.get(a, 1) }}</span></div>
+          {% endfor %}
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted mb-1">Mental</div>
+          {% for a in ['intelligence', 'wits', 'resolve'] %}
+            <div class="d-flex justify-content-between"><span class="text-capitalize">{{ a }}</span><span>{{ attrs.get(a, 1) }}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Disciplines ── #}
+  {% set disciplines = char_data.get('disciplines', []) %}
+  {% if disciplines %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Disciplines</div>
+    <div class="card-body">
+      <ul class="mb-0 ps-3">
+        {% for power in disciplines %}
+          <li>{{ power.get('name', '?') }} <span class="text-muted small">({{ power.get('discipline', '') }} •{{ power.get('level', '') }})</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Rituals & Ceremonies ── #}
+  {% set rituals = char_data.get('rituals', []) %}
+  {% set ceremonies = char_data.get('ceremonies', []) %}
+  {% if rituals or ceremonies %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Rituals & Ceremonies</div>
+    <div class="card-body">
+      {% if rituals %}
+        <div class="text-muted small mb-1">Rituals</div>
+        <ul class="mb-2 ps-3">
+          {% for r in rituals %}
+            <li>{{ r.get('name', '?') }} <span class="text-muted small">(Level {{ r.get('level', '') }})</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if ceremonies %}
+        <div class="text-muted small mb-1">Ceremonies</div>
+        <ul class="mb-0 ps-3">
+          {% for c in ceremonies %}
+            <li>{{ c.get('name', '?') }} <span class="text-muted small">(Level {{ c.get('level', '') }})</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Merits & Flaws ── #}
+  {% set merits = char_data.get('merits', []) %}
+  {% set flaws = char_data.get('flaws', []) %}
+  {% if merits or flaws %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Merits & Flaws</div>
+    <div class="card-body">
+      <div class="row g-2">
+        {% if merits %}
+        <div class="col-sm-6">
+          <div class="text-muted small mb-1">Merits</div>
+          <ul class="mb-0 ps-3">
+            {% for m in merits %}
+              <li>{{ m.get('name', '?') }} (•{{ m.get('level', '') }})</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        {% if flaws %}
+        <div class="col-sm-6">
+          <div class="text-muted small mb-1">Flaws</div>
+          <ul class="mb-0 ps-3">
+            {% for f in flaws %}
+              <li>{{ f.get('name', '?') }} (•{{ f.get('level', '') }})</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Loresheets ── #}
+  {% set purchases = char_data.get('loresheet_purchases', []) %}
+  {% if purchases %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Loresheet Purchases</div>
+    <div class="card-body">
+      <ul class="mb-0 ps-3">
+        {% for p in purchases %}
+          {% set ls = catalog_by_id.get(p.get('loresheet_id', ''), {}) %}
+          <li>
+            {{ ls.get('name') or p.get('loresheet_id', '?') }}
+            <span class="text-muted small">
+              — Dot {{ p.get('dot', '?') }}
+              ({{ (p.get('dot', 0) * 3) }} XP)
+              {% if ls.get('source_label') %}· {{ ls.get('source_label') }}{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Touchstones ── #}
+  {% set touchstones = char_data.get('touchstones', []) %}
+  {% if touchstones %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Touchstones</div>
+    <div class="card-body">
+      {% for t in touchstones %}
+        <div class="mb-2">
+          <div class="fw-semibold">{{ t.get('name', '?') }}</div>
+          {% if t.get('conviction') %}<div class="text-muted small">Conviction: {{ t.get('conviction') }}</div>{% endif %}
+          {% if t.get('description') %}<div class="small mt-1">{{ t.get('description') }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Submission notes ── #}
+  {% set notes = char_data.get('submission_notes', '') %}
+  {% if notes %}
+  <div class="card mb-3 border-warning">
+    <div class="card-header py-2 fw-semibold text-warning">Notes to Storytellers</div>
+    <div class="card-body">
+      <p class="mb-0" style="white-space: pre-wrap;">{{ notes }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Previous revision notes ── #}
+  {% if draft.revision_notes %}
+  <div class="card mb-3 border-secondary">
+    <div class="card-header py-2 fw-semibold text-muted">Previous Revision Notes</div>
+    <div class="card-body">
+      <p class="mb-0" style="white-space: pre-wrap;">{{ draft.revision_notes }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Actions ── #}
+  {% if draft.status in ('submitted', 'revision_requested') %}
+  <div class="card mb-4">
+    <div class="card-header py-2 fw-semibold">ST Actions</div>
+    <div class="card-body d-flex flex-column gap-3">
+
+      {# Approve #}
+      <form method="post" action="{{ url_for('cc_admin.draft_approve', draft_id=draft.id) }}"
+            onsubmit="return confirm('Approve {{ draft.character_name or 'this character' }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-check-circle me-1"></i> Approve Character
+        </button>
+      </form>
+
+      {# Request revision #}
+      <form method="post" action="{{ url_for('cc_admin.draft_request_revision', draft_id=draft.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-2">
+          <label for="revision_notes" class="form-label small text-muted mb-1">
+            Revision notes for the player
+          </label>
+          <textarea id="revision_notes" name="revision_notes" rows="4"
+                    class="form-control form-control-sm bg-dark text-light border-secondary"
+                    placeholder="Explain what needs to be changed…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-outline-warning btn-sm">
+          <i class="bi bi-arrow-return-left me-1"></i> Request Revision
+        </button>
+      </form>
+
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

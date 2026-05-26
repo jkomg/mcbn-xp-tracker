@@ -70,6 +70,7 @@ export interface WikiSyncOptions {
 export async function runWikiSync(opts: WikiSyncOptions): Promise<{ success: boolean; error?: string }> {
   if (!opts.botToken) return { success: false, error: 'botToken is required' };
   if (!opts.guildId) return { success: false, error: 'guildId is required' };
+  if (!opts.webWriteToken && !opts.dryRun) return { success: false, error: 'WEB_APP_API_WRITE_TOKEN is required for wiki sync — set the token or use --dry-run' };
   try {
     await main(opts);
     return { success: true };
@@ -232,7 +233,6 @@ async function main(opts: WikiSyncOptions) {
 
   console.log(`discord-wiki-sync${DRY_RUN ? ' [DRY RUN]' : ''}`);
   console.log(`Guild: ${GUILD_ID}`);
-  if (!WEB_WRITE_TOKEN) console.log('  [warn] WEB_APP_API_WRITE_TOKEN not set — wiki writes will be skipped.');
 
   const rest = new REST({ version: '10' }).setToken(opts.botToken);
   const wikiClient = new WebWikiClient({

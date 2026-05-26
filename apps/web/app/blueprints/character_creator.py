@@ -36,6 +36,7 @@ def _draft_to_dict(draft):
         'updated_at': draft.updated_at.isoformat() if draft.updated_at else None,
         'submitted_at': draft.submitted_at.isoformat() if draft.submitted_at else None,
         'approved_at': draft.approved_at.isoformat() if draft.approved_at else None,
+        'revision_notes': draft.revision_notes or '',
     }
 
 

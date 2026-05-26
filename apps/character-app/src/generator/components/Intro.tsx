@@ -3,7 +3,6 @@ import { RAW_GOLD, RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { Box, Button, FileButton, ScrollArea, Stack, Text } from "@mantine/core"
 import { useDisclosure } from "@mantine/hooks"
-import { IconBrandGithub } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
 import ReactGA from "react-ga4"
 import { CONTACT_LINKS } from "~/constants/contactLinks"
@@ -86,7 +85,7 @@ const Intro = ({ setCharacter, nextStep, setSelectedStep }: IntroProps) => {
                                             color: rgba(RAW_RED, 1)
                                         }}
                                     >
-                                        Progeny
+                                        Music City by Night
                                     </span>
                                 </Text>
                                 <div
@@ -237,64 +236,27 @@ const Intro = ({ setCharacter, nextStep, setSelectedStep }: IntroProps) => {
                                 }}
                             />
 
-                            <Stack align="center" gap="sm" pb="xl">
-                                <Button
-                                    component="a"
+                            <Text
+                                ta="center"
+                                pb="xl"
+                                style={{
+                                    fontFamily: "Inter, Segoe UI, sans-serif",
+                                    fontSize: "0.78rem",
+                                    color: rgba(RAW_GREY, 0.4),
+                                    letterSpacing: "0.03em",
+                                }}
+                            >
+                                Created by jkomg · Based on{" "}
+                                <a
                                     href={CONTACT_LINKS.github.href}
                                     target="_blank"
                                     rel="noreferrer"
-                                    leftSection={<IconBrandGithub size={16} />}
-                                    size="xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    styles={{
-                                        root: {
-                                            fontFamily: "Inter, Segoe UI, sans-serif",
-                                            letterSpacing: "0.06em",
-                                            color: rgba(RAW_GREY, 0.6)
-                                        }
-                                    }}
+                                    style={{ color: rgba(RAW_GREY, 0.5) }}
                                 >
-                                    View Source Code
-                                </Button>
-                                <Button
-                                    component="a"
-                                    href={CONTACT_LINKS.kofi.href}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    leftSection={<span>☕</span>}
-                                    size="xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    styles={{
-                                        root: {
-                                            fontFamily: "Inter, Segoe UI, sans-serif",
-                                            letterSpacing: "0.06em",
-                                            color: rgba(RAW_GOLD, 0.75)
-                                        }
-                                    }}
-                                >
-                                    Support on Ko-Fi
-                                </Button>
-                                <Button
-                                    component="a"
-                                    href={CONTACT_LINKS.website.href}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    size="xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    styles={{
-                                        root: {
-                                            fontFamily: "Inter, Segoe UI, sans-serif",
-                                            letterSpacing: "0.06em",
-                                            color: rgba(RAW_GREY, 0.45)
-                                        }
-                                    }}
-                                >
-                                    View My Website
-                                </Button>
-                            </Stack>
+                                    Progeny
+                                </a>{" "}
+                                by Odin
+                            </Text>
                         </Stack>
                     </div>
                 </ScrollArea>
