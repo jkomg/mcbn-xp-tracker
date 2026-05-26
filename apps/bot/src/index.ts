@@ -52,6 +52,7 @@ import {
 } from './services/huntConsequenceMonitor';
 import { ConfigSyncWorker } from './services/configSyncWorker';
 import { BotHeartbeatService } from './services/botHeartbeatService';
+import { CubbySyncWorker } from './services/cubbySyncWorker';
 import { liveConfig } from './liveConfig';
 import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
 
@@ -200,6 +201,14 @@ void applyStartupConfigOverrides().then(() => {
     intervalMs: config.wikiSyncIntervalMs,
   });
 
+  const cubbySyncWorker = new CubbySyncWorker(adapter, client, {
+    enabled: config.cubbySyncEnabled,
+    intervalMs: config.cubbySyncIntervalMs,
+    guildId: config.cubbySyncGuildId,
+    staffChannelId: config.cubbySyncStaffChannelId,
+    retiredCategoryId: config.cubbyRetiredCategoryId,
+  });
+
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
   const wikiSyncCapable = Boolean(config.discordGuildId);
   const botHeartbeatService = new BotHeartbeatService(
@@ -245,6 +254,7 @@ void applyStartupConfigOverrides().then(() => {
     passageOfTimeService.start();
     sheetsReconcileService.start();
     wikiSyncScheduler.start();
+    cubbySyncWorker.start();
     characterSubmissionNotifier.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {

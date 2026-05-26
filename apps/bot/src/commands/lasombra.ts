@@ -16,6 +16,7 @@ import type { CommandContext } from '../discord';
 import { config } from '../config';
 import { liveConfig } from '../liveConfig';
 import { buildCubbyChannelMap, getChannelsInCubbyCategories, normalizeChannelName } from '../services/cubbyChannels';
+import { CubbySyncWorker } from '../services/cubbySyncWorker';
 import { errorToMessage, logEvent } from '../logger';
 import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
 import { startEditWizard } from '../editWizard';
@@ -79,6 +80,11 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
           .setAutocomplete(true),
       ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('sync-cubbies')
+      .setDescription('Scan cubby channels, backfill channel IDs, and retire characters whose cubby is gone (staff only)'),
   )
   .addSubcommand((s) =>
     s
@@ -189,6 +195,43 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     });
     const replyMsg = await interaction.fetchReply();
     pendingDeletes.set(replyMsg.id, characterName);
+    return;
+  }
+
+  if (sub === 'sync-cubbies') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const worker = new CubbySyncWorker(ctx.adapter, ctx.client, {
+        enabled: true,
+        intervalMs: config.cubbySyncIntervalMs,
+        guildId: config.cubbySyncGuildId,
+        staffChannelId: config.cubbySyncStaffChannelId,
+        retiredCategoryId: config.cubbyRetiredCategoryId,
+      });
+      const report = await worker.runSync();
+      const lines: string[] = [
+        `**Cubby Sync Complete** — scanned ${report.scannedCharacters} character(s)`,
+      ];
+      if (report.backfilled.length > 0) {
+        lines.push(`\nChannel ID backfilled (${report.backfilled.length}): ${report.backfilled.map((b) => b.name).join(', ')}`);
+      }
+      if (report.retired.length > 0) {
+        lines.push(`\nRetired (${report.retired.length}): ${report.retired.map((r) => `${r.name} (${r.reason})`).join(', ')}`);
+      }
+      if (report.errors.length > 0) {
+        lines.push(`\nErrors (${report.errors.length}): ${report.errors.map((e) => `${e.name}: ${e.error}`).join(', ')}`);
+      }
+      if (report.backfilled.length === 0 && report.retired.length === 0 && report.errors.length === 0) {
+        lines.push('\nNo changes — all cubbies are in order.');
+      }
+      await interaction.editReply({ content: lines.join('\n').slice(0, 2000) });
+    } catch (err) {
+      await interaction.editReply({ content: `Sync failed: ${errorToMessage(err)}` });
+    }
     return;
   }
 

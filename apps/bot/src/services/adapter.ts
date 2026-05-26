@@ -38,6 +38,9 @@ export interface TrackerAdapter {
   getClaimContext(requester: RequesterContext, opts?: { forceRefresh?: boolean }): Promise<ClaimContext>;
   getActiveRoster(): Promise<{ characters: string[] }>;
   getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }>;
+  getActiveRosterWithChannelIds(): Promise<{ characters: Array<{ name: string; ticketChannelId: string | null }> }>;
+  setCharacterStatus(name: string, status: string, requesterName: string): Promise<{ ok: boolean; message: string }>;
+  updateCharacterChannelId(name: string, ticketChannelId: string | null, requesterName: string): Promise<{ ok: boolean; message: string }>;
   getBackgroundStatus(characterName: string, requester: RequesterContext): Promise<BackgroundStatusResponse | null>;
   blankBackground(
     requester: RequesterContext,
@@ -214,6 +217,10 @@ const activeRosterSchema = z.object({
 
 const activeRosterWithIdsSchema = z.object({
   characters: z.array(z.object({ name: z.string(), discordId: z.string().nullable() })),
+});
+
+const activeRosterWithChannelIdsSchema = z.object({
+  characters: z.array(z.object({ name: z.string(), ticketChannelId: z.string().nullable() })),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -439,6 +446,51 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     return activeRosterWithIdsSchema.parse(raw);
+  }
+
+  async getActiveRosterWithChannelIds(): Promise<{ characters: Array<{ name: string; ticketChannelId: string | null }> }> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster?includeChannelIds=1`, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp) throw new Error('Unable to reach web app active-roster API.');
+    if (!resp.ok) throw new Error(`Web app active-roster API failed (${resp.status})`);
+    const raw = await resp.json();
+    return activeRosterWithChannelIdsSchema.parse(raw);
+  }
+
+  async setCharacterStatus(name: string, status: string, requesterName: string): Promise<{ ok: boolean; message: string }> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/character/${encodeURIComponent(name)}/status`,
+      {
+        method: 'PUT',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, requesterDiscordName: requesterName }),
+      },
+    ).catch(() => null);
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (resp.status === 404) return { ok: false, message: `Character "${name}" not found.` };
+    if (!resp.ok) {
+      const preview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
+    }
+    return { ok: true, message: `Character "${name}" status set to "${status}".` };
+  }
+
+  async updateCharacterChannelId(name: string, ticketChannelId: string | null, requesterName: string): Promise<{ ok: boolean; message: string }> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/roster/character/${encodeURIComponent(name)}`,
+      {
+        method: 'PATCH',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_channel_id: ticketChannelId, requesterDiscordName: requesterName }),
+      },
+    ).catch(() => null);
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) {
+      const preview = await resp.text().then((v) => v.slice(0, 160)).catch(() => '');
+      return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
+    }
+    return { ok: true, message: `Channel ID updated for "${name}".` };
   }
 
   async getBackgroundStatus(characterName: string, requester: RequesterContext): Promise<BackgroundStatusResponse | null> {
