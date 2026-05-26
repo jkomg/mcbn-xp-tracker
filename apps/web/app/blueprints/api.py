@@ -335,13 +335,15 @@ def active_roster():
     characters = db_service.get_active_characters()
     characters.sort(key=lambda c: c.character_name.lower())
     if request.args.get('includeChannelIds') == '1':
+        from app.db import DbCharacter
+        rows = DbCharacter.query.filter_by(active=True).order_by(DbCharacter.character_name).all()
         return jsonify({
             'characters': [
                 {
-                    'name': c.character_name,
-                    'ticketChannelId': c.ticket_channel_id or None,
+                    'name': r.character_name,
+                    'ticketChannelId': r.ticket_channel_id or None,
                 }
-                for c in characters
+                for r in rows
             ]
         })
     if request.args.get('includeDiscordIds') == '1':
