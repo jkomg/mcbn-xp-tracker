@@ -751,7 +751,7 @@ def bot_config():
         'BOT_PASSAGE_OF_TIME_ENABLED': 'passageOfTimeEnabled',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
         'BOT_RESTART_REQUESTED': 'restartRequested',
-        'BOT_NOTION_SYNC_REQUESTED': 'notionSyncRequested',
+        'BOT_WIKI_SYNC_REQUESTED': 'wikiSyncRequested',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -832,7 +832,7 @@ def bot_heartbeat_post():
         'claimReminderEnabled': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
         'passageOfTimeEnabled': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'huntConsequenceEnabled': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
-        'notionSyncCapable': 'BOT_LIVE_NOTION_SYNC_CAPABLE',
+        'wikiSyncCapable': 'BOT_LIVE_WIKI_SYNC_CAPABLE',
     }
     body = request.get_json(silent=True) or {}
     for field, db_key in LIVE_FLAG_KEYS.items():
@@ -1127,13 +1127,13 @@ def set_reminder_pref(discord_id):
     return jsonify({'ok': True})
 
 
-@bp.route('/notion-sync-ack', methods=['POST'])
+@bp.route('/wiki-sync-ack', methods=['POST'])
 @require_bot_scope('write')
 @_limit('30 per minute')
-def notion_sync_ack():
-    """Bot calls this to report Notion sync status."""
+def wiki_sync_ack():
+    """Bot calls this to report Wiki sync status."""
     from datetime import datetime, timezone
-    from app.db import AppSetting, NotionSyncEvent, db
+    from app.db import AppSetting, WikiSyncEvent, db
     data = request.get_json(silent=True) or {}
     status = data.get('status')
     if status not in ('running', 'success', 'error'):
@@ -1162,37 +1162,37 @@ def notion_sync_ack():
 
     if status == 'running':
         if source == 'manual':
-            delete_key('BOT_NOTION_SYNC_REQUESTED')
-        upsert('BOT_NOTION_SYNC_STATUS', 'running')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
+            delete_key('BOT_WIKI_SYNC_REQUESTED')
+        upsert('BOT_WIKI_SYNC_STATUS', 'running')
+        upsert('BOT_WIKI_SYNC_SOURCE', source)
         if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+            upsert('BOT_WIKI_SYNC_RUN_ID', run_id)
         else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_STARTED_AT', now)
-        delete_key('BOT_NOTION_SYNC_FINISHED_AT')
-        delete_key('BOT_NOTION_SYNC_ERROR')
+            delete_key('BOT_WIKI_SYNC_RUN_ID')
+        upsert('BOT_WIKI_SYNC_STARTED_AT', now)
+        delete_key('BOT_WIKI_SYNC_FINISHED_AT')
+        delete_key('BOT_WIKI_SYNC_ERROR')
     elif status == 'success':
-        upsert('BOT_NOTION_SYNC_STATUS', 'success')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
+        upsert('BOT_WIKI_SYNC_STATUS', 'success')
+        upsert('BOT_WIKI_SYNC_SOURCE', source)
         if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+            upsert('BOT_WIKI_SYNC_RUN_ID', run_id)
         else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
-        delete_key('BOT_NOTION_SYNC_ERROR')
+            delete_key('BOT_WIKI_SYNC_RUN_ID')
+        upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
+        delete_key('BOT_WIKI_SYNC_ERROR')
     else:
-        upsert('BOT_NOTION_SYNC_STATUS', 'error')
-        upsert('BOT_NOTION_SYNC_SOURCE', source)
+        upsert('BOT_WIKI_SYNC_STATUS', 'error')
+        upsert('BOT_WIKI_SYNC_SOURCE', source)
         if run_id:
-            upsert('BOT_NOTION_SYNC_RUN_ID', run_id)
+            upsert('BOT_WIKI_SYNC_RUN_ID', run_id)
         else:
-            delete_key('BOT_NOTION_SYNC_RUN_ID')
-        upsert('BOT_NOTION_SYNC_FINISHED_AT', now)
-        upsert('BOT_NOTION_SYNC_ERROR', data.get('error', 'unknown error'))
+            delete_key('BOT_WIKI_SYNC_RUN_ID')
+        upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
+        upsert('BOT_WIKI_SYNC_ERROR', data.get('error', 'unknown error'))
 
     db.session.add(
-        NotionSyncEvent(
+        WikiSyncEvent(
             ts=now,
             run_id=run_id,
             source=source,
@@ -1205,14 +1205,14 @@ def notion_sync_ack():
 
     # Keep a bounded sync history to avoid unbounded growth.
     cutoff_query = (
-        db.session.query(NotionSyncEvent.id)
-        .order_by(NotionSyncEvent.created_at.desc())
+        db.session.query(WikiSyncEvent.id)
+        .order_by(WikiSyncEvent.created_at.desc())
         .offset(500)
         .limit(1)
         .scalar()
     )
     if cutoff_query:
-        db.session.query(NotionSyncEvent).filter(NotionSyncEvent.id <= cutoff_query).delete()
+        db.session.query(WikiSyncEvent).filter(WikiSyncEvent.id <= cutoff_query).delete()
         db.session.commit()
 
     return jsonify({'ok': True})
@@ -1258,7 +1258,7 @@ def bot_log():
 @require_bot_scope('write')
 @_limit('120 per minute')
 def upsert_wiki_page():
-    """Create or update a wiki page (used by the Notion/Discord sync script)."""
+    """Create or update a wiki page (used by the Discord→Wiki sync script)."""
     from datetime import datetime, timezone
     from app.db import db, WikiPage
     data = request.get_json(silent=True) or {}

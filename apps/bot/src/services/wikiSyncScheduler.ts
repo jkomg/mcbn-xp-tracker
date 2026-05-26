@@ -11,7 +11,7 @@ import { errorToMessage, logEvent } from '../logger';
 import { config } from '../config';
 import { randomUUID } from 'node:crypto';
 import type { TrackerAdapter } from './adapter';
-import { runNotionSync } from '../scripts/discord-notion-sync';
+import { runWikiSync } from '../scripts/discord-wiki-sync';
 import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
 
 type WikiSyncConfig = {
@@ -129,33 +129,29 @@ export class WikiSyncScheduler {
         return;
       }
       try {
-        await this.adapter.ackNotionSync('running', undefined, 'scheduled', runId);
+        await this.adapter.ackWikiSync('running', undefined, 'scheduled', runId);
       } catch (ackErr) {
         logEvent('warn', 'wiki_sync_ack_running_failed', { error: errorToMessage(ackErr) });
       }
 
-      const result = await runNotionSync({
+      const result = await runWikiSync({
         botToken: config.botToken,
         guildId: config.discordGuildId,
-        // Nightly scheduler defaults to wiki-only refresh to avoid repeated
-        // Notion archival imports; manual runs keep full Notion+Wiki behavior.
-        notionToken: '',
         webBase: config.webAppBaseUrl,
         webReadToken: config.webAppApiReadToken ?? config.webAppApiToken,
         webWriteToken: config.webAppApiWriteToken ?? config.webAppApiToken,
-        msgLimit: config.notionSyncMsgLimit,
       });
 
       if (result.success) {
         logEvent('info', 'wiki_sync_scheduled_complete', { dateKey: parts.dateKey });
-        try { await this.adapter.ackNotionSync('success', undefined, 'scheduled', runId); } catch { /* ignore */ }
+        try { await this.adapter.ackWikiSync('success', undefined, 'scheduled', runId); } catch { /* ignore */ }
       } else {
         logEvent('warn', 'wiki_sync_scheduled_failed', { dateKey: parts.dateKey, error: result.error });
-        try { await this.adapter.ackNotionSync('error', result.error, 'scheduled', runId); } catch { /* ignore */ }
+        try { await this.adapter.ackWikiSync('error', result.error, 'scheduled', runId); } catch { /* ignore */ }
       }
     } catch (error) {
       logEvent('warn', 'wiki_sync_scheduler_error', { error: errorToMessage(error) });
-      try { await this.adapter.ackNotionSync('error', String(error), 'scheduled', runId); } catch { /* ignore */ }
+      try { await this.adapter.ackWikiSync('error', String(error), 'scheduled', runId); } catch { /* ignore */ }
     } finally {
       lease?.release();
       this.running = false;

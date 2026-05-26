@@ -25,7 +25,7 @@ export interface BotConfigResponse {
   passageOfTimeEnabled: boolean | null;
   huntConsequenceEnabled: boolean | null;
   restartRequested: boolean | null;
-  notionSyncRequested: boolean | null;
+  wikiSyncRequested: boolean | null;
   passageOfTimeIntervalMs: number | null;
   reviewNotifierIntervalMs: number | null;
   submissionNotifierIntervalMs: number | null;
@@ -73,7 +73,7 @@ export interface TrackerAdapter {
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
   getBotConfig(): Promise<BotConfigResponse>;
   ackBotRestart(): Promise<void>;
-  ackNotionSync(
+  ackWikiSync(
     status: 'running' | 'success' | 'error',
     error?: string,
     source?: 'manual' | 'scheduled',
@@ -783,19 +783,19 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!res.ok) throw new Error(`bot-restart-ack POST failed: ${res.status}`);
   }
 
-  async ackNotionSync(
+  async ackWikiSync(
     status: 'running' | 'success' | 'error',
     error?: string,
     source: 'manual' | 'scheduled' = 'manual',
     runId?: string,
   ): Promise<void> {
-    const url = `${this.baseUrl}/api/notion-sync-ack`;
+    const url = `${this.baseUrl}/api/wiki-sync-ack`;
     const res = await this.fetchWithTimeout(url, {
       method: 'POST',
       headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, source, ...(runId ? { runId } : {}), ...(error ? { error } : {}) }),
     });
-    if (!res.ok) throw new Error(`notion-sync-ack POST failed: ${res.status}`);
+    if (!res.ok) throw new Error(`wiki-sync-ack POST failed: ${res.status}`);
   }
 
   async postBotLog(entries: Array<Record<string, unknown>>): Promise<void> {

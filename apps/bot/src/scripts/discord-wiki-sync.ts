@@ -1,46 +1,38 @@
 /**
- * discord-notion-sync.ts
+ * discord-wiki-sync.ts
  *
- * One-time script: reads Discord channels → populates the Nashville by Night Notion page.
+ * Reads Discord channels → populates the Chronicle Wiki via the web API.
  *
  * Usage (from apps/bot/):
- *   npx tsx src/scripts/discord-notion-sync.ts
- *   npx tsx src/scripts/discord-notion-sync.ts --dry-run
- *   npx tsx src/scripts/discord-notion-sync.ts --notion-only
- *   npx tsx src/scripts/discord-notion-sync.ts --wiki-only
+ *   npx tsx src/scripts/discord-wiki-sync.ts
+ *   npx tsx src/scripts/discord-wiki-sync.ts --dry-run
  *
  * Required env vars (in apps/bot/.env):
  *   BOT_TOKEN          Discord bot token
  *   DISCORD_GUILD_ID   Target server ID (falls back to TEST_GUILD_ID)
- *   NOTION_TOKEN       Notion integration token (required unless using --wiki-only)
  *
  * Optional env vars:
- *   WEB_APP_BASE_URL          Web app URL for active-roster API (default: http://127.0.0.1:5001)
+ *   WEB_APP_BASE_URL          Web app URL (default: http://127.0.0.1:5001)
  *   WEB_APP_API_READ_TOKEN    Read token for web API (falls back to WEB_APP_API_TOKEN)
  *   WEB_APP_API_TOKEN         Legacy all-in-one token
- *   NOTION_SYNC_MSG_LIMIT     Max messages per text channel / posts per forum (default: 200)
+ *   WEB_APP_API_WRITE_TOKEN   Write token for Chronicle Wiki upsert API
  *
- * What gets populated:
- *   PC Tracker       — one entry per active character (name + player Discord handle)
- *   SPC Tracker      — one entry per post/message in #spc-profiles
- *                      (forum: thread name = SPC name; text: first line = SPC name)
- *   Location DB      — one entry per City of Nashville channel
- *   Hunting Sites    — one entry per pinned message in City of Nashville channels
- *   Session & Post Log
- *     text channels  — one archive entry per channel, all messages as page body
- *     forum channels — one entry per thread/post (title = thread name)
- *
- * Note: #backgrounds and #children-of-the-night are forum channels — each forum
- * post becomes its own Session & Post Log entry.
- *
- * The Notion integration must be invited to the Nashville by Night workspace page:
- *   https://www.notion.so/3013a3e5cab1802fb607d565362b9502
+ * What gets synced to the Chronicle Wiki:
+ *   PC Tracker       — one page per active character (name, clan, sect, player, coterie, profile)
+ *   SPC Tracker      — one page per post/thread in #spc-profiles
+ *   Location DB      — one page per City of Nashville channel
+ *   Hunting Sites    — pins from City of Nashville channels merged into location pages
+ *   Coteries         — one page per coterie with member links
+ *   Factions         — one page per faction with member + lore links
+ *   Retired chars    — one page per #retired forum thread, status set to retired
+ *   Session & Post Log (lore channels):
+ *     text channels  — one archive page per channel
+ *     forum channels — one page per thread/post
  */
 
 import path from 'node:path';
 import * as dotenv from 'dotenv';
 import { REST, Routes } from 'discord.js';
-import { Client as NotionClient } from '@notionhq/client';
 import {
   type DiscordChannel,
   type DiscordMessage,
@@ -51,19 +43,6 @@ import {
   fetchPins,
 } from './notionSync/discordIngest';
 import {
-  appendBodyBlocks,
-  cleanupPreImportEntries,
-  notionCall,
-  SOURCE_TAG,
-} from './notionSync/notionWrites';
-import {
-  buildHuntingSiteCreatePayload,
-  buildLocationCreatePayload,
-  buildPcTrackerCreatePayload,
-  buildSessionLogCreatePayload,
-  buildSpcCreatePayload,
-} from './notionSync/notionPayloadBuilders';
-import {
   CHAR_TO_COTERIE,
   COTERIE_MEMBERS,
   FACTIONS,
@@ -73,32 +52,22 @@ import {
   wikiSlug,
 } from './notionSync/wikiSyncHelpers';
 import { WebWikiClient } from './notionSync/webWikiClient';
-import { resolveSyncTargets } from './notionSync/syncTargets';
 
 // ---------------------------------------------------------------------------
 // Public API — call this from the bot process or from the CLI
 // ---------------------------------------------------------------------------
 
-export interface NotionSyncOptions {
+export interface WikiSyncOptions {
   botToken: string;
   guildId: string;
-  /** Notion integration token. Required only when notion target is enabled. */
-  notionToken?: string;
   webBase?: string;
   webReadToken?: string;
   /** Write token for Chronicle Wiki upsert API (WEB_APP_API_WRITE_TOKEN). */
   webWriteToken?: string;
-  /** Explicitly enable/disable Notion target. Defaults to true. */
-  syncToNotion?: boolean;
-  /** Explicitly enable/disable Wiki target. Defaults to true. */
-  syncToWiki?: boolean;
-  msgLimit?: number;
   dryRun?: boolean;
-  /** If true, archive all Notion pages that were NOT created by this sync before importing. */
-  cleanup?: boolean;
 }
 
-export async function runNotionSync(opts: NotionSyncOptions): Promise<{ success: boolean; error?: string }> {
+export async function runWikiSync(opts: WikiSyncOptions): Promise<{ success: boolean; error?: string }> {
   if (!opts.botToken) return { success: false, error: 'botToken is required' };
   if (!opts.guildId) return { success: false, error: 'guildId is required' };
   try {
@@ -109,15 +78,6 @@ export async function runNotionSync(opts: NotionSyncOptions): Promise<{ success:
   }
 }
 
-// Notion database IDs from Nashville by Night page (3013a3e5cab1802fb607d565362b9502)
-const NOTION_DB = {
-  PC_TRACKER:    '251eff53bb584672b99b7a4bea041835',
-  SPC_TRACKER:   '0eeff60c0c624f6d8a2d9f0729f938ce',
-  LOCATION_DB:   'af645074f95d484f991613986753aac1',
-  HUNTING_SITES: 'dafacdfdc5354d8bb468dc8f8ccf4c17',
-  SESSION_LOG:   'a85037ea366349469b230573fa19c5d5',
-};
-
 // Lore channels whose content goes into Session & Post Log.
 // Text channels → one archive entry.  Forum channels → one entry per post/thread.
 const LORE_CHANNEL_NAMES = [
@@ -127,18 +87,18 @@ const LORE_CHANNEL_NAMES = [
   'camarilla-decrees',
   'anarch-mandates',
   'hecata-notices',
-  'backgrounds',          // forum
-  'children-of-the-night', // forum
-  'retired',               // forum — processed as retired character wiki pages
+  'backgrounds',            // forum
+  'children-of-the-night',  // forum
+  'retired',                // forum — processed as retired character wiki pages
   'spc-profiles',
 ];
 
 const CITY_CATEGORY_NAME = 'city of nashville';
 
 // Discord channel type constants
-const CH_TEXT  = 0;
+const CH_TEXT     = 0;
 const CH_CATEGORY = 4;
-const CH_FORUM = 15;
+const CH_FORUM    = 15;
 
 // ---------------------------------------------------------------------------
 // CLI entry point
@@ -146,28 +106,17 @@ const CH_FORUM = 15;
 
 if (require.main === module) {
   dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-  const notionOnly = process.argv.includes('--notion-only');
-  const wikiOnly = process.argv.includes('--wiki-only');
-  if (notionOnly && wikiOnly) {
-    console.error('Choose only one target flag: --notion-only or --wiki-only.');
-    process.exit(1);
-  }
-  const cliOpts: NotionSyncOptions = {
+  const cliOpts: WikiSyncOptions = {
     botToken: process.env.BOT_TOKEN ?? '',
     guildId: process.env.DISCORD_GUILD_ID ?? process.env.TEST_GUILD_ID ?? '',
-    notionToken: process.env.NOTION_TOKEN ?? '',
     webBase: process.env.WEB_APP_BASE_URL,
     webReadToken: process.env.WEB_APP_API_READ_TOKEN ?? process.env.WEB_APP_API_TOKEN,
     webWriteToken: process.env.WEB_APP_API_WRITE_TOKEN,
-    msgLimit: Number.parseInt(process.env.NOTION_SYNC_MSG_LIMIT ?? '200', 10),
     dryRun: process.argv.includes('--dry-run'),
-    cleanup: process.argv.includes('--cleanup'),
-    syncToNotion: notionOnly ? true : (wikiOnly ? false : undefined),
-    syncToWiki: wikiOnly ? true : (notionOnly ? false : undefined),
   };
   if (!cliOpts.botToken) { console.error('BOT_TOKEN is required'); process.exit(1); }
   if (!cliOpts.guildId) { console.error('DISCORD_GUILD_ID (or TEST_GUILD_ID) is required'); process.exit(1); }
-  runNotionSync(cliOpts).then((result) => {
+  runWikiSync(cliOpts).then((result) => {
     if (!result.success) { console.error('Sync failed:', result.error); process.exit(1); }
   }).catch((err) => { console.error('Fatal:', err); process.exit(1); });
 }
@@ -188,49 +137,11 @@ function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function textToBlocks(text: string): object[] {
-  const blocks: object[] = [];
-  let current = '';
-  for (const line of text.split('\n')) {
-    const candidate = current ? `${current}\n${line}` : line;
-    if (candidate.length > 1800) {
-      if (current) {
-        blocks.push(paragraphBlock(current));
-        current = line.slice(0, 1800);
-      } else {
-        blocks.push(paragraphBlock(line.slice(0, 1800)));
-        current = '';
-      }
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) blocks.push(paragraphBlock(current));
-  return blocks;
-}
-
-function paragraphBlock(content: string): object {
-  return {
-    object: 'block',
-    type: 'paragraph',
-    paragraph: { rich_text: [{ type: 'text', text: { content } }] },
-  };
-}
-
-function heading3Block(content: string): object {
-  return {
-    object: 'block',
-    type: 'heading_3',
-    heading_3: { rich_text: [{ type: 'text', text: { content } }] },
-  };
-}
-
 interface PcProfile { image: string | null; markdown: string; }
 
 /**
  * Build a map of normalised character name → { image, markdown } by scanning
  * forum threads in the PC background channel (children-of-the-night).
- * Each thread is one PC's profile post.
  */
 async function buildPcProfileMap(
   rest: REST,
@@ -307,103 +218,28 @@ function firstImage(messages: DiscordMessage[]): string | null {
   return null;
 }
 
-function imageBlock(url: string): object {
-  return {
-    object: 'block',
-    type: 'image',
-    image: { type: 'external', external: { url } },
-  };
-}
-
-/** Build body blocks for a list of messages with author/date headers. */
-function messagesToBlocks(messages: DiscordMessage[]): object[] {
-  const blocks: object[] = [];
-  for (const msg of messages) {
-    const images = (msg.attachments ?? []).filter(
-      (a) => a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename),
-    );
-    if (!msg.content.trim() && !images.length) continue;
-    const author = msg.author.global_name ?? msg.author.username;
-    blocks.push(heading3Block(`${author} · ${msg.timestamp.slice(0, 10)}`));
-    if (msg.content.trim()) blocks.push(...textToBlocks(msg.content));
-    for (const img of images) blocks.push(imageBlock(img.url));
-    blocks.push({ object: 'block', type: 'divider', divider: {} });
-  }
-  return blocks;
-}
-
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-async function main(opts: NotionSyncOptions) {
+async function main(opts: WikiSyncOptions) {
   const GUILD_ID = opts.guildId;
-  const MSG_LIMIT = opts.msgLimit ?? 200;
+  const MSG_LIMIT = 200;
   const DRY_RUN = opts.dryRun ?? false;
-  const CLEANUP = opts.cleanup ?? false;
   const WEB_BASE = (opts.webBase ?? 'http://127.0.0.1:5001').replace(/\/+$/, '');
   const WEB_READ_TOKEN = opts.webReadToken ?? '';
   const WEB_WRITE_TOKEN = opts.webWriteToken ?? '';
-  const syncTargets = resolveSyncTargets({
-    notionToken: opts.notionToken,
-    webWriteToken: WEB_WRITE_TOKEN,
-    syncToNotion: opts.syncToNotion,
-    syncToWiki: opts.syncToWiki,
-  });
 
-  const flags = [DRY_RUN && 'DRY RUN', CLEANUP && 'CLEANUP'].filter(Boolean).join(' + ');
-  console.log(`discord-notion-sync${flags ? ` [${flags}]` : ''}`);
-  console.log(`Guild: ${GUILD_ID} | Limit: ${MSG_LIMIT} messages/posts per source`);
-  for (const warning of syncTargets.warnings) console.log(`  [warn] ${warning}`);
+  console.log(`discord-wiki-sync${DRY_RUN ? ' [DRY RUN]' : ''}`);
+  console.log(`Guild: ${GUILD_ID}`);
+  if (!WEB_WRITE_TOKEN) console.log('  [warn] WEB_APP_API_WRITE_TOKEN not set — wiki writes will be skipped.');
 
-  if (syncTargets.notionEnabled) {
-    console.log('  Notion target enabled — pages will be written to configured Notion databases.');
-  } else {
-    console.log('  Notion target disabled.');
-  }
-  if (syncTargets.wikiEnabled) {
-    console.log('  Wiki target enabled — pages will be upserted to Chronicle Wiki.');
-  } else {
-    console.log('  Wiki target disabled.');
-  }
-  if (!syncTargets.notionEnabled && !syncTargets.wikiEnabled) {
-    throw new Error('No sync targets enabled. Provide required tokens or choose at least one target.');
-  }
-
-  const NOTION_ENABLED = syncTargets.notionEnabled;
-  const WIKI_ENABLED = syncTargets.wikiEnabled;
   const rest = new REST({ version: '10' }).setToken(opts.botToken);
-  const notion = NOTION_ENABLED ? new NotionClient({ auth: opts.notionToken!, timeoutMs: 120_000 }) : null;
   const wikiClient = new WebWikiClient({
     webBase: WEB_BASE,
-    writeToken: WIKI_ENABLED ? WEB_WRITE_TOKEN : '',
+    writeToken: WEB_WRITE_TOKEN,
     dryRun: DRY_RUN,
   });
-
-  // ------------------------------------------------------------------
-  // 0. Ensure Source property exists on all databases
-  // ------------------------------------------------------------------
-  if (!DRY_RUN && NOTION_ENABLED) {
-    console.log('\n[0/7] Ensuring Source property exists on all databases…');
-    for (const [dbName, dbId] of Object.entries(NOTION_DB)) {
-      await notionCall(() =>
-        notion!.databases.update({
-          database_id: dbId,
-          properties: {
-            'Source': { select: {} },
-          },
-        }),
-      );
-      console.log(`  ✓ ${dbName}`);
-    }
-  }
-
-  if (CLEANUP && NOTION_ENABLED) {
-    await cleanupPreImportEntries(notion!, {
-      databaseIds: NOTION_DB,
-      dryRun: DRY_RUN,
-    });
-  }
 
   // ------------------------------------------------------------------
   // 1. Fetch guild channel list
@@ -423,7 +259,6 @@ async function main(opts: NotionSyncOptions) {
   console.log(`  City of Nashville: ${cityCategory?.name ?? 'NOT FOUND'}`);
   console.log(`  Location channels: ${cityChannels.map((c) => c.name).join(', ') || 'none'}`);
 
-  // Log detected types for lore channels
   for (const name of LORE_CHANNEL_NAMES) {
     const ch = channelByName.get(name);
     const kind = ch ? (ch.type === CH_FORUM ? 'forum' : 'text') : 'NOT FOUND';
@@ -447,21 +282,9 @@ async function main(opts: NotionSyncOptions) {
     for (const ch of cityChannels) {
       const locationName = toTitleCase(ch.name);
       console.log(`  → ${locationName}`);
-      if (!DRY_RUN) {
-        if (NOTION_ENABLED) {
-          await notionCall(() =>
-            notion!.pages.create(buildLocationCreatePayload({
-              databaseId: NOTION_DB.LOCATION_DB,
-              locationName,
-              sourceTag: SOURCE_TAG,
-              atmosphereNotes: ch.topic ? truncate(ch.topic, 2000) : undefined,
-            })),
-          );
-        }
-        // Wiki upsert deferred to step 4 so hunting site pins can be included.
-      }
+      // Wiki upsert deferred to step 4 so hunting site pins can be included.
     }
-    console.log(`  Created ${cityChannels.length} location entries.`);
+    console.log(`  Found ${cityChannels.length} location channels.`);
   }
 
   // ------------------------------------------------------------------
@@ -484,39 +307,25 @@ async function main(opts: NotionSyncOptions) {
       const firstLine = pin.content.trim().split('\n')[0]
         .replace(/^\*+|\*+$/g, '').replace(/^#+\s*/, '').trim();
       const siteName = truncate(firstLine || `Pin by ${pin.author.username}`, 200);
-      const domain = mapDomain(locationName);
       console.log(`    → ${siteName}`);
-      if (!DRY_RUN && NOTION_ENABLED) {
-        await notionCall(() =>
-          notion!.pages.create(buildHuntingSiteCreatePayload({
-            databaseId: NOTION_DB.HUNTING_SITES,
-            siteName,
-            description: truncate(pin.content, 2000),
-            sourceTag: SOURCE_TAG,
-            domain: domain ?? undefined,
-          })),
-        );
-      }
       pinSections.push(`### ${siteName}\n\n${pin.content.trim()}`);
       huntingTotal++;
     }
 
     // Wiki upsert: topic as intro, pins as Hunting Sites section
-    if (WIKI_ENABLED) {
-      const bodyParts = [
-        ch.topic ?? '',
-        pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
-      ].filter(Boolean);
-      await wikiClient.upsertPage({
-        slug: wikiSlug('locations', locationName),
-        title: locationName,
-        category: 'locations',
-        body_markdown: bodyParts.join('\n\n---\n\n'),
-        published: true,
-      });
-    }
+    const bodyParts = [
+      ch.topic ?? '',
+      pinSections.length ? `## Hunting Sites\n\n${pinSections.join('\n\n---\n\n')}` : '',
+    ].filter(Boolean);
+    await wikiClient.upsertPage({
+      slug: wikiSlug('locations', locationName),
+      title: locationName,
+      category: 'locations',
+      body_markdown: bodyParts.join('\n\n---\n\n'),
+      published: true,
+    });
   }
-  console.log(`  Created ${huntingTotal} hunting site entries.`);
+  console.log(`  Processed ${huntingTotal} hunting site entries.`);
 
   // ------------------------------------------------------------------
   // 5. SPC Tracker (#spc-profiles — text or forum)
@@ -526,7 +335,6 @@ async function main(opts: NotionSyncOptions) {
   if (!spcChannel) {
     console.log('  #spc-profiles not found — skipping.');
   } else if (spcChannel.type === CH_FORUM) {
-    // Forum: each thread = one SPC (thread name = SPC name)
     console.log('  Detected as forum channel — reading threads.');
     const threads = await fetchForumThreads(rest, GUILD_ID, spcChannel.id);
     console.log(`  Threads found: ${threads.length}`);
@@ -537,40 +345,21 @@ async function main(opts: NotionSyncOptions) {
       if (!DRY_RUN) {
         const messages = await fetchAllMessages(rest, thread.id, 50);
         await sleep(200);
-        const bodyContent = messages.map((m) => m.content).filter(Boolean).join('\n\n');
-        const spcType = inferSpcType(thread.name);
         const cover = firstImage(messages);
-        if (NOTION_ENABLED) {
-          const page = await notionCall(() =>
-            notion!.pages.create(buildSpcCreatePayload({
-              databaseId: NOTION_DB.SPC_TRACKER,
-              name,
-              sourceTag: SOURCE_TAG,
-              relationshipNotes: truncate(bodyContent, 2000),
-              spcType,
-              coverUrl: cover ?? undefined,
-            })),
-          );
-          await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
-        }
-        if (WIKI_ENABLED) {
-          // Upsert under the new spcs category and delete any old char- slug.
-          await wikiClient.upsertPage({
-            slug: wikiSlug('spcs', name),
-            title: name,
-            category: 'spcs',
-            body_markdown: messagesToMarkdown(messages),
-            cover_image_url: cover ?? undefined,
-            published: true,
-          });
-          await wikiClient.deletePage(wikiSlug('characters', name));
-        }
+        await wikiClient.upsertPage({
+          slug: wikiSlug('spcs', name),
+          title: name,
+          category: 'spcs',
+          body_markdown: messagesToMarkdown(messages),
+          cover_image_url: cover ?? undefined,
+          published: true,
+        });
+        await wikiClient.deletePage(wikiSlug('characters', name));
       }
       count++;
     }
     console.log(`  Created ${count} SPC entries.`);
   } else {
-    // Text channel: each message = one SPC (first line = name)
     const messages = await fetchAllMessages(rest, spcChannel.id, MSG_LIMIT);
     console.log(`  Messages: ${messages.length}`);
     let count = 0;
@@ -579,32 +368,16 @@ async function main(opts: NotionSyncOptions) {
       const firstLine = msg.content.trim().split('\n')[0]
         .replace(/^\*+|\*+$/g, '').replace(/^#+\s*/, '').trim();
       const name = truncate(firstLine || `SPC by ${msg.author.username}`, 200);
-      const spcType = inferSpcType(msg.content.split('\n')[0]);
       console.log(`  → ${name}`);
       if (!DRY_RUN) {
-        if (NOTION_ENABLED) {
-          const page = await notionCall(() =>
-            notion!.pages.create(buildSpcCreatePayload({
-              databaseId: NOTION_DB.SPC_TRACKER,
-              name,
-              sourceTag: SOURCE_TAG,
-              relationshipNotes: truncate(msg.content, 2000),
-              spcType,
-            })),
-          );
-          await appendBodyBlocks(notion!, page.id, textToBlocks(msg.content));
-        }
-        if (WIKI_ENABLED) {
-          // Upsert under the new spcs category and delete any old char- slug.
-          await wikiClient.upsertPage({
-            slug: wikiSlug('spcs', name),
-            title: name,
-            category: 'spcs',
-            body_markdown: msg.content.trim(),
-            published: true,
-          });
-          await wikiClient.deletePage(wikiSlug('characters', name));
-        }
+        await wikiClient.upsertPage({
+          slug: wikiSlug('spcs', name),
+          title: name,
+          category: 'spcs',
+          body_markdown: msg.content.trim(),
+          published: true,
+        });
+        await wikiClient.deletePage(wikiSlug('characters', name));
       }
       count++;
     }
@@ -615,12 +388,8 @@ async function main(opts: NotionSyncOptions) {
   // 5.5 Build PC profile map from #children-of-the-night forum
   // ------------------------------------------------------------------
   console.log('\n[5.5/7] Building PC profile map from #children-of-the-night…');
-  const pcProfileMap = WIKI_ENABLED ? await buildPcProfileMap(rest, GUILD_ID, channelByName) : new Map();
-  if (!WIKI_ENABLED) {
-    console.log('  Wiki target disabled — skipping profile map build.');
-  } else {
-    console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
-  }
+  const pcProfileMap = await buildPcProfileMap(rest, GUILD_ID, channelByName);
+  console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
 
   // ------------------------------------------------------------------
   // 5.6 Remove stale lore pages created from #children-of-the-night
@@ -629,14 +398,10 @@ async function main(opts: NotionSyncOptions) {
   // ------------------------------------------------------------------
   console.log('\n[5.6/7] Removing stale PC lore pages…');
   let deletedCount = 0;
-  if (WIKI_ENABLED) {
-    for (const threadName of pcProfileMap.keys()) {
-      const slug = wikiSlug('lore', threadName);
-      await wikiClient.deletePage(slug);
-      deletedCount++;
-    }
-  } else {
-    console.log('  Wiki target disabled — skipping stale page cleanup.');
+  for (const threadName of pcProfileMap.keys()) {
+    const slug = wikiSlug('lore', threadName);
+    await wikiClient.deletePage(slug);
+    deletedCount++;
   }
   console.log(`  Processed ${deletedCount} potential stale page(s).`);
 
@@ -663,40 +428,25 @@ async function main(opts: NotionSyncOptions) {
       const coterie = CHAR_TO_COTERIE.get(name.toLowerCase()) ?? null;
       console.log(`  → ${name}${playerName ? ` (${playerName})` : ''}${coterie ? ` [${coterie}]` : ''}`);
       if (!DRY_RUN) {
-        if (NOTION_ENABLED) {
-          await notionCall(() =>
-            notion!.pages.create(buildPcTrackerCreatePayload({
-              databaseId: NOTION_DB.PC_TRACKER,
-              name,
-              sourceTag: SOURCE_TAG,
-              playerName,
-              clan,
-              sect,
-              coterie,
-            })),
-          );
-        }
-        if (WIKI_ENABLED) {
-          const pcProfile = lookupPcProfile(pcProfileMap, name);
-          const metaParts = [
-            clan && `**Clan:** ${clan}`,
-            sect && `**Sect:** ${sect}`,
-            coterie && `**Coterie:** ${coterie}`,
-            playerName && `**Player:** ${playerName}`,
-          ].filter(Boolean) as string[];
-          const bodyMarkdown = [
-            metaParts.join('\n\n'),
-            pcProfile?.markdown,
-          ].filter(Boolean).join('\n\n---\n\n');
-          await wikiClient.upsertPage({
-            slug: wikiSlug('characters', name),
-            title: name,
-            category: 'characters',
-            body_markdown: bodyMarkdown,
-            cover_image_url: pcProfile?.image ?? undefined,
-            published: true,
-          });
-        }
+        const pcProfile = lookupPcProfile(pcProfileMap, name);
+        const metaParts = [
+          clan && `**Clan:** ${clan}`,
+          sect && `**Sect:** ${sect}`,
+          coterie && `**Coterie:** ${coterie}`,
+          playerName && `**Player:** ${playerName}`,
+        ].filter(Boolean) as string[];
+        const bodyMarkdown = [
+          metaParts.join('\n\n'),
+          pcProfile?.markdown,
+        ].filter(Boolean).join('\n\n---\n\n');
+        await wikiClient.upsertPage({
+          slug: wikiSlug('characters', name),
+          title: name,
+          category: 'characters',
+          body_markdown: bodyMarkdown,
+          cover_image_url: pcProfile?.image ?? undefined,
+          published: true,
+        });
       }
     }
     console.log(`  Created ${activeRoster.length} PC entries.`);
@@ -707,22 +457,18 @@ async function main(opts: NotionSyncOptions) {
   // ------------------------------------------------------------------
   console.log('\n[6.5/7] Populating Coteries wiki pages…');
   let coterieCreatedCount = 0;
-  if (!WIKI_ENABLED) {
-    console.log('  Wiki target disabled — skipping coteries pages.');
-  } else {
-    for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
-      const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
-      const body = `## Members\n\n${memberList}`;
-      console.log(`  → ${coterieName} (${members.length} members)`);
-      await wikiClient.upsertPage({
-        slug: wikiSlug('coteries', coterieName),
-        title: coterieName,
-        category: 'coteries',
-        body_markdown: body,
-        published: true,
-      });
-      coterieCreatedCount++;
-    }
+  for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
+    const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
+    const body = `## Members\n\n${memberList}`;
+    console.log(`  → ${coterieName} (${members.length} members)`);
+    await wikiClient.upsertPage({
+      slug: wikiSlug('coteries', coterieName),
+      title: coterieName,
+      category: 'coteries',
+      body_markdown: body,
+      published: true,
+    });
+    coterieCreatedCount++;
   }
   console.log(`  Created ${coterieCreatedCount} coterie pages.`);
 
@@ -731,48 +477,41 @@ async function main(opts: NotionSyncOptions) {
   // ------------------------------------------------------------------
   console.log('\n[6.6/7] Populating Factions wiki pages…');
   let factionCreatedCount = 0;
-  if (!WIKI_ENABLED) {
-    console.log('  Wiki target disabled — skipping factions pages.');
-  } else {
-    for (const faction of FACTIONS) {
-      const factionMembers = activeRoster.filter(
-        (c) => c.sect && faction.sectAliases.includes(c.sect.toLowerCase()),
-      );
-      const memberLines = factionMembers.map((c) => {
-        const coterie = CHAR_TO_COTERIE.get(c.name.toLowerCase());
-        return `- [${c.name}](/wiki/${wikiSlug('characters', c.name)})${c.clan ? ` — ${c.clan}` : ''}${coterie ? ` *(${coterie})*` : ''}`;
-      });
-      const loreLinks = faction.loreChannels.map(
-        (ch) => `- [#${ch} archive](/wiki/${wikiSlug('lore', `${ch} archive`)})`,
-      );
-      const bodyParts: string[] = [];
-      if (memberLines.length) bodyParts.push(`## Members\n\n${memberLines.join('\n')}`);
-      if (loreLinks.length) bodyParts.push(`## Lore\n\n${loreLinks.join('\n')}`);
-      const bodyMarkdown = bodyParts.join('\n\n') || '_No members found._';
-      console.log(`  → ${faction.name} (${factionMembers.length} members)`);
-      await wikiClient.upsertPage({
-        slug: wikiSlug('factions', faction.name),
-        title: faction.name,
-        category: 'factions',
-        body_markdown: bodyMarkdown,
-        published: true,
-      });
-      factionCreatedCount++;
-    }
+  for (const faction of FACTIONS) {
+    const factionMembers = activeRoster.filter(
+      (c) => c.sect && faction.sectAliases.includes(c.sect.toLowerCase()),
+    );
+    const memberLines = factionMembers.map((c) => {
+      const coterie = CHAR_TO_COTERIE.get(c.name.toLowerCase());
+      return `- [${c.name}](/wiki/${wikiSlug('characters', c.name)})${c.clan ? ` — ${c.clan}` : ''}${coterie ? ` *(${coterie})*` : ''}`;
+    });
+    const loreLinks = faction.loreChannels.map(
+      (ch) => `- [#${ch} archive](/wiki/${wikiSlug('lore', `${ch} archive`)})`,
+    );
+    const bodyParts: string[] = [];
+    if (memberLines.length) bodyParts.push(`## Members\n\n${memberLines.join('\n')}`);
+    if (loreLinks.length) bodyParts.push(`## Lore\n\n${loreLinks.join('\n')}`);
+    const bodyMarkdown = bodyParts.join('\n\n') || '_No members found._';
+    console.log(`  → ${faction.name} (${factionMembers.length} members)`);
+    await wikiClient.upsertPage({
+      slug: wikiSlug('factions', faction.name),
+      title: faction.name,
+      category: 'factions',
+      body_markdown: bodyMarkdown,
+      published: true,
+    });
+    factionCreatedCount++;
   }
   console.log(`  Created ${factionCreatedCount} faction pages.`);
 
   // ------------------------------------------------------------------
   // 6.7 Retired characters from #retired forum
   //     Each forum thread = one retired PC profile.
-  //     Upserts a character wiki page (same as step 6) and marks the
-  //     DbCharacter status as 'retired' via PUT /api/character/<name>/status.
+  //     Upserts a character wiki page and marks status as 'retired'.
   // ------------------------------------------------------------------
   console.log('\n[6.7/7] Processing retired characters from #retired…');
   const retiredCh = channelByName.get('retired');
-  if (!WIKI_ENABLED) {
-    console.log('  Wiki target disabled — skipping retired character updates.');
-  } else if (!retiredCh || retiredCh.type !== CH_FORUM) {
+  if (!retiredCh || retiredCh.type !== CH_FORUM) {
     console.log('  #retired forum channel not found — skipping.');
   } else {
     let retiredThreads: DiscordThread[] = [];
@@ -813,7 +552,6 @@ async function main(opts: NotionSyncOptions) {
     if (!ch) { console.log(`  [warn] #${chanName} not found — skipping.`); continue; }
 
     if (ch.type === CH_FORUM) {
-      // ---- Forum: one Notion entry per thread ----
       let threads: DiscordThread[] = [];
       try {
         threads = await fetchForumThreads(rest, GUILD_ID, ch.id);
@@ -825,32 +563,16 @@ async function main(opts: NotionSyncOptions) {
 
       for (const thread of threads.slice(0, MSG_LIMIT)) {
         const title = truncate(thread.name, 200);
-        const postDate = thread.thread_metadata?.archive_timestamp?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
         console.log(`    → ${title}`);
 
         if (!DRY_RUN) {
           const messages = await fetchAllMessages(rest, thread.id, 100);
           await sleep(200);
-          const preview = truncate(messages[0]?.content ?? '', 500);
           const cover = firstImage(messages);
-          if (NOTION_ENABLED) {
-            const page = await notionCall(() =>
-              notion!.pages.create(buildSessionLogCreatePayload({
-                databaseId: NOTION_DB.SESSION_LOG,
-                title,
-                summary: preview,
-                date: postDate,
-                sourceTag: SOURCE_TAG,
-                coverUrl: cover ?? undefined,
-              })),
-            );
-            await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
-          }
           // children-of-the-night threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
-          // backgrounds forum gets its own wiki category; slug stays lore- prefix
-          // so existing pages are updated in-place rather than duplicated.
-          if (WIKI_ENABLED && chanName !== 'children-of-the-night') {
+          // backgrounds forum gets its own wiki category.
+          if (chanName !== 'children-of-the-night') {
             const pageCategory = chanName === 'backgrounds' ? 'backgrounds' : 'lore';
             await wikiClient.upsertPage({
               slug: wikiSlug('lore', title),
@@ -864,7 +586,6 @@ async function main(opts: NotionSyncOptions) {
         }
       }
     } else {
-      // ---- Text channel: one archive entry ----
       let messages: DiscordMessage[] = [];
       try {
         messages = await fetchAllMessages(rest, ch.id, MSG_LIMIT);
@@ -875,35 +596,20 @@ async function main(opts: NotionSyncOptions) {
       if (!messages.length) { console.log(`  #${chanName}: no messages`); continue; }
 
       const mostRecentDate = messages[messages.length - 1].timestamp.slice(0, 10);
-      const preview = truncate(messages[messages.length - 1].content, 500);
       const title = `#${chanName} archive`;
       console.log(`  → ${title} (${messages.length} messages, most recent: ${mostRecentDate})`);
 
       if (!DRY_RUN) {
-        if (NOTION_ENABLED) {
-          const page = await notionCall(() =>
-            notion!.pages.create(buildSessionLogCreatePayload({
-              databaseId: NOTION_DB.SESSION_LOG,
-              title,
-              summary: preview,
-              date: mostRecentDate,
-              sourceTag: SOURCE_TAG,
-            })),
-          );
-          await appendBodyBlocks(notion!, page.id, messagesToBlocks(messages));
-        }
-        if (WIKI_ENABLED) {
-          await wikiClient.upsertPage({
-            slug: wikiSlug('lore', `${chanName} archive`),
-            title,
-            category: 'lore',
-            body_markdown: messagesToMarkdown(messages),
-            published: true,
-          });
-        }
+        await wikiClient.upsertPage({
+          slug: wikiSlug('lore', `${chanName} archive`),
+          title,
+          category: 'lore',
+          body_markdown: messagesToMarkdown(messages),
+          published: true,
+        });
       }
     }
   }
 
-  console.log(`\nDone!${DRY_RUN ? ' (dry-run: nothing written to Notion)' : ''}`);
+  console.log(`\nDone!${DRY_RUN ? ' (dry-run: nothing written)' : ''}`);
 }

@@ -3,13 +3,13 @@ import { logEvent } from '../logger';
 import { config } from '../config';
 import { randomUUID } from 'node:crypto';
 import type { TrackerAdapter } from './adapter';
-import { runNotionSync } from '../scripts/discord-notion-sync';
+import { runWikiSync } from '../scripts/discord-wiki-sync';
 import { currentWikiSyncOwner, tryAcquireWikiSync } from './wikiSyncLock';
 
 export class ConfigSyncWorker {
   private readonly adapter: TrackerAdapter;
   private readonly intervalMs: number;
-  private notionSyncRunning = false;
+  private wikiSyncRunning = false;
 
   constructor(adapter: TrackerAdapter, intervalMs = 60_000) {
     this.adapter = adapter;
@@ -43,59 +43,57 @@ export class ConfigSyncWorker {
         }
       }
 
-      if (cfg.notionSyncRequested) {
-        void this.runNotionSyncBackground();
+      if (cfg.wikiSyncRequested) {
+        void this.runWikiSyncBackground();
       }
     } catch (err) {
       logEvent('warn', 'config_sync_failed', { error: String(err) });
     }
   }
 
-  private async runNotionSyncBackground(): Promise<void> {
-    if (this.notionSyncRunning) {
+  private async runWikiSyncBackground(): Promise<void> {
+    if (this.wikiSyncRunning) {
       return;
     }
     const lease = tryAcquireWikiSync('manual');
     if (!lease) {
-      logEvent('info', 'notion_sync_skipped_lock_busy', {
+      logEvent('info', 'wiki_sync_skipped_lock_busy', {
         activeOwner: currentWikiSyncOwner(),
       });
       return;
     }
-    this.notionSyncRunning = true;
+    this.wikiSyncRunning = true;
     const runId = randomUUID();
-    logEvent('info', 'notion_sync_starting', {});
+    logEvent('info', 'wiki_sync_starting', {});
     try {
-      await this.adapter.ackNotionSync('running', undefined, 'manual', runId);
+      await this.adapter.ackWikiSync('running', undefined, 'manual', runId);
     } catch (err) {
-      logEvent('warn', 'notion_sync_ack_running_failed', { error: String(err) });
+      logEvent('warn', 'wiki_sync_ack_running_failed', { error: String(err) });
       lease.release();
-      this.notionSyncRunning = false;
+      this.wikiSyncRunning = false;
       return;
     }
     try {
-      const result = await runNotionSync({
+      const result = await runWikiSync({
         botToken: config.botToken,
         guildId: config.discordGuildId,
-        notionToken: config.notionToken,
         webBase: config.webAppBaseUrl,
         webReadToken: config.webAppApiReadToken ?? config.webAppApiToken,
         webWriteToken: config.webAppApiWriteToken ?? config.webAppApiToken,
-        msgLimit: config.notionSyncMsgLimit,
       });
       if (result.success) {
-        logEvent('info', 'notion_sync_completed', {});
-        await this.adapter.ackNotionSync('success', undefined, 'manual', runId);
+        logEvent('info', 'wiki_sync_completed', {});
+        await this.adapter.ackWikiSync('success', undefined, 'manual', runId);
       } else {
-        logEvent('warn', 'notion_sync_failed', { error: result.error });
-        await this.adapter.ackNotionSync('error', result.error, 'manual', runId);
+        logEvent('warn', 'wiki_sync_failed', { error: result.error });
+        await this.adapter.ackWikiSync('error', result.error, 'manual', runId);
       }
     } catch (err) {
-      logEvent('warn', 'notion_sync_error', { error: String(err) });
-      try { await this.adapter.ackNotionSync('error', String(err), 'manual', runId); } catch { /* ignore */ }
+      logEvent('warn', 'wiki_sync_error', { error: String(err) });
+      try { await this.adapter.ackWikiSync('error', String(err), 'manual', runId); } catch { /* ignore */ }
     } finally {
       lease.release();
-      this.notionSyncRunning = false;
+      this.wikiSyncRunning = false;
     }
   }
 
