@@ -155,6 +155,11 @@ const envSchema = z.object({
   CC_SUBMISSION_NOTIFIER_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_INTERVAL_MS: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
+  CUBBY_SYNC_ENABLED: z.string().optional(),
+  CUBBY_SYNC_INTERVAL_MS: z.string().optional(),
+  CUBBY_SYNC_GUILD_ID: z.string().optional(),
+  CUBBY_SYNC_STAFF_CHANNEL_ID: z.string().optional(),
+  CUBBY_RETIRED_CATEGORY_ID: z.string().optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -368,6 +373,11 @@ export const config = {
     86_400,
     'CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS',
   ),
+  cubbySyncEnabled: (env.CUBBY_SYNC_ENABLED ?? 'false').toLowerCase() === 'true',
+  cubbySyncIntervalMs: parsePositiveInt(env.CUBBY_SYNC_INTERVAL_MS, 3_600_000, 'CUBBY_SYNC_INTERVAL_MS'),
+  cubbySyncGuildId: env.CUBBY_SYNC_GUILD_ID ?? env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
+  cubbySyncStaffChannelId: env.CUBBY_SYNC_STAFF_CHANNEL_ID ?? '',
+  cubbyRetiredCategoryId: env.CUBBY_RETIRED_CATEGORY_ID ?? '1225070632799043685',
 };
 
 if (config.testRequesterDiscordId) {

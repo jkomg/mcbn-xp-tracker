@@ -334,6 +334,16 @@ def active_roster():
         return backend
     characters = db_service.get_active_characters()
     characters.sort(key=lambda c: c.character_name.lower())
+    if request.args.get('includeChannelIds') == '1':
+        return jsonify({
+            'characters': [
+                {
+                    'name': c.character_name,
+                    'ticketChannelId': c.ticket_channel_id or None,
+                }
+                for c in characters
+            ]
+        })
     if request.args.get('includeDiscordIds') == '1':
         return jsonify({
             'characters': [
@@ -1392,7 +1402,7 @@ def get_character_api(name):
 @require_bot_scope('write')
 @_limit('60 per hour')
 def update_character_api(name):
-    """Update clan, age_category, and/or sect for an existing character."""
+    """Update clan, age_category, sect, and/or ticket_channel_id for an existing character."""
     from app.models import CLANS, AGE_CATEGORIES, SECTS
 
     char = db_service.get_character(name)
@@ -1404,6 +1414,8 @@ def update_character_api(name):
     for field in ('clan', 'age_category', 'sect'):
         if field in data:
             updates[field] = (data[field] or '').strip()
+    if 'ticket_channel_id' in data:
+        updates['ticket_channel_id'] = (data['ticket_channel_id'] or '').strip() or None
 
     if not updates:
         return jsonify({'error': 'No updatable fields provided'}), 400
