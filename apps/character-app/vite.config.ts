@@ -1,9 +1,35 @@
-import { defineConfig } from "vite"
+import { defineConfig, Plugin } from "vite"
 import react from "@vitejs/plugin-react"
-
+import * as fs from "fs"
 import * as path from "path"
 
 process.env.DOTENV_CONFIG_QUIET ??= "true"
+
+// Emits loresheet-catalog.json to the build output so Flask's CC admin
+// can read it without needing access to the TypeScript source.
+function loresheetCatalogPlugin(): Plugin {
+    return {
+        name: "loresheet-catalog",
+        closeBundle() {
+            const tsPath = path.resolve(__dirname, "src/data/Loresheets.ts")
+            const outPath = path.resolve(__dirname, "../web/app/static/character-app/loresheet-catalog.json")
+            try {
+                const src = fs.readFileSync(tsPath, "utf8")
+                const pattern = /\{\s*\n\s+id:\s*"([^"]+)",\s*\n\s+name:\s*"([^"]+)",\s*\n\s+source:\s*"([^"]+)"/g
+                const entries: { id: string; name: string; source: string }[] = []
+                let m: RegExpExecArray | null
+                while ((m = pattern.exec(src)) !== null) {
+                    entries.push({ id: m[1], name: m[2], source: m[3] })
+                }
+                fs.mkdirSync(path.dirname(outPath), { recursive: true })
+                fs.writeFileSync(outPath, JSON.stringify(entries, null, 2))
+                console.log(`[loresheet-catalog] Wrote ${entries.length} entries to loresheet-catalog.json`)
+            } catch (e) {
+                console.warn("[loresheet-catalog] Failed to generate catalog:", e)
+            }
+        }
+    }
+}
 
 export default defineConfig({
     build: {
@@ -41,7 +67,8 @@ export default defineConfig({
             babel: {
                 plugins: ["@emotion/babel-plugin"]
             }
-        })
+        }),
+        loresheetCatalogPlugin(),
     ],
     base: "/static/character-app/",
     resolve: {
