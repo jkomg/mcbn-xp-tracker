@@ -666,7 +666,7 @@ export async function handleUpdateModal(
   pendingUpdates.delete(interaction.user.id);
 
   if (!channelId) {
-    await interaction.editReply('Session expired — run `/lasombra update` again.');
+    await interaction.editReply(`Session expired — run \`/${config.lasombraCommandName} update\` again.`);
     return true;
   }
 
@@ -767,7 +767,7 @@ export async function handleDeleteButton(
   pendingDeletes.delete(interaction.message.id);
 
   if (!characterName) {
-    await interaction.update({ content: 'Session expired — run `/lasombra delete` again.', components: [] });
+    await interaction.update({ content: `Session expired — run \`/${config.lasombraCommandName} delete\` again.`, components: [] });
     return true;
   }
 
@@ -780,7 +780,7 @@ export async function handleDeleteButton(
 
   if (!result.ok) {
     const hint = result.hasHistory
-      ? '\nUse `/lasombra edit` to mark them as retired or deceased instead.'
+      ? `\nUse \`/${config.lasombraCommandName} edit\` to mark them as retired or deceased instead.`
       : '';
     await interaction.editReply({ content: `⚠️ ${result.message}${hint}`, components: [] });
     return true;

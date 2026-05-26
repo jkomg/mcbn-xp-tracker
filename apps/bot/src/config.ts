@@ -160,7 +160,7 @@ const envSchema = z.object({
   CUBBY_SYNC_GUILD_ID: z.string().optional(),
   CUBBY_SYNC_STAFF_CHANNEL_ID: z.string().optional(),
   CUBBY_RETIRED_CATEGORY_ID: z.string().optional(),
-  LASOMBRA_COMMAND_NAME: z.string().optional(),
+  LASOMBRA_COMMAND_NAME: z.string().regex(/^[-_a-z0-9]{1,32}$/, 'LASOMBRA_COMMAND_NAME must be 1-32 chars, lowercase letters/numbers/hyphens/underscores only').optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.

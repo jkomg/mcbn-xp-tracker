@@ -374,7 +374,7 @@ export async function handleApproveWizardStringSelect(
 
   const state = pending.get(interaction.user.id);
   if (!state) {
-    await interaction.update({ content: 'Session expired — run `/lasombra approve` again.', components: [] });
+    await interaction.update({ content: 'Session expired — run `/${config.lasombraCommandName} approve` again.', components: [] });
     return true;
   }
 
@@ -413,7 +413,7 @@ export async function handleApproveWizardButton(
   pending.delete(interaction.user.id);
 
   if (!state) {
-    await interaction.update({ content: 'Session expired — run `/lasombra approve` again.', components: [] });
+    await interaction.update({ content: 'Session expired — run `/${config.lasombraCommandName} approve` again.', components: [] });
     return true;
   }
 
