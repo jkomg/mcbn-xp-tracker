@@ -257,11 +257,13 @@ void applyStartupConfigOverrides().then(() => {
     cubbySyncWorker.start();
     characterSubmissionNotifier.start();
     startCubbyChannelMonitor(client);
-    startCharacterTicketMonitor(client, {
-      webBaseUrl: config.webAppBaseUrl,
-      creationRulesUrl: config.ccCreationRulesUrl,
-      ...(config.ccTicketCategoryIds.size > 0 ? { ticketCategoryIds: config.ccTicketCategoryIds } : {}),
-    });
+    if (config.ccTicketMonitorEnabled) {
+      startCharacterTicketMonitor(client, {
+        webBaseUrl: config.webAppBaseUrl,
+        creationRulesUrl: config.ccCreationRulesUrl,
+        ...(config.ccTicketCategoryIds.size > 0 ? { ticketCategoryIds: config.ccTicketCategoryIds } : {}),
+      });
+    }
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
   });
 
