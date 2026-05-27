@@ -152,6 +152,7 @@ const envSchema = z.object({
   APPROVE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
   CC_CREATION_RULES_URL: z.string().transform(v => v || undefined).pipe(z.string().url().optional()),
   CC_TICKET_CATEGORY_IDS: z.string().optional(),
+  CC_TICKET_MONITOR_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_INTERVAL_MS: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
@@ -363,6 +364,7 @@ export const config = {
   approveSheetInProgressRoleId: env.APPROVE_SHEET_IN_PROGRESS_ROLE_ID ?? '',
   ccCreationRulesUrl: env.CC_CREATION_RULES_URL,
   ccTicketCategoryIds: parseCsvIds(env.CC_TICKET_CATEGORY_IDS),
+  ccTicketMonitorEnabled: (env.CC_TICKET_MONITOR_ENABLED ?? 'true').toLowerCase() === 'true',
   ccSubmissionNotifierEnabled: (env.CC_SUBMISSION_NOTIFIER_ENABLED ?? 'true').toLowerCase() === 'true',
   ccSubmissionNotifierIntervalMs: parsePositiveInt(
     env.CC_SUBMISSION_NOTIFIER_INTERVAL_MS,
