@@ -45,6 +45,8 @@ jobs:
       - name: Rebuild and restart bot
         run: |
           cd ${{ secrets.URSULA_BOT_DIR }}/apps/bot
+          docker compose -f docker-compose.yml build
+          docker rm -f lasombra-bot 2>/dev/null || true
           npm run ops:docker:up
 
       - name: Notify Discord
