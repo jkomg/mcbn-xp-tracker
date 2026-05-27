@@ -21,15 +21,18 @@ DISCORD_USER_URL = 'https://discord.com/api/v10/users/@me'
 @require_staff
 def index():
     """Main dashboard showing XP summary for all characters."""
+    from app.db import CharacterDraft
     dashboard_data = db_service.get_dashboard_data()
     pending_claims = len(db_service.get_pending_claims())
     pending_spends = len(db_service.get_pending_spends())
+    pending_drafts = CharacterDraft.query.filter_by(status='submitted').count()
 
     return render_template(
         'dashboard.html',
         characters=dashboard_data,
         pending_claims=pending_claims,
         pending_spends=pending_spends,
+        pending_drafts=pending_drafts,
     )
 
 
