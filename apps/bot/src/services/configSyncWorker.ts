@@ -31,12 +31,10 @@ export class ConfigSyncWorker {
       liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs ?? null;
       liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs ?? null;
       liveConfig.announcementsChannelId = cfg.announcementsChannelId ?? null;
-      if (cfg.ccTicketMonitorEnabled !== null) liveConfig.ccTicketMonitorEnabled = cfg.ccTicketMonitorEnabled;
-      if (cfg.ccTicketCategoryIds !== null) {
-        liveConfig.ccTicketCategoryIds = new Set(
-          cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
-        );
-      }
+      liveConfig.ccTicketMonitorEnabled = cfg.ccTicketMonitorEnabled ?? config.ccTicketMonitorEnabled;
+      liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
+        ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.ccTicketCategoryIds);
       logEvent('debug', 'config_sync_done', { liveConfig });
 
       if (cfg.restartRequested) {
