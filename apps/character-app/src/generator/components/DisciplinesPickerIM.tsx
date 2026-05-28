@@ -838,7 +838,11 @@ export default function DisciplinesPickerIM({
                                     },
                                 }}
                                 onClick={() => {
+                                    // Preserve BP set by GenerationPickerIM — calculateBloodPotency
+                                    // inside the helper maps gen 9/8 to the default (1) instead of 3.
+                                    const savedBP = character.bloodPotency
                                     updateHealthAndWillpowerAndBloodPotencyAndHumanity(character)
+                                    character.bloodPotency = savedBP
                                     const updatedCharacter: Character = {
                                         ...character,
                                         disciplines: allPickedPowers,

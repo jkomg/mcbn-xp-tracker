@@ -13,7 +13,7 @@ import { nightfallScrollAreaStyles, nightfallScrollbarSize } from "./sharedScrol
 type AgeCategoryPickerProps = {
     character: Character
     setCharacter: (character: Character) => void
-    nextStep: () => void
+    nextStep: (characterOverride?: Character) => void
 }
 
 type AgeCategory = {
@@ -115,12 +115,13 @@ export default function AgeCategoryPicker({
 
     const handlePick = (cat: AgeCategory) => {
         if (cat.requiresEligibility && !eligibility?.eligible) return
-        setCharacter({
+        const updated = {
             ...character,
             age_category: cat.id,
             cc_xp_budget: XP_BUDGETS[cat.id] ?? 0,
-        })
-        nextStep()
+        }
+        setCharacter(updated)
+        nextStep(updated)
     }
 
     return (

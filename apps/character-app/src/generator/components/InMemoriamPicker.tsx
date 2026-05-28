@@ -679,6 +679,7 @@ export default function InMemoriamPicker({
     const handleConfirm = () => {
         const updated: Character = {
             ...character,
+            humanity: finalHumanity,
             in_memoriam: {
                 ...im,
                 embrace_age: embraceAge!,
