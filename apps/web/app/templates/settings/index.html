@@ -382,8 +382,8 @@
                   <input type="hidden" name="action" value="set">
                   <input type="text" name="value" value="{{ c.value or '' }}"
                     placeholder="{{ c.placeholder }}"
-                    pattern="\d{17,20}" title="Discord snowflake (17–20 digits)"
-                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:160px">
+                    {% if c.input_pattern %}pattern="{{ c.input_pattern }}" title="Discord snowflake (17–20 digits)"{% endif %}
+                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:{% if c.input_pattern %}160{% else %}280{% endif %}px">
                   <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                 </form>
                 {% if c.overridden %}

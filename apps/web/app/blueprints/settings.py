@@ -228,6 +228,7 @@ def index():
         'BOT_CLAIM_REMINDER_ENABLED': 'BOT_LIVE_CLAIM_REMINDER_ENABLED',
         'BOT_PASSAGE_OF_TIME_ENABLED': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
+        'BOT_CC_TICKET_MONITOR_ENABLED': 'BOT_LIVE_CC_TICKET_MONITOR_ENABLED',
     }
     from app.db import AppSetting, WikiSyncEvent
     live_keys = list(LIVE_KEY_MAP.values())
@@ -318,6 +319,15 @@ def index():
             'editable': True,
             **_bot_flag_status('BOT_HUNT_CONSEQUENCE_ENABLED', overrides),
         },
+        {
+            'label': 'CC Ticket Monitor',
+            'key': 'BOT_CC_TICKET_MONITOR_ENABLED',
+            'env': 'CC_TICKET_MONITOR_ENABLED',
+            'interval_env': None,
+            'description': 'Posts a welcome message with a character creator link when a new ticket opens under the CC category.',
+            'editable': True,
+            **_bot_flag_status('BOT_CC_TICKET_MONITOR_ENABLED', overrides),
+        },
     ]
 
     # ── Bot channel IDs (DB-backed; take effect after bot restart) ────────
@@ -332,9 +342,21 @@ def index():
             'env': 'ANNOUNCEMENTS_CHANNEL_ID',
             'value': _eff_str('BOT_ANNOUNCEMENTS_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
+            'input_pattern': r'\d{17,20}',
             'overridden': 'BOT_ANNOUNCEMENTS_CHANNEL_ID' in overrides,
             'editable': True,
             'description': 'Channel ID for /lasombra broadcast → announcements target.',
+        },
+        {
+            'label': 'CC ticket category IDs',
+            'key': 'BOT_CC_TICKET_CATEGORY_IDS',
+            'env': 'CC_TICKET_CATEGORY_IDS',
+            'value': _eff_str('BOT_CC_TICKET_CATEGORY_IDS'),
+            'placeholder': 'e.g. 123456789012345678,987654321098765432',
+            'input_pattern': None,
+            'overridden': 'BOT_CC_TICKET_CATEGORY_IDS' in overrides,
+            'editable': True,
+            'description': 'Restrict the CC ticket monitor to these Discord category IDs (comma-separated). Leave blank to match any category named "character tickets".',
         },
     ]
 
@@ -623,6 +645,7 @@ def update():
     # Keys that store raw strings (no type coercion).
     _STR_KEYS = {
         'BOT_ANNOUNCEMENTS_CHANNEL_ID',
+        'BOT_CC_TICKET_CATEGORY_IDS',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.
@@ -638,6 +661,7 @@ def update():
         'BOT_PASSAGE_OF_TIME_ENABLED',
         'BOT_HUNT_CONSEQUENCE_ENABLED',
         'BOT_RESTART_REQUESTED',
+        'BOT_CC_TICKET_MONITOR_ENABLED',
     }
 
     if action == 'reset':

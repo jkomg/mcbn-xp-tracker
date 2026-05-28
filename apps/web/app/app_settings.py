@@ -28,6 +28,9 @@ EDITABLE_KEYS = {
     # Bot restart / sync signals
     'BOT_RESTART_REQUESTED',
     'BOT_WIKI_SYNC_REQUESTED',
+    # CC ticket monitor (polled by bot via /api/bot-config; applies within 1 minute)
+    'BOT_CC_TICKET_MONITOR_ENABLED',
+    'BOT_CC_TICKET_CATEGORY_IDS',
     # Bot channel IDs (polled by bot via /api/bot-config; take effect after restart)
     'BOT_ANNOUNCEMENTS_CHANNEL_ID',
     # Bot tuning (polled by bot via /api/bot-config; take effect after restart)

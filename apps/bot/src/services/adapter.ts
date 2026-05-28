@@ -26,11 +26,13 @@ export interface BotConfigResponse {
   huntConsequenceEnabled: boolean | null;
   restartRequested: boolean | null;
   wikiSyncRequested: boolean | null;
+  ccTicketMonitorEnabled: boolean | null;
   passageOfTimeIntervalMs: number | null;
   reviewNotifierIntervalMs: number | null;
   submissionNotifierIntervalMs: number | null;
   claimReminderIntervalMs: number | null;
   announcementsChannelId: string | null;
+  ccTicketCategoryIds: string | null;
 }
 
 export interface TrackerAdapter {

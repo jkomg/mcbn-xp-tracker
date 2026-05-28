@@ -84,6 +84,9 @@ initClientCommandCollection(client);
 // Fetch DB-backed config overrides before constructing services so interval
 // overrides set in the web UI take effect immediately on this startup.
 async function applyStartupConfigOverrides(): Promise<void> {
+  // Seed CC ticket monitor from .env defaults so it works before first DB sync.
+  liveConfig.ccTicketMonitorEnabled = config.ccTicketMonitorEnabled;
+  liveConfig.ccTicketCategoryIds = new Set(config.ccTicketCategoryIds);
   try {
     const cfg = await adapter.getBotConfig();
     if (cfg.passageOfTimeIntervalMs !== null) liveConfig.passageOfTimeIntervalMs = cfg.passageOfTimeIntervalMs;
@@ -91,6 +94,12 @@ async function applyStartupConfigOverrides(): Promise<void> {
     if (cfg.submissionNotifierIntervalMs !== null) liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs;
     if (cfg.claimReminderIntervalMs !== null) liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs;
     if (cfg.announcementsChannelId) liveConfig.announcementsChannelId = cfg.announcementsChannelId;
+    if (cfg.ccTicketMonitorEnabled !== null) liveConfig.ccTicketMonitorEnabled = cfg.ccTicketMonitorEnabled;
+    if (cfg.ccTicketCategoryIds !== null) {
+      liveConfig.ccTicketCategoryIds = new Set(
+        cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
+      );
+    }
     logEvent('info', 'startup_config_loaded', { liveConfig });
   } catch (err) {
     logEvent('warn', 'startup_config_fetch_failed', { error: errorToMessage(err) });
@@ -257,13 +266,10 @@ void applyStartupConfigOverrides().then(() => {
     cubbySyncWorker.start();
     characterSubmissionNotifier.start();
     startCubbyChannelMonitor(client);
-    if (config.ccTicketMonitorEnabled) {
-      startCharacterTicketMonitor(client, {
-        webBaseUrl: config.webAppBaseUrl,
-        creationRulesUrl: config.ccCreationRulesUrl,
-        ...(config.ccTicketCategoryIds.size > 0 ? { ticketCategoryIds: config.ccTicketCategoryIds } : {}),
-      });
-    }
+    startCharacterTicketMonitor(client, {
+      webBaseUrl: config.webAppBaseUrl,
+      creationRulesUrl: config.ccCreationRulesUrl,
+    });
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
   });
 

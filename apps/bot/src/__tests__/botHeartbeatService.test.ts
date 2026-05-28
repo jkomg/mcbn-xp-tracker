@@ -46,6 +46,7 @@ describe('BotHeartbeatService', () => {
       claimReminderEnabled: true,
       passageOfTimeEnabled: false,
       huntConsequenceEnabled: true,
+      ccTicketMonitorEnabled: true,
     });
   });
 
