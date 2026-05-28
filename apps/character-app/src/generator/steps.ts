@@ -15,6 +15,8 @@ type GeneratorProgressKey =
 
 export type GeneratorStepId =
     | "age-category"
+    | "ancilla-mode"
+    | "generation"
     | "clan"
     | "attributes"
     | "skills"
@@ -26,6 +28,7 @@ export type GeneratorStepId =
     | "touchstones"
     | "merits"
     | "loresheet"
+    | "in-memoriam"
     | "final"
 
 export type GeneratorStep = {
@@ -36,6 +39,8 @@ export type GeneratorStep = {
 
 const allGeneratorSteps: GeneratorStep[] = [
     { id: "age-category", label: "Age Category" },
+    { id: "ancilla-mode", label: "Creation Path" },
+    { id: "generation", label: "Generation" },
     { id: "clan", label: "Clan", progressKey: "clan" },
     { id: "attributes", label: "Attributes", progressKey: "attributes" },
     { id: "skills", label: "Skills", progressKey: "skills" },
@@ -47,12 +52,24 @@ const allGeneratorSteps: GeneratorStep[] = [
     { id: "touchstones", label: "Touchstones", progressKey: "touchstones" },
     { id: "merits", label: "Merits & Flaws", progressKey: "merits" },
     { id: "loresheet", label: "Loresheets" },
+    { id: "in-memoriam", label: "Oceans of Time" },
     { id: "final", label: "Review & Submit" },
 ]
 
 export const defaultGeneratorStepId: GeneratorStepId = "age-category"
 
+const isImAncilla = (character: Character) =>
+    character.age_category === "ancilla" &&
+    !!character.in_memoriam &&
+    !character.in_memoriam.use_standard
+
 const isStepAvailable = (character: Character, stepId: GeneratorStepId) => {
+    if (stepId === "ancilla-mode") {
+        return character.age_category === "ancilla"
+    }
+    if (stepId === "generation") {
+        return isImAncilla(character)
+    }
     if (stepId === "rituals") {
         return containsBloodSorcery(character.disciplines)
     }
@@ -61,6 +78,9 @@ const isStepAvailable = (character: Character, stepId: GeneratorStepId) => {
     }
     if (stepId === "loresheet") {
         return XP_ONLY_AGE_CATEGORIES.has(character.age_category ?? "")
+    }
+    if (stepId === "in-memoriam") {
+        return isImAncilla(character)
     }
     return true
 }

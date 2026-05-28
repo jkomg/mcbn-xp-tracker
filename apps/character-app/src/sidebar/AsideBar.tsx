@@ -227,7 +227,14 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
     }
 
     const showXpBudget = XP_ONLY_CATEGORIES.has(character.age_category ?? "")
-    const xpBudget = character.cc_xp_budget ?? 0
+    const isImAncilla =
+        character.age_category === "ancilla" &&
+        !!character.in_memoriam &&
+        !character.in_memoriam.use_standard
+    const xpBudget = isImAncilla
+        ? (character.in_memoriam?.total_xp ?? 0)
+        : (character.cc_xp_budget ?? 0)
+    const budgetLabel = isImAncilla ? "Era XP" : "Budget"
     const inheritedXp = character.inherited_xp ?? 0
     const xpSpent = computeCcXpSpent(character)
     const xpRemaining = xpBudget + inheritedXp - xpSpent
@@ -270,7 +277,7 @@ const AsideBar = ({ selectedStep, setSelectedStep, character }: AsideBarProps) =
                             XP Budget
                         </Text>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <XpRow label="Budget" value={xpBudget} />
+                            <XpRow label={budgetLabel} value={xpBudget} />
                             {inheritedXp > 0 && (
                                 <XpRow label="Inherited" value={inheritedXp} />
                             )}
