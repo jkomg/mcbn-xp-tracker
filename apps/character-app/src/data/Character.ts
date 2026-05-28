@@ -17,6 +17,27 @@ import { clans } from "./Clans";
 import { getAllKnownMeritsAndFlaws } from "./MeritsAndFlaws";
 import type { Power } from "./Disciplines.js";
 
+export const inMemoriamEraSchema = z.object({
+  type: z.enum(["adversity", "calm", "intrigue", "excess", "violence", "sorcery", "torpor"]),
+  gambit_taken: z.boolean().default(false),
+  gambit_roll: z.number().min(1).max(10).optional(),
+  xp_gained: z.number().default(0),
+  humanity_loss: z.number().default(0),
+})
+
+export type InMemoriamEra = z.infer<typeof inMemoriamEraSchema>
+export type InMemoriamEraType = InMemoriamEra["type"]
+
+export const inMemoriamSchema = z.object({
+  use_standard: z.boolean(),
+  embrace_age: z.enum(["", "up_to_100", "up_to_150", "over_150"]).default(""),
+  eras: z.array(inMemoriamEraSchema).default([]),
+  total_xp: z.number().default(0),
+  total_humanity_loss: z.number().default(0),
+})
+
+export type InMemoram = z.infer<typeof inMemoriamSchema>
+
 export const meritFlawSchema = z.object({
   name: z.string(),
   level: z.number().min(1).int(),
@@ -92,6 +113,9 @@ export const characterSchema = z.object({
     .array(z.object({ loresheet_id: z.string(), dot: z.number().min(1).max(5).int() }))
     .optional()
     .default([]),
+  in_memoriam: inMemoriamSchema.optional(),
+  im_generation: z.enum(["", "12", "11-10", "9-8"]).optional().default(""),
+  im_discipline_spread: z.enum(["", "focused", "strategic"]).optional().default(""),
 
   ephemeral: z.object({
     hunger: z.number().min(0).int(),
@@ -195,6 +219,9 @@ export const getEmptyCharacter = (): Character => {
     inherited_xp: 0,
     submission_notes: "",
     loresheet_purchases: [],
+    in_memoriam: undefined,
+    im_generation: "",
+    im_discipline_spread: "",
 
     ephemeral: {
       hunger: 0,
@@ -241,6 +268,8 @@ export const applyCharacterCompatibilityPatches = (
   if (parsed["inherited_xp"] === undefined) parsed["inherited_xp"] = 0;
   if (parsed["submission_notes"] === undefined) parsed["submission_notes"] = "";
   if (!Array.isArray(parsed["loresheet_purchases"])) parsed["loresheet_purchases"] = [];
+  if (parsed["im_generation"] === undefined) parsed["im_generation"] = "";
+  if (parsed["im_discipline_spread"] === undefined) parsed["im_discipline_spread"] = "";
   if (!parsed["id"]) parsed["id"] = "";
   if (!parsed["player"]) parsed["player"] = "";
   if (!parsed["chronicle"]) parsed["chronicle"] = "";

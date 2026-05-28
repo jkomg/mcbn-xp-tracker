@@ -2,12 +2,16 @@ import { Text } from "@mantine/core"
 import ErrorBoundary from "../components/ErrorBoundary"
 import { Character } from "../data/Character"
 import AgeCategoryPicker from "./components/AgeCategoryPicker"
+import AncillaModePicker from "./components/AncillaModePicker"
 import AttributePicker from "./components/AttributePicker"
 import BasicsPicker from "./components/BasicsPicker"
 import ClanPicker from "./components/ClanPicker"
 import CeremoniesPicker from "./components/CeremoniesPicker"
 import DisciplinesPicker from "./components/DisciplinesPicker"
+import DisciplinesPickerIM from "./components/DisciplinesPickerIM"
 import Final from "./components/Final"
+import GenerationPickerIM from "./components/GenerationPickerIM"
+import InMemoriamPicker from "./components/InMemoriamPicker"
 import LoresheetPicker from "./components/LoresheetPicker"
 import MeritsAndFlawsPicker from "./components/MeritsAndFlawsPicker"
 import PredatorTypePicker from "./components/PredatorTypePicker"
@@ -33,10 +37,31 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
     }
 
     const getStepComponent = () => {
+        const isImAncilla =
+            character.age_category === "ancilla" &&
+            !!character.in_memoriam &&
+            !character.in_memoriam.use_standard
+
         switch (selectedStep) {
             case "age-category":
                 return (
                     <AgeCategoryPicker
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                )
+            case "ancilla-mode":
+                return (
+                    <AncillaModePicker
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                )
+            case "generation":
+                return (
+                    <GenerationPickerIM
                         character={character}
                         setCharacter={setCharacter}
                         nextStep={nextStep}
@@ -83,7 +108,13 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
                     />
                 )
             case "disciplines":
-                return (
+                return isImAncilla ? (
+                    <DisciplinesPickerIM
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                ) : (
                     <DisciplinesPicker
                         character={character}
                         setCharacter={setCharacter}
@@ -125,6 +156,14 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
             case "loresheet":
                 return (
                     <LoresheetPicker
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                )
+            case "in-memoriam":
+                return (
+                    <InMemoriamPicker
                         character={character}
                         setCharacter={setCharacter}
                         nextStep={nextStep}
