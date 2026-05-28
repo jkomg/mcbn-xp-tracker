@@ -34,11 +34,13 @@ function baseBotConfig(overrides: Partial<BotConfigResponse> = {}): BotConfigRes
     huntConsequenceEnabled: null,
     restartRequested: null,
     wikiSyncRequested: null,
+    ccTicketMonitorEnabled: null,
     passageOfTimeIntervalMs: null,
     reviewNotifierIntervalMs: null,
     submissionNotifierIntervalMs: null,
     claimReminderIntervalMs: null,
     announcementsChannelId: null,
+    ccTicketCategoryIds: null,
     ...overrides,
   };
 }

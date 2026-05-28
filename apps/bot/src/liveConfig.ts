@@ -16,4 +16,8 @@ export const liveConfig = {
   announcementsChannelId: null as string | null,
   /** Set to true by configSyncWorker when the web UI requests a wiki sync run. */
   wikiSyncRequested: false,
+  /** Whether the CC ticket welcome monitor is active. Seeded from .env in index.ts, then updated by ConfigSyncWorker. */
+  ccTicketMonitorEnabled: true,
+  /** Category IDs to restrict the CC ticket monitor to. Seeded from .env in index.ts, then updated by ConfigSyncWorker. */
+  ccTicketCategoryIds: new Set<string>(),
 };

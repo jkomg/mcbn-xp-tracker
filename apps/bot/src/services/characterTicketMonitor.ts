@@ -1,5 +1,6 @@
 import { ChannelType, EmbedBuilder, type Client, type NonThreadGuildBasedChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
+import { liveConfig } from '../liveConfig';
 
 const TICKET_CATEGORY_KEYWORD = 'character tickets';
 
@@ -8,12 +9,6 @@ interface CharacterTicketMonitorOptions {
     webBaseUrl: string;
     /** Optional Discord channel URL for creation rules. */
     creationRulesUrl?: string;
-    /**
-     * Optional set of category IDs to restrict monitoring to specific categories.
-     * When provided, only channels created under these exact category IDs trigger
-     * the welcome message. When absent, falls back to keyword matching on category name.
-     */
-    ticketCategoryIds?: Set<string>;
 }
 
 /**
@@ -27,13 +22,14 @@ export function startCharacterTicketMonitor(
     options: CharacterTicketMonitorOptions,
 ): void {
     client.on('channelCreate', async (channel: NonThreadGuildBasedChannel) => {
+        if (!liveConfig.ccTicketMonitorEnabled) return;
         if (channel.type !== ChannelType.GuildText) return;
 
         const parent = channel.parent;
         if (!parent) return;
 
-        const matchesCategory = options.ticketCategoryIds
-            ? options.ticketCategoryIds.has(parent.id)
+        const matchesCategory = liveConfig.ccTicketCategoryIds.size > 0
+            ? liveConfig.ccTicketCategoryIds.has(parent.id)
             : parent.name.toLowerCase().includes(TICKET_CATEGORY_KEYWORD);
         if (!matchesCategory) return;
 

@@ -23,6 +23,7 @@ export class BotHeartbeatService {
         claimReminderEnabled: liveConfig.claimReminderEnabled,
         passageOfTimeEnabled: liveConfig.passageOfTimeEnabled,
         huntConsequenceEnabled: liveConfig.huntConsequenceEnabled,
+        ccTicketMonitorEnabled: liveConfig.ccTicketMonitorEnabled,
         ...this.staticState,
       });
     } catch (err) {

@@ -31,6 +31,10 @@ export class ConfigSyncWorker {
       liveConfig.submissionNotifierIntervalMs = cfg.submissionNotifierIntervalMs ?? null;
       liveConfig.claimReminderIntervalMs = cfg.claimReminderIntervalMs ?? null;
       liveConfig.announcementsChannelId = cfg.announcementsChannelId ?? null;
+      liveConfig.ccTicketMonitorEnabled = cfg.ccTicketMonitorEnabled ?? config.ccTicketMonitorEnabled;
+      liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
+        ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.ccTicketCategoryIds);
       logEvent('debug', 'config_sync_done', { liveConfig });
 
       if (cfg.restartRequested) {

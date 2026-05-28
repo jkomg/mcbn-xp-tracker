@@ -764,6 +764,7 @@ def bot_config():
         'BOT_HUNT_CONSEQUENCE_ENABLED': 'huntConsequenceEnabled',
         'BOT_RESTART_REQUESTED': 'restartRequested',
         'BOT_WIKI_SYNC_REQUESTED': 'wikiSyncRequested',
+        'BOT_CC_TICKET_MONITOR_ENABLED': 'ccTicketMonitorEnabled',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -773,6 +774,7 @@ def bot_config():
     }
     STR_KEYS = {
         'BOT_ANNOUNCEMENTS_CHANNEL_ID': 'announcementsChannelId',
+        'BOT_CC_TICKET_CATEGORY_IDS': 'ccTicketCategoryIds',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting
@@ -845,6 +847,7 @@ def bot_heartbeat_post():
         'passageOfTimeEnabled': 'BOT_LIVE_PASSAGE_OF_TIME_ENABLED',
         'huntConsequenceEnabled': 'BOT_LIVE_HUNT_CONSEQUENCE_ENABLED',
         'wikiSyncCapable': 'BOT_LIVE_WIKI_SYNC_CAPABLE',
+        'ccTicketMonitorEnabled': 'BOT_LIVE_CC_TICKET_MONITOR_ENABLED',
     }
     body = request.get_json(silent=True) or {}
     for field, db_key in LIVE_FLAG_KEYS.items():
