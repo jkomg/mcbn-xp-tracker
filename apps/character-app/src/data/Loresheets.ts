@@ -30,33 +30,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Whispers of Lilith",
+                name: "Dangerous Reputation",
                 description:
-                    "You know of Lilith, the Path of Lilith, and the Bahari who follow it. You can identify other Bahari by their signs and seek out their hidden communities.",
+                    "Bahari intimidate vampires not of their order. Vampire believers in the Cainite mythos feel uncomfortable in your presence. Once per story, you may add two dice to Intimidation pools in tests against Caine-worshipers, assuming they know of your allegiance.",
             },
             {
                 dot: 2,
-                name: "Lilith's Way",
+                name: "Ritual Scarification",
                 description:
-                    "You are accepted into Bahari circles and know their rituals and networks. Once per story, call on a Bahari contact for information or minor aid without cost.",
+                    "You know pain leads to enlightenment. Specifically, the Lilitu preach that bringing one's physical shell to the extremes of sensation grants greater insight. Once per session, you may scar yourself with one point of Aggravated damage to recover a level of Willpower damage: superficial or Aggravated.",
             },
             {
                 dot: 3,
-                name: "Path of Blood",
+                name: "Sacrifice the Children",
                 description:
-                    "Recognized as a genuine follower of Lilith's path, you gain a Bahari elder as Mentor 3, as well as access to their dangerous lore and ritual spaces.",
+                    "The Bahari believe both in siring childer and sacrifice. Faithful Bahari know the ultimate sacrifice is the murder of their own childe. If you diablerize your childe, you gain three extra dice in your Humanity + Blood Potency dice pool to absorb Disciplines (see Diablerie, p. 234).",
             },
             {
                 dot: 4,
-                name: "Lilith's Veil",
+                name: "The Womb's Blood",
                 description:
-                    "You are trusted with the Bahari's most sensitive secrets. You share access to a Bahari safe house (Haven 2) and may request significant assistance from the inner circle once per story.",
+                    "Bahari consider fertility and sex sources of strength, with some factions placing special prominence on blood or vitae taken from the womb. Once per story, after drinking blood from the uterus, you receive an additional two dots in either Stamina or Resolve (thus increasing Health or Willpower by two) until the dawn.",
             },
             {
                 dot: 5,
-                name: "Chosen of Lilith",
+                name: "First-Cursed",
                 description:
-                    "Lilith's legacy moves through you. A Bahari elder of great power will intercede on your behalf once per chronicle, even at considerable personal risk.",
+                    "Lilith's worshipers maintain that she was the first living being cursed by God, before Adam, Eve, or Caine. The Bahari strive to emulate Lilith's lesser curse, and in so doing find their Cainite weaknesses lessened. You retain your clan bane, but you can now walk in the first hour of daylight and final hour of dusk; you can also engage in intercourse without Rousing the Blood. However, you radiate danger: the equivalent of the Obvious Predator (●) Flaw. All Social tests to ostracize or slander you have their Difficulty reduced by one. Finally, any vampire assessing you with Auspex immediately suffers migraine-like headaches; their Resolve and Willpower drop by half your Resolve (rounded up) for one scene.",
             },
         ],
     },
