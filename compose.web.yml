@@ -17,7 +17,7 @@ services:
       WEB_LOG_DIR: /run/logs
       MONOREPO_ROOT: /app
     ports:
-      - "127.0.0.1:5001:5001"
+      - "5001:5001"
     volumes:
       - ./apps/web:/app
       - ./packages:/app/packages:ro
