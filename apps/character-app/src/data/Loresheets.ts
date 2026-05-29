@@ -30,33 +30,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Whispers of Lilith",
+                name: "Dangerous Reputation",
                 description:
-                    "You know of Lilith, the Path of Lilith, and the Bahari who follow it. You can identify other Bahari by their signs and seek out their hidden communities.",
+                    "Bahari intimidate vampires not of their order. Vampire believers in the Cainite mythos feel uncomfortable in your presence. Once per story, you may add two dice to Intimidation pools in tests against Caine-worshipers, assuming they know of your allegiance.",
             },
             {
                 dot: 2,
-                name: "Lilith's Way",
+                name: "Ritual Scarification",
                 description:
-                    "You are accepted into Bahari circles and know their rituals and networks. Once per story, call on a Bahari contact for information or minor aid without cost.",
+                    "You know pain leads to enlightenment. Specifically, the Lilitu preach that bringing one's physical shell to the extremes of sensation grants greater insight. Once per session, you may scar yourself with one point of Aggravated damage to recover a level of Willpower damage: superficial or Aggravated.",
             },
             {
                 dot: 3,
-                name: "Path of Blood",
+                name: "Sacrifice the Children",
                 description:
-                    "Recognized as a genuine follower of Lilith's path, you gain a Bahari elder as Mentor 3, as well as access to their dangerous lore and ritual spaces.",
+                    "The Bahari believe both in siring childer and sacrifice. Faithful Bahari know the ultimate sacrifice is the murder of their own childe. If you diablerize your childe, you gain three extra dice in your Humanity + Blood Potency dice pool to absorb Disciplines (see Diablerie, p. 234).",
             },
             {
                 dot: 4,
-                name: "Lilith's Veil",
+                name: "The Womb's Blood",
                 description:
-                    "You are trusted with the Bahari's most sensitive secrets. You share access to a Bahari safe house (Haven 2) and may request significant assistance from the inner circle once per story.",
+                    "Bahari consider fertility and sex sources of strength, with some factions placing special prominence on blood or vitae taken from the womb. Once per story, after drinking blood from the uterus, you receive an additional two dots in either Stamina or Resolve (thus increasing Health or Willpower by two) until the dawn.",
             },
             {
                 dot: 5,
-                name: "Chosen of Lilith",
+                name: "First-Cursed",
                 description:
-                    "Lilith's legacy moves through you. A Bahari elder of great power will intercede on your behalf once per chronicle, even at considerable personal risk.",
+                    "Lilith's worshipers maintain that she was the first living being cursed by God, before Adam, Eve, or Caine. The Bahari strive to emulate Lilith's lesser curse, and in so doing find their Cainite weaknesses lessened. You retain your clan bane, but you can now walk in the first hour of daylight and final hour of dusk; you can also engage in intercourse without Rousing the Blood. However, you radiate danger: the equivalent of the Obvious Predator (●) Flaw. All Social tests to ostracize or slander you have their Difficulty reduced by one. Finally, any vampire assessing you with Auspex immediately suffers migraine-like headaches; their Resolve and Willpower drop by half your Resolve (rounded up) for one scene.",
             },
         ],
     },
@@ -68,33 +68,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Bell's Reputation",
+                name: "Rebel Cell",
                 description:
-                    "You know who Theo Bell is, what he did, and how to get word to him. His name opens doors among Anarchs and disaffected Camarilla alike.",
+                    "You command a pack of rebellious mortals and fuel their fire with something that keeps them fighting. Perhaps you feed them vitae or maybe you embody their ideals. Either way, these rebels (a three-dot Ally group equivalent) perform a single dangerous task for you without your presence, before disbanding until the next story.",
             },
             {
                 dot: 2,
-                name: "Bell's Nod",
+                name: "True Anarch",
                 description:
-                    "Bell has acknowledged you. Add two dice to Social rolls involving Anarchs and former Camarilla members who respect his defection.",
+                    "You were an Anarch before Bell led an army of Camarilla Brujah into the Anarch Movement, and you resent these tagalongs joining the Anarchs just as they grow popular. You have records, names, places, and dates about who the rebels were and are, fed to you by the Man or gathered personally. Either way, you get two automatic successes on any Investigation test concerning vampires who defected to the Anarch Movement.",
             },
             {
                 dot: 3,
-                name: "Bell's Word",
+                name: "Contact Information",
                 description:
-                    "Bell will speak on your behalf to other Anarchs and sympathetic elders. Gain Allies (Anarch Movement) 2.",
+                    "Whether by dead drop, messenger, or arcane means, you can get word to Theo. Whether he responds, or even listens, depends on the message and your earlier interactions, but if he likes what you have to say, he might be able to move mountains. The precise game effects of a message to Theo are up to the Storyteller.",
             },
             {
                 dot: 4,
-                name: "Bell's Backing",
+                name: "Bell's Circle",
                 description:
-                    "Bell will personally intercede once per chronicle to pull you from danger, broker a significant deal, or lend his considerable physical prowess to your cause.",
+                    "Theo trusts you, perhaps because of your earlier revolutionary actions or because you manipulated your way into his good graces. Bell is equivalent to a five-dot Mawla, but your association with him also has many drawbacks.",
             },
             {
                 dot: 5,
-                name: "Bell's Chosen",
+                name: "Sect Neutrality",
                 description:
-                    "Bell considers you a trusted companion. Once per chronicle he will take significant personal risk — including violence — to act in your interest.",
+                    "Following Theo Bell's lead, you have a small contingent of a few Brujah loyal to your vision, and you can influence them in any direction: the Camarilla, the Anarchs, or even to form a smaller subsect neutral amidst the Jyhad. You may resent their existence or take pride in your following. Not mindless disciples, these Kindred keep track of favors granted. But until they rebel against you, you have five dots to spend among Contacts, Haven (safe houses), Mawla, and Retainers.",
             },
         ],
     },
@@ -106,33 +106,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "The Word of Caine",
+                name: "Let He Who Hath Understanding",
                 description:
-                    "You know of the Cainite Heresy and can identify its members and find their congregations. Add two dice to Lore rolls about Caine or Gehenna theology.",
+                    "The Storyteller will give you one clue freely to understand, investigate, or detect the Heresy's actions or plans, now or in previous centuries. You can use this lore once per story.",
             },
             {
                 dot: 2,
-                name: "Hidden Congregation",
+                name: "Hand of the Heresy",
                 description:
-                    "You know the secret meeting places of Heresy cells. Once per story, seek refuge or information from a congregation without prior introduction.",
+                    "Take a total of three dots from among Allies, Herd, Mawla, or Retainers to represent your role in the city's Heretical deaconate. For example, if you took Herd and Mawla, you might bless a small cult of human worshipers and have a renowned scholar of the Heresy as your teacher. You also have the Dark Secret Flaw (Heresy) in some domains.",
             },
             {
                 dot: 3,
-                name: "Scholar of Caine",
+                name: "Counter-Inquisition",
                 description:
-                    "You have studied the Heresy's texts in depth. Add two dice to any roll to recall lore about Caine, the Antediluvians, or pre-Camarilla vampire history.",
+                    "You can smell True Faith on a human; if you need to test to do so, your pool is Resolve + your highest rating in Cainite Heresy. You might also oppose the Heresy, and instead use this gift to know who to trust.",
             },
             {
                 dot: 4,
-                name: "True Believer",
+                name: "Red Celebrant",
                 description:
-                    "A senior member of the Heresy sponsors you, granting you Mentor (Heresy Elder) 3 and access to their restricted rituals and relics.",
+                    "You know the rituals and the specific dosages to induce the Red Pentecost in a human congregation: a kind of ecstatic religious version of the frenzy. During the Red Pentecost, humans act according to their worst natures. You can procure enough herbs and fungi for one ceremony per story; the Red Ceremony requires a Hunger check and may trigger frenzy in Kindred participants.",
             },
             {
                 dot: 5,
-                name: "Voice of the Dark Father",
+                name: "The One Named in Prophecy",
                 description:
-                    "You are recognized as a significant voice within the Heresy. Once per chronicle, call on the entire local congregation for meaningful aid — information, sanctuary, or coordinated action.",
+                    "You are a linchpin of the Heresy's plans: perhaps they consider you an avatar of Caine, you possess the only copy of the Testimony of St. Panteleimon, or your vitae is the only effective sacrifice to Ialdabaoth to propitiate or distract the Demiurge. Every informed member of the Heresy, and many who simply want to curry favor with the Anarchs, know your role. Once per story, you can use this fact to dictate the winner of a Social conflict if you can give a plausible reason for that outcome.",
             },
         ],
     },
@@ -145,33 +145,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Carna's Circle",
+                name: "Embrace the Vision",
                 description:
-                    "You know of Carna's break from the Tremere Pyramid and can contact her followers, who share knowledge freely rather than hoarding it behind oaths.",
+                    "You are fully committed to Carna's vision for a new Tremere clan and find yourself possessed of a greater sense of self-belief in the presence of your fellow sub-faction Kindred. When around other members of House Carna, you have one additional die for all Willpower tests.",
             },
             {
                 dot: 2,
-                name: "Liberated Magic",
+                name: "The Rebel Trail",
                 description:
-                    "Carna's followers share their knowledge without the usual Tremere restrictions. Learn one Blood Sorcery ritual of level 1 or 2 outside your normal prerequisites.",
+                    "You followed Carna's trail after her initial breakage from Clan Tremere, soaking up the feelings of rebellion and freedom. You resolve to never be a Blood slave again. Whenever at risk of becoming Blood Bound, you may make a Willpower test (with a Difficulty equal to the Blood Potency of the ingested vitae) to ignore it.",
             },
             {
                 dot: 3,
-                name: "Carna's Trust",
+                name: "Unorthodox Rituals",
                 description:
-                    "A member of Carna's inner circle mentors you. Gain Mentor (Carna's circle) 3, with access to her stolen Tremere library.",
+                    "Carna gives of her sanity or her soul to fuel her magic, instead of divesting her vitae in Hermetic orthodoxy. Your understanding of her process enables you to perform rituals in the same way. You can perform one known ritual per story without the need to expend Blood, but on a messy critical, you also become deranged in some way (typically becoming intensely paranoid or fearful of blood) until the end of the story.",
             },
             {
                 dot: 4,
-                name: "Forbidden Texts",
+                name: "Reimagined Bond",
                 description:
-                    "You have access to Carna's archive of reclaimed Tremere knowledge. Once per story, research any Blood Sorcery ritual without the usual extended time cost.",
+                    "You have studied Carna's magic and her unusual method of reimagining the vinculum, and you can extend the effects of her ritual to others. Having sex with a target, mortal or undead, creates a Blood Bond between the partner, yourself, and Carna, despite Carna's absence. Repeated sexual encounters strengthen the Blood Bond, as per the normal Bond. You can thus circumvent the Tremere clan bane, but the Bond only lasts until the conclusion of the story.",
             },
             {
                 dot: 5,
-                name: "Carna's Blessing",
+                name: "Book of the Grave-War",
                 description:
-                    "Carna herself regards you as an ally. She will intercede once per chronicle in matters involving the Tremere Pyramid — a significant intervention from a powerful elder.",
+                    "According to rumor, the tome known as the Book of the Grave-War allowed Carna to break her Bond to Clan Tremere. You own a copy, granting you one automatic success on all Occult tests pertaining to Gehenna, its prevention, and breaking the shackles binding vampires to their elders. The book makes you unbondable for as long as you retain it and follow its arcane teachings. However, Tremere seek to destroy you and the book; the Storyteller can also penalize you one die on any Social or Mental test affected by your ongoing paranoia.",
             },
         ],
     },
@@ -183,33 +183,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Blood Routes",
+                name: "Tap into the System",
                 description:
-                    "You know the Circulatory System exists and have accessed its basic services — safe passage between cities for vampires who need to move discreetly.",
+                    "Once per story, you can request specific blood vessels from the Circulatory System to convey certain abilities – or to provide for a Ventrue who finds their feeding preference neglected in the domain.",
             },
             {
                 dot: 2,
-                name: "Safe Houses",
+                name: "Little Black Book",
                 description:
-                    "You know the locations of Circulatory System safe houses across the region. Gain Haven 2 shared with the System — reliable, if never truly private.",
+                    "You have come into the possession of one of the System's little black books. These books contain records of blood experiments and theories on the power of select vessels' blood. The Storyteller determines the book's accuracy on specific matters; in general, it adds one die to Investigation, Alchemy, Medicine, or Science tests to track down or test a specific vintage. It also cuts the time to research a new two-dot or three-dot thin-blood Alchemy formula in half.",
             },
             {
                 dot: 3,
-                name: "The Network",
+                name: "Farm Upstate",
                 description:
-                    "You are a trusted participant in the System. Gain Contacts 3 spanning multiple cities, all connected to the Circulatory System's web of couriers and stewards.",
+                    "You know where the System keeps a farm of valuable vessels: mortals with blood potent enough to convey benefits to Kindred drinkers. You can raid the farm, lease specific vessels at cost, or try to muscle your way in. These vessels are equivalent to four dots of Herd, but you can only feed from them once per week unless you overtly take over the farm.",
             },
             {
                 dot: 4,
-                name: "Blood Trade",
+                name: "Secure Transit",
                 description:
-                    "You can access the System's blood trading network. Once per story, source rare or exotic blood types — animal, specific resonances, even bagged hospital stock — without personal exposure.",
+                    "The Circulatory System uses armored vans and armed ghoul drivers to transport vessels from A to B. These protected modes of transit are more than simple security vans; they bristle with weapons and sometimes contain incredibly valuable vessels destined for important buyers. You have access to one of these vans. Whether you're riding up front as a legitimate driver or have successfully hijacked one of these vans, you may arrange secure travel for one or more Kindred with little effort.",
             },
             {
                 dot: 5,
-                name: "System Operator",
+                name: "Blood Sommelier",
                 description:
-                    "You are a significant node in the Network. Once per chronicle, call on the full logistical might of the Circulatory System in your region — transport, safe houses, intelligence, blood supply.",
+                    "You know the Circulatory System's secret methods for taste, analysis, and refinement, and you can replicate them. Perhaps you own a blood laboratory, have an alchemist or blood sorcerer on call, or you just stay au courant on aficionado gossip. You can add two dice to any test to discover the Resonance of blood, and you can select three dots of Contacts, Allies, or Haven Merits to explain your knowledge. Once per story, you can ask the Storyteller the properties of the most valuable vessel's blood.",
             },
         ],
     },
@@ -221,33 +221,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Scholar of Thorns",
+                name: "Thorns Historian",
                 description:
-                    "You know the history and precise terms of the Convention of Thorns. Add two dice to Social or Lore rolls involving Camarilla founding history or the Traditions.",
+                    "The Convention of Thorns was a complex, moving beast of diplomacy. Hundreds of small meetings took place between representatives of this clan or that, forging pacts that lasted years, decades, or centuries in some cases. You possess an encyclopedic knowledge of the convention's minor meetings, and you can call on this knowledge to apply legal pressures on the participants or their descendants, where pacts may still be in force but not practiced or revoked without consent of all parties. Once per story, you can ask the Storyteller for a piece of known information regarding the convention.",
             },
             {
                 dot: 2,
-                name: "Ancient Precedent",
+                name: "Tradition Master",
                 description:
-                    "You can invoke the Convention's clauses in Camarilla courts. Once per story, cite a specific provision to gain a legal advantage or pause proceedings against you.",
+                    "The six Traditions the Camarilla cling to tonight were first codified and agreed upon at the Convention of Thorns. Your knowledge of the convention extends to multiple apocryphal or proposed Traditions, some of which nearly passed. Once per chronicle, you can exercise fringe laws in domains where the ruling clans may still be sympathetic to the unaccepted Traditions of Thorns. Example pseudo-Traditions might include: Kindred in this domain are only permitted one Embrace; all law enforcement is forbidden as feeding stock; combat in Elysium is punishable by Final Death; diablerie is permitted against any Caitiff discovered in this domain; etc.",
             },
             {
                 dot: 3,
-                name: "Original Witness",
+                name: "Convention Secrets",
                 description:
-                    "A vampire who attended the Convention mentors you. Gain Mentor (Elder) 3, with firsthand historical knowledge of the Camarilla's founding that no book can provide.",
+                    "The Ministry declined an invitation to join as the eighth pillar clan; the Lasombra rejected the Camarilla when it refused to acknowledge the existence of Antediluvians. You have uncovered still-more obscure secret proposals from the Convention: the Cappadocian petition to join, the Malkavians' symbol draft, and more. You can drop enough hints to always take a one-die bonus to Social tests involving Kindred who were present at the convention. You also know a number of major secrets, each worth a Major Boon to some powerful Cainite. Once per story, you can ask the Storyteller for the name of a Kindred who needs your knowledge.",
             },
             {
                 dot: 4,
-                name: "Founding Privilege",
+                name: "Prospective Justicar",
                 description:
-                    "Some of the Convention's original protections nominally apply to you. Once per chronicle, invoke founder's privilege to request sanctuary from any Camarilla court.",
+                    "The Camarilla Justicars first received appointment during the Convention of Thorns. No matter your political allegiance, somehow you (or your sire, if you are far too young) have powerful support to become the next Justicar of your clan. If your clan is not one represented widely in the Camarilla, perhaps this appointment signals a sea change among the sect's clans.",
             },
             {
                 dot: 5,
-                name: "Living History",
+                name: "New Traditions",
                 description:
-                    "You are recognized as a keeper of the Convention's true meaning. Tradition-respecting elders will grant you audiences and concessions unavailable to ordinary Kindred.",
+                    "Your knowledge of the Convention of Thorns is such that you can compile enough evidence and support to propose a new Tradition, or an amendment to an existing one, to the Camarilla's Inner Circle. This Tradition may be accepted if it sounds sensible and helps the increasingly strict Camarilla in the world tonight, or it may mark you as a firebrand and danger to the sect. Importantly, your voice will be heard without prior judgment.",
             },
         ],
     },
@@ -259,33 +259,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Old Wounds",
+                name: "Mistakes of the Past",
                 description:
-                    "You know the history of the First Inquisition and recognize its modern inheritors. Add two dice to rolls to identify Second Inquisition tactics, agents, and methods.",
+                    "You know Kindred history and can cite chapter and verse of the domains and Princes the Inquisition destroyed in its original incarnation. You can educate any vampire on the Inquisition's historic dangers. Once per story, you can ask the Storyteller for one piece of information regarding the original Inquisition.",
             },
             {
                 dot: 2,
-                name: "Survivor's Network",
+                name: "Names of the Guilty",
                 description:
-                    "Your line survived the Inquisition. Gain Contacts 2 among vampires who share this historical trauma — a bond forged in the worst persecution Kindred have known.",
+                    "Your knowledge of vampire and Inquisition relations extends to include Kindred manipulators. Though most are dead by these nights, many of their descendants survive, and they are at risk of blackmail for their sires' treacheries. Once per story, you can ask the Storyteller for the name of one descendant of these traitors in your domain, if there is one.",
             },
             {
                 dot: 3,
-                name: "Tactics of the Hunters",
+                name: "The Sect of St. James",
                 description:
-                    "You have studied Inquisitional methods from both sides. Add two dice to rolls to evade, counter, or predict mortal hunter operations.",
+                    "You have contacts who consider themselves \"old Inquisitors.\" The Sectus Sancti Iacomi harbors a deep resentment for their fancy modern counterparts, acting with greater fanaticism and suicidal zeal than the more controlled Second Inquisition. Their abbé is a four-dot Contact, whom you can contact once per story.",
             },
             {
                 dot: 4,
-                name: "Preserved Records",
+                name: "The Second Act",
                 description:
-                    "You have access to Inquisitional archives, identifying hunter lineages across centuries. Once per story, research any hunter's organization or background with three additional dice.",
+                    "You have a Contact within the Second Inquisition or the local Catholic archdiocese: a file clerk, scout hunter, exorcist, armorer, etc. You have no power over them, but you know how to pump them for information – or prime them with disinformation – if need be.",
             },
             {
                 dot: 5,
-                name: "The Long Memory",
+                name: "Black Spot",
                 description:
-                    "You are a keeper of hunter history spanning six hundred years. Once per chronicle, predict and counter a major hunter offensive before it lands — your foreknowledge is invaluable.",
+                    "You have identified a location within your domain that the Second Inquisition fears to tread. Once per story, if you or anyone targeted by the Second Inquisition hides out at this location, the hunters call off the search. This anomaly seems to be a blessing, but it does throw up the question: What is so holy or unholy about this place that it deters the greatest threat to Kindred tonight?",
             },
         ],
     },
@@ -297,33 +297,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Seeker",
+                name: "Seeds of Golconda",
                 description:
-                    "You know Golconda may be real and have made contact with others who seek it. Your sincere pursuit adds one die to all Remorse rolls.",
+                    "You have heard of Golconda and can educate others on its nature without seeming like a total amateur. Once per story, you can ask the Storyteller for guidance before taking an action, and they will tell you if that action will jeopardize the chance of pursuing Golconda.",
             },
             {
                 dot: 2,
-                name: "Spiritual Discipline",
+                name: "The One True Way",
                 description:
-                    "Your search for Golconda has given you unusual mastery over the Beast. Once per session, reroll one bestial failure.",
+                    "You own a copy of the Master of Ravens-penned \"One True Way:\" a treatise on the supposed realities of Golconda. This piece of work tells you that Golconda is a method to become an apex predator, rather than a spiritually redeemed monster. Once per story, this pamphlet gives you three extra dice in any Social test involving the nature of Golconda.",
             },
             {
                 dot: 3,
-                name: "Mentor in Redemption",
+                name: "Saulot's Disciple",
                 description:
-                    "You know a vampire who has come close to Golconda, or possibly achieved it. Gain Mentor (Near-Golconda) 3, a guide unlike any other.",
+                    "You cling to the ideals of Saulot: the vampire who traveled to Asia and returned bearing a third eye and the enlightenment of Golconda. You believe in Saulot's teachings that Golconda is the ultimate way in which a Kindred can overcome their curse. You practice a dual existence, allowing your Beast and Hunger off the reins occasionally, so you can achieve serenity at other times. Whenever you willingly succumb to frenzy, make a note; you can automatically succeed on your next frenzy test.",
             },
             {
                 dot: 4,
-                name: "Approaching Peace",
+                name: "Satisfy the Hunger",
                 description:
-                    "Your long pursuit has brought you closer. Reduce the difficulty of one Remorse roll per story by 1.",
+                    "You do not need to feed as often as other vampires. Your Golconda focus is to suppress your constant Hunger, potentially at the expense of other Traits. Your temperance acts as an inspiration to many other vampires. Once per session, you may lower your Hunger by one (but not below one) without feeding.",
             },
             {
                 dot: 5,
-                name: "The Threshold",
+                name: "Greet the Sun",
                 description:
-                    "You stand at the threshold of Golconda. Once per chronicle, automatically succeed on one Remorse check without rolling.",
+                    "You know Golconda's secrets. You may be incapable of walking the path forever, but for as long as you do, you can brave full daylight without suffering harm. However, the night after you walk in sunlight, you wake in a Hunger frenzy. You can do this once per story.",
             },
         ],
     },
@@ -336,33 +336,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Hardestadt's Legacy",
+                name: "Voice of Hardestadt",
                 description:
-                    "You are known as a descendant of the Camarilla's chief architect. Add two dice to Social rolls with Camarilla traditionalists who revere the founders.",
+                    "Hardestadt shouted often, punctuating his remarks with fist blows to tables, walls, or unfortunate ghouls. Your Blood allows you to speak over any noise and draw attention, whether in a buzzing meeting room or at a rave. Something in your voice allows others to hear you. Whether they go on to pay attention depends on what you say.",
             },
             {
                 dot: 2,
-                name: "Venerable Blood",
+                name: "Supreme Leader",
                 description:
-                    "Your lineage commands respect in any Camarilla court. Gain Status (Camarilla) 2.",
+                    "Hardestadt's self-confidence as a leader was in many ways his undoing, but until his Final Death, it saw him rise to greatness. You can convince others to follow you into deadly situations or command from the rear, and you can send subjects to their doom to better your position. Once per story, you suffer no penalty to your dice pool for sending people into danger.",
             },
             {
                 dot: 3,
-                name: "Hardestadt's Influence",
+                name: "Ventrue Pillar",
                 description:
-                    "You can invoke your ancestor's name to call in debts. Once per story, request a significant Camarilla boon from a respected elder who owes deference to Hardestadt's line.",
+                    "Due to your prestigious lineage, other Ventrue look to you for guidance. Regardless of your Status with other groups, you always have three dots of Status (●●●) with Ventrue.",
             },
             {
                 dot: 4,
-                name: "Blood Memory",
+                name: "Line to the Founders",
                 description:
-                    "You have inherited fragments of Hardestadt's centuries of memory. Once per story, recall a specific historical detail or political connection as if you were present for it.",
+                    "Hardestadt ensured his entire line could reach him when endangered. He rarely answered communications unless the situation was dire, and he punished misuse severely, but his method still holds despite his death. Once per chronicle, you can call, write to, or arrange a meeting with one of the Camarilla's founders in lieu of Hardestadt. Whether they deign to respond depends upon the importance of your request.",
             },
             {
                 dot: 5,
-                name: "True Heir",
+                name: "Hardestadt's Heir",
                 description:
-                    "You are recognized as Hardestadt's chosen successor within the Camarilla. Princes must grant you audience; your word carries weight that shapes court decisions.",
+                    "You hold in your possession a signed document in which Hardestadt names you as his successor. You're not sure what you are a successor to: mere wealth and power, Ventrue kingship, or even the Inner Circle of the Camarilla. When you take the name of \"Hardestadt,\" the document claims that the Camarilla shall march to the beat of your drum – and ensures that the Anarchs will swarm to take you down.",
             },
         ],
     },
@@ -375,33 +375,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Helena's Art",
+                name: "Skin-Deep",
                 description:
-                    "Your lineage traces to Helena of Troy. Add two dice to Craft or Performance rolls in any artistic or aesthetic pursuit.",
+                    "No matter your standing, dropping Helena's name in conversation with a Toreador or a vampire who knows of her effectively raises your Status by one dot. You can drop Helena's name once per story for this effect, or more often to make everyone sick of you.",
             },
             {
                 dot: 2,
-                name: "Aesthetic Network",
+                name: "Real Talent",
                 description:
-                    "Your connection to Helena's legacy opens doors in mortal high society and Toreador circles. Gain Contacts 2 in the art world — collectors, curators, patrons.",
+                    "Unlike other vapid Toreador relying on their faces and bodies alone, you were Embraced for your talent. Choose one Skill from Craft, Etiquette, or Performance. Increasing this Skill costs half the experience points (rounded down) that such an increase would typically cost.",
             },
             {
                 dot: 3,
-                name: "Helena's Touch",
+                name: "Embrace the Stereotype",
                 description:
-                    "Your works carry something of Helena's legendary power. Once per story, create or perform a piece of art that profoundly moves all who experience it, adding dice equal to your Blood Potency.",
+                    "When the time comes, you can play the role of shallow Toreador, surround yourself with an entourage of sycophants, and throw a party that becomes legend. Once per story, you may host a party to increase your Status and/or Influence by two dots with an invited group; the increase lasts as long as the party does.",
             },
             {
                 dot: 4,
-                name: "Ancient Muse",
+                name: "Divine Purity",
                 description:
-                    "You can access Helena's memories of the ancient world. Once per story, recall a historical event from classical antiquity as if you witnessed it firsthand.",
+                    "Unlike most within Helena's extended family, your perfection is more angelic than devilish. You can commit any sin, but you will always look innocent. Add two dice to your dice pools when making tests to avoid blame for your actions.",
             },
             {
                 dot: 5,
-                name: "The Face That Launched Ships",
+                name: "Succubus Club Franchise",
                 description:
-                    "Your presence carries Helena's legendary, world-shaking charisma. Once per chronicle, entrance an entire audience, rendering them profoundly susceptible to your influence for the scene.",
+                    "Helena succumbed to the Beckoning in recent years, leaving the Succubus Club in Chicago to a manager once again. She bestowed a license upon you to establish a franchised Succubus Club in your domain. This rare honor guarantees the city's Kindred respond to your call, as every vampire Embraced in the last 200 years has heard of the Succubus Club. As long as the club remains open, the Chasse rating of your coterie's Domain increases by two dots. You also have four dots to select among Resources, Fame, and Status among all Kindred.",
             },
         ],
     },
@@ -413,33 +413,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Battle-Hardened",
+                name: "Survivor",
                 description:
-                    "You survived the Sect Wars and carry those lessons in every sinew. Add two dice to Composure rolls when facing violence, chaos, or coordinated aggression.",
+                    "Your domain, or the domain of a vampire close to you, was scourged during the sect war. You can recount how the Sabbat and Camarilla strategized, how they warred in the city without alerting mortals, and the names of the fallen vampires caught in the middle. Once per story, you can ask the Storyteller for a piece of information relating to the sect war in your domain.",
             },
             {
                 dot: 2,
-                name: "Veteran's Network",
+                name: "Active Participant",
                 description:
-                    "You know other survivors on both sides of the war. Gain Contacts 2 among veterans of Camarilla and Anarch forces alike.",
+                    "No matter the sect, the war pulled in many vampires. Even independents served as mercenaries or suppliers for one or both sides. You have the scars to show for your participation. Your own sect may regard you as a war hero; the other as a war criminal. Take three dots of Status or Mawla to reflect your position or that of one of your comrades.",
             },
             {
                 dot: 3,
-                name: "Combat Wisdom",
+                name: "Trophy Kill",
                 description:
-                    "Your experience in sect warfare is encyclopedic. Add two dice to rolls involving tactics or coordinated violence, and once per story predict an enemy's military move before it happens.",
+                    "Many notable vampires fell in the sect war, and to the Archons and Templars participating in the war, taking down a \"name\" on either side became a matter of competitive pride. Whether by luck or design, you are responsible for one such vampire's death. You may wear this badge with pride or stifle the rumors, but either way, the vitae coats your hands. Once per story, you can use this legend to bypass a contest where it might assist, just as the Storyteller can always use it to send enemies after your head.",
             },
             {
                 dot: 4,
-                name: "War Cache",
+                name: "No Vampire's Land",
                 description:
-                    "You have stashed weapons, blood supplies, and resources from the war. Gain Resources 3 (untraceable) and Haven 2 representing a fallback position.",
+                    "Kindred hit-teams on either side of the sect war ranged from domain to domain and then back across old ground as the defenders rallied. This Great War-style push-and-pull of conflict led to some vampires obsessing over domains and their hidden sanctuaries, armories, tunnel networks, and side streets. You know all the best spots in your domain and two adjacent domains for launching an ambush, hiding from attackers, restocking a militia, or making contact with mercenaries. Add two dots to your Domain's Portillon, and add two dice to relevant Streetwise, Larceny, and Stealth pools in two neighboring domains.",
             },
             {
                 dot: 5,
-                name: "Living Legend",
+                name: "Sect Agitator",
                 description:
-                    "Your deeds in the Sect Wars are famous. Once per chronicle, invoke your reputation to halt a conflict in its tracks or command instant respect from veterans on either side.",
+                    "Some vampires exist only to cause bloodshed, and you count yourself among that number. Individuals such as Lucinda of the Camarilla and Francisco Domingo de Polonia of the Sabbat spoiled for war and were left hollow when it concluded. You know all the trigger points and the correct fuse to light in order to spark a new sect war. It may be localized to a single domain at first, but once the flames start, you can fan them to extend. Add two dice to all your pools for Social tests to inflame sectarian tension.",
             },
         ],
     },
@@ -451,33 +451,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Theological Foundations",
+                name: "Constantinople",
                 description:
-                    "You know the history and agreements of the three clans that founded the Camarilla. Add two dice to Social rolls in Camarilla political contexts.",
+                    "Outside the Ashirra, vampire tradition refers to Istanbul as \"Constantinople.\" You are one of the few who know why. Constantinople represented everything possible in a city where vampires shared ideas and discussed philosophy without falling to carnage. Once per story, you can ask the Storyteller a question about Constantinople's past and be given an accurate answer.",
             },
             {
                 dot: 2,
-                name: "Inner Circle Access",
+                name: "Antonius' Architecture",
                 description:
-                    "You have connections to those near the Inner Circle. Gain Contacts 2 among Camarilla Justicars or their agents.",
+                    "Renowned for his architectural skills, both political and physical, the Ventrue Antonius built the structure that held Constantinople together. To some, he fathered the Primogen ideal. You study Antonius' methods; you can add two dice to any Politics dice pool when making a test involving domain government. Once per story, you can mediate and calm any court debate, quashing violence with action or profundity.",
             },
             {
                 dot: 3,
-                name: "Keeper of Traditions",
+                name: "The Dream",
                 description:
-                    "You are recognized as a defender of the Traditions. Once per story, invoke a Tradition to legally compel a Camarilla member to follow it in the presence of Elysium witnesses.",
+                    "For a millennium, the Trinity practiced Michael's Dream: a vision of vampire utopia. Michael encouraged all vampires in Constantinople to learn and seek enlightenment, grow distant from the Beast, and become something beyond mere predators. You are a modern exponent of the dream, recognized as a Speaker of the Dream in your city. You can add one die to any Insight dice pool when testing to gauge another's Beast. You inspire and calm souls; once per story, you can spend a Willpower point to allow another vampire to re-roll up to three dice when resisting frenzy.",
             },
             {
                 dot: 4,
-                name: "Inner Circle Debtor",
+                name: "The Dracon",
                 description:
-                    "One member of the Inner Circle owes you a favor. Gain one Major Boon from an Inner Circle member, usable once per chronicle.",
+                    "Of the Trinity, only the Tzimisce known as the Dracon survived Constantinople's fall. Passionate and wise, the lover of both Antonius and Michael, and spiritual guide for the Trinity, the grieving Dracon fell silent for many centuries following Antonius' murder. Rumors whisper that the Dracon reemerges now, with unclear intent. You count yourself as one of his disciples, and likely know how to find him. He counts as a five-dot Mawla, assisting with spiritual and Discipline matters.",
             },
             {
                 dot: 5,
-                name: "Inner Circle Trust",
+                name: "The New Trinity",
                 description:
-                    "You are trusted by the Inner Circle itself. Once per chronicle, request a significant intervention from them — they will act, though the debt incurred may be steep.",
+                    "One night, Michael's Constantinople will be reborn, and you shall assist at the birth. You know this not from fragile ego, but from certain prophecy. You, along with two others who complement your skills without mirroring them, will rebuild Constantinople in a new city – no matter what you must do. If you earned them on the path to bringing about the New Trinity, you can remove up to five Stains per story before making a Remorse test (p. 239).",
             },
         ],
     },
@@ -489,33 +489,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Anarch Celebrity",
+                name: "Asylum Membership",
                 description:
-                    "You know of the Voerman twins and can navigate their domains. Add two dice to Social rolls in Anarch-controlled Los Angeles.",
+                    "You never need to wait in a queue for entry to the Asylum, you always have one of the best seats in the house, and as long as you don't fuck up, you may hunt there once or twice per session (Difficulty 2) without any ruffled feathers.",
             },
             {
                 dot: 2,
-                name: "The Twins' Notice",
+                name: "Performing Monkey",
                 description:
-                    "Jeanette or Therese has taken a genuine interest in you. Gain Allies (Voerman interests) 2 — though their interest can be unpredictable.",
+                    "Jeanette and Therese know you as a reliable asset, and they frequently subject you to missions ranging from serious investigations to flights of insane fancy. Although dangerous, they are generous, and they repay any boons incurred.",
             },
             {
                 dot: 3,
-                name: "Asylum Access",
+                name: "Jeanette's Favorite",
                 description:
-                    "You have legitimate access to the Asylum nightclub as a safe haven. Gain Haven 3 (shared, the Asylum) — well-secured but never entirely private.",
+                    "Jeanette Voerman, the wild child of the Voerman family, adores you, pets you, and flirts with you. Though she arguably is the less stable of the sisters, she's also the more generous one. You may stay in the day chamber of any Asylum club if you require (if Jeanette is there, she insists you do), use the club to host your own parties, and ask for favors small and large from the Anarch Baron. Jeanette counts as a four-dot Mawla, but only for the purposes of Malkavian and Anarch dealings.",
             },
             {
                 dot: 4,
-                name: "Twin Favor",
+                name: "Therese's Favorite",
                 description:
-                    "One of the twins will personally intervene on your behalf in a significant situation once per story — whether by social maneuvering or Jeanette's other methods.",
+                    "Therese Voerman, the upright, strict member of the Voerman family, respects and values you. Her business-oriented mind does not allow her to expend the Asylum's resources on your luxury, but she speaks up for you in any regnum where an Asylum is present, and can school you in business and finance if you require it. She counts as a three-dot Mawla.",
             },
             {
                 dot: 5,
-                name: "The Other Face",
+                name: "Asylum Operator",
                 description:
-                    "You understand the twins' duality in a way few others can. Once per chronicle, both Jeanette AND Therese act in your favor simultaneously, each from within their own sphere of influence.",
+                    "Jeanette or Therese permit you to franchise an Asylum club in your domain. As long as the club remains open, you have four dots to spend on Haven, Herd, Resources, or the Chasse of your Domain; depending on your club's focus, which may be changed over time. Whether the club is an Elysium is up to you.",
             },
         ],
     },
@@ -527,33 +527,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Survivor's Trauma",
+                name: "Oral History",
                 description:
-                    "You witnessed the Week of Nightmares firsthand. Add two dice to Lore rolls about the Ravnos clan or Antediluvian activity.",
+                    "You have heard and told the tale of the Week of Nightmares countless times, and you know exactly what to embellish and which parts to conceal. Your telling of the tale is popular in Elysia, where you are sometimes invited to speak as historian and entertainer. Important Kindred from all over come to hear your retelling. Add three dice to Performance dice pools to tests to tell the story.",
             },
             {
                 dot: 2,
-                name: "What Was Seen",
+                name: "Ravnos Remains",
                 description:
-                    "Your witness has given you a visceral sense of true Antediluvian power. Add two dice to Awareness rolls for signs of Antediluvian or methuselah-level activity.",
+                    "Prior to the Week of Nightmares, the Ravnos were a clan – now, they are little more than a bloodline. You know some Ravnos remnants and perhaps share their grudge against the Gangrel who left them to annihilation. You have three dots of Mawla representing this group of contacts. They carry news and warnings to you, and can perhaps be convinced to cast mighty illusions once per chronicle, but association with them is frowned upon, if discovered.",
             },
             {
                 dot: 3,
-                name: "Network of Survivors",
+                name: "I Was There",
                 description:
-                    "You are connected to others who were affected by the Week of Nightmares. Gain Allies 2 among vampires scarred and changed by the event.",
+                    "You didn't just hear about it, you were on the front line. Your reputation as a survivor and on-the-spot veteran of the Week of Nightmares grants you Status among Kindred historians, occultists, Ravnos, and Gehenna cultists alike. Once per story, you can use this Status to earn a minor boon from one of those groups or from a prominent courtier in the domain with a sudden interest.",
             },
             {
                 dot: 4,
-                name: "Terrible Knowledge",
+                name: "The Red Star",
                 description:
-                    "You know things about what truly happened that the public account omits. Once per story, reveal a truth about the Week of Nightmares that provides a decisive advantage in negotiations or intelligence.",
+                    "Anthelios (NASA designation 28978 IXION), called Wormwood, harbinger of Gehenna, still glows in the sky – to your eyes, at least. You believe it looks back at you, changing you somehow. Once per story, you can either reduce your Hunger to a rating of two or gain a die to the pools of one Discipline for a night by staring at the star for 10 minutes.",
             },
             {
                 dot: 5,
-                name: "The Dream Remains",
+                name: "Blood of Zapathasura",
                 description:
-                    "Something of the Ravnos Antediluvian touched you in those days. Once per chronicle, receive a prophetic vision of coming catastrophe before it strikes, giving your coterie time to prepare.",
+                    "The Ravnos Antediluvian met Final Death in July 1999 at the hands of parties unknown, armed with advanced weaponry and the power of the sun. Before he died, he drained vitae from all his clan, driving them to frenzy and cannibalism in his death throes. Thick, sentient ropes of his vitae stained the ground in Bangladesh where he fell. The noonday sun did not destroy it all. You own a small vial containing the Blood of the Ravnos Antediluvian. What you do with this vitae is up to you, and what it does to anyone who imbibes it is up to the Storyteller.",
             },
         ],
     },
@@ -565,33 +565,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Rudi's Trail",
+                name: "Newfound Rights",
                 description:
-                    "You know of Rudi and can follow her movements through rumor and animal messenger. Add two dice to Survival rolls in the wilderness.",
+                    "Flush with the success of the Gangrel clan's independence from the Camarilla, like Rudi, you find this freedom energizing. Once per story, when striking out against or decrying the establishment, you can re-roll any one Skill test dice pool.",
             },
             {
                 dot: 2,
-                name: "Gangrel Respect",
+                name: "Them and Theirs",
                 description:
-                    "Your connection to Rudi is known to elder Gangrel. Add two dice to Social rolls with Gangrel who revere the old ways.",
+                    "When supporting the disenfranchised or persecuted, you are the resolute champion. Perhaps you believe vampires can only persist successfully when supporting each other, or you believe a pack is only as strong as its weakest member, but at great self-sacrifice, you defend others. When a Touchstone of any member of your coterie comes under threat, your ears prick up and your hair stands on end.",
             },
             {
                 dot: 3,
-                name: "Rudi's Teaching",
+                name: "Gangrel Advocate",
                 description:
-                    "Rudi has shared something of her hard-won knowledge with you. Gain one free Specialty in Survival or Animal Ken.",
+                    "As Rudi does in Northern Europe, many believe that you stand for Gangrel rights in your local domains, for good or ill. Gangrel react well to you; add one die to Social tests involving them. Although this reputation means that you speak for many, it also means that some hold you responsible for the actions of many. You can organize convocations and discreet truce meetings between Gangrel and Camarilla representatives with a successful Charisma + Politics test (Difficulty set by the Storyteller).",
             },
             {
                 dot: 4,
-                name: "Rudi's Pack",
+                name: "The Bear Pack",
                 description:
-                    "Rudi acknowledges you as part of her extended family. Gain Allies (Gangrel) 3 — rough company, but fiercely loyal.",
+                    "You are, or were, a member of the Bear Pack: hardcore Rudista Kindred who double as howling orators and fierce combatants. (Consider your fellow Bear Pack a three-dot Mawla group that actually likes getting in fights.) Once per story, these modern revolutionaries, including yourself, gain one automatic success whenever attempting to rouse Anarchs and disenfranchised mortals against the establishment. Members of the Bear Pack are feared throughout Camarilla domains, which might be both bane and boon, depending on who you talk to, and if they recognize you.",
             },
             {
                 dot: 5,
-                name: "Elder's Bond",
+                name: "Rudi's Army",
                 description:
-                    "Rudi considers you worthy of her direct mentorship. Gain Mentor (Rudi) 5 — an elder whose wilderness survival and knowledge of Gangrel elder lore is unmatched.",
+                    "Rudi's Army comprises outsiders of all clans, all mortal colors, and creeds. You hold sway over an arm of this \"paramilitary\" force. You can call them to act against mortal or immortal governments in many ways, from staging peaceful protests outside a governor's home to organizing rallies against the leaders of oppressive groups. Large, unwieldy, and potentially dangerous, your brigade of the army gives you six dots to split among Allies, Influence, and Contacts, that can be directed – but never controlled.",
             },
         ],
     },
@@ -604,33 +604,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Tyler's Legacy",
+                name: "Instigator",
                 description:
-                    "You are known as descended from the Brujah who killed Hardestadt the Elder. Add two dice to Social rolls with Anarchs who revere the deed.",
+                    "Once per story, whenever you attempt to persuade a mortal crowd into violent action, your hot-blooded nature adds two dice to your dice pool to do so.",
             },
             {
                 dot: 2,
-                name: "Revolutionary Blood",
+                name: "Champion of the Cause",
                 description:
-                    "Your lineage inspires others. Once per story, a speech or act of defiance grants all witnesses two additional dice to resist coercion or submission for the scene.",
+                    "When vampires want a leader for a rebellion, large or small scale, they come to you for advice or leadership. They might even listen to your words, and providing your advice is not completely ridiculous, might even defer to your authority. You add two dots to your Status with them during such rebellions, but you might find the numerous contacts gained before a rebellion more valuable and certainly less dangerous.",
             },
             {
                 dot: 3,
-                name: "Tyler's Rage",
+                name: "Tyler's Mercy",
                 description:
-                    "You have inherited something of Tyler's legendary fury. Gain one free dot of Potence, or add two dice to frenzy rolls made to resist submission rather than contain the Beast.",
+                    "You know when to stop. Tyler recognized when the Sabbat went too far with her Anarch ideals, and you likewise recognize the limits of violent revolution. Once per story, when frenzying, you may at any point take a Brujah Compulsion (p. 210) to immediately cease the outburst. You do not suffer any confusion or tiredness after an interrupted frenzy, abruptly snapping back to Humanity.",
             },
             {
                 dot: 4,
-                name: "Symbol of Revolution",
+                name: "The Furores",
                 description:
-                    "Your name carries genuine weight in Anarch circles. Gain Status (Anarch Movement) 3.",
+                    "Tyler's philosophies first emerged among a historic vampire group known as the Furores, dedicated to the destruction of all Kindred tyrants. This group still exists in secret, and you claim membership. When the time is right (once per chronicle), the Furores arm you, provide you with sanctuary in a regnum where they have influence, and activate assets in the target domain as surprise Allies (available within one scene). The Allies add up to five dots of Effectiveness; the rest depends on your collaboration with the Storyteller. Furore assets can only be used when attempting to take down a Prince, unfit Baron, or vampire of higher station. Misuse makes you a target of the Furores and their unknown operatives.",
             },
             {
                 dot: 5,
-                name: "The Deed Lives On",
+                name: "Permanent Revolution",
                 description:
-                    "Once per chronicle, invoke Tyler's deed to inspire mass Anarch action. A significant number of Anarchs will stand with you in direct, coordinated defiance of authority.",
+                    "You have already taken down one sect figurehead. You now lead an army of revolutionaries to sweep the board in the neighboring regnae. For as long as you keep fighting and are not found to be indulging in the luxuries of station, Anarchs stop to listen to your every word, and Brujah Anarchs do exactly as you say, including embarking on suicide missions. No rolls are required if your speech is strong and argument convincing enough.",
             },
         ],
     },
@@ -643,33 +643,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Architect's Eye",
+                name: "Sanctuary",
                 description:
-                    "You carry Zelios's intuitive mastery of constructed spaces. Add two dice to rolls to understand, navigate, or exploit any building or underground structure.",
+                    "Your haven is a wonder of modern design, possessing security in the form of secret passages, electronic security, and even a self-destruct button, all while looking stylish and comfortable. Split two dots between either or both of the Haven Merits Postern and Security System, but someone, somewhere likely has all the details of the setup.",
             },
             {
                 dot: 2,
-                name: "Hidden Ways",
+                name: "Saboteur",
                 description:
-                    "You know of Zelios's secret passages in major cities. In any city he visited, you can find a concealed route — effectively Haven 2 in hidden passages.",
+                    "You instinctively know where a building's weaknesses are, and you don't even require explosives to destroy it. With maul, crowbar, cable, and cold chisel, and as many nights on site as the difficulty the Storyteller sets for the building (i.e. four for a family home, six for a bank, eight for a prison, nine for a skyscraper), you can collapse an edifice like a house of cards.",
             },
             {
                 dot: 3,
-                name: "The Grand Design",
+                name: "On Commission",
                 description:
-                    "Zelios's notes or direct teachings have reached you. Once per story, intuit the purpose, weaknesses, or secret chambers of any building as if you designed it yourself.",
+                    "Other vampires know you descend from Zelios and ask for advice on how best to build their own havens. This business ensures you often have a boon or two to collect (roughly one minor boon per story) and that you know where a number of powerful vampires sleep – which, in the end, probably does you more harm than good.",
             },
             {
                 dot: 4,
-                name: "Zelios's Network",
+                name: "The Labyrinth",
                 description:
-                    "Nosferatu who revere Zelios's architectural legacy respect you as a custodian of his work. Gain Allies (Nosferatu) 3.",
+                    "You used Zelios' work to construct a labyrinth beneath your domain, made in part with sewers, disused drains, cellars, basements, and maintenance tunnels. You added your own chambers, dead ends, and connections to form a true underground maze. Only those you tell know of your labyrinth. You cannot treat the labyrinth as a Haven, as it terrifies you, but if you reach it when chased, no one can pursue you.",
             },
             {
                 dot: 5,
-                name: "Master Builder",
+                name: "Sense the Ley Lines",
                 description:
-                    "You have inherited Zelios's complete architectural legacy. Once per chronicle, design a refuge or trap of such perfection that it functions as Haven 5 or guarantees one clean escape from any structure.",
+                    "You occasionally glimpse throbbing red tendrils snaking through the earth: ley lines. Vampires who make their havens where these vessels converge find their Hunger grows more slowly (when making a Rouse check for awakening, roll two dice and pick the highest) if they sleep there by day. Ley lines have other powerful magical effects – secrets you can research along lines the Storyteller indicates – and your fellow Sewer Rats harshly punish disclosing anything about such secrets.",
             },
         ],
     },
@@ -681,33 +681,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Vasantasena's Insight",
+                name: "Agent of Chaos",
                 description:
-                    "You carry something of this ancient Malkavian's wisdom. Add two dice to Awareness or Insight rolls, particularly when reading a situation or person.",
+                    "You thrive while everything around you burns or spins into catastrophe. In turbulent situations, such as an unusually chaotic and unpredictable combat, a car chase through a crowded city, or when fleeing an exploding building, once per session, you may re-roll a single die without spending Willpower.",
             },
             {
                 dot: 2,
-                name: "Eastern Mysteries",
+                name: "Hear My Words",
                 description:
-                    "You have access to vampire knowledge from outside Western tradition. Gain two dice to Lore rolls about non-Western Kindred history, practices, or bloodlines.",
+                    "You carry your ancestor's skills of persuasion, finding your voice speaks to the Blood of others before it reaches their minds. Once per story, if you attempt to counsel others in a chaotic environment and they actually stop to listen, they may re-roll one dice pool in one future test during the same situation.",
             },
             {
                 dot: 3,
-                name: "The Oracle's Gift",
+                name: "Scent the Bond",
                 description:
-                    "Your connection to Vasantasena sharpens your prophetic abilities. Once per story, ask the Storyteller one direct question about the current situation that they must answer honestly.",
+                    "Vasantasena's loathing of Blood Bonds was part of the reason she targeted the Antediluvians and the ties they maintained with their offspring. Such was her power that she could smell the Bond on individual vampires and recognize the same odor on the vampire Bonded to, or Bonding, them. Once per story, on a successful Resolve + Awareness test (Difficulty 4), you can do the same.",
             },
             {
                 dot: 4,
-                name: "Vasantasena's Circle",
+                name: "Destroy the Bond",
                 description:
-                    "You are connected to Vasantasena's descendants and students across the world. Gain Contacts 3 among Kindred scholars and seers.",
+                    "Vasantasena's greatest act is the destruction of the Blood Bond. Some say she performed this act many times in recent years among the Sabbat, in part leading to their rapid degeneration. Once per story, you too can remove the Blood Bond imposed on a victim, if you drink a mouthful of the thrall's vitae and then ride out a frenzy.",
             },
             {
                 dot: 5,
-                name: "Full Inheritance",
+                name: "Sabbat Becomes Camarilla",
                 description:
-                    "You have fully manifested Vasantasena's gift. Once per chronicle, receive a vision so precise and actionable that it grants an automatic success on one roll of your choice.",
+                    "Vasantasena achieved the impossible and showed her descendants how it was done. Alien, inhuman philosophies locked most vampires into the Sabbat. Once per story, you can deprogram a vampire from their sect beliefs. To do so, you must completely isolate the subject and make an extended test (p. 293) of either Intelligence or Charisma + Insight in an atmosphere of specialized perfumes. Roll once per three nights of disputation; you win after achieving a number of successes equal to twice the subject's Willpower.",
                 clanRestriction: ["Malkavian"],
             },
         ],
@@ -720,33 +720,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Noble Blood",
+                name: "Peacock",
                 description:
-                    "Your clan's position at the top of the Cainite feudal order is recognized. Gain Status (Camarilla) 1 and add one die to Social rolls asserting your clan's authority.",
+                    "You are proud of your clan's status as High, and you carry yourself with all the pomp and circumstance befitting a vampire of noble station. Once per session, you may re-roll a single die when attempting to command deference from one non-titled vampire in your domain.",
             },
             {
                 dot: 2,
-                name: "Old Privilege",
+                name: "Sway the Low",
                 description:
-                    "You invoke high clan privilege openly. Add two dice to Social rolls with Camarilla members who respect the old traditions of hierarchy.",
+                    "The High Clans once sat upon thrones, ordering Low Clan vampires to die for them on battlefields and to subjugate themselves in court. You still possess the ability to persuade vampires of Low Clans more easily than you do the vampires of High Clans. You have bullied the equivalent of three dots of Mawla into a loyal, abused retinue of Low Clan vampires. You gain three extra dice to pools using Intimidation or Leadership against those Kindred; if you ever roll a total failure on such a test or contest, you need to compensate them, or they turn on you.",
             },
             {
                 dot: 3,
-                name: "Feudal Debt",
+                name: "Elevate the Low",
                 description:
-                    "A lower-clan vampire owes your clan a significant debt by ancient custom. Gain Allies 2 (low-clan member bound by tradition) or call in a notable boon.",
+                    "Some quirk of your bloodline or an ancient Princely decree allows you to proclaim the ascendancy of one Low Clan in your city to High Clan status. You can do this once per chronicle, but of course, you can promise to do it \"eventually\" for quite a while first. Until then, add one die to Social tests against Low Clan Kindred when you allude to this possibility.",
             },
             {
                 dot: 4,
-                name: "Clan Authority",
+                name: "Embraced to Rule",
                 description:
-                    "You can speak with acknowledged authority within your clan's hierarchy. Gain Status (Clan) 2 and the right to convene clan meetings.",
+                    "Vampires of the High Clans often opted to Embrace mortals of noble birth or powerful ancestry. Your ancestors may not be kings and queens, but you were Embraced to rule. Add one die to pools for Leadership tests involving High Clan vampires who know your lineage. Once per story, other vampires of the High Clans defer to voting for you, or they allow you to take high responsibility (and power), unless you have created a personal grievance between you.",
             },
             {
                 dot: 5,
-                name: "True Nobility",
+                name: "Blessed, not Cursed",
                 description:
-                    "Your high-clan status is beyond question even among the most jaded elders. Once per chronicle, invoke it to demand obedience from low-clan Kindred or extract a major concession from Camarilla courts.",
+                    "Like many vampires of the High Clans, you have convinced yourself that you bear no Curse of Caine. Rather, your clan weakness is a blessing that reveals more to you about your nature, your position on God's Earth, and the areas in life you must strengthen. Once per session, you may spend one Willpower to ignore the burdens of your clan bane.",
             },
         ],
     },
@@ -758,33 +758,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Survivor's Cunning",
+                name: "Thick Hide",
                 description:
-                    "Your clan's lower standing has made you resourceful and alert. Add two dice to Subterfuge or Streetwise rolls when navigating power structures that discount you.",
+                    "Often denigrated by those who name themselves \"High,\" your ambition and independence do not falter with belittling words and snubs. You do not respond easily to base provocations. Once per story, you can shrug off verbal barbs for a scene without needing to make a test.",
             },
             {
                 dot: 2,
-                name: "Underground Network",
+                name: "Cursed with Pride",
                 description:
-                    "Low-clan Kindred look out for each other. Gain Contacts 2 among low-clan vampires who share your position in the hierarchy.",
+                    "In some cases, the Low Clans take great pride in the severity of their banes. For example, some Nosferatu believe their hideous appearances are a mark of glorious monstrosity, instead of something to be hidden. You have learned to use your clan bane as a weapon, gaining an automatic success on one roll per story when incorporating your bane into an action.",
             },
             {
                 dot: 3,
-                name: "What They Overlook",
+                name: "Uncanny Kinship",
                 description:
-                    "High-clan Kindred chronically underestimate you. Once per story, go entirely unnoticed in a social situation where a high-clan vampire would face immediate scrutiny.",
+                    "Due to persistent persecution from the High Clans, vampires of Low Clans feel inclined to stick together. You often mediate between Low Clan disputants, and you see the merit of the underworld's Kindred banding together against the hegemony of the High. You can select three dots from among Mawla or Status from other Low Clans in the domain.",
             },
             {
                 dot: 4,
-                name: "Low Clan Solidarity",
+                name: "Trade Among Equals",
                 description:
-                    "The low clans stand together when it truly matters. Gain Allies 3 (low-clan solidarity network) across clan boundaries.",
+                    "For all their suffering, the Low Clans benefited from their adversity in one key way – they taught each other their powers. This collaboration may not be true in all domains, but this old tale still holds in yours. You may select one Low Clan's Discipline and buy dots of that Discipline, using experience points as if it was in-clan for you.",
             },
             {
                 dot: 5,
-                name: "Their Mistake",
+                name: "Criticality Incident",
                 description:
-                    "Once per chronicle, exploit the high clans' habitual underestimation of you to gain a decisive political or tactical advantage at a critical moment.",
+                    "Your influence among Low Clan vampires can let you tip the scales of power in your domain – if you choose. Add one die to all your pools for Projects undermining High Clans in your domain. Once per chronicle, you can sacrifice up to 10 of your own Background dots to bring down the same number of High Clan Kindred in a coup.",
             },
         ],
     },
@@ -796,33 +796,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Maropis's Files",
+                name: "True Believer",
                 description:
-                    "You know of Ambrus Maropis and have accessed the edges of his intelligence network. Gain Contacts 1 within his information web.",
+                    "If Ambrus has taught you anything, it's that the Camarilla is right and the Masquerade is essential. You follow his edicts on security and subterfuge religiously, granting you knowledge of the best shared Kindred hiding places in a city, providing a one-die bonus to tests to find such a place. You may not have access to this bonus if the domain is typically opposed to your political or philosophical view.",
             },
             {
                 dot: 2,
-                name: "The Spy's Trade",
+                name: "Clandestine Information",
                 description:
-                    "Maropis has shared some of his craft. Add two dice to Stealth or Subterfuge rolls and to any roll to surveil or tail a target.",
+                    "You can use a digital dead drop to request a hack from Ambrus' fan community. Once per story, you can get one piece of information stored online about most mortals within two to 20 hours.",
             },
             {
                 dot: 3,
-                name: "Information Broker",
+                name: "Taught by the Best",
                 description:
-                    "Maropis will share a detailed dossier on one specific target. Once per story, gain comprehensive background intelligence on any individual in the chronicle.",
+                    "As one of Ambrus' disciples, you are provided with a ready supply of intel on topics from Second Inquisition operations to the fashion in Harajuku tomorrow night. Ambrus can also time-lock information in the Dark Web or set you up with your own Ukrainian hacker at \"friend prices.\" Consider Ambrus a three-dot Mawla (●●●).",
             },
             {
                 dot: 4,
-                name: "Maropis's Network",
+                name: "Back Door Panopticon",
                 description:
-                    "You are connected to Maropis's extensive spy network. Gain Contacts 4 across a broad information web.",
+                    "Ambrus hooked you up with a back door into PRISM/NUCLEON surveillance software, tracking and sorting online communications (including cell phone calls) for keywords and names. Or perhaps you stole it from him or found it on a machine in a safe house an Ambrusite abandoned in a hurry. Either way, you can only log in once per story for security's sake, but it gets you two automatic successes on any Investigation test involving anyone's cell activity or online presence.",
             },
             {
                 dot: 5,
-                name: "The Grand Archive",
+                name: "On Another Grid Entirely",
                 description:
-                    "Maropis trusts you with access to his most sensitive intelligence. Once per chronicle, access compromising or decisive information on any named Kindred in the chronicle.",
+                    "Ambrus went all out with your false identity. You have two two-dot Mask (●●) cover identities and have been Zeroed (p. 192). You get three extra dice to resist attempts to research you online or uncover your activities in the mortal world.",
             },
         ],
     },
@@ -834,33 +834,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Neillson's Circle",
+                name: "The Art of Story",
                 description:
-                    "You know Carmelita Neillson and move in her social circles. Gain Contacts 1 in the mortal art world — galleries, auction houses, collectors.",
+                    "You and Carmelita share the belief that storytelling is one of the lost art forms. Whenever regaling other vampires with historic lore or tales of myth and legend, Toreador naturally gravitate to hear your words, regardless of your standing toward each other.",
             },
             {
                 dot: 2,
-                name: "Patron's Notice",
+                name: "The Art of Will",
                 description:
-                    "Carmelita has noticed your talent and begun to cultivate it. Add two dice to Craft or Performance rolls in any serious artistic endeavor.",
+                    "A specific objet d'art or relic, entrusted to your safekeeping by Dr. Neillson, inspires and enthralls you. If you spend an hour meditating on this object (and make a Resolve + Academics test at Difficulty 5) before resting for the day, you awaken with one extra Willpower point. You can meditate in this way once per session.",
             },
             {
                 dot: 3,
-                name: "Artistic Collaboration",
+                name: "Neillson Library",
                 description:
-                    "Carmelita collaborates with you on a public project. Gain Fame 2 in mortal artistic circles as a recognized emerging talent.",
+                    "Carmelita Neillson's small libraries dot the world in Camarilla domains, serving as hives of information used to prompt and support elder vampires' memories. You are the curator or warden for one of these libraries, which counts as a two-dot Haven (●●) with a two-dot Library (●●). Other vampires and Kindred historians meet there as well, which has both advantages and downsides.",
             },
             {
                 dot: 4,
-                name: "Neillson's Patronage",
+                name: "Interview With the Methuselah",
                 description:
-                    "Carmelita publicly endorses your work. Gain Resources 2 and Status (Toreador) 2 — your name is known and your talent is vouched for.",
+                    "You have obtained a recording of Carmelita interviewing an impossibly old vampire who divulges secrets about one of the clans in your domain. Once per story, you can ask the Storyteller to provide you with such a secret. Whether Carmelita knew of this recording and gave it to you or someone made the recording in secret, the information in the interview gives you an advantage over the vampire in the clip and the clan discussed. Interestingly, the voice following Carmelita's at the end of the tape mentions further recordings.",
             },
             {
                 dot: 5,
-                name: "The Muse's Gift",
+                name: "Ancestor's Tomb",
                 description:
-                    "Carmelita considers you her finest protégé. Once per chronicle, she will deploy her full influence — Resources 5, Allies 4 — on your behalf without reservation.",
+                    "Carmelita has entrusted you to guard the supposed resting place of one of your ancestors. As long as you keep it safe, you can call upon her for a major boon once per story. Should you fail to keep it safe, there will likely be… other consequences.",
             },
         ],
     },
@@ -872,33 +872,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Savona's Sphere",
+                name: "On Fiorenza's List",
                 description:
-                    "You know of Fiorenza Savona and have basic access to her financial networks. Add one die to Finance or Resources rolls conducted within her sphere of influence.",
+                    "Fiorenza has taken an interest in you. She assigns a Gifted mortal Retainer (•) to spy on your behalf – or on you; the Storyteller decides which.",
             },
             {
                 dot: 2,
-                name: "Investment Access",
+                name: "Breakfast with Fiorenza",
                 description:
-                    "Savona has allowed you into her legitimate investment opportunities. Gain Resources 2 from returns on Savona-directed ventures.",
+                    "Once per story, Fiorenza makes time to meet with you, share information, and offer limited assistance.",
             },
             {
                 dot: 3,
-                name: "Political Connections",
+                name: "Friendly Benefits",
                 description:
-                    "Savona's mortal political contacts are available to you when needed. Gain Contacts 2 in mortal politics — city officials, party organizers, lobbyists.",
+                    "You enjoy a three-dot Mawla (•••) friendship with Fiorenza. She offers information, safe houses, the occasional mortal introduction, and protection of a limited nature.",
             },
             {
                 dot: 4,
-                name: "Savona's Backing",
+                name: "The Directorate",
                 description:
-                    "Fiorenza will vouch for you in Ventrue financial and political circles. Gain Status (Ventrue) 2 and Resources 3.",
+                    "A shadowy Ventrue sub-group called the Directorate approaches you to suborn Fiorenza's operations. Whether you accept or not, you gain six dots divided among Contacts, Mawla, and Resources.",
             },
             {
                 dot: 5,
-                name: "Power Broker",
+                name: "Government Motion",
                 description:
-                    "Savona has made you a junior partner in her operations. Gain Resources 4 and the ability to move significant capital or political will once per chronicle at her direction.",
+                    "Once per chronicle, Fiorenza can influence a mortal political leader to take an action. She grants you five dice to distribute as you wish among relevant pools for the action.",
             },
         ],
     },
@@ -911,33 +911,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Schrekt's Legacy",
+                name: "Remember the House",
                 description:
-                    "You are known as descended from the legendary Tremere Inquisitor. Add two dice to Social rolls involving vampire hunters — mortal or Kindred — who respect that legacy.",
+                    "Once per story, you can ask the Storyteller for one piece of information regarding the activities of House Tremere or the clan before its grievous injury.",
             },
             {
                 dot: 2,
-                name: "Hunter's Knowledge",
+                name: "Hardliner",
                 description:
-                    "You have inherited Schrekt's forensic insight into hunter methodology. Add two dice to rolls to identify, counter, or disrupt mortal hunter operations.",
+                    "Schrekt's way is the only way forward for your clan. You follow Schrekt's laws fanatically. With the Storyteller's agreement, add two dice to any dice pool when testing to resist attempts to sway you from Schrekt's goals.",
             },
             {
                 dot: 3,
-                name: "The Inquisitor's Files",
+                name: "Ritual Preparedness",
                 description:
-                    "Schrekt's records have passed to you through your lineage. Once per story, access historical intelligence on any known vampire hunter organization or bloodline.",
+                    "Allegedly, Karl Schreckt prepares all of his rituals in advance and keeps several such pre-prepared rituals about his person at all times. Once per story, you may perform one of your rituals in five minutes, without preparation, having done all the preparations beforehand.",
             },
             {
                 dot: 4,
-                name: "Schrekt's Authority",
+                name: "Archon's Bane",
                 description:
-                    "Within the Tremere, your lineage carries the weight of the Inquisitor. Gain Status (Tremere) 2 among those who value the protection of Kindred from mortal hunters.",
+                    "You find Schrekt's targeting of supernatural entities deplorable, and you have formed a tight bond with a member of another supernatural background. You have a four-dot Ally: a mage, werewolf, wraith, changeling, or something even stranger. You must keep your friend safe, as they are being hunted. Once per story, they come to your aid within one to ten hours when called.",
             },
             {
                 dot: 5,
-                name: "The Grand Hunt",
+                name: "Know the World",
                 description:
-                    "Once per chronicle, call on a network of Tremere-aligned inquisitors to locate, analyze, and dismantle a mortal hunter cell targeting Kindred.",
+                    "Karl Schrekt believes knowledge is power and that vampires who limit their learning to the study of fellow Kindred are fools. Whether Schrekt's puppet or nemesis, you agree with his assessment and keep archives on werewolves, magi, wraiths, fae, and other weird entities. This collection equates to a three-dot Haven Library (pick three suitable specialties of Occult), although you might not store your reference materials in your haven. Also once per story, you can ask the Storyteller to answer any simple question related to such creatures.",
             },
         ],
     },
@@ -950,33 +950,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Xaviar's Warning",
+                name: "Martyred Ancestor",
                 description:
-                    "You know what Xaviar saw and why he left the Camarilla. Add two dice to Lore rolls about Antediluvians, the Gehenna War, or the Gangrel departure from the Ivory Tower.",
+                    "Other Gangrel treat you with the respect they took too long to afford Xaviar. Despite any personal grievances, you can always find sanctuary with other Gangrel, if any are present in your current domain, at least until you insult them grievously. With them, you have two dots of Status.",
             },
             {
                 dot: 2,
-                name: "Elder's Sight",
+                name: "Where the Bodies Are Buried",
                 description:
-                    "Xaviar's bloodline has sharpened your instincts for supernatural threats at the highest levels. Add two dice to Awareness rolls when sensing Antediluvian or methuselah-level influence.",
+                    "Xaviar's experiences with melding through earth, blood, and vitae left a mark on his lineage. Gangrel of his line can make a Resolve + Awareness test to detect whether a vampire has merged with the earth or lays torpid beneath the soil. Difficulty depends on the area you have to search.",
             },
             {
                 dot: 3,
-                name: "Gangrel Elder's Network",
+                name: "Loyal Hound",
                 description:
-                    "Your lineage is respected among elder Gangrel who remember Xaviar. Gain Allies (Gangrel elders) 2.",
+                    "You resisted the winds of change, remaining with the Camarilla despite your clan's actions. For your loyalty, the local Camarilla Prince awarded you status, feeding rights, and territory, amounting to four dots you can distribute among Domain, Herd, and Status. Non-Camarilla Gangrel despise you, and even Camarilla vampires of other clans pity your solitude, but you guarantee yourself a voice among the Primogen, should any rebel Gangrel pass through your domain.",
             },
             {
                 dot: 4,
-                name: "What Was Seen",
+                name: "Monstrous Bat",
                 description:
-                    "You have inherited a fragment of what Xaviar truly witnessed. Once per story, sense the presence or recent passage of an Antediluvian or their direct agents.",
+                    "Xaviar's preferred bestial form was once that of a bat, but following his encounter with the Antediluvian, he found his form capable of changing into a hybrid between human and bat. Once per story when the moon is just right, you can take the same form. This man-sized bat has an extra dot in all Physical Attributes and can glide in the air from any height. Biting in this form adds +1 Aggravated damage to mortals and vampires alike.",
             },
             {
                 dot: 5,
-                name: "The Truth of Xaviar",
+                name: "Experienced the Antediluvian",
                 description:
-                    "You carry the full, terrible weight of what Xaviar saw. Once per chronicle, receive a vision of Antediluvian activity — precise enough to give your coterie a decisive advantage before it strikes.",
+                    "Xaviar was not the only Gangrel to sink into the ground and find himself inside his clan founder's vast, inhuman form. You have done the same, and the experience changed you. You are now a little mad, likely suffering from paranoia or claustrophobia. Whenever you call your encounter to mind, you feel your veins rooted to the ground, connecting to every other Gangrel in the world. Once per story, you can sense any Gangrel's location and drain a thimbleful of vitae from them to reset your Hunger level to 2. You must be touching open ground, not concrete, to use this ability.",
             },
         ],
     },

@@ -15,6 +15,7 @@ import Sidebar from "./sidebar/Sidebar"
 import Topbar from "./topbar/Topbar"
 import CharacterSheet from "./character_sheet/CharacterSheet"
 import BrokenSaveModal from "./components/BrokenSaveModal"
+import DarkPackAttribution from "./components/DarkPackAttribution"
 import LoadModal from "./components/LoadModal"
 import NameCharacterBeforeSwitchModal from "./components/NameCharacterBeforeSwitchModal"
 import MePage from "./pages/MePage"
@@ -315,6 +316,9 @@ function App() {
             <>
                 <CharacterSheet character={character} setCharacter={setCharacter} />
                 <BrokenSaveModal />
+                <div style={{ height: 48 }}>
+                    <DarkPackAttribution />
+                </div>
             </>
         )
     }
@@ -324,6 +328,9 @@ function App() {
             <>
                 <MePage />
                 <BrokenSaveModal />
+                <div style={{ height: 48 }}>
+                    <DarkPackAttribution />
+                </div>
             </>
         )
     }
@@ -354,6 +361,7 @@ function App() {
             />
             <AppShell
                 padding="0"
+                footer={{ height: 48 }}
                 styles={(theme) => ({
                     root: {
                         height: "100vh"
@@ -439,6 +447,9 @@ function App() {
                         </Container>
                     </div>
                 </BackgroundImage>
+                <AppShell.Footer>
+                    <DarkPackAttribution />
+                </AppShell.Footer>
             </AppShell>
         </>
     )
