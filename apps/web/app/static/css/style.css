@@ -1613,6 +1613,46 @@ a.wiki-featured-card h4 {
 .wiki-footer {
     border-top: 1px solid rgba(197, 165, 90, 0.12);
     background: rgba(0, 0, 0, 0.25);
+    padding-bottom: 56px; /* clear sticky nav */
+}
+
+/* Sticky bottom nav */
+.wiki-sticky-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    background: rgba(10, 8, 10, 0.96);
+    border-top: 1px solid rgba(197, 165, 90, 0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.wiki-sticky-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 2rem;
+    color: rgba(200, 185, 170, 0.7);
+    text-decoration: none;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    transition: color 0.15s ease, background 0.15s ease;
+    border-right: 1px solid rgba(197, 165, 90, 0.1);
+}
+
+.wiki-sticky-nav-link:last-child {
+    border-right: none;
+}
+
+.wiki-sticky-nav-link:hover {
+    color: rgba(230, 210, 185, 0.95);
+    background: rgba(197, 165, 90, 0.07);
+    text-decoration: none;
 }
 
 /* ── Responsive — mobile (<768px) ───────────────────────────────── */
