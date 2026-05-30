@@ -992,31 +992,31 @@ export const LORESHEETS: Loresheet[] = [
                 dot: 1,
                 name: "Weapons Locker",
                 description:
-                    "Your connection to Fatima or her network gives you access to a hidden weapons locker somewhere in your domain or the domain you are visiting. Once per chronicle, use this knowledge to equip yourself with a hand-held weapon of your choice, subject to Storyteller approval.",
+                    "Your connection to Fatima or her network of Banu Haqim gives you access to a hidden weapons locker somewhere within your domain, or the domain you are visiting. You know from rumor or reliable sources where one of these lockers should be located. Once per chronicle you can use this knowledge to equip yourself with a hand-held weapon of your choice, subject to the Storyteller's approval.",
             },
             {
                 dot: 2,
                 name: "Extended Web",
                 description:
-                    "You are a member of the Extended Web — former Web of Knives cultists who followed Fatima toward the Camarilla. Gain three dots to allocate among Allies, Contacts, and Mentor representing Extended Web members. Unlike regular Backgrounds, use of these dots requires payment, often severe.",
+                    "Fatima once held membership in the cult known as the Web of Knives. Though the Web remains loyal to the demonic Ur-Shulgi and the Alamut branch of the Banu Haqim, some cultists from the Web followed Fatima in making overtures to the Camarilla. You are either a member of the Extended Web, or have a close bond to those who are. You can take three dots allocated to Allies, Contacts, and Mentor and assign them to members of the Extended Web, who may assist you for a price, or school you in the art of killing. Note that unlike regular Backgrounds, use of these dots require payment, often severe.",
             },
             {
                 dot: 3,
                 name: "Missed Hit",
                 description:
-                    "You survived an assassination attempt by the Hand of Vengeance. Your reputation as someone Fatima couldn't bring down grants you two dots in Status and one bonus die to Social rolls when your survival story can be used for good effect.",
+                    "You are one of the rare Kindred to survive an assassination attempt by the Hand of Vengeance. Whether or not you were the target or collateral damage, you have a reputation as someone Fatima couldn't bring down. As well as granting two dots in Status, this lore grants one bonus die to Social dice pools when your survival story can be used for good effect.",
             },
             {
                 dot: 4,
                 name: "Recognized Judge",
                 description:
-                    "Trained in the Banu Haqim ways of judgement — by Fatima or by Ur-Shulgi's dictates — in any non-Camarilla domain you may formally announce judgement and execute a Kindred without open retaliation from the ruling sect. Subtle reprisals are not prevented.",
+                    "The Banu Haqim are meant to be judges of other Kindred. Either you were taught the ways of judgement by Fatima, or the Web of Knives taught you Ur-Shulgi's dictates. In either case, in any non-Camarilla domain you may formally announce judgement and execute a Kindred without open retaliation from the ruling sect, as few wish to cross Banu Haqim law. Your judgement does not prevent other Kindred from subtly attempting reprisals.",
             },
             {
                 dot: 5,
                 name: "Open Contract",
                 description:
-                    "Fatima has agreed to eliminate any one opponent of your choice and will not ask questions. Her success is not guaranteed, but is likely. This favor reflects trust, care, or a debt she owes you. Usable once per chronicle.",
+                    "Your relationship with Fatima is such that she has agreed to eliminate any one opponent of your choice. She will not ask questions. Perhaps your relationship is one of trust or care, or perhaps Fatima owes you. Her success is not guaranteed, but is likely.",
             },
         ],
     },
@@ -1031,31 +1031,31 @@ export const LORESHEETS: Loresheet[] = [
                 dot: 1,
                 name: "Sire of Renown",
                 description:
-                    "Your sire is a Ventrue notable for nobility and adherence to clan values. Gain one die on appropriate Social checks where naming your sire could have impact. If your sire still exists, they may resent being used as a line of credit.",
+                    "Your sire is a Ventrue notable for their nobility and adherence to clan values. To an extent, you can lean on your sire's name to curry favor with other Kindred mainly of Clan Ventrue. This lore enables you to gain one die in appropriate Social checks where naming your sire could have impact. If the sire still exists, they may come to resent you using them as a line of credit.",
             },
             {
                 dot: 2,
                 name: "A Lineage of Title",
                 description:
-                    "You come from a line of Princes, Primogen, or Barons. When you attempt to acquire title in any domain, Ventrue — even those you've never met — will automatically support your claim unless they have sufficient reason to oppose you.",
+                    "You come from a line of Princes, Primogen, or possibly Barons. If you ever attempt to acquire title in a domain, Ventrue — even those you've never met — will automatically support your claim, unless they have sufficient reason to oppose you.",
             },
             {
                 dot: 3,
                 name: "Recitation",
                 description:
-                    "You can name your ancestors all the way to a methuselah of the Fourth Generation. Reciting the full lineage (30+ minutes) gives you one bonus die to all Social-based tests against Kindred for the rest of the scene. Once per story.",
+                    "You can name your ancestors all the way to a methuselah of the Fourth Generation, impressing all Kindred within listening distance. Each Kindred of your line has a tale, and you know at least a shortened version of every single one. Reciting the whole thing (something that takes a good 30 minutes or more) gives you a one die bonus to all Social-based tests against other Kindred for the rest of the scene. This can be used once per story.",
             },
             {
                 dot: 4,
-                name: "Legendary Lineage",
+                name: "Legendary Lineage (choose one)",
                 description:
-                    "Choose one legendary Ventrue line: the Line of Alexander (add two dice to Persuasion and Performance in crowds; fury frenzy check Diff 3 if interrupted), the Line of Antonius (add two dice to Academics and Leadership when planning domain defense or construction; fury frenzy check Diff 3 if disrupted mid-plan), or the Line of Mithras (reduce Difficulty to resist fear frenzy from fire by two; suffer two dice penalty to resist Dominate from older Mithras-line vampires).",
+                    "The Line of Alexander: A patron of the arts, passions, and beauty, Alexander of Paris appeared to many as more a Toreador than a Ventrue. Kindred who name their ancestor as Alexander of Paris gain two bonus dice on all Persuasion and Performance rolls made in a crowd of people, as Alexander's line love an audience. If someone interrupts your oration, you must make a fury frenzy check at Difficulty 3.\n\nThe Line of Antonius: Antonius was a strategic thinker, obsessive planner, and master architect of Clan Ventrue until his apparent destruction. If you descend from Antonius, you gain two bonus dice on all Academics and Leadership rolls made when planning the defense or building of a domain. If someone disrupts you while making a long-term plan of this nature, you must make a fury frenzy check at Difficulty 3.\n\nThe Line of Mithras: Mithras exemplifies pride and power. Kindred of his cult claim he was impervious to flame, and somehow this fortitude ripples through to his descendants' willpower. Your Difficulty to resist fear frenzy from exposure to fire is reduced by two. You suffer a two dice penalty when attempting to withstand Dominate attempts by older vampires also of Mithras' line.",
             },
             {
                 dot: 5,
                 name: "Name the Antediluvian",
                 description:
-                    "You know one of the true names or titles of the Ventrue Antediluvian. Once per chronicle, announce yourself as its descendant to force all Ventrue in the vicinity to stop what they are doing, fall silent, and sometimes drop to their knees. The name vanishes from the minds of all who hear it.",
+                    "The Ventrue Antediluvian went by many names, and each methuselah of his clan knows the ancient entity by a different epithet. You know one of these names or titles, and once per chronicle can announce yourself as the descendant of this creature to force all Ventrue in the vicinity to stop what they're doing, fall silent, and sometimes drop to their knees. The name vanishes from the minds of all who hear it, but they will stop anything — even combat — to hear you speak.",
             },
         ],
     },
@@ -1069,31 +1069,31 @@ export const LORESHEETS: Loresheet[] = [
                 dot: 1,
                 name: "Neophyte",
                 description:
-                    "Your service to Mithras is in its infancy, but you have learned to manipulate mortals with talk of religion and grandeur. You can effectively lead a small mortal cult, gaining one bonus die to all Social rolls when interacting with your herd or retainers.",
+                    "Your service to Mithras is in its infancy, but you have learned how to manipulate the kine with talk of religion and grandeur. You can effectively lead a small mortal cult, granting you one bonus die to all Social rolls when interacting with your herd or retainers. This lore comes either from adherence to the cult or through study of its practices.",
             },
             {
                 dot: 2,
                 name: "Nymphus",
                 description:
-                    "Mithraists award the title of Nymphus to new sires within the cult. You gain knowledge of Ventrue lineage and customs of Embrace, two bonus dice to all rolls in which Ventrue or Mithraic customs are discussed or studied, and the equivalent of two dots in Status among Ventrue.",
+                    "Mithraists award the title of Nymphus to new sires within the cult. This lore grants you knowledge of Ventrue lineage and customs of Embrace, along with the ceremonial status of a revered sire. You gain two bonus dice to all rolls in which Ventrue or Mithraic customs are discussed or studied, and the equivalent of two dots in the Status Background when among Ventrue.",
             },
             {
                 dot: 3,
                 name: "Leo",
                 description:
-                    "Among the most honored members of the cult, a Leo is entrusted to carry clandestine messages between Mithraists and sometimes beyond the order. Mithraists trust you without hesitation, and you gain one die to all non-Discipline rolls when getting other vampires to trust you.",
+                    "Among the most honored members of the Mithraic cult, those Kindred with the title of Leo are entrusted to deliver clandestine messages between Mithraists, and sometimes even outside the order. Mithraists will not hesitate to trust you with information and messages, and you gain one dice to all non-Discipline rolls in which you attempt to get other vampires to trust you. Of course, if your allegiances lay outside the cult, this lore grants you access to deeply dangerous intelligence.",
             },
             {
                 dot: 4,
                 name: "Perses",
                 description:
-                    "The Perses is the master of ritual bloodletting and sacrifice in the cult. A vampire declared Perses receives a short sword and the authority to murder cult enemies, with guaranteed protection (alibis, safe havens, resources) if their identity becomes known. Gain three Background dots to allocate in any domain where the Cult of Mithras is present.",
+                    "The Cult of Mithras frequently indulges in ritual bloodletting and sacrifice, with the Perses as the master of such ceremonies. A vampire declared Perses of Mithras receives a short sword and authority to murder enemies of the cult, with the guarantee of full protection (alibis, secret havens, access to resources) should their identity as killer become known. This lore gifts you three Background dots to allocate in any domain in which the Cult of Mithras is present.",
             },
             {
                 dot: 5,
                 name: "Unconquered",
                 description:
-                    "You carry the spark of Mithras within you — perhaps from his diablerist Monty Coven, or from Mithras himself during a Blood Bond. Mithras occasionally speaks to you in command or guidance, though not powerfully enough to compel. When you please him, gain three additional dice in Dominate, Fortitude, or Presence tests (choose one) for the remainder of the night.",
+                    "You carry the spark of Mithras within you. Perhaps you took vitae from his diablerist Monty Coven, or maybe you once drank from Mithras himself as part of a Blood Bond. Now, Mithras lives in you. Occasionally the ancient vampire speaks to you in command or guidance, though he's not powerful enough to compel. When you please Mithras, you gain three additional dice in Dominate, Fortitude, or Presence tests (choose one) for the remainder of the night.",
             },
         ],
     },
@@ -1108,31 +1108,31 @@ export const LORESHEETS: Loresheet[] = [
                 dot: 1,
                 name: "Apprentice",
                 description:
-                    "Most Tremere sires still readily award their fledglings the rank of Apprentice. You are one such Apprentice, or the master of one, granting you the equivalent of a one-dot Mawla within the clan hierarchy.",
+                    "Despite their recent destabilization, most sires of Clan Tremere still readily awards their fledglings the rank of apprentice. You are one such apprentice, or the master of one, awarding you with the equivalent of a one-dot Mawla.",
             },
             {
                 dot: 2,
                 name: "Savant",
                 description:
-                    "You have drawn the attention of greater members through a successful experiment, the creation of a new minor ritual, or the recovery of lost clan lore. Once per chronicle, call in a major boon from a Regent and remain on good terms with them afterward, provided the request is not insulting.",
+                    "Despite your new entry into the Pyramid, you have already drawn the attention of members greater than yourself for a successful experiment in which you courted danger, the creation of a new minor ritual, or the discovery of lore once lost to the clan. Once per chronicle, this lore enables you to ask a major boon of a Regent, and providing the boon is not insulting, remain on good terms with that Tremere thereafter.",
             },
             {
                 dot: 3,
                 name: "Regent",
                 description:
-                    "You are the Regent of a chantry, responsible for the tutelage and protection of all Tremere in your domain, and sometimes their Primogen representation. Gain one dot in Tremere Status and three dots in Haven representing the chantry, along with the duties that come with them.",
+                    "Every chantry has a Regent. The Regent is responsible for the tutelage of all other Tremere in the domain. While the Regent may not teach them personally, she must ensure all Tremere are being educated. The Regent's other duties extend to the clan's protection in the domain, and sometimes its representation on the Primogen Council. You are the Regent of a chantry. This gives you a dot in Tremere Status, as well as three dots in Haven, representing the chantry. Be aware that you are expected to oversee the safety of the chantry, as well as provide lodging and resources to other members of the clan.",
             },
             {
                 dot: 4,
                 name: "Pontifex",
                 description:
-                    "You are a Pontifex — appointed as the clan's foremost expert in a particular field (art, economics, supernatural studies, etc.). Gain three bonus dice to any information-gathering roll relating to your field when you have access to your library, plus three dots in Tremere Status.",
+                    "Each Warlock on the Council of Seven has seven Pontifices reporting to him. These Pontifices will oversee a vast domain, though it is rarely geographically defined. Different Pontifices are appointed as clan representatives in the fields of art, economics, werewolf studies, and other such fields. You are seen as the clan's foremost expert in whichever domain you're made Pontifex, and your resources regarding that field are extensive. You gain a three dice bonus to any information-gathering test relating to your particular field, provided you have access to your library, as well as three dots in Tremere Status.",
             },
             {
                 dot: 5,
                 name: "The New Council",
                 description:
-                    "You are considered one of the potential members of the new Council of Seven, assembled after the Second Inquisition's devastating attack on Vienna. What you uniquely offer the Tremere and how you wield your power is for you and the Storyteller to determine. Gain four dots in Tremere Status.",
+                    "The new Tremere Council of Seven was assembled as an emergency measure following the Second Inquisition's successful attack in Vienna. The explosion was timed to coincide with a meeting between the Council's members, rendering all but a couple into ash, while the remainder entered torpor. You are considered one of the new potential members of the Council of Seven because you have something unique to offer the Tremere clan. What that is and how you wield your power is up to you and the Storyteller. You also have four dots in Tremere Status.",
             },
         ],
     },
@@ -1146,31 +1146,31 @@ export const LORESHEETS: Loresheet[] = [
                 dot: 1,
                 name: "Ashen Kiss",
                 description:
-                    "At some point you have danced, kissed, or slept with Victoria Ash — you are not a rarity, but you are remembered. Victoria has a perfect memory for faces and intimate encounters going back centuries. Reduce the difficulty of Social rolls involving Victoria Ash or those connected to her by 1.",
+                    "At some point you have danced, kissed, or even slept with Victoria Ash. This does not make you a rarity, but it does make you special. Victoria has a perfect memory for faces and intimate encounters going back centuries (some suspect it's how she clings to her humanity). Difficulties of Social rolls involving Victoria Ash or someone connected to her is reduced by 1.",
             },
             {
                 dot: 2,
                 name: "Vermilion Invitation",
                 description:
-                    "You attended or know an attendee of the Vermilion Wedding, including who was there, their function, and where they stood on Camarilla-Ashirra union. Once per story, use this knowledge to blackmail, spin tale, or relate to other attendees, gaining three bonus dice to a Social test with a plausible explanation.",
+                    "Maybe you were a guest at the Vermilion Wedding or you just know one of the attendees well enough to describe what took place. This enables you to recognize those who attended the wedding, their function, and where they stood on the matter of union between the sects. Once per story you can use this information to blackmail, spin tale, or relate to other attendees of this tense meeting in a familiar way, gaining a three dice bonus to a Social test, provided you can come up with a plausible explanation.",
             },
             {
                 dot: 3,
                 name: "What Makes Them Tick",
                 description:
-                    "Victoria Ash is an expert at reading people and exploiting their vulnerabilities, and she has taught you her methods. Gain two extra dice to Insight rolls when scrutinizing a target for their weaknesses.",
+                    "Victoria Ash is an expert at reading people. She knows how to get to your most sensitive secrets and exploit them and has taught you a few tricks. You gain two extra dice to Insight when scrutinizing a target for their vulnerabilities.",
             },
             {
                 dot: 4,
                 name: "Celebrity Affectations",
                 description:
-                    "Emulating Victoria Ash's methods, you maintain a well-stocked tour bus for ease of transit between domains and a small crew of roadies, whatever your cover as an entertainer. Gain the equivalent of two dots in Haven (Mobile Home) and two dots in Herd or Retainers (Roadies).",
+                    "Emulating the stories of Victoria Ash, you too have access to a well-stocked tour bus to allow ease of transit between domains, and a small crew of roadies. Whether you masquerade as a singer, magician, actor, or any other form of entertainer, is up to you. This is equivalent to holding two dots in Haven (Mobile Home) and two dots in Herd or Retainers (Roadies).",
             },
             {
                 dot: 5,
                 name: "Patron, Lover, Companion",
                 description:
-                    "You occupy an important place in Victoria's heart. Once per chronicle she will move heaven and earth to protect you — potentially cashing in her considerable goodwill with the Camarilla for egregious crimes. For an entire session she counts as a five-dot Mawla and provides three dots of Status.",
+                    "You occupy an important place in Victoria's heart. Once per chronicle she will move heaven and earth to protect you, potentially cashing in the good will she carries with the Camarilla to do so if your crimes are egregious. For an entire session she counts as a five-dot Mawla and provides you three dots of Status.",
             },
         ],
     },
@@ -1184,28 +1184,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "The Garcia Network",
-                description: "You have connections to Anarch movements across the Americas. Once per story, you may call in a favor from an Anarch baron or gang in a city you are visiting, gaining temporary Haven (1) or a single piece of street-level information.",
+                name: "A Way With Words",
+                description:
+                    "You've studied the thoughts of not just Salvador Garcia, but all well-known Anarch political ideologues. You're a veteran of the Movement's political debates and can hold your own. For this reason, you get two extra dice in any roll involving a political debate where you invoke Anarch principles.",
             },
             {
                 dot: 2,
-                name: "Barrio Tactics",
-                description: "Garcia's street-fighting legacy lives in you. You gain a specialty in Brawl: Street Fighting, and once per session you may reroll one failed die on an unarmed or improvised-weapon attack.",
+                name: "Old School",
+                description:
+                    "You've met Garcia and advocated the ideas of abolishing Princes and establishing domains with decentralized power. This gives you cred among old school Anarchs of the California Free States generation, who kept the Movement going through the lean years before the current explosion of activity. Because of this, you have the equivalent of a three dot Mawla representing older Anarchs who like you, though they will help you only in matters of the Movement.",
             },
             {
                 dot: 3,
-                name: "Voice of the Revolution",
-                description: "Your words carry the weight of the Anarch cause. Add two dice to Social rolls when appealing to Anarchs or mortals sympathetic to anti-establishment causes.",
+                name: "Enemy of the State",
+                description:
+                    "The Camarilla despises you because of your open advocacy of Anarch ideas. They attempt to discredit you by spreading bizarre rumors: You sold out your domain to the Second Inquisition, you didn't really do the heroic acts ascribed to you, you're actually a Sabbat infiltrator, and so on. As an unintended consequence of these rumors, all attempts to find real facts about you are made at a two dice penalty to the relevant roll, and any information gained is tainted by falsehoods unless the roll is a critical win.",
             },
             {
                 dot: 4,
-                name: "Garcia's Chosen",
-                description: "Salvador Garcia himself acknowledges your efforts. You may contact him directly once per chronicle for guidance or support; he will provide meaningful assistance, though never at personal risk.",
+                name: "The War of Ideas",
+                description:
+                    "Garcia teaches many young licks about the ideas of the Anarch Movement. Some of those ideas were formulated by him, but not all. Indeed, you once wrote down a vision of how undead society should be organized and that text has become part of Garcia's standard spiel. Because of this, you're known all across the Anarch territories and can use this fame as the equivalent of three dots of Allies in any Anarch domain.",
             },
             {
                 dot: 5,
-                name: "Heir to the Anarch Revolt",
-                description: "You are recognized as a living symbol of the Anarch Movement. Anarchs worldwide will extend hospitality and aid without question. Camarilla and Sabbat agents will mark you as a significant target.",
+                name: "Rise Up",
+                description:
+                    "You know how to talk to your fellow Anarchs, and they know what you stand for. When you call for a revolution, things will happen. Unfortunately, you have no control over what exactly will happen. Once per story you can make a politics roll to rile the local Anarchs into action. Gauge the scale of the effect to the number of successes rolled. (Three can give you a spontaneous raid on the Prince's Haven while six might start a revolt encompassing most of the city's Anarch population.)",
             },
         ],
     },
@@ -1217,28 +1222,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Burner Phone Network",
-                description: "Starek's network of disposable contacts and prepaid phones is at your disposal. Once per session, you can reach any mortal or Anarch contact without leaving a traceable call record.",
+                name: "Terrorizing the Powerful",
+                description:
+                    "Like Agata, you have an uncanny ability to strike terror in the hearts of licks more powerful and influential than you. Once per story, you can reroll an Intimidation test when confronted with a lick of greater means than yourself. This can mean age, resources or Sect status, but the final call on whether your ability applies is up to the Storyteller.",
             },
             {
                 dot: 2,
-                name: "Counter-Surveillance",
-                description: "Starek trained you to spot and defeat electronic monitoring. Add two dice to rolls to detect or evade surveillance technology, and gain a specialty in Technology: Counter-Surveillance.",
+                name: "Apprentice",
+                description:
+                    "You've met Agata Starek personally, and something in you caught her interest. Sometimes she sends you little tidbits of information about the weaknesses and private vices of the powerful licks in your city, often with the aim of allowing you to taste their sweet, sweet blood. Once per story you gain the equivalent of a four-dot contact for the purpose of deducing a weakness in a stronger enemy. This could be anything from their feeding habit, their Touchstones or the flaw in their haven's security.",
             },
             {
                 dot: 3,
-                name: "Dead Drop Mastery",
-                description: "You know Starek's global network of dead drops and safe houses. Once per story you may access a safe house in any major city, stocked with basic Haven (2) amenities and a cached set of false identities.",
+                name: "A Favor Owed",
+                description:
+                    "You've met Agata Starek once or twice, perhaps in a delicate situation involving murder and the spilling of Camarilla blood. Because of your shared history, once per story you can cash in a boon someone in your city owes her. A known appreciator of vitae, the boons owed to Starek always involve gaining access to a particular type of vampiric Blood. You explain what kind of Blood you need, and the Storyteller tells you who owes the boon to acquire it, limited by what's possible in the domain. For example, methuselah Blood is probably not possible, but the Blood of the Prince might be.",
             },
             {
                 dot: 4,
-                name: "Starek's Trust",
-                description: "Agata Starek considers you a genuine ally. She will share intelligence about Camarilla movements in your region and can arrange access to Anarch cells in Europe once per chronicle.",
+                name: "Unlikely Allies",
+                description:
+                    "Starek is a figure of hope for many who no longer believe that a better world is possible. They are content to yearn for revenge, and like her, you've come to seem like someone who could make things difficult for the powerful. Because of this, once per story an oppressed servant or minion of your undead enemies will help you in a tight spot as long as they can do it without getting caught. The Storyteller can make this happen, or you can appeal to a minion with a Persuasion roll with four additional dice.",
             },
             {
                 dot: 5,
-                name: "Ghost in the Machine",
-                description: "Starek has woven you into her information blackout. Your digital footprint is effectively erased — Camarilla hunters and Second Inquisition analysts cannot locate you through electronic means without exceptional effort.",
+                name: "The Joy of Transgression",
+                description:
+                    "Agata Starek argues that diablerizing powerful Camarilla vampires is not only an Anarch responsibility, it's also one of the chief joys of the revolution. You've taken her words to heart and no longer suffer an automatic loss of a point of Humanity when diablerizing someone with more Sect status than yourself. However, the potential Humanity loss from when you roll the effects of the diablerie still applies.",
             },
         ],
     },
@@ -1250,29 +1260,34 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Eye of Haroueris",
-                description: "You have studied the lore surrounding the Eye of Haroueris and related Set artifacts. Add two dice to Occult rolls related to Egyptian mythology, Setite history, or ancient artifacts.",
+                name: "One of Hesha's Works",
+                description:
+                    "You own one of Hesha's treatises on the history of Kindred existence. While the work may be controversial, and oppose the traditional Cainite mythology, it conveys one additional die on Occult-based dice pools, or pools relating to vampire origins. This work may be sold in exchange for one dot of the Resources Background.",
             },
             {
                 dot: 2,
-                name: "Ruhadze's Contacts",
-                description: "Hesha's network of mortal antiquarians, museum curators, and black-market dealers is partially at your disposal. Once per story you may arrange access to a rare artifact or occult document through these contacts.",
+                name: "Something Hesha Wants",
+                description:
+                    "You know what Hesha currently seeks, and can access it, or already own it. This item can be used to bargain with, blackmail, or threaten Hesha, or even present to him as a gift for future favor. This artifact or piece of information conveys an additional three dice to Persuasion or Intimidation dice pools involving Hesha or his cult. It can also be sold, adding three dots to your Resources (up to five) for the duration of the story.",
             },
             {
                 dot: 3,
-                name: "Serpent's Patience",
-                description: "Hesha has taught you the discipline of waiting and watching. You may spend a Willpower to perfectly conceal your emotional state and intentions for the rest of a scene; no supernatural power short of Dominate can read your surface thoughts.",
+                name: "Museum of the Faithful",
+                description:
+                    "You possess the rare privilege of membership in one of the Ministry's museums of vampire history. These underground treasure troves are securely guarded but contain a plethora of accessible information about legendary Cainites. You must submit a new treasure to the museum every year for continued membership and will have your access denied if you fail to do so, or ever steal from one of these Setite hoards. You gain three additional dice to all tests involving the research of vampires and vampire history for as long as you keep your membership.",
             },
             {
                 dot: 4,
-                name: "Heir to the Eye",
-                description: "Ministry characters only. You are entrusted with fragments of Ruhadze's research into the Eye. Once per chronicle, you may attempt to use this knowledge to unlock a single dot of a Setite ritual or power you do not possess, with Storyteller approval.",
+                name: "Blood Cult",
+                description:
+                    "Ministry characters only. Hesha has taught you the old ways of the Followers of Set, in which mortals and ghouls perform more than a servile role. Your cult encompasses a warrior, a priest, and a scholar, as well as willing vessels from which you feed. Three Background dots can be split between these specialized cultists, who can count as Herd or Retainers. They possess more knowledge and ability of your kind than typical servants and ghouls, giving them an additional die in all interactions with vampires.",
                 clanRestriction: ["Ministry"],
             },
             {
                 dot: 5,
-                name: "Ruhadze's Chosen",
-                description: "Ministry characters only. Hesha Ruhadze names you his successor in the hunt for the Eye. He provides you with direct mentorship, access to his full network, and will intervene once per chronicle on your behalf — at significant personal cost to himself.",
+                name: "Hear the Blood Sing",
+                description:
+                    "Ministry characters only. Maybe Hesha taught you how to hear the words, or perhaps you accomplished the feat yourself. You hear the voice of Sutekh more loudly than you do your Beast. Through riddles, visions, and musical refrain, the Storyteller will occasionally offer you guidance from the godlike voice issuing from your vitae. Once per session, you are also able to automatically resist Frenzy, treating it as a Ministry Compulsion instead.",
                 clanRestriction: ["Ministry"],
             },
         ],
@@ -1285,30 +1300,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Temple Initiate",
-                description: "You are recognized as an initiate of the Church of Set's outer mysteries. You may attend public ceremonies and have access to the church's mortal congregants as a minor resource pool.",
+                name: "Congregation",
+                description:
+                    "You have access to a herd of kine, but these mortals are a unified religious flock you can manipulate. This congregation can belong to any mainstream or fringe religion, and whether they see you as their leader, or just another parishioner, you can feed from them easily. This lore is equivalent to a two-dot Herd, though it requires you to show up and uphold the faith regularly.",
             },
             {
                 dot: 2,
-                name: "Inner Mysteries",
-                description: "You have been granted access to the Church's inner teachings. Add two dice to Occult rolls related to Setite theology, and once per story you may call on a mortal true believer for a significant favor.",
+                name: "Tap the Secret Vein",
+                description:
+                    "Through the method of a simple interview, you can analyze whether a mortal or Kindred has a secret they're trying to hide. You gain a two-dice bonus to Insight-based tests to find whether someone is keeping a secret.",
             },
             {
                 dot: 3,
-                name: "Temple Network",
-                description: "The Church of Set maintains hidden temples across the world. You may request sanctuary or resources at any Church temple once per story; the local priests will provide Haven (2) and basic support.",
+                name: "Freedom from the Aeons",
+                description:
+                    "Set despises his fellow clan founders, or so the legend says. The Setites consider the other founders Aeons, and demonstrate a resistance to their power. You gain two additional dice on rolls resisting Dominate and Presence attempts from vampires of other clans.",
             },
             {
                 dot: 4,
-                name: "Voice of Set",
-                description: "Ministry characters only. You speak with the authority of Set's teachings. Once per session, you may add three dice to a Manipulation or Persuasion roll when speaking to mortals or Kindred who are susceptible to religious or philosophical influence.",
-                clanRestriction: ["Ministry"],
+                name: "Degenerative Process",
+                description:
+                    "The Church of Set teaches its adherents that a man must be brought to his lowest before he can rise to meet glorious Sutekh. You can push any being, mortal or immortal, to indulge in degenerative corruption only to come out clean on the other side. With a successful Manipulation + Persuasion roll, you can persuade any individual to break a Tenet or Conviction, gaining at least one Stain. When it is done, they feel purified. The targeted character restores up to three Superficial or one Aggravated Willpower damage.",
             },
             {
                 dot: 5,
-                name: "High Priest",
-                description: "Ministry characters only. You hold a position of genuine authority within the Church of Set. Mortal followers will sacrifice significantly for you, and Ministry elders treat you as a peer. You may issue directives to the mortal congregation once per chronicle.",
-                clanRestriction: ["Ministry"],
+                name: "Body of Set",
+                description:
+                    "You possess a fragment of Set's skeleton, sarcophagus, or burial robes. Though the implication of Set's Final Death is debatable, the holy (or unholy, depending on your perspective) artifact gives you drive to succeed and impressive influence over other Followers of Set, conveying a four-dot Status among other Ministers. The relic also helps you to touch the mind of Set through meditation, and once per story you are able to reduce Stains gained from breaking a Tenet by one, if following what you and the Storyteller perceive as the will of your god.",
             },
         ],
     },
@@ -1320,28 +1338,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Carthaginian Lore",
-                description: "You have studied the history and legends of the Kindred utopia of Carthage. Add two dice to Occult or Academics rolls related to ancient Carthage, Brujah history, or pre-Roman Mediterranean civilization.",
+                name: "Clan Historian",
+                description:
+                    "You have studied the path of Clans Brujah, Lasombra, and the Children of Haqim from pre-Carthage nights through to the formation of the Camarilla. You know their rises and their falls, their constant battles with the Ventrue, Malkavians, and Toreador, and can recite names and dates with ease. This lore impresses other Kindred historians and rebels looking for a cause, giving you a bonus die on social tests where you can put this knowledge to use.",
             },
             {
                 dot: 2,
-                name: "Dream of Carthage",
-                description: "The ideal of Carthage inspires your rhetoric. Once per session you may invoke the Dream of Carthage in a speech or argument; add two dice to Social rolls when rallying Anarchs or idealists to a common cause.",
+                name: "Punic Pride",
+                description:
+                    "To this night, Brujah still look back on Carthage as the ultimate symbol of rebellion. They believe Carthage was the most successful domain to persistently resist Ventrue-controlled Rome, until its calamitous end. You take great pride in your Carthaginian ancestry, whether through mortal links, or immortal bloodline. When invoking this ancestry, you speak with increased confidence and draw the attentions of fellow rebels. Gain two dice in Leadership-based tests to lead others against perceived oppression.",
             },
             {
                 dot: 3,
-                name: "Carthaginian Relics",
-                description: "You possess or have access to artifacts from ancient Carthage. Once per story you may draw on these relics for a bonus: either a two-die bonus to an Occult roll or a prop that impresses or intimidates a Kindred with historical knowledge.",
+                name: "Death to Tyrants",
+                description:
+                    "If Carthage taught the Brujah and Children of Haqim anything, it's that it's always worth fighting until the end. Never since — even when considering the Anarch Revolt — have the pillars of the establishment been so shaken. You harness the strength of the vampires who fell fighting Rome whenever taking the fight to a figure in power. Gain a bonus dice to all contests against someone who can claim authority over you.",
             },
             {
                 dot: 4,
-                name: "Blood Memory",
-                description: "The blood memories of Carthage flow through you. Once per chronicle, you may enter a trance and access a vision of ancient Carthage — gaining a specific piece of historical knowledge or a clue relevant to the current story.",
+                name: "Troile's Wish",
+                description:
+                    "Many Brujah claim the damning tales of Carthage are simply Ventrue propaganda spread from Rome, and extant to this night. Brujah and Banu Haqim scholars alike claim Troile was a benevolent ruler, treating both Kindred and kine fairly, and ensuring every soul in the empire remained fed, educated, and loved. You believe in this credo, and exude a reassurance that convinces others to trust you, supplicate before you, and help you in whatever schemes you have to mind. You gain two bonus dice to all social tests involving vampiric servants, yours and others, whether they are retainers or just part of a herd.",
             },
             {
                 dot: 5,
-                name: "Heir of Carthage",
-                description: "You are acknowledged as a keeper of Carthage's legacy. Brujah and Banu Haqim elders who venerate Carthage will treat you with deep respect. Once per chronicle, you may call on one such elder for significant aid.",
+                name: "Carthage Anew",
+                description:
+                    "You are an advocate of Carthage anew. Plans have been set in motion and you already have an Anarch city selected where the Masquerade will soon fall without being targeted by mortal agencies. (The deals and pacts you had to make for this to happen are left to you and the Storyteller.) Up until that time, you are able to break the Masquerade and get away with it in that city once per story, no matter the severity of the breach.",
             },
         ],
     },
@@ -1353,28 +1376,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Plagued Blood",
-                description: "Your blood carries a subtle taint that can be sensed by those who know what to look for. You are known in certain circles as someone who has survived or carries blood-borne illness; gain a two-die bonus to rolls to contact thin-bloods or other marginalized Kindred.",
+                name: "Detection",
+                description:
+                    "The Blood plague manifests in vampires in a variety of ways, depending on the incarnation of the disease. As the curse afflicting vampires evolves, so must the experts who seek to study and eradicate it. You are one such vampire, who knows all associated symptoms of the Blood plague. You can use this lore to easily determine if someone carries infection, or more malignantly, you can sow rumors in a domain of the plague's existence, by using facts about the disease's course. Add two dice to any Medicine or Occult roll involving the plague.",
             },
             {
                 dot: 2,
-                name: "Carrier",
-                description: "You can pass a supernatural infection through your vitae. Once per story, you may deliberately taint a feeding or blood bond attempt; the target must make a Stamina roll or suffer a mild illness lasting a week.",
+                name: "The Science of the Blood",
+                description:
+                    "You believe the Blood plague to be largely medical in genesis, possibly even started among mortals before it infected Kindred. Your thorough study of the Blood plague enables you to simply detect the plague's recent paths and patterns, analyzing where an infected host may have been, who they might have been infected by, and when. Such information can be incredibly useful when attempting to quarantine all infected subjects. Add two dice to all Investigation rolls and other tests to track active victims of the plague.",
             },
             {
                 dot: 3,
-                name: "Plague Immunity",
-                description: "Your body has adapted to the taint. You are immune to blood-borne supernatural diseases and gain two dice to resist mundane illnesses and poisons.",
+                name: "Trace the Torpid Victims",
+                description:
+                    "You see the strains of Blood plague wind through the earth. Your interest in this condition goes further than just quarantine and healing of the infected; you can follow the plague's stench and unholy aura to its torpid victims. You already know where many of the bodies are buried. By making a Resolve + Occult roll (Difficulty 4, modified depending on the vampire population and the history of the Blood plague in the area) you can locate the body of an infected victim still in torpor. Who they are and whether they are still contagious is up to the Storyteller.",
             },
             {
                 dot: 4,
-                name: "Virulent Blood",
-                description: "Your blood is a potent vector. Once per session, you may use your vitae as a weapon — anyone ingesting it without your consent suffers a serious supernatural illness at Storyteller discretion.",
+                name: "Curative Vitae",
+                description:
+                    "You believe any disease is curable, with the correct research, and the willingness to sacrifice. Your vitae is clean of the Blood plague, and you show no symptoms despite your proximity to many victims. You believe your Blood may hold the cure, but scientists of other clans require a lot of your vitae to test this idea. By giving enough Blood to force a Rouse Check you can add two dice to any attempt to manufacture a cure, temporary or even permanent (Storyteller's discretion).",
             },
             {
                 dot: 5,
-                name: "Patient Zero",
-                description: "You are the source. The supernatural plague in your blood is uniquely virulent and may have chronicle-level implications. Kindred hunters of supernatural diseases will seek you out — for cure or destruction.",
+                name: "Vector",
+                description:
+                    "You have a secret. You carry the Blood plague, and can even infect others with it, but you display none of the symptoms. This dangerous lore allows you to spill your vitae in an Elysium or feed a mouthful of it to a popular vessel, and watch the terrible effects as the other Kindred succumb to the Blood plague. If you feel more altruistic, you may volunteer for thorough tests on your vitae, and how it may be applied by your sect as a weapon, or by those looking for a cure. The specific effects of your strain of plague are up to you and the Storyteller.",
             },
         ],
     },
@@ -1386,28 +1414,33 @@ export const LORESHEETS: Loresheet[] = [
         dots: [
             {
                 dot: 1,
-                name: "Revolutionary History",
-                description: "You have studied the history of the Anarch Revolt in depth. Add two dice to Academics or Occult rolls related to Kindred political history, the Convention of Thorns, or the founding of the Camarilla.",
+                name: "Critical Ancestor",
+                description:
+                    "Vampires largely of Clans Brujah, the Banu Haqim, and Lasombra led the Anarch Revolt across Europe, with power-hungry Tzimisce taking part to eliminate the greatest monsters in their own clan. However, Anarchs rose from all clans, as most elders manipulated their young to disastrous ends. You can name one of your ancestors as critical to the Anarch Revolt, either as an instigator, chronicler, or opponent. Your ties to this ancestor give you credibility in discussions regarding the Revolt, and a passion for its analysis. Gain a point of Anarch status as well as the Suspect (Camarilla) flaw, or vice versa.",
             },
             {
                 dot: 2,
-                name: "Revolt Contacts",
-                description: "You are connected to Anarchs who trace their lineage or ideology to the original Revolt. Once per story, you may call on one of these elders or their childer for a significant favor or piece of historical information.",
+                name: "Speak the Words",
+                description:
+                    "The Anarch Revolt was driven more by words and energy than flashing blades and spilling blood, at least at first. You possess the same ambition as the Anarchs of the past, and can accurately pinpoint where oppression occurs, and where revolt is necessary. When vampires listen to you, they feel more inclined to seize power from their masters. Add two dice to social tests involving the instigation of Anarch activism.",
             },
             {
                 dot: 3,
-                name: "Spirit of Revolt",
-                description: "The fire of the Revolt burns in you. Add two dice to Intimidation or Leadership rolls when confronting or rallying against authority figures — Camarilla Princes, Sheriff's deputies, and similar.",
+                name: "Enemy of the Establishment",
+                description:
+                    "You consider yourself an Old Anarch, not necessarily by age, but by ethos. The new Anarch Movement has its strengths, but also many weaknesses. Your views put you in direct opposition to the Camarilla and its Victorian methods of subjugation. The Camarilla has marked you as an enemy, which only draws more listless Anarchs to your banner. You gain the equivalent of a four-dot Mawla, representing your comrades among the Anarchs, as well as a one-dot Adversary, representing someone tasked with keeping tabs on you and, if necessary, bringing you down.",
             },
             {
                 dot: 4,
-                name: "Thorns Knowledge",
-                description: "You know the hidden clauses and betrayals of the Convention of Thorns. Once per chronicle, you may use this knowledge to expose or shame a Camarilla elder, imposing a two-die penalty on their Social rolls against Anarchs for the remainder of the story.",
+                name: "Icon",
+                description:
+                    "You have taken the name of one of the Anarch Revolt's original participants, and act as that vampire's successor. This would be disrespectful, if you had not performed many of the same actions as your forebears. Many Anarchs see you as the next great leader of the Revolt, whether or not that is your intent. You may have seized an historic identity for the cult status and easy access to herd, but now the sect puts increasing pressure on you to act in their interest. Gain two dots of Status, two dots in Herd and two dots in Resources for as long as you put the Anarch cause before anything else. Any misstep and they are lost until you redeem yourself.",
             },
             {
                 dot: 5,
-                name: "Voice of the First Revolt",
-                description: "You are a living symbol of Kindred rebellion. Your reputation among Anarchs worldwide is legendary. Anarchs will follow your lead in dangerous situations, and your words carry the weight of centuries of struggle.",
+                name: "Reignite the Revolt",
+                description:
+                    "The time has come. You know how the Anarch Revolt took place half a millennium ago, and know how it needs to take place tonight. You know the weakness of your city, the greatest threats, and the Camarilla positions direly in need of removal. You can threaten your enemies with the prospect of war for extortion purposes, or to prevent the Camarilla taking more liberties with the Anarchs than they have already. Once per story you can use this leverage to gain four dice in any Social conflict against a member of the Camarilla establishment. If you fail the roll you either need to make good on your threat or lose this Advantage permanently.",
             },
         ],
     },

@@ -480,6 +480,13 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 excludes: []
             },
             {
+                name: "Influence",
+                cost: [1, 2, 3, 4, 5],
+                summary:
+                    "power over a mortal sphere (politics, media, finance…), 1 - minor sway, 5 - near-total control",
+                excludes: []
+            },
+            {
                 name: "Fame",
                 cost: [1, 2, 3, 4, 5],
                 summary:

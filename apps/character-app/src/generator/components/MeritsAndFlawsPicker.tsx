@@ -622,8 +622,8 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
 
                 {/* Loresheets panel */}
                 <Tabs.Panel value="loresheets">
-                    <div style={{ ...generatorScrollableContentStyle, height: "100%", padding: "0 20px" }}>
-                        <ScrollArea {...columnScrollProps}>
+                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px", maxWidth: 960, marginLeft: "auto", marginRight: "auto", width: "100%" }}>
+                        <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
                             <Loresheets
                                 character={character}
                                 getMeritOrFlawLine={getMeritOrFlawLine}
