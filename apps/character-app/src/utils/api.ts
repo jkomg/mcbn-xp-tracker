@@ -101,6 +101,9 @@ export const cc = {
     submitDraft: (id: string) =>
         apiRequest<CharacterDraft>(`/cc/characters/${id}/submit`, { method: "POST" }),
 
+    deleteDraft: (id: string) =>
+        apiRequest<void>(`/cc/characters/${id}`, { method: "DELETE" }),
+
     getEligibility: () =>
         apiRequest<EligibilityResult>("/cc/eligibility"),
 
@@ -142,7 +145,7 @@ export const api = {
     // These are no-ops; the CC auto-save handles persistence instead.
     createCharacter: (_data: unknown) => Promise.resolve({ id: "" }),
     updateCharacter: (_id: string, _data: unknown) => Promise.resolve({ id: _id }),
-    deleteCharacter: (_id: string) => Promise.resolve(undefined as void),
+    deleteCharacter: (id: string) => cc.deleteDraft(id),
 }
 
 export { API_URL }
