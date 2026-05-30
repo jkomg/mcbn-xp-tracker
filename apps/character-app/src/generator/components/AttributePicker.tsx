@@ -1,5 +1,5 @@
-import { Button, Divider, Grid, Group, Text, Tooltip } from "@mantine/core"
-import { RAW_GOLD, RAW_RED, RAW_GRAPE, rgba } from "~/theme/colors"
+import { Text, Tooltip } from "@mantine/core"
+import { RAW_GOLD, RAW_RED, RAW_GREY, rgba } from "~/theme/colors"
 import { useEffect, useState } from "react"
 import ReactGA from "react-ga4"
 import { trackEvent } from "../../utils/analytics"
@@ -21,6 +21,12 @@ type AttributeSetting = {
     medium: AttributesKey[]
 }
 
+const ATTRIBUTE_COLUMNS: { label: string; attrs: string[] }[] = [
+    { label: "Physical", attrs: ["strength", "dexterity", "stamina"] },
+    { label: "Social", attrs: ["charisma", "manipulation", "composure"] },
+    { label: "Mental", attrs: ["intelligence", "wits", "resolve"] }
+]
+
 const AttributePicker = ({ character, setCharacter, nextStep }: AttributePickerProps) => {
     const phoneScreen = globals.isPhoneScreen
     useEffect(() => {
@@ -33,184 +39,151 @@ const AttributePicker = ({ character, setCharacter, nextStep }: AttributePickerP
         medium: []
     })
 
-    const createButton = (attribute: AttributesKey, i: number) => {
-        const alreadyPicked = [
-            pickedAttributes.strongest,
-            pickedAttributes.weakest,
-            ...pickedAttributes.medium
-        ].includes(attribute)
-        const assignedLevel = (() => {
-            if (attribute === pickedAttributes.strongest) return 4
-            if (attribute === pickedAttributes.weakest) return 1
-            if (pickedAttributes.medium.includes(attribute)) return 3
-            return null
-        })()
+    const getAssignedLevel = (attribute: AttributesKey) => {
+        if (attribute === pickedAttributes.strongest) return 4
+        if (pickedAttributes.medium.includes(attribute)) return 3
+        if (attribute === pickedAttributes.weakest) return 1
+        return null
+    }
 
-        let onClick: () => void
-        if (alreadyPicked) {
-            onClick = () => {
-                setPickedAttributes({
-                    strongest:
-                        pickedAttributes.strongest === attribute
-                            ? null
-                            : pickedAttributes.strongest,
-                    medium: pickedAttributes.medium.filter((it) => it !== attribute),
-                    weakest:
-                        pickedAttributes.weakest === attribute ? null : pickedAttributes.weakest
-                })
-            }
-        } else if (!pickedAttributes.strongest) {
-            onClick = () => {
-                setPickedAttributes({ ...pickedAttributes, strongest: attribute })
-            }
-        } else if (!pickedAttributes.weakest) {
-            onClick = () => {
-                setPickedAttributes({ ...pickedAttributes, weakest: attribute })
-            }
-        } else if (pickedAttributes.medium.length < 2) {
-            onClick = () => {
-                setPickedAttributes({
-                    ...pickedAttributes,
-                    medium: [...pickedAttributes.medium, attribute]
-                })
-            }
-        } else {
-            onClick = () => {
-                const finalPick = {
-                    ...pickedAttributes,
-                    medium: [...pickedAttributes.medium, attribute]
-                }
-                const attributes = {
-                    strength: 2,
-                    charisma: 2,
-                    intelligence: 2,
-                    dexterity: 2,
-                    manipulation: 2,
-                    wits: 2,
-                    stamina: 2,
-                    composure: 2,
-                    resolve: 2
-                }
-                attributes[finalPick.strongest!] = 4
-                attributes[finalPick.weakest!] = 1
-                finalPick.medium.forEach((medium) => (attributes[medium] = 3))
+    const alreadyPicked = (attribute: AttributesKey) =>
+        [pickedAttributes.strongest, pickedAttributes.weakest, ...pickedAttributes.medium].includes(
+            attribute
+        )
 
-                updateHealthAndWillpowerAndBloodPotencyAndHumanity(character)
-                setCharacter({ ...character, attributes })
-                nextStep()
-            }
+    const handleClick = (attribute: AttributesKey) => {
+        trackEvent({ action: "attribute clicked", category: "attributes", label: attribute })
+
+        if (alreadyPicked(attribute)) {
+            setPickedAttributes({
+                strongest: pickedAttributes.strongest === attribute ? null : pickedAttributes.strongest,
+                medium: pickedAttributes.medium.filter((it) => it !== attribute),
+                weakest: pickedAttributes.weakest === attribute ? null : pickedAttributes.weakest
+            })
+            return
         }
 
-        const trackClick = () => {
-            trackEvent({
-                action: "attribute clicked",
-                category: "attributes",
-                label: attribute
-            })
+        if (!pickedAttributes.strongest) {
+            setPickedAttributes({ ...pickedAttributes, strongest: attribute })
+        } else if (!pickedAttributes.weakest) {
+            setPickedAttributes({ ...pickedAttributes, weakest: attribute })
+        } else if (pickedAttributes.medium.length < 2) {
+            setPickedAttributes({ ...pickedAttributes, medium: [...pickedAttributes.medium, attribute] })
+        } else {
+            const finalPick = { ...pickedAttributes, medium: [...pickedAttributes.medium, attribute] }
+            const attributes = {
+                strength: 2, charisma: 2, intelligence: 2,
+                dexterity: 2, manipulation: 2, wits: 2,
+                stamina: 2, composure: 2, resolve: 2
+            }
+            attributes[finalPick.strongest!] = 4
+            attributes[finalPick.weakest!] = 1
+            finalPick.medium.forEach((m) => (attributes[m] = 3))
+            updateHealthAndWillpowerAndBloodPotencyAndHumanity(character)
+            setCharacter({ ...character, attributes })
+            nextStep()
+        }
+    }
+
+    const createRow = (attribute: AttributesKey) => {
+        const level = getAssignedLevel(attribute)
+        const picked = alreadyPicked(attribute)
+
+        const borderColor = level === 4
+            ? rgba(RAW_RED, 0.85)
+            : level === 3
+              ? rgba(RAW_GOLD, 0.75)
+              : level === 1
+                ? "rgba(140, 130, 125, 0.5)"
+                : "rgba(255,255,255,0.05)"
+
+        const bg = level === 4
+            ? rgba(RAW_RED, 0.1)
+            : level === 3
+              ? "rgba(204, 166, 51, 0.1)"
+              : level === 1
+                ? "rgba(50, 45, 42, 0.5)"
+                : "transparent"
+
+        const nameColor = level === 4
+            ? rgba(RAW_RED, 1)
+            : level === 3
+              ? rgba(RAW_GOLD, 0.9)
+              : level === 1
+                ? rgba(RAW_GREY, 0.5)
+                : rgba(RAW_GREY, 0.85)
+
+        const dotColor = (dotIndex: number) => {
+            if (dotIndex >= (level ?? 0)) return "rgba(255,255,255,0.1)"
+            if (level === 4) return rgba(RAW_RED, 0.9)
+            if (level === 3) return "rgba(232, 204, 92, 0.9)"
+            return "rgba(160, 150, 145, 0.7)"
         }
 
         return (
-            <Grid.Col key={attribute} span={4}>
-                <Tooltip
-                    disabled={alreadyPicked}
-                    label={attributeDescriptions[attribute]}
-                    transitionProps={{ transition: "slide-up", duration: 200 }}
-                    events={globals.tooltipTriggerEvents}
-                >
-                    <Button
-                        data-testid={`attribute-${attribute}-button`}
-                        p={phoneScreen ? 0 : "default"}
-                        variant={alreadyPicked ? "outline" : "filled"}
-                        color="grape"
-                        fullWidth={false}
-                        style={{
-                            width: "88%",
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                            minHeight: phoneScreen ? 36 : 40
-                        }}
-                        styles={{
-                            inner: {
-                                alignItems: "center",
-                                justifyContent: phoneScreen ? "center" : "space-between",
-                                paddingTop: 2,
-                                paddingBottom: 3
-                            },
-                            label: {
-                                lineHeight: 1.3,
-                                overflow: "visible",
-                                flex: 1
-                            },
-                            section: {
-                                overflow: "visible"
-                            },
-                            root: {
-                                justifyContent: "space-between",
-                                background:
-                                    assignedLevel === 4
-                                        ? rgba(RAW_RED, 0.2)
-                                        : assignedLevel === 3
-                                          ? "rgba(204, 166, 51, 0.4)"
-                                          : assignedLevel === 1
-                                            ? "rgba(43, 43, 43, 0.5)"
-                                            : rgba(RAW_GRAPE, 0.8),
-                                borderColor:
-                                    assignedLevel === 4
-                                        ? rgba(RAW_RED, 0.95)
-                                        : assignedLevel === 3
-                                          ? rgba(RAW_GOLD, 0.9)
-                                          : assignedLevel === 1
-                                            ? "rgba(180, 180, 180, 0.42)"
-                                            : undefined,
-                                color: alreadyPicked ? "rgba(244, 236, 232, 0.95)" : undefined
-                            }
-                        }}
-                        rightSection={
-                            !phoneScreen && assignedLevel ? (
-                                <Group gap={4} wrap="nowrap">
-                                    {Array.from({ length: 5 }).map((_, dotIndex) => (
-                                        <div
-                                            key={`${attribute}-dot-${dotIndex}`}
-                                            style={{
-                                                width: phoneScreen ? 5 : 6,
-                                                height: phoneScreen ? 5 : 6,
-                                                borderRadius: "999px",
-                                                background:
-                                                    dotIndex < assignedLevel
-                                                        ? assignedLevel === 4
-                                                            ? rgba(RAW_RED, 1)
-                                                            : assignedLevel === 3
-                                                              ? "rgba(232, 204, 92, 0.98)"
-                                                              : "rgba(210, 210, 210, 0.85)"
-                                                        : "rgba(255, 255, 255, 0.14)",
-                                                boxShadow:
-                                                    dotIndex < assignedLevel && assignedLevel === 4
-                                                        ? `0 0 6px ${rgba(RAW_RED, 0.38)}`
-                                                        : "none"
-                                            }}
-                                        />
-                                    ))}
-                                </Group>
-                            ) : undefined
+            <Tooltip
+                key={attribute}
+                disabled={picked}
+                label={attributeDescriptions[attribute]}
+                transitionProps={{ transition: "slide-up", duration: 200 }}
+                events={globals.tooltipTriggerEvents}
+            >
+                <div
+                    data-testid={`attribute-${attribute}-button`}
+                    onClick={() => handleClick(attribute)}
+                    onMouseEnter={(e) => {
+                        if (!picked) {
+                            e.currentTarget.style.borderLeftColor = rgba(RAW_RED, 0.5)
+                            e.currentTarget.style.background = rgba(RAW_RED, 0.05)
                         }
-                        onClick={() => {
-                            trackClick()
-                            onClick()
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!picked) {
+                            e.currentTarget.style.borderLeftColor = "rgba(255,255,255,0.05)"
+                            e.currentTarget.style.background = "transparent"
+                        }
+                    }}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: phoneScreen ? "7px 8px" : "8px 10px",
+                        borderLeft: `3px solid ${borderColor}`,
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        background: bg,
+                        cursor: "pointer",
+                        transition: "border-left-color 130ms ease, background 130ms ease"
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontFamily: "Cinzel, Georgia, serif",
+                            fontSize: phoneScreen ? "0.78rem" : "0.86rem",
+                            fontWeight: level ? 600 : 400,
+                            letterSpacing: "0.06em",
+                            color: nameColor
                         }}
                     >
-                        <Text
-                            fz={phoneScreen ? 12 : "inherit"}
-                            lh={1.3}
-                            ta={phoneScreen ? "center" : "left"}
-                            style={{ width: "100%" }}
-                        >
-                            {upcase(attribute)}
-                        </Text>
-                    </Button>
-                </Tooltip>
-
-                {i % 3 === 0 || i % 3 === 1 ? <Divider size="xl" orientation="vertical" /> : null}
-            </Grid.Col>
+                        {upcase(attribute)}
+                    </Text>
+                    {!phoneScreen && (
+                        <div style={{ display: "flex", gap: 3, marginLeft: 6 }}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        background: dotColor(i),
+                                        boxShadow: i < (level ?? 0) && level === 4 ? `0 0 5px ${rgba(RAW_RED, 0.4)}` : "none"
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </Tooltip>
         )
     }
 
@@ -258,38 +231,28 @@ const AttributePicker = ({ character, setCharacter, nextStep }: AttributePickerP
 
             <GeneratorSectionDivider label="Attributes" />
 
-            <Group>
-                <Grid grow>
-                    <Grid.Col span={4}>
-                        <Text fs="italic" fw={700} ta="center">
-                            Physical
+            <div style={{ display: "flex", gap: phoneScreen ? 6 : 12 }}>
+                {ATTRIBUTE_COLUMNS.map((col) => (
+                    <div key={col.label} style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                            ta="center"
+                            mb={6}
+                            style={{
+                                fontFamily: "Cinzel, Georgia, serif",
+                                fontSize: "0.72rem",
+                                letterSpacing: "0.18em",
+                                textTransform: "uppercase",
+                                color: rgba(RAW_GOLD, 0.6)
+                            }}
+                        >
+                            {col.label}
                         </Text>
-                    </Grid.Col>
-                    <Grid.Col span={4}>
-                        <Text fs="italic" fw={700} ta="center">
-                            Social
-                        </Text>
-                    </Grid.Col>
-                    <Grid.Col span={4}>
-                        <Text fs="italic" fw={700} ta="center">
-                            Mental
-                        </Text>
-                    </Grid.Col>
-                    {[
-                        "strength",
-                        "charisma",
-                        "intelligence",
-                        "dexterity",
-                        "manipulation",
-                        "wits",
-                        "stamina",
-                        "composure",
-                        "resolve"
-                    ]
-                        .map((a) => attributesKeySchema.parse(a))
-                        .map((clan, i) => createButton(clan, i))}
-                </Grid>
-            </Group>
+                        <div style={{ borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                            {col.attrs.map((a) => createRow(attributesKeySchema.parse(a)))}
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }
