@@ -11,7 +11,7 @@ from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
 )
-from app.db import CharacterDraft, db
+from app.db import CharacterDraft
 from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
