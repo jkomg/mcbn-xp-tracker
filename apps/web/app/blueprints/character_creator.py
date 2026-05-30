@@ -148,6 +148,22 @@ def cc_update_draft(draft_id):
     return jsonify(_draft_to_dict(draft))
 
 
+@bp.route('/api/cc/characters/<draft_id>', methods=['DELETE'])
+@require_login
+def cc_delete_draft(draft_id):
+    """Player deletes their own draft. Only draft/revision_requested may be deleted."""
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None:
+        return jsonify({'error': 'Not found'}), 404
+    if draft.player_discord_id != _discord_id() and not is_staff():
+        return jsonify({'error': 'Forbidden'}), 403
+    if draft.status in ('submitted', 'approved'):
+        return jsonify({'error': f'Cannot delete a draft with status: {draft.status}'}), 422
+    db.session.delete(draft)
+    db.session.commit()
+    return '', 204
+
+
 @bp.route('/api/cc/characters/<draft_id>/submit', methods=['POST'])
 @require_login
 def cc_submit_draft(draft_id):

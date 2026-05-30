@@ -713,10 +713,23 @@ export async function handleUpdateModal(
     const playerMention = playerId ? `<@${playerId}>` : characterName;
     const content = `${playerMention} "${updateMessage}"`;
 
+    // Download the PDF to a buffer before sending so the send() itself is
+    // reliable. Using a CDN URL directly can trigger an AbortError mid-request
+    // if the fetch is slow, leaving the message posted but the bot thinking it failed.
+    let pdfBuffer: Buffer | null = null;
     if (pdf) {
+      try {
+        const res = await fetch(pdf.url);
+        if (res.ok) pdfBuffer = Buffer.from(await res.arrayBuffer());
+      } catch {
+        // ignore — send without attachment below
+      }
+    }
+
+    if (pdfBuffer && pdf) {
       await (sheetsChannel as import('discord.js').TextChannel).send({
         content,
-        files: [{ attachment: pdf.url, name: pdf.name }],
+        files: [{ attachment: pdfBuffer, name: pdf.name }],
       });
     } else {
       await (sheetsChannel as import('discord.js').TextChannel).send({ content });

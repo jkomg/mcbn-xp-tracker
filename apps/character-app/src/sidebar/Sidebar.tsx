@@ -12,7 +12,7 @@ import {
 } from "@mantine/core"
 import { RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { notifications } from "@mantine/notifications"
-import { IconChevronRight, IconFilePlus, IconFileUpload, IconUser } from "@tabler/icons-react"
+import { IconChevronRight, IconFilePlus, IconFileUpload, IconTrash, IconUser } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
 import { Character } from "../data/Character"
 import { notDefault } from "../generator/utils"
@@ -24,7 +24,7 @@ import SkillDisplay from "./components/SkillsDisplay"
 import TouchstoneDisplay from "./components/TouchstoneDisplay"
 import { globals } from "../globals"
 import { useAuth } from "../hooks/useAuth"
-import { useCharacters } from "../hooks/useCharacters"
+import { useCharacters, useDeleteCharacter } from "../hooks/useCharacters"
 
 export type SidebarProps = {
     character: Character
@@ -53,6 +53,8 @@ const Sidebar = ({
     )
     const [isLoadingSelectedCharacter, setIsLoadingSelectedCharacter] = useState(false)
     const [switchCharacterModalOpened, setSwitchCharacterModalOpened] = useState(false)
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+    const { mutateAsync: deleteCharacter, isPending: isDeleting } = useDeleteCharacter()
 
     const characterOptions: SidebarCharacterOption[] = (
         (characters as Array<{ id: string; name: string; shared?: boolean }>) || []
@@ -252,6 +254,7 @@ const Sidebar = ({
                             </Paper>
                             {characterOptions.map((option) => {
                                 const isActive = option.value === selectedCharacterId
+                                const isConfirmingDelete = confirmDeleteId === option.value
 
                                 return (
                                     <Paper
@@ -284,28 +287,80 @@ const Sidebar = ({
                                                     {option.label}
                                                 </Text>
                                                 <Text size="xs" c="dimmed">
-                                                    {isActive
-                                                        ? "Currently loaded"
-                                                        : "Load this character"}
+                                                    {isActive ? "Currently loaded" : "Load this character"}
                                                 </Text>
                                             </Box>
-                                            <Button
-                                                size="xs"
-                                                variant={isActive ? "light" : "outline"}
-                                                color="red"
-                                                disabled={isLoadingSelectedCharacter}
-                                                loading={
-                                                    isLoadingSelectedCharacter &&
-                                                    option.value === selectedCharacterId
-                                                }
-                                                onClick={async () => {
-                                                    await handleSelectCharacter(option.value)
-                                                    setSwitchCharacterModalOpened(false)
-                                                }}
-                                                styles={actionButtonStyles}
-                                            >
-                                                {isActive ? "Loaded" : "Load"}
-                                            </Button>
+                                            <Group gap={6} wrap="nowrap">
+                                                {isConfirmingDelete ? (
+                                                    <>
+                                                        <Button
+                                                            size="xs"
+                                                            variant="filled"
+                                                            color="red"
+                                                            loading={isDeleting}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await deleteCharacter(option.value)
+                                                                    setConfirmDeleteId(null)
+                                                                    notifications.show({
+                                                                        title: "Draft deleted",
+                                                                        message: `"${option.label}" has been removed.`,
+                                                                        color: "red",
+                                                                        autoClose: 4000
+                                                                    })
+                                                                } catch (e) {
+                                                                    notifications.show({
+                                                                        title: "Delete failed",
+                                                                        message: e instanceof Error ? e.message : "Could not delete draft",
+                                                                        color: "red"
+                                                                    })
+                                                                    setConfirmDeleteId(null)
+                                                                }
+                                                            }}
+                                                            styles={actionButtonStyles}
+                                                        >
+                                                            Confirm
+                                                        </Button>
+                                                        <Button
+                                                            size="xs"
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            onClick={() => setConfirmDeleteId(null)}
+                                                            styles={{ root: { fontFamily: "Cinzel, Georgia, serif", fontSize: "0.72rem" } }}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            size="xs"
+                                                            variant={isActive ? "light" : "outline"}
+                                                            color="red"
+                                                            disabled={isLoadingSelectedCharacter}
+                                                            loading={isLoadingSelectedCharacter && option.value === selectedCharacterId}
+                                                            onClick={async () => {
+                                                                await handleSelectCharacter(option.value)
+                                                                setSwitchCharacterModalOpened(false)
+                                                            }}
+                                                            styles={actionButtonStyles}
+                                                        >
+                                                            {isActive ? "Loaded" : "Load"}
+                                                        </Button>
+                                                        <Button
+                                                            size="xs"
+                                                            variant="subtle"
+                                                            color="red"
+                                                            px={6}
+                                                            disabled={isLoadingSelectedCharacter || isDeleting}
+                                                            onClick={() => setConfirmDeleteId(option.value)}
+                                                            title="Delete this draft"
+                                                        >
+                                                            <IconTrash size={13} />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </Group>
                                         </Group>
                                     </Paper>
                                 )

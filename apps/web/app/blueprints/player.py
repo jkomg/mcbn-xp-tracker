@@ -11,6 +11,7 @@ from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
 )
+from app.db import CharacterDraft
 from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
@@ -47,6 +48,15 @@ def my_characters():
 
     calendar = get_calendar()
 
+    # Pending character drafts (draft / revision_requested only — not submitted/approved)
+    pending_drafts = (
+        CharacterDraft.query
+        .filter_by(player_discord_id=discord_id)
+        .filter(CharacterDraft.status.in_(['draft', 'revision_requested']))
+        .order_by(CharacterDraft.updated_at.desc())
+        .all()
+    )
+
     # Staff also see a full character search
     if check_is_staff():
         all_characters = db_service.get_active_characters()
@@ -58,10 +68,11 @@ def my_characters():
             show_all=True,
             open_periods=open_periods,
             calendar=calendar,
+            pending_drafts=pending_drafts,
         )
 
-    if not my_chars:
-        # No linked characters — show linking flow
+    if not my_chars and not pending_drafts:
+        # No linked characters and no drafts — show linking flow
         return redirect(url_for('player.link_character'))
 
     # Show character list with option to link more
@@ -72,6 +83,7 @@ def my_characters():
         show_all=False,
         open_periods=open_periods,
         calendar=calendar,
+        pending_drafts=pending_drafts,
     )
 
 

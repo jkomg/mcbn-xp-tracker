@@ -1,17 +1,5 @@
-import {
-    Box,
-    Card,
-    Center,
-    Grid,
-    Image,
-    rgba as mantineRgba,
-    ScrollArea,
-    Stack,
-    Text,
-    Title,
-    useMantineTheme
-} from "@mantine/core"
-import { RAW_RED, rgba } from "~/theme/colors"
+import { Box, Image, ScrollArea, Stack, Text } from "@mantine/core"
+import { RAW_GOLD, RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { notifications } from "@mantine/notifications"
 import { useEffect } from "react"
 import ReactGA from "react-ga4"
@@ -28,6 +16,7 @@ import {
     generatorScrollableShellStyle
 } from "./sharedGeneratorScrollableLayout"
 import { nightfallScrollAreaStyles, nightfallScrollbarSize } from "./sharedScrollAreaStyles"
+import { GeneratorStepHero } from "./sharedGeneratorUi"
 
 type ClanPickerProps = {
     character: Character
@@ -40,114 +29,157 @@ const ClanPicker = ({ character, setCharacter, nextStep }: ClanPickerProps) => {
         ReactGA.send({ hitType: "pageview", title: "Clan Picker" })
     }, [])
 
-    const theme = useMantineTheme()
+    const handleClanClick = (clan: ClanName) => {
+        const newMerits =
+            clan === character.clan ? character.merits : getNewMerits(clan, character)
+        const newFlaws =
+            clan === "Thin-blood" ? character.flaws : flawsWithoutThinbloodFlaws(character.flaws)
 
-    const c1 = "rgba(26, 27, 30, 0.90)"
+        if (
+            (notDefault(character, "disciplines") || notDefault(character, "predatorType")) &&
+            clan !== character.clan
+        ) {
+            notifications.show({
+                title: "Reset Disciplines",
+                message: "Because you changed your clan",
+                autoClose: 7000,
+                color: "yellow"
+            })
+            setCharacter({
+                ...character,
+                clan,
+                disciplines: [],
+                availableDisciplineNames: clans[clan].nativeDisciplines,
+                predatorType:
+                    clan === "Thin-blood"
+                        ? getEmptyCharacter().predatorType
+                        : character.predatorType,
+                merits: newMerits,
+                flaws: newFlaws
+            })
+        } else {
+            setCharacter({
+                ...character,
+                clan,
+                availableDisciplineNames: clans[clan].nativeDisciplines,
+                merits: newMerits,
+                flaws: newFlaws
+            })
+        }
 
-    const createClanPick = (clan: ClanName, c2: string) => {
-        const bgColor = `linear-gradient(0deg, ${c1}, ${c2})`
+        trackEvent({ action: "clan clicked", category: "clans", label: clan })
+        nextStep()
+    }
+
+    const createClanRow = (clan: ClanName) => {
+        const isSelected = character.clan === clan
+        const disciplines = clans[clan].nativeDisciplines
 
         return (
-            <Grid.Col key={clan} span={4}>
-                <Card
-                    data-testid={`clan-${clan.toLowerCase().replace(/\s+/g, "-")}-card`}
-                    shadow="sm"
-                    padding="lg"
-                    radius="md"
-                    h={275}
+            <div
+                key={clan}
+                data-testid={`clan-${clan.toLowerCase().replace(/\s+/g, "-")}-card`}
+                onClick={() => handleClanClick(clan)}
+                onMouseEnter={(e) => {
+                    if (!isSelected) {
+                        e.currentTarget.style.borderLeftColor = rgba(RAW_RED, 0.65)
+                        e.currentTarget.style.background = rgba(RAW_RED, 0.06)
+                    }
+                }}
+                onMouseLeave={(e) => {
+                    if (!isSelected) {
+                        e.currentTarget.style.borderLeftColor = "rgba(255,255,255,0.05)"
+                        e.currentTarget.style.background = "transparent"
+                    }
+                }}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: globals.isPhoneScreen ? 10 : 14,
+                    padding: globals.isPhoneScreen ? "8px 10px" : "10px 14px",
+                    borderLeft: `3px solid ${isSelected ? rgba(RAW_RED, 0.85) : "rgba(255,255,255,0.05)"}`,
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    background: isSelected ? rgba(RAW_RED, 0.1) : "transparent",
+                    cursor: "pointer",
+                    transition: "border-left-color 140ms ease, background 140ms ease"
+                }}
+            >
+                <Image
+                    src={clans[clan].logo}
+                    h={globals.isPhoneScreen ? 32 : 40}
+                    w={globals.isPhoneScreen ? 32 : 40}
+                    fit="contain"
+                    style={{ flexShrink: 0, opacity: isSelected ? 1 : 0.72 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                        style={{
+                            fontFamily: "Cinzel, Georgia, serif",
+                            fontWeight: isSelected ? 600 : 500,
+                            fontSize: globals.isPhoneScreen ? "0.92rem" : "1rem",
+                            color: isSelected ? rgba(RAW_RED, 1) : rgba(RAW_GREY, 0.92),
+                            letterSpacing: "0.04em",
+                            lineHeight: 1.2
+                        }}
+                    >
+                        {clan}
+                    </Text>
+                    {!globals.isPhoneScreen && (
+                        <Text
+                            size="xs"
+                            style={{
+                                color: "rgba(200,185,170,0.5)",
+                                marginTop: 2,
+                                fontFamily: "Crimson Text, Georgia, serif",
+                                fontSize: "0.82rem"
+                            }}
+                        >
+                            {clans[clan].description}
+                        </Text>
+                    )}
+                </div>
+                <div
                     style={{
-                        background: bgColor,
-                        cursor: "pointer",
-                        transition: "transform 160ms ease, box-shadow 160ms ease"
-                    }}
-                    onMouseEnter={(event) => {
-                        event.currentTarget.style.transform = "translateY(-8px)"
-                        event.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.22) 0px 19px 43px"
-                    }}
-                    onMouseLeave={(event) => {
-                        event.currentTarget.style.transform = "translateY(0)"
-                        event.currentTarget.style.boxShadow = ""
-                    }}
-                    onClick={() => {
-                        const newMerits =
-                            clan === character.clan
-                                ? character.merits
-                                : getNewMerits(clan, character)
-                        const newFlaws =
-                            clan === "Thin-blood"
-                                ? character.flaws
-                                : flawsWithoutThinbloodFlaws(character.flaws)
-                        if (
-                            (notDefault(character, "disciplines") ||
-                                notDefault(character, "predatorType")) &&
-                            clan !== character.clan
-                        ) {
-                            notifications.show({
-                                title: "Reset Disciplines",
-                                message: "Because you changed your clan",
-                                autoClose: 7000,
-                                color: "yellow"
-                            })
-
-                            setCharacter({
-                                ...character,
-                                clan,
-                                disciplines: [],
-                                availableDisciplineNames: clans[clan].nativeDisciplines,
-                                predatorType:
-                                    clan === "Thin-blood"
-                                        ? getEmptyCharacter().predatorType
-                                        : character.predatorType,
-                                merits: newMerits,
-                                flaws: newFlaws
-                            })
-                        } else {
-                            setCharacter({
-                                ...character,
-                                clan,
-                                availableDisciplineNames: clans[clan].nativeDisciplines,
-                                merits: newMerits,
-                                flaws: newFlaws
-                            })
-                        }
-
-                        trackEvent({
-                            action: "clan clicked",
-                            category: "clans",
-                            label: clan
-                        })
-                        nextStep()
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 4,
+                        justifyContent: "flex-end",
+                        flexShrink: 0,
+                        maxWidth: globals.isPhoneScreen ? 110 : 180
                     }}
                 >
-                    <Card.Section>
-                        <Center pt={10}>
-                            <Image
-                                fit="contain"
-                                src={clans[clan].logo}
-                                height={120}
-                                width={120}
-                                alt="Norway"
-                            />
-                        </Center>
-                    </Card.Section>
-
-                    <Center>
-                        <Title p="md">{clan}</Title>
-                    </Center>
-
-                    <Text h={55} size="sm" color="dimmed" ta="center">
-                        {clans[clan].description}
-                    </Text>
-                </Card>
-            </Grid.Col>
+                    {disciplines.map((d) => (
+                        <span
+                            key={d}
+                            style={{
+                                fontSize: "0.68rem",
+                                letterSpacing: "0.06em",
+                                textTransform: "capitalize",
+                                padding: "2px 6px",
+                                borderRadius: 3,
+                                background: rgba(RAW_GOLD, 0.1),
+                                border: `1px solid ${rgba(RAW_GOLD, 0.22)}`,
+                                color: rgba(RAW_GOLD, 0.78),
+                                whiteSpace: "nowrap"
+                            }}
+                        >
+                            {d}
+                        </span>
+                    ))}
+                </div>
+            </div>
         )
     }
+
+    const clanList = (names: string[]) =>
+        names.map((c) => clanNameSchema.parse(c)).map(createClanRow)
+
     return (
         <div style={generatorScrollableShellStyle}>
             <ScrollArea
                 style={generatorScrollableAreaStyle}
                 w={"100%"}
-                px={20}
+                px={globals.isPhoneScreen ? 10 : 20}
                 pt={4}
                 pb={8}
                 scrollbarSize={nightfallScrollbarSize}
@@ -155,81 +187,22 @@ const ClanPicker = ({ character, setCharacter, nextStep }: ClanPickerProps) => {
                 styles={nightfallScrollAreaStyles}
             >
                 <div style={generatorScrollableContentStyle}>
-                    <Stack gap={4} align="center" mb={globals.isPhoneScreen ? 18 : 26}>
-                        <Title
-                            data-testid="clan-picker-heading"
-                            order={2}
-                            ta="center"
-                            style={{
-                                fontFamily: "Cinzel, Georgia, serif",
-                                fontWeight: 600,
-                                letterSpacing: "0.05em",
-                                color: "rgba(248, 240, 235, 0.96)"
-                            }}
-                        >
-                            Pick your{" "}
-                            <Text
-                                component="strong"
-                                inherit
-                                c="red.5"
-                                style={{ textShadow: `0 0 18px ${rgba(RAW_RED, 0.35)}` }}
-                            >
-                                Clan
-                            </Text>
-                        </Title>
-                        <Text
-                            ta="center"
-                            maw={620}
-                            style={{
-                                fontFamily: "Crimson Text, Georgia, serif",
-                                fontSize: "1.1rem",
-                                color: "rgba(235, 225, 218, 0.74)"
-                            }}
-                        >
-                            Your clan defines your lineage, your powers, and your curse.
-                        </Text>
+                    <GeneratorStepHero
+                        leadText="Choose your"
+                        accentText="Clan"
+                        description="Your clan defines your lineage, your powers, and your curse."
+                    />
+
+                    <Stack gap={0} mb={globals.isPhoneScreen ? 12 : 18}>
+                        <CategoryHeading label="Camarilla" />
+                        {clanList(["Banu Haqim", "Brujah", "Gangrel", "Malkavian", "Nosferatu", "Toreador", "Tremere", "Ventrue"])}
+
+                        <CategoryHeading label="Anarch" />
+                        {clanList(["Caitiff", "Hecata", "Lasombra", "Ministry", "Ravnos", "Salubri", "Tzimisce"])}
+
+                        <CategoryHeading label="Independent / Thin-Blood" />
+                        {clanList(["Thin-blood"])}
                     </Stack>
-
-                    <CategoryHeading label="Camarilla" />
-                    <Grid grow m={0}>
-                        {["Banu Haqim", "Brujah", "Gangrel", "Malkavian"]
-                            .map((c) => clanNameSchema.parse(c))
-                            .map((clan) =>
-                                createClanPick(clan, mantineRgba(theme.colors.blue[8], 0.9))
-                            )}
-                    </Grid>
-                    <Grid grow m={0}>
-                        {["Nosferatu", "Toreador", "Tremere", "Ventrue"]
-                            .map((c) => clanNameSchema.parse(c))
-                            .map((clan) =>
-                                createClanPick(clan, mantineRgba(theme.colors.blue[8], 0.9))
-                            )}
-                    </Grid>
-
-                    <CategoryHeading label="Anarch" />
-                    <Grid grow m={0}>
-                        {["Caitiff", "Ministry", "Ravnos", "Tzimisce"]
-                            .map((c) => clanNameSchema.parse(c))
-                            .map((clan) =>
-                                createClanPick(clan, mantineRgba(theme.colors.red[8], 0.9))
-                            )}
-                    </Grid>
-                    <Grid grow m={0}>
-                        {["Hecata", "Lasombra", "Salubri"]
-                            .map((c) => clanNameSchema.parse(c))
-                            .map((clan) =>
-                                createClanPick(clan, mantineRgba(theme.colors.red[8], 0.9))
-                            )}
-                    </Grid>
-
-                    <CategoryHeading label="Independent / Thin-Blood" />
-                    <Grid grow m={0}>
-                        {["Thin-blood"]
-                            .map((c) => clanNameSchema.parse(c))
-                            .map((clan) =>
-                                createClanPick(clan, mantineRgba(theme.colors.teal[8], 0.9))
-                            )}
-                    </Grid>
                 </div>
             </ScrollArea>
         </div>

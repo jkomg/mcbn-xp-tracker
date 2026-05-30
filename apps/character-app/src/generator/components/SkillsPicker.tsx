@@ -1,5 +1,5 @@
-import { Button, Divider, Grid, Group, ScrollArea, Space, Text, Tooltip } from "@mantine/core"
-import { RAW_GOLD, RAW_GREY, RAW_RED, RAW_GRAPE, rgba } from "~/theme/colors"
+import { Button, ScrollArea, Space, Text, Tooltip } from "@mantine/core"
+import { RAW_GOLD, RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { useDisclosure } from "@mantine/hooks"
 import { useEffect, useState } from "react"
 import ReactGA from "react-ga4"
@@ -89,214 +89,167 @@ const SkillsPicker = ({ character, setCharacter, nextStep }: SkillsPickerProps) 
         ? distributionByType[pickedDistribution]
         : { special: 0, strongest: 0, decent: 0, acceptable: 0 }
 
-    const createButton = (skill: SkillsKey, i: number) => {
-        const alreadyPicked = [
-            ...pickedSkills.special,
-            ...pickedSkills.strongest,
-            ...pickedSkills.decent,
-            ...pickedSkills.acceptable
-        ].includes(skill)
-        const assignedLevel = (() => {
-            if (pickedSkills.special.includes(skill)) return 4
-            if (pickedSkills.strongest.includes(skill)) return 3
-            if (pickedSkills.decent.includes(skill)) return 2
-            if (pickedSkills.acceptable.includes(skill)) return 1
-            return null
-        })()
+    const getAssignedLevel = (skill: SkillsKey) => {
+        if (pickedSkills.special.includes(skill)) return 4
+        if (pickedSkills.strongest.includes(skill)) return 3
+        if (pickedSkills.decent.includes(skill)) return 2
+        if (pickedSkills.acceptable.includes(skill)) return 1
+        return null
+    }
 
-        let onClick: () => void
-        if (alreadyPicked) {
-            onClick = () => {
-                setPickedSkills({
-                    special: pickedSkills.special.filter((it) => it !== skill),
-                    strongest: pickedSkills.strongest.filter((it) => it !== skill),
-                    decent: pickedSkills.decent.filter((it) => it !== skill),
-                    acceptable: pickedSkills.acceptable.filter((it) => it !== skill)
-                })
-            }
-        } else if (pickedSkills.special.length < distr.special) {
-            onClick = () => {
-                setPickedSkills({ ...pickedSkills, special: [...pickedSkills.special, skill] })
-            }
-        } else if (pickedSkills.strongest.length < distr.strongest) {
-            onClick = () => {
-                setPickedSkills({ ...pickedSkills, strongest: [...pickedSkills.strongest, skill] })
-            }
-        } else if (pickedSkills.decent.length < distr.decent) {
-            onClick = () => {
-                setPickedSkills({ ...pickedSkills, decent: [...pickedSkills.decent, skill] })
-            }
-        } else if (pickedSkills.acceptable.length < distr.acceptable - 1) {
-            onClick = () => {
-                setPickedSkills({
-                    ...pickedSkills,
-                    acceptable: [...pickedSkills.acceptable, skill]
-                })
-            }
-        } else {
-            const finalPick = { ...pickedSkills, acceptable: [...pickedSkills.acceptable, skill] }
-            onClick = () => {
-                const skills: Skills = {
-                    athletics: 0,
-                    brawl: 0,
-                    craft: 0,
-                    drive: 0,
-                    firearms: 0,
-                    melee: 0,
-                    larceny: 0,
-                    stealth: 0,
-                    survival: 0,
+    const isAlreadyPicked = (skill: SkillsKey) =>
+        [...pickedSkills.special, ...pickedSkills.strongest, ...pickedSkills.decent, ...pickedSkills.acceptable].includes(skill)
 
-                    "animal ken": 0,
-                    etiquette: 0,
-                    insight: 0,
-                    intimidation: 0,
-                    leadership: 0,
-                    performance: 0,
-                    persuasion: 0,
-                    streetwise: 0,
-                    subterfuge: 0,
+    const handleSkillClick = (skill: SkillsKey) => {
+        if (pickedDistribution === null) return
+        trackEvent({ action: "skill clicked", category: "skills", label: skill })
 
-                    academics: 0,
-                    awareness: 0,
-                    finance: 0,
-                    investigation: 0,
-                    medicine: 0,
-                    occult: 0,
-                    politics: 0,
-                    science: 0,
-                    technology: 0
-                }
-                finalPick.special.forEach((special) => (skills[special] = 4))
-                finalPick.strongest.forEach((strongest) => (skills[strongest] = 3))
-                finalPick.decent.forEach((decent) => (skills[decent] = 2))
-                finalPick.acceptable.forEach((acceptable) => (skills[acceptable] = 1))
-
-                setPickedSkills(finalPick)
-                setSkills(skills)
-                openModal()
-            }
+        if (isAlreadyPicked(skill)) {
+            setPickedSkills({
+                special: pickedSkills.special.filter((it) => it !== skill),
+                strongest: pickedSkills.strongest.filter((it) => it !== skill),
+                decent: pickedSkills.decent.filter((it) => it !== skill),
+                acceptable: pickedSkills.acceptable.filter((it) => it !== skill)
+            })
+            return
         }
 
-        const trackClick = () => {
-            trackEvent({
-                action: "skill clicked",
-                category: "skills",
-                label: skill
-            })
+        if (pickedSkills.special.length < distr.special) {
+            setPickedSkills({ ...pickedSkills, special: [...pickedSkills.special, skill] })
+        } else if (pickedSkills.strongest.length < distr.strongest) {
+            setPickedSkills({ ...pickedSkills, strongest: [...pickedSkills.strongest, skill] })
+        } else if (pickedSkills.decent.length < distr.decent) {
+            setPickedSkills({ ...pickedSkills, decent: [...pickedSkills.decent, skill] })
+        } else if (pickedSkills.acceptable.length < distr.acceptable - 1) {
+            setPickedSkills({ ...pickedSkills, acceptable: [...pickedSkills.acceptable, skill] })
+        } else {
+            const finalPick = { ...pickedSkills, acceptable: [...pickedSkills.acceptable, skill] }
+            const skills: Skills = {
+                athletics: 0, brawl: 0, craft: 0, drive: 0, firearms: 0,
+                melee: 0, larceny: 0, stealth: 0, survival: 0,
+                "animal ken": 0, etiquette: 0, insight: 0, intimidation: 0,
+                leadership: 0, performance: 0, persuasion: 0, streetwise: 0, subterfuge: 0,
+                academics: 0, awareness: 0, finance: 0, investigation: 0,
+                medicine: 0, occult: 0, politics: 0, science: 0, technology: 0
+            }
+            finalPick.special.forEach((s) => (skills[s] = 4))
+            finalPick.strongest.forEach((s) => (skills[s] = 3))
+            finalPick.decent.forEach((s) => (skills[s] = 2))
+            finalPick.acceptable.forEach((s) => (skills[s] = 1))
+            setPickedSkills(finalPick)
+            setSkills(skills)
+            openModal()
+        }
+    }
+
+    const createSkillRow = (skill: SkillsKey) => {
+        const level = getAssignedLevel(skill)
+        const picked = isAlreadyPicked(skill)
+        const disabled = pickedDistribution === null
+
+        const borderColor = level === 4
+            ? rgba(RAW_RED, 0.85)
+            : level === 3
+              ? rgba(RAW_RED, 0.6)
+              : level === 2
+                ? rgba(RAW_GOLD, 0.7)
+                : level === 1
+                  ? "rgba(140, 130, 125, 0.5)"
+                  : "rgba(255,255,255,0.05)"
+
+        const bg = level === 4
+            ? rgba(RAW_RED, 0.12)
+            : level === 3
+              ? rgba(RAW_RED, 0.06)
+              : level === 2
+                ? "rgba(204, 166, 51, 0.09)"
+                : level === 1
+                  ? "rgba(50, 45, 42, 0.45)"
+                  : "transparent"
+
+        const nameColor = level === 4
+            ? rgba(RAW_RED, 1)
+            : level === 3
+              ? rgba(RAW_RED, 0.85)
+              : level === 2
+                ? rgba(RAW_GOLD, 0.9)
+                : level === 1
+                  ? rgba(RAW_GREY, 0.55)
+                  : disabled
+                    ? rgba(RAW_GREY, 0.35)
+                    : rgba(RAW_GREY, 0.82)
+
+        const dotColor = (i: number) => {
+            if (i >= (level ?? 0)) return "rgba(255,255,255,0.08)"
+            if (level === 4 || level === 3) return rgba(RAW_RED, 0.85)
+            if (level === 2) return "rgba(232, 204, 92, 0.85)"
+            return "rgba(160, 150, 145, 0.65)"
         }
 
         return (
-            <Grid.Col key={skill} span={4}>
-                <Tooltip
-                    disabled={alreadyPicked}
-                    label={skillsDescriptions[skill]}
-                    transitionProps={{ transition: "slide-up", duration: 200 }}
-                    events={globals.tooltipTriggerEvents}
-                >
-                    <Button
-                        data-testid={`skill-${skill.replace(/\s+/g, "-")}-button`}
-                        p={phoneScreen ? 0 : "default"}
-                        variant={alreadyPicked ? "outline" : "filled"}
-                        disabled={pickedDistribution === null}
-                        color="grape"
-                        fullWidth={false}
-                        style={{
-                            width: "88%",
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                            minHeight: phoneScreen ? 36 : 40
-                        }}
-                        styles={{
-                            inner: {
-                                alignItems: "center",
-                                justifyContent: phoneScreen ? "center" : "space-between",
-                                paddingTop: 2,
-                                paddingBottom: 3
-                            },
-                            label: {
-                                lineHeight: 1.3,
-                                overflow: "visible",
-                                flex: 1
-                            },
-                            section: {
-                                overflow: "visible"
-                            },
-                            root: {
-                                justifyContent: "space-between",
-                                background:
-                                    assignedLevel === 4
-                                        ? rgba(RAW_RED, 0.38)
-                                        : assignedLevel === 3
-                                          ? rgba(RAW_RED, 0.2)
-                                          : assignedLevel === 2
-                                            ? "rgba(204, 166, 51, 0.4)"
-                                            : assignedLevel === 1
-                                              ? "rgba(43, 43, 43, 0.5)"
-                                              : pickedDistribution === null
-                                                ? "rgba(43, 43, 43, 0.3)"
-                                                : rgba(RAW_GRAPE, 0.8),
-                                borderColor:
-                                    assignedLevel === 4
-                                        ? rgba(RAW_RED, 1)
-                                        : assignedLevel === 3
-                                          ? rgba(RAW_RED, 0.95)
-                                          : assignedLevel === 2
-                                            ? rgba(RAW_GOLD, 0.9)
-                                            : assignedLevel === 1
-                                              ? "rgba(180, 180, 180, 0.42)"
-                                              : pickedDistribution === null
-                                                ? "rgba(180, 180, 180, 0.24)"
-                                                : rgba(RAW_GRAPE, 0.45),
-                                color: alreadyPicked ? "rgba(244, 236, 232, 0.95)" : undefined
-                            }
-                        }}
-                        rightSection={
-                            !phoneScreen && assignedLevel ? (
-                                <Group gap={4} wrap="nowrap">
-                                    {Array.from({ length: 5 }).map((_, dotIndex) => (
-                                        <div
-                                            key={`${skill}-dot-${dotIndex}`}
-                                            style={{
-                                                width: 6,
-                                                height: 6,
-                                                borderRadius: "999px",
-                                                background:
-                                                    dotIndex < assignedLevel
-                                                        ? assignedLevel === 4 || assignedLevel === 3
-                                                            ? rgba(RAW_RED, 1)
-                                                            : assignedLevel === 2
-                                                              ? "rgba(232, 204, 92, 0.98)"
-                                                              : "rgba(210, 210, 210, 0.85)"
-                                                        : "rgba(255, 255, 255, 0.14)",
-                                                boxShadow:
-                                                    dotIndex < assignedLevel &&
-                                                    (assignedLevel === 4 || assignedLevel === 3)
-                                                        ? `0 0 6px ${rgba(RAW_RED, 0.38)}`
-                                                        : "none"
-                                            }}
-                                        />
-                                    ))}
-                                </Group>
-                            ) : undefined
+            <Tooltip
+                key={skill}
+                disabled={picked || disabled}
+                label={skillsDescriptions[skill]}
+                transitionProps={{ transition: "slide-up", duration: 200 }}
+                events={globals.tooltipTriggerEvents}
+            >
+                <div
+                    data-testid={`skill-${skill.replace(/\s+/g, "-")}-button`}
+                    onClick={() => handleSkillClick(skill)}
+                    onMouseEnter={(e) => {
+                        if (!picked && !disabled) {
+                            e.currentTarget.style.borderLeftColor = rgba(RAW_RED, 0.45)
+                            e.currentTarget.style.background = rgba(RAW_RED, 0.04)
                         }
-                        onClick={() => {
-                            trackClick()
-                            onClick()
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!picked && !disabled) {
+                            e.currentTarget.style.borderLeftColor = "rgba(255,255,255,0.05)"
+                            e.currentTarget.style.background = "transparent"
+                        }
+                    }}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: phoneScreen ? "6px 7px" : "7px 9px",
+                        borderLeft: `3px solid ${borderColor}`,
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        background: bg,
+                        cursor: disabled ? "default" : "pointer",
+                        opacity: disabled ? 0.45 : 1,
+                        transition: "border-left-color 130ms ease, background 130ms ease"
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontFamily: "Cinzel, Georgia, serif",
+                            fontSize: phoneScreen ? "0.7rem" : "0.78rem",
+                            fontWeight: level ? 600 : 400,
+                            letterSpacing: "0.05em",
+                            color: nameColor
                         }}
                     >
-                        <Text
-                            fz={phoneScreen ? 12 : "inherit"}
-                            lh={1.3}
-                            ta={phoneScreen ? "center" : "left"}
-                            style={{ width: "100%" }}
-                        >
-                            {upcase(skill)}
-                        </Text>
-                    </Button>
-                </Tooltip>
-                {i % 3 === 0 || i % 3 === 1 ? <Divider size="xl" orientation="vertical" /> : null}
-            </Grid.Col>
+                        {upcase(skill)}
+                    </Text>
+                    {!phoneScreen && (
+                        <div style={{ display: "flex", gap: 2, marginLeft: 4 }}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        width: 5,
+                                        height: 5,
+                                        borderRadius: "50%",
+                                        background: dotColor(i)
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </Tooltip>
         )
     }
 
@@ -312,57 +265,35 @@ const SkillsPicker = ({ character, setCharacter, nextStep }: SkillsPickerProps) 
         closeModal()
     }
 
+    const SKILL_COLUMNS: { label: string; skills: string[] }[] = [
+        { label: "Physical", skills: ["athletics", "brawl", "craft", "drive", "firearms", "melee", "larceny", "stealth", "survival"] },
+        { label: "Social", skills: ["animal ken", "etiquette", "insight", "intimidation", "leadership", "performance", "persuasion", "streetwise", "subterfuge"] },
+        { label: "Mental", skills: ["academics", "awareness", "finance", "investigation", "medicine", "occult", "politics", "science", "technology"] }
+    ]
+
     const createSkillButtons = () => (
-        <Group>
-            <Grid grow m={0}>
-                <Grid.Col span={4}>
-                    <Text fs="italic" fw={700} ta="center">
-                        Physical
+        <div style={{ display: "flex", gap: phoneScreen ? 4 : 10 }}>
+            {SKILL_COLUMNS.map((col) => (
+                <div key={col.label} style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                        ta="center"
+                        mb={6}
+                        style={{
+                            fontFamily: "Cinzel, Georgia, serif",
+                            fontSize: phoneScreen ? "0.62rem" : "0.7rem",
+                            letterSpacing: "0.16em",
+                            textTransform: "uppercase",
+                            color: rgba(RAW_GOLD, 0.6)
+                        }}
+                    >
+                        {col.label}
                     </Text>
-                </Grid.Col>
-                <Grid.Col span={4}>
-                    <Text fs="italic" fw={700} ta="center">
-                        Social
-                    </Text>
-                </Grid.Col>
-                <Grid.Col span={4}>
-                    <Text fs="italic" fw={700} ta="center">
-                        Mental
-                    </Text>
-                </Grid.Col>
-                {[
-                    "athletics",
-                    "animal ken",
-                    "academics",
-                    "brawl",
-                    "etiquette",
-                    "awareness",
-                    "craft",
-                    "insight",
-                    "finance",
-                    "drive",
-                    "intimidation",
-                    "investigation",
-                    "firearms",
-                    "leadership",
-                    "medicine",
-                    "melee",
-                    "performance",
-                    "occult",
-                    "larceny",
-                    "persuasion",
-                    "politics",
-                    "stealth",
-                    "streetwise",
-                    "science",
-                    "survival",
-                    "subterfuge",
-                    "technology"
-                ]
-                    .map((s) => skillsKeySchema.parse(s))
-                    .map((clan, i) => createButton(clan, i))}
-            </Grid>
-        </Group>
+                    <div style={{ borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        {col.skills.map((s) => createSkillRow(skillsKeySchema.parse(s)))}
+                    </div>
+                </div>
+            ))}
+        </div>
     )
 
     const height = globals.viewportHeightPx
@@ -418,41 +349,64 @@ const SkillsPicker = ({ character, setCharacter, nextStep }: SkillsPickerProps) 
                         leadText="Pick your"
                         accentText="Skill Distribution"
                         description="Balanced is the default choice"
-                        marginBottom={32}
+                        marginBottom={phoneScreen ? 20 : 28}
                     />
-                    <Grid grow>
-                        {(
-                            ["Jack of All Trades", "Balanced", "Specialist"] as DistributionKey[]
-                        ).map((distribution) => {
-                            return (
-                                <Grid.Col span={4} key={distribution}>
-                                    <Tooltip
-                                        disabled={pickedDistribution !== null}
-                                        label={distributionDescriptions[distribution]}
-                                        transitionProps={{ transition: "slide-up", duration: 200 }}
-                                        events={globals.tooltipTriggerEvents}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 480, margin: "0 auto" }}>
+                        {(["Jack of All Trades", "Balanced", "Specialist"] as DistributionKey[]).map((distribution) => (
+                            <Tooltip
+                                key={distribution}
+                                label={distributionDescriptions[distribution]}
+                                transitionProps={{ transition: "slide-up", duration: 200 }}
+                                events={globals.tooltipTriggerEvents}
+                            >
+                                <div
+                                    data-testid={`skill-distribution-${distribution.toLowerCase().replace(/\s+/g, "-")}-button`}
+                                    onClick={() => setPickedDistribution(distribution)}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = rgba(RAW_RED, 0.55)
+                                        e.currentTarget.style.background = rgba(RAW_RED, 0.07)
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = "rgba(125, 91, 72, 0.35)"
+                                        e.currentTarget.style.background = "rgba(26, 20, 24, 0.78)"
+                                    }}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        padding: "14px 18px",
+                                        borderRadius: 8,
+                                        border: "1px solid rgba(125, 91, 72, 0.35)",
+                                        background: "rgba(26, 20, 24, 0.78)",
+                                        cursor: "pointer",
+                                        transition: "border-color 140ms ease, background 140ms ease"
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontFamily: "Cinzel, Georgia, serif",
+                                            fontSize: phoneScreen ? "0.9rem" : "1rem",
+                                            fontWeight: 600,
+                                            letterSpacing: "0.05em",
+                                            color: "rgba(244, 236, 232, 0.92)"
+                                        }}
                                     >
-                                        <Button
-                                            data-testid={`skill-distribution-${distribution
-                                                .toLowerCase()
-                                                .replace(/\s+/g, "-")}-button`}
-                                            p={phoneScreen ? 0 : "default"}
-                                            disabled={pickedDistribution !== null}
-                                            color="red"
-                                            fullWidth
-                                            onClick={() => {
-                                                setPickedDistribution(distribution)
-                                            }}
-                                        >
-                                            <Text fz={phoneScreen ? 12 : "inherit"}>
-                                                {distribution}
-                                            </Text>
-                                        </Button>
-                                    </Tooltip>
-                                </Grid.Col>
-                            )
-                        })}
-                    </Grid>
+                                        {distribution}
+                                    </Text>
+                                    <Text
+                                        style={{
+                                            fontFamily: "Inter, Segoe UI, sans-serif",
+                                            fontSize: "0.78rem",
+                                            color: rgba(RAW_GREY, 0.5),
+                                            letterSpacing: "0.02em"
+                                        }}
+                                    >
+                                        {distributionDescriptions[distribution]}
+                                    </Text>
+                                </div>
+                            </Tooltip>
+                        ))}
+                    </div>
                     <Space h="xl" />
                     <Space h="xl" />
                 </>
