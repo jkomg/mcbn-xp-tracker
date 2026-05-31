@@ -1734,13 +1734,19 @@ def periods_recent():
         .limit(count)
         .all()
     )
+    def _iso(d: str) -> str:
+        d = (d or '').strip()
+        if len(d) == 8 and d.isdigit():
+            return f'{d[:4]}-{d[4:6]}-{d[6:]}'
+        return d
+
     return jsonify({
         'periods': [
             {
                 'label': p.period_label,
                 'nightNumber': p.night_number,
-                'startDate': p.start_date or '',
-                'endDate': p.end_date or '',
+                'startDate': _iso(p.start_date),
+                'endDate': _iso(p.end_date),
             }
             for p in rows
         ]
