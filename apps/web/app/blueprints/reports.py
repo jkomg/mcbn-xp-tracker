@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-import json
-
 from flask import Blueprint, render_template
 
 from app.auth import require_staff
@@ -87,7 +85,7 @@ def index():
 
     total_active = sum(1 for c in all_roster if c.active)
 
-    roster_json = json.dumps([
+    roster_list = [
         {
             'name': c.character_name,
             'clan': c.clan or '',
@@ -97,7 +95,7 @@ def index():
             'active': c.active,
         }
         for c in all_roster
-    ])
+    ]
 
     return render_template(
         'reports.html',
@@ -109,5 +107,5 @@ def index():
         by_sect=by_sect,
         total_active=total_active,
         total_all=len(all_roster),
-        roster_json=roster_json,
+        roster_list=roster_list,
     )

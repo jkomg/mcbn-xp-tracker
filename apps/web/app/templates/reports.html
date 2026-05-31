@@ -211,7 +211,7 @@
 
 {% block scripts %}
 <script>
-const ROSTER = {{ roster_json | safe }};
+const ROSTER = {{ roster_list | tojson }};
 
 document.querySelectorAll('.drill-row').forEach(function(row) {
   row.addEventListener('mouseenter', function() { row.classList.add('table-active'); });
