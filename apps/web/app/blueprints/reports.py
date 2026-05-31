@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import csv
+import io
 from collections import defaultdict
 
-from flask import Blueprint, render_template
+from flask import Blueprint, Response, render_template, request
 
 from app.auth import require_staff
 from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordDisplayName, DiscordPostCount
@@ -150,4 +152,60 @@ def index():
         total_all=len(all_roster),
         roster_list=roster_list,
         discord_activity=discord_activity,
+    )
+
+
+@bp.route('/reports/activity.csv')
+@require_staff
+def activity_csv():
+    """Export discord_post_counts as a CSV, pivoted by date × user."""
+    since = request.args.get('since', '').strip()
+    until = request.args.get('until', '').strip()
+
+    q = DiscordPostCount.query
+    if since:
+        q = q.filter(DiscordPostCount.date >= since)
+    if until:
+        q = q.filter(DiscordPostCount.date <= until)
+    rows = q.order_by(DiscordPostCount.date, DiscordPostCount.discord_id).all()
+
+    # Build display name lookup
+    discord_ids = list({r.discord_id for r in rows})
+    name_rows = DiscordDisplayName.query.filter(
+        DiscordDisplayName.discord_id.in_(discord_ids)
+    ).all()
+    display_names = {r.discord_id: r.display_name for r in name_rows}
+
+    # Pivot: (discord_id, date) → {ic, ooc, rolls, cubby}
+    pivot: dict[tuple[str, str], dict[str, int]] = {}
+    for row in rows:
+        key = (row.discord_id, row.date)
+        entry = pivot.setdefault(key, {'ic': 0, 'ooc': 0, 'rolls': 0, 'cubby': 0})
+        entry[row.category] = entry.get(row.category, 0) + row.count
+
+    def _csv_safe(val: str) -> str:
+        """Prevent CSV formula injection by prefixing dangerous leading chars."""
+        if val and val[0] in ('=', '+', '-', '@', '\t', '\r'):
+            return "'" + val
+        return val
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['date', 'discord_id', 'display_name', 'ic', 'ooc', 'rolls', 'cubby', 'total'])
+    for (discord_id, date), counts in sorted(pivot.items()):
+        writer.writerow([
+            date,
+            discord_id,
+            _csv_safe(display_names.get(discord_id, '')),
+            counts['ic'],
+            counts['ooc'],
+            counts['rolls'],
+            counts['cubby'],
+            counts['ic'] + counts['ooc'] + counts['rolls'] + counts['cubby'],
+        ])
+
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="discord_activity.csv"'},
     )

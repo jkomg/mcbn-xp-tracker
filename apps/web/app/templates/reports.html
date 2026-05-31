@@ -182,9 +182,14 @@
         <i class="bi bi-chat-dots me-1"></i> Discord Activity
         <span class="badge bg-secondary ms-1">{{ discord_activity | length }}</span>
       </span>
-      <span class="text-muted small">
-        {% if period_labels %}{{ period_labels | join(', ') }}{% else %}No play periods found{% endif %}
-        &mdash; all posters in monitored channels
+      <span class="d-flex align-items-center gap-2">
+        <span class="text-muted small">
+          {% if period_labels %}{{ period_labels | join(', ') }}{% else %}No play periods found{% endif %}
+          &mdash; all posters in monitored channels
+        </span>
+        <a href="{{ url_for('reports.activity_csv') }}" class="btn btn-outline-secondary btn-sm" title="Download all activity as CSV">
+          <i class="bi bi-download me-1"></i>CSV
+        </a>
       </span>
     </div>
     <div class="card-body p-0">
