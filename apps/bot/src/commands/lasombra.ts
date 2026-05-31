@@ -90,7 +90,16 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('scan-activity')
-      .setDescription('Backfill Discord post counts for the last 2 IC nights (staff only, run once after deploy)'),
+      .setDescription('Backfill Discord post counts for IC nights (staff only)')
+      .addIntegerOption((o) =>
+        o.setName('nights').setDescription('Number of recent IC nights to scan (default: 2, max: 50)').setMinValue(1).setMaxValue(50),
+      )
+      .addStringOption((o) =>
+        o.setName('since').setDescription('Start date YYYY-MM-DD — overrides nights'),
+      )
+      .addStringOption((o) =>
+        o.setName('until').setDescription('End date YYYY-MM-DD — defaults to today'),
+      ),
   )
   .addSubcommand((s) =>
     s
@@ -360,26 +369,50 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
 
     await interaction.deferReply({ ephemeral: true });
 
-    let periods: Array<{ label: string; startDate: string; endDate: string }> = [];
-    try {
-      periods = await ctx.adapter.getRecentPeriods(2);
-    } catch (err) {
-      await interaction.editReply(`Could not fetch play periods: ${errorToMessage(err)}`);
+    const nightsOpt = interaction.options.getInteger('nights') ?? 2;
+    const sinceOpt = (interaction.options.getString('since') ?? '').trim();
+    const untilOpt = (interaction.options.getString('until') ?? '').trim();
+
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+    if (sinceOpt && !ISO_DATE.test(sinceOpt)) {
+      await interaction.editReply('Invalid `since` date — use YYYY-MM-DD format.');
+      return;
+    }
+    if (untilOpt && !ISO_DATE.test(untilOpt)) {
+      await interaction.editReply('Invalid `until` date — use YYYY-MM-DD format.');
       return;
     }
 
-    if (periods.length === 0 || !periods.some(p => p.startDate)) {
-      await interaction.editReply('No play periods with dates found — cannot determine scan range.');
-      return;
+    let sinceDate: string;
+    let untilDate: string;
+    let scanLabel: string;
+
+    if (sinceOpt) {
+      sinceDate = sinceOpt;
+      untilDate = untilOpt || new Date().toISOString().slice(0, 10);
+      scanLabel = `${sinceDate} → ${untilDate}`;
+    } else {
+      let periods: Array<{ label: string; startDate: string; endDate: string }> = [];
+      try {
+        periods = await ctx.adapter.getRecentPeriods(nightsOpt);
+      } catch (err) {
+        await interaction.editReply(`Could not fetch play periods: ${errorToMessage(err)}`);
+        return;
+      }
+
+      if (periods.length === 0 || !periods.some(p => p.startDate)) {
+        await interaction.editReply('No play periods with dates found — cannot determine scan range.');
+        return;
+      }
+
+      const startDates = periods.map(p => p.startDate).filter(Boolean);
+      const endDates = periods.map(p => p.endDate).filter(Boolean);
+      sinceDate = startDates.sort()[0];
+      untilDate = untilOpt || endDates.sort().reverse()[0] || new Date().toISOString().slice(0, 10);
+      scanLabel = periods.map(p => p.label).join(', ');
     }
 
-    const startDates = periods.map(p => p.startDate).filter(Boolean);
-    const endDates = periods.map(p => p.endDate).filter(Boolean);
-    const sinceDate = startDates.sort()[0];
-    const untilDate = endDates.sort().reverse()[0] || new Date().toISOString().slice(0, 10);
-    const periodLabels = periods.map(p => p.label).join(', ');
-
-    await interaction.editReply(`Scanning channels for **${periodLabels}** (${sinceDate} → ${untilDate})…\nThis may take a few minutes.`);
+    await interaction.editReply(`Scanning channels **(${scanLabel})**…\nThis may take a few minutes.`);
 
     try {
       const result = await runActivityBackfill(
@@ -389,7 +422,7 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
         untilDate,
       );
       await interaction.editReply(
-        `Scan complete for **${periodLabels}**.\n` +
+        `Scan complete for **(${scanLabel})**.\n` +
         `Channels scanned: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
         `Results are now visible on the Reports page.`,
       );
