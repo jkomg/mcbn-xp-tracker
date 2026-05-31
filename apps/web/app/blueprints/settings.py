@@ -512,26 +512,36 @@ def index():
         _AppSetting.key.like('STAFF_MEMBER_%')
     ).order_by(_AppSetting.key).all()
     db_staff_ids = {row.key[len('STAFF_MEMBER_'):] for row in db_staff}
+    db_names = {
+        row.key[len('STAFF_NAME_'):]: row.value
+        for row in _AppSetting.query.filter(_AppSetting.key.like('STAFF_NAME_%')).all()
+    }
+    _admin_ids = current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
+    _allowed_ids = current_app.config.get('ALLOWED_DISCORD_IDS', set())
+    _env_ids = _admin_ids | _allowed_ids
     staff_members = [
         {
             'discord_id': row.key[len('STAFF_MEMBER_'):],
+            'name': db_names.get(row.key[len('STAFF_MEMBER_'):], ''),
             'role': row.value,
             'label': _ROLE_LABELS.get(row.value, row.value.capitalize()),
             'source': 'db',
+            # If this ID is also in env vars, removing the DB row won't revoke access.
+            'has_env_access': row.key[len('STAFF_MEMBER_'):] in _env_ids,
         }
         for row in db_staff
     ]
     # Include env-var IDs not already in DB so the full access list is visible.
-    _admin_ids = current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
-    _allowed_ids = current_app.config.get('ALLOWED_DISCORD_IDS', set())
-    for _id in sorted(_admin_ids | _allowed_ids):
+    for _id in sorted(_env_ids):
         if _id and _id not in db_staff_ids:
             _role = 'administrator' if _id in _admin_ids else 'staff'
             staff_members.append({
                 'discord_id': _id,
+                'name': db_names.get(_id, ''),
                 'role': _role,
                 'label': _ROLE_LABELS.get(_role, 'Staff'),
                 'source': 'env',
+                'has_env_access': True,
             })
 
     return render_template(
@@ -716,22 +726,35 @@ def staff_add():
     from app.db import AppSetting, db
     discord_id = request.form.get('discord_id', '').strip()
     role = request.form.get('role', '').strip()
+    name = request.form.get('name', '').strip()
     if not discord_id or not discord_id.isdigit():
         flash('Invalid Discord ID — must be numeric.', 'danger')
         return redirect(url_for('settings.index'))
     if role not in ('system_helper', 'storyteller', 'moderator', 'administrator'):
         flash('Invalid role.', 'danger')
         return redirect(url_for('settings.index'))
+    updated_by = session.get('discord_name', 'admin')
     key = f'STAFF_MEMBER_{discord_id}'
     row = AppSetting.query.get(key)
     if row:
         row.value = role
-        row.updated_by = session.get('discord_name', 'admin')
+        row.updated_by = updated_by
     else:
-        row = AppSetting(key=key, value=role, updated_by=session.get('discord_name', 'admin'))
+        row = AppSetting(key=key, value=role, updated_by=updated_by)
         db.session.add(row)
+    # Store display name if provided
+    if name:
+        name_key = f'STAFF_NAME_{discord_id}'
+        name_row = AppSetting.query.get(name_key)
+        if name_row:
+            name_row.value = name
+            name_row.updated_by = updated_by
+        else:
+            name_row = AppSetting(key=name_key, value=name, updated_by=updated_by)
+            db.session.add(name_row)
     db.session.commit()
-    flash(f'{role.capitalize()} {discord_id} added.', 'success')
+    display = f'{name} ({discord_id})' if name else discord_id
+    flash(f'{role.capitalize()} {display} added.', 'success')
     return redirect(url_for('settings.index'))
 
 
@@ -747,6 +770,9 @@ def staff_remove():
     row = AppSetting.query.get(key)
     if row:
         db.session.delete(row)
+        name_row = AppSetting.query.get(f'STAFF_NAME_{discord_id}')
+        if name_row:
+            db.session.delete(name_row)
         db.session.commit()
         flash(f'Staff member {discord_id} removed.', 'success')
     else:

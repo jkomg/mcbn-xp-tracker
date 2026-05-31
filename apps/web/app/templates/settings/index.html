@@ -12,142 +12,8 @@
     {% endif %}
   </div>
 
-  {# ═══ Web App — Feature Flags ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Feature Flags</h5>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0 align-middle">
-        <thead>
-          <tr>
-            <th style="width:200px">Feature</th>
-            <th style="width:160px">Status</th>
-            <th>Description</th>
-            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in web_flags %}
-          <tr>
-            <td class="fw-semibold">
-              {{ f.label }}
-              {% if f.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-            </td>
-            <td>
-              {% if can_edit and f.editable %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
-                  <input type="hidden" name="key" value="{{ f.key }}">
-                  <input type="hidden" name="action" value="set">
-                  <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
-                  <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
-                    {% if f.enabled %}<i class="bi bi-toggle-on"></i> Enabled{% else %}<i class="bi bi-toggle-off"></i> Disabled{% endif %}
-                  </button>
-                  {% if f.overridden %}
-                  </form>
-                  <form method="POST" action="{{ url_for('settings.update') }}">
-                    <input type="hidden" name="key" value="{{ f.key }}">
-                    <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to env default" style="font-size:.75rem">reset</button>
-                  {% endif %}
-                </form>
-              {% else %}
-                {% if f.enabled %}
-                  <span class="badge bg-success">Enabled</span>
-                {% else %}
-                  <span class="badge bg-secondary">Disabled</span>
-                {% endif %}
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ f.description }}</td>
-            <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  {# ═══ Web App — Integrations ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Integrations</h5>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0">
-        <thead>
-          <tr>
-            <th style="width:200px">Integration</th>
-            <th style="width:120px">Status</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for i in integrations %}
-          <tr>
-            <td class="fw-semibold">{{ i.label }}</td>
-            <td>
-              {% if i.configured %}
-                <span class="badge bg-success">Configured</span>
-              {% else %}
-                <span class="badge bg-secondary">Not set</span>
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ i.description }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  {# ═══ Web App — Tuning ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Web App — Tuning</h5>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0 align-middle">
-        <thead>
-          <tr>
-            <th style="width:220px">Parameter</th>
-            <th style="width:{% if can_edit %}200{% else %}100{% endif %}px">Value</th>
-            <th>Description</th>
-            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in web_tuning %}
-          <tr>
-            <td class="fw-semibold">
-              {{ t.label }}
-              {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-            </td>
-            <td>
-              {% if can_edit and t.editable %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                  <input type="hidden" name="key" value="{{ t.key }}">
-                  <input type="hidden" name="action" value="set">
-                  <input type="number" name="value" value="{{ t.value }}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:80px">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                </form>
-                {% if t.overridden %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                  <input type="hidden" name="key" value="{{ t.key }}">
-                  <input type="hidden" name="action" value="reset">
-                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Reset to env default" style="font-size:.75rem">reset to env</button>
-                </form>
-                {% endif %}
-              {% else %}
-                <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ t.description }}</td>
-            <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
   {# ═══ Bot — Status ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Status</h5>
-  <!-- Bot Heartbeat Status -->
   <div class="card bg-dark border-secondary mb-4">
     <div class="card-header border-secondary d-flex align-items-center justify-content-between">
       <h6 class="mb-0 text-light"><i class="bi bi-heart-pulse"></i> Bot Status</h6>
@@ -352,191 +218,6 @@
     </div>
   </div>
 
-  {# ═══ Bot — Channel IDs ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Channel IDs</h5>
-  <p class="text-muted small mb-2">
-    Stored in the database. Click <strong>Restart Bot</strong> above to apply. Leave blank to use the bot's <code>.env</code> value.
-  </p>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0 align-middle">
-        <thead>
-          <tr>
-            <th style="width:220px">Channel</th>
-            <th style="width:{% if can_edit %}280px{% else %}180px{% endif %}">ID</th>
-            <th>Description</th>
-            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for c in bot_channels %}
-          <tr>
-            <td class="fw-semibold">
-              {{ c.label }}
-              {% if c.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-            </td>
-            <td>
-              {% if can_edit and c.editable %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                  <input type="hidden" name="key" value="{{ c.key }}">
-                  <input type="hidden" name="action" value="set">
-                  <input type="text" name="value" value="{{ c.value or '' }}"
-                    placeholder="{{ c.placeholder }}"
-                    {% if c.input_pattern %}pattern="{{ c.input_pattern }}" title="Discord snowflake (17–20 digits)"{% endif %}
-                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:{% if c.input_pattern %}160{% else %}280{% endif %}px">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                </form>
-                {% if c.overridden %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                  <input type="hidden" name="key" value="{{ c.key }}">
-                  <input type="hidden" name="action" value="reset">
-                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
-                </form>
-                {% endif %}
-              {% else %}
-                {% if c.value %}
-                  <span class="badge bg-dark border border-secondary font-monospace">{{ c.value }}</span>
-                {% else %}
-                  <span class="text-muted small">env default</span>
-                {% endif %}
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ c.description }}</td>
-            <td class="d-none d-md-table-cell"><code class="small text-info">{{ c.env }}</code></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  {# ═══ Bot — Tuning ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Tuning</h5>
-  <p class="text-muted small mb-2">
-    Interval overrides are stored in the database. Click <strong>Restart Bot</strong> above to apply them.
-    Leave blank to use the value from the bot's <code>.env</code> file.
-  </p>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0 align-middle">
-        <thead>
-          <tr>
-            <th style="width:220px">Parameter</th>
-            <th style="width:{% if can_edit %}220px{% else %}120px{% endif %}">Value</th>
-            <th>Description</th>
-            <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in bot_tuning %}
-          <tr>
-            <td class="fw-semibold">
-              {{ t.label }}
-              {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-            </td>
-            <td>
-              {% if can_edit and t.editable %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                  <input type="hidden" name="key" value="{{ t.key }}">
-                  <input type="hidden" name="action" value="set">
-                  <input type="number" name="value" value="{{ t.value if t.value is not none else '' }}"
-                    placeholder="{{ t.placeholder }}"
-                    class="form-control form-control-sm bg-dark text-light border-secondary" style="width:100px">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                </form>
-                {% if t.overridden %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                  <input type="hidden" name="key" value="{{ t.key }}">
-                  <input type="hidden" name="action" value="reset">
-                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
-                </form>
-                {% endif %}
-              {% else %}
-                {% if t.value is not none %}
-                  <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
-                {% else %}
-                  <span class="text-muted small">env default</span>
-                {% endif %}
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ t.description }}</td>
-            <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  {# ═══ Bot — Feature Flags ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Feature Flags</h5>
-  <p class="text-muted small mb-2">
-    Changes apply to the bot within 1 minute. If a flag has never been set here, the bot uses its own configuration file.
-  </p>
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-dark table-sm mb-0 align-middle">
-        <thead>
-          <tr>
-            <th style="width:200px">Feature</th>
-            <th style="width:160px">Status</th>
-            <th>Description</th>
-            <th class="d-none d-md-table-cell text-muted" style="width:220px">Enable env var</th>
-            <th class="d-none d-lg-table-cell text-muted" style="width:220px">Interval env var</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in bot_flags %}
-          <tr>
-            <td class="fw-semibold">
-              {{ f.label }}
-              {% if f.db_set %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-            </td>
-            <td>
-              {% if can_edit and f.editable %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
-                  <input type="hidden" name="key" value="{{ f.key }}">
-                  <input type="hidden" name="action" value="set">
-                  <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
-                  <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
-                    {% if f.enabled %}<i class="bi bi-toggle-on"></i> ON{% else %}<i class="bi bi-toggle-off"></i> OFF{% endif %}
-                  </button>
-                  {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1" title="No DB override — bot is using its .env value">ENV</span>{% endif %}
-                  {% if f.using_env %}<span class="badge bg-warning text-dark ms-1" title="Bot has not reported its state yet">?</span>{% endif %}
-                  {% if f.db_set %}
-                  </form>
-                  <form method="POST" action="{{ url_for('settings.update') }}">
-                    <input type="hidden" name="key" value="{{ f.key }}">
-                    <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to bot .env default" style="font-size:.75rem">reset</button>
-                  {% endif %}
-                </form>
-              {% else %}
-                {% if f.enabled %}
-                  <span class="badge bg-success">Enabled</span>
-                {% else %}
-                  <span class="badge bg-secondary">Disabled</span>
-                {% endif %}
-                {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1">ENV</span>{% endif %}
-                {% if f.using_env %}<span class="badge bg-warning text-dark ms-1">?</span>{% endif %}
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ f.description }}</td>
-            <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
-            <td class="d-none d-lg-table-cell">
-              {% if f.interval_env %}
-                <code class="small text-secondary">{{ f.interval_env }}</code>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
   {# ═══ Staff Management ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Staff Management</h5>
   <div class="card bg-dark border-secondary mb-4">
@@ -550,6 +231,7 @@
       <table class="table table-dark table-sm mb-3 align-middle">
         <thead>
           <tr>
+            <th>Name</th>
             <th>Discord ID</th>
             <th>Role</th>
             <th></th>
@@ -558,17 +240,18 @@
         <tbody>
           {% for m in staff_members %}
           <tr>
+            <td>{% if m.name %}{{ m.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td><code>{{ m.discord_id }}</code></td>
             <td>
               <span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% elif m.role == 'moderator' %}bg-info text-dark{% elif m.role == 'storyteller' %}bg-primary{% else %}bg-secondary{% endif %}">
                 {{ m.label }}
               </span>
-              {% if m.source == 'env' %}
+              {% if m.source == 'env' or m.has_env_access %}
                 <span class="badge bg-dark border border-secondary text-muted ms-1" title="Granted via environment variable — manage in server config">Env</span>
               {% endif %}
             </td>
             <td>
-              {% if m.source == 'db' %}
+              {% if m.source == 'db' and not m.has_env_access %}
               <form method="POST" action="{{ url_for('settings.staff_remove') }}" class="mb-0">
                 <input type="hidden" name="discord_id" value="{{ m.discord_id }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -581,10 +264,15 @@
         </tbody>
       </table>
       {% else %}
-      <p class="text-muted small">No DB-managed staff yet.</p>
+      <p class="text-muted small">No staff members found.</p>
       {% endif %}
 
       <form method="POST" action="{{ url_for('settings.staff_add') }}" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label small text-muted mb-1">Display Name</label>
+          <input type="text" name="name" class="form-control form-control-sm bg-dark text-light border-secondary"
+            placeholder="e.g. Jason" style="width:160px" maxlength="80">
+        </div>
         <div class="col-auto">
           <label class="form-label small text-muted mb-1">Discord ID</label>
           <input type="text" name="discord_id" class="form-control form-control-sm bg-dark text-light border-secondary"
@@ -606,9 +294,399 @@
     </div>
   </div>
 
+  {# ═══ Collapsible config sections ═══ #}
+
+  {# Web App — Feature Flags #}
+  <h5 class="mb-2 mt-4">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-web-flags" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Web App — Feature Flags
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-web-flags">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:200px">Feature</th>
+              <th style="width:160px">Status</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in web_flags %}
+            <tr>
+              <td class="fw-semibold">
+                {{ f.label }}
+                {% if f.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit and f.editable %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
+                    <input type="hidden" name="key" value="{{ f.key }}">
+                    <input type="hidden" name="action" value="set">
+                    <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
+                    <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
+                      {% if f.enabled %}<i class="bi bi-toggle-on"></i> Enabled{% else %}<i class="bi bi-toggle-off"></i> Disabled{% endif %}
+                    </button>
+                    {% if f.overridden %}
+                    </form>
+                    <form method="POST" action="{{ url_for('settings.update') }}">
+                      <input type="hidden" name="key" value="{{ f.key }}">
+                      <input type="hidden" name="action" value="reset">
+                      <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to env default" style="font-size:.75rem">reset</button>
+                    {% endif %}
+                  </form>
+                {% else %}
+                  {% if f.enabled %}
+                    <span class="badge bg-success">Enabled</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Disabled</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ f.description }}</td>
+              <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Web App — Integrations #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-web-integrations" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Web App — Integrations
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-web-integrations">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0">
+          <thead>
+            <tr>
+              <th style="width:200px">Integration</th>
+              <th style="width:120px">Status</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in integrations %}
+            <tr>
+              <td class="fw-semibold">{{ i.label }}</td>
+              <td>
+                {% if i.configured %}
+                  <span class="badge bg-success">Configured</span>
+                {% else %}
+                  <span class="badge bg-secondary">Not set</span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ i.description }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Web App — Tuning #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-web-tuning" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Web App — Tuning
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-web-tuning">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:220px">Parameter</th>
+              <th style="width:{% if can_edit %}200{% else %}100{% endif %}px">Value</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in web_tuning %}
+            <tr>
+              <td class="fw-semibold">
+                {{ t.label }}
+                {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit and t.editable %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
+                    <input type="hidden" name="key" value="{{ t.key }}">
+                    <input type="hidden" name="action" value="set">
+                    <input type="number" name="value" value="{{ t.value }}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:80px">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                  </form>
+                  {% if t.overridden %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                    <input type="hidden" name="key" value="{{ t.key }}">
+                    <input type="hidden" name="action" value="reset">
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Reset to env default" style="font-size:.75rem">reset to env</button>
+                  </form>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ t.description }}</td>
+              <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Bot — Channel IDs #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-bot-channels" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Bot — Channel IDs
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-bot-channels">
+    <p class="text-muted small mb-2">
+      Stored in the database. Click <strong>Restart Bot</strong> above to apply. Leave blank to use the bot's <code>.env</code> value.
+    </p>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:220px">Channel</th>
+              <th style="width:{% if can_edit %}280px{% else %}180px{% endif %}">ID</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in bot_channels %}
+            <tr>
+              <td class="fw-semibold">
+                {{ c.label }}
+                {% if c.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit and c.editable %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
+                    <input type="hidden" name="key" value="{{ c.key }}">
+                    <input type="hidden" name="action" value="set">
+                    <input type="text" name="value" value="{{ c.value or '' }}"
+                      placeholder="{{ c.placeholder }}"
+                      {% if c.input_pattern %}pattern="{{ c.input_pattern }}" title="Discord snowflake (17–20 digits)"{% endif %}
+                      class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:{% if c.input_pattern %}160{% else %}280{% endif %}px">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                  </form>
+                  {% if c.overridden %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                    <input type="hidden" name="key" value="{{ c.key }}">
+                    <input type="hidden" name="action" value="reset">
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
+                  </form>
+                  {% endif %}
+                {% else %}
+                  {% if c.value %}
+                    <span class="badge bg-dark border border-secondary font-monospace">{{ c.value }}</span>
+                  {% else %}
+                    <span class="text-muted small">env default</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ c.description }}</td>
+              <td class="d-none d-md-table-cell"><code class="small text-info">{{ c.env }}</code></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Bot — Tuning #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-bot-tuning" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Bot — Tuning
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-bot-tuning">
+    <p class="text-muted small mb-2">
+      Interval overrides are stored in the database. Click <strong>Restart Bot</strong> above to apply them.
+      Leave blank to use the value from the bot's <code>.env</code> file.
+    </p>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:220px">Parameter</th>
+              <th style="width:{% if can_edit %}220px{% else %}120px{% endif %}">Value</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in bot_tuning %}
+            <tr>
+              <td class="fw-semibold">
+                {{ t.label }}
+                {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit and t.editable %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
+                    <input type="hidden" name="key" value="{{ t.key }}">
+                    <input type="hidden" name="action" value="set">
+                    <input type="number" name="value" value="{{ t.value if t.value is not none else '' }}"
+                      placeholder="{{ t.placeholder }}"
+                      class="form-control form-control-sm bg-dark text-light border-secondary" style="width:100px">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                  </form>
+                  {% if t.overridden %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                    <input type="hidden" name="key" value="{{ t.key }}">
+                    <input type="hidden" name="action" value="reset">
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
+                  </form>
+                  {% endif %}
+                {% else %}
+                  {% if t.value is not none %}
+                    <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
+                  {% else %}
+                    <span class="text-muted small">env default</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ t.description }}</td>
+              <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Bot — Feature Flags #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-bot-flags" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Bot — Feature Flags
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-bot-flags">
+    <p class="text-muted small mb-2">
+      Changes apply to the bot within 1 minute. If a flag has never been set here, the bot uses its own configuration file.
+    </p>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:200px">Feature</th>
+              <th style="width:160px">Status</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell text-muted" style="width:220px">Enable env var</th>
+              <th class="d-none d-lg-table-cell text-muted" style="width:220px">Interval env var</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in bot_flags %}
+            <tr>
+              <td class="fw-semibold">
+                {{ f.label }}
+                {% if f.db_set %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit and f.editable %}
+                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
+                    <input type="hidden" name="key" value="{{ f.key }}">
+                    <input type="hidden" name="action" value="set">
+                    <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
+                    <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
+                      {% if f.enabled %}<i class="bi bi-toggle-on"></i> ON{% else %}<i class="bi bi-toggle-off"></i> OFF{% endif %}
+                    </button>
+                    {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1" title="No DB override — bot is using its .env value">ENV</span>{% endif %}
+                    {% if f.using_env %}<span class="badge bg-warning text-dark ms-1" title="Bot has not reported its state yet">?</span>{% endif %}
+                    {% if f.db_set %}
+                    </form>
+                    <form method="POST" action="{{ url_for('settings.update') }}">
+                      <input type="hidden" name="key" value="{{ f.key }}">
+                      <input type="hidden" name="action" value="reset">
+                      <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to bot .env default" style="font-size:.75rem">reset</button>
+                    {% endif %}
+                  </form>
+                {% else %}
+                  {% if f.enabled %}
+                    <span class="badge bg-success">Enabled</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Disabled</span>
+                  {% endif %}
+                  {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1">ENV</span>{% endif %}
+                  {% if f.using_env %}<span class="badge bg-warning text-dark ms-1">?</span>{% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ f.description }}</td>
+              <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
+              <td class="d-none d-lg-table-cell">
+                {% if f.interval_env %}
+                  <code class="small text-secondary">{{ f.interval_env }}</code>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 {% if wiki_sync.requested or (wiki_sync.status == 'running' and not wiki_sync.is_stale) %}
 <script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(btn) {
+  var target = document.querySelector(btn.dataset.bsTarget);
+  if (!target) return;
+  var chevron = btn.querySelector('.collapse-chevron');
+  target.addEventListener('show.bs.collapse', function() {
+    if (chevron) chevron.style.transform = 'rotate(90deg)';
+  });
+  target.addEventListener('hide.bs.collapse', function() {
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  });
+});
+</script>
 {% endblock %}
