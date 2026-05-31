@@ -500,19 +500,39 @@ def index():
     )
     wiki_sync_runs = wiki_sync_runs[:12]
 
-    # ── Staff members (DB-managed) ─────────────────────────────────────────
+    # ── Staff members (DB-managed + env baseline) ─────────────────────────
     from app.db import AppSetting as _AppSetting
+    _ROLE_LABELS = {
+        'administrator': 'Administrator',
+        'moderator': 'Moderator',
+        'storyteller': 'Storyteller',
+        'system_helper': 'System Helper',
+    }
     db_staff = _AppSetting.query.filter(
         _AppSetting.key.like('STAFF_MEMBER_%')
     ).order_by(_AppSetting.key).all()
+    db_staff_ids = {row.key[len('STAFF_MEMBER_'):] for row in db_staff}
     staff_members = [
         {
             'discord_id': row.key[len('STAFF_MEMBER_'):],
             'role': row.value,
-            'label': 'Administrator' if row.value == 'administrator' else 'Storyteller',
+            'label': _ROLE_LABELS.get(row.value, row.value.capitalize()),
+            'source': 'db',
         }
         for row in db_staff
     ]
+    # Include env-var IDs not already in DB so the full access list is visible.
+    _admin_ids = current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
+    _allowed_ids = current_app.config.get('ALLOWED_DISCORD_IDS', set())
+    for _id in sorted(_admin_ids | _allowed_ids):
+        if _id and _id not in db_staff_ids:
+            _role = 'administrator' if _id in _admin_ids else 'staff'
+            staff_members.append({
+                'discord_id': _id,
+                'role': _role,
+                'label': _ROLE_LABELS.get(_role, 'Staff'),
+                'source': 'env',
+            })
 
     return render_template(
         'settings/index.html',
@@ -699,7 +719,7 @@ def staff_add():
     if not discord_id or not discord_id.isdigit():
         flash('Invalid Discord ID — must be numeric.', 'danger')
         return redirect(url_for('settings.index'))
-    if role not in ('storyteller', 'administrator'):
+    if role not in ('system_helper', 'storyteller', 'moderator', 'administrator'):
         flash('Invalid role.', 'danger')
         return redirect(url_for('settings.index'))
     key = f'STAFF_MEMBER_{discord_id}'

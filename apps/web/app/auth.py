@@ -110,7 +110,8 @@ def is_allowed_discord_user(discord_id: str) -> bool:
     """Check whether a Discord user ID is in the staff allowlist (env or DB)."""
     if str(discord_id) in current_app.config['ALLOWED_DISCORD_IDS']:
         return True
-    return _get_db_staff_role(str(discord_id)) is not None
+    role = _get_db_staff_role(str(discord_id))
+    return role in ('system_helper', 'storyteller', 'moderator', 'administrator')
 
 
 def is_settings_admin() -> bool:

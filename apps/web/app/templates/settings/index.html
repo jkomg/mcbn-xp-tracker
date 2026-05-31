@@ -559,13 +559,22 @@
           {% for m in staff_members %}
           <tr>
             <td><code>{{ m.discord_id }}</code></td>
-            <td><span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ m.label }}</span></td>
             <td>
+              <span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% elif m.role == 'moderator' %}bg-info text-dark{% elif m.role == 'storyteller' %}bg-primary{% else %}bg-secondary{% endif %}">
+                {{ m.label }}
+              </span>
+              {% if m.source == 'env' %}
+                <span class="badge bg-dark border border-secondary text-muted ms-1" title="Granted via environment variable — manage in server config">Env</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if m.source == 'db' %}
               <form method="POST" action="{{ url_for('settings.staff_remove') }}" class="mb-0">
                 <input type="hidden" name="discord_id" value="{{ m.discord_id }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"
                   onclick="return confirm('Remove {{ m.discord_id }} from staff?')">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -584,7 +593,9 @@
         <div class="col-auto">
           <label class="form-label small text-muted mb-1">Role</label>
           <select name="role" class="form-select form-select-sm bg-dark text-light border-secondary">
+            <option value="system_helper">System Helper</option>
             <option value="storyteller">Storyteller</option>
+            <option value="moderator">Moderator</option>
             <option value="administrator">Administrator</option>
           </select>
         </div>
