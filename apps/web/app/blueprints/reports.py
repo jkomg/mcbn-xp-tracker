@@ -7,7 +7,7 @@ from collections import defaultdict
 from flask import Blueprint, render_template
 
 from app.auth import require_staff
-from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordPostCount
+from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordDisplayName, DiscordPostCount
 
 bp = Blueprint('reports', __name__)
 
@@ -116,10 +116,17 @@ def index():
             entry = act_map.setdefault(row.discord_id, {'ic': 0, 'ooc': 0, 'rolls': 0, 'cubby': 0})
             entry[row.category] = entry.get(row.category, 0) + row.count
 
+        # Pull stored display names for everyone who posted
+        name_rows = DiscordDisplayName.query.filter(
+            DiscordDisplayName.discord_id.in_(list(act_map.keys()))
+        ).all()
+        display_names = {r.discord_id: r.display_name for r in name_rows}
+
         discord_activity = sorted(
             [
                 {
                     'discord_id': did,
+                    'display_name': display_names.get(did, ''),
                     'ic': counts['ic'],
                     'ooc': counts['ooc'],
                     'rolls': counts['rolls'],

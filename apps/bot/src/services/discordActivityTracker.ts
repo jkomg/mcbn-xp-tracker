@@ -75,6 +75,8 @@ export class DiscordActivityTracker {
   private readonly adapter: TrackerAdapter;
   private readonly guildId: string;
   private readonly buffer = new Map<string, CountsByCat>();
+  // discord_id → most recently seen display name
+  private readonly nameBuffer = new Map<string, string>();
   private flushTimer: NodeJS.Timeout | null = null;
 
   constructor(adapter: TrackerAdapter, guildId: string) {
@@ -104,6 +106,10 @@ export class DiscordActivityTracker {
     const category = resolveCategory(message);
     if (!category) return;
 
+    // Store display name (guild nickname > username)
+    const displayName = message.member?.displayName ?? message.author.username;
+    if (displayName) this.nameBuffer.set(message.author.id, displayName);
+
     const date = utcDateString();
     const key = bufferKey(message.author.id, date);
     const counts = this.buffer.get(key) ?? { ic: 0, ooc: 0, rolls: 0, cubby: 0 };
@@ -115,7 +121,9 @@ export class DiscordActivityTracker {
     if (this.buffer.size === 0) return;
 
     const snapshot = new Map(this.buffer);
+    const nameSnapshot = new Map(this.nameBuffer);
     this.buffer.clear();
+    this.nameBuffer.clear();
 
     const entries: Array<{ discord_id: string; date: string; category: ActivityCategory; count: number }> = [];
     for (const [key, counts] of snapshot) {
@@ -129,17 +137,21 @@ export class DiscordActivityTracker {
 
     if (entries.length === 0) return;
 
+    const names = Object.fromEntries(nameSnapshot);
     try {
-      await this.adapter.recordDiscordActivity(entries);
-      logEvent('info', 'discord_activity_flushed', { entries: entries.length });
+      await this.adapter.recordDiscordActivity(entries, names);
+      logEvent('info', 'discord_activity_flushed', { entries: entries.length, names: nameSnapshot.size });
     } catch (err) {
       logEvent('warn', 'discord_activity_flush_failed', { error: errorToMessage(err), entries: entries.length });
-      // Re-buffer on failure so we don't lose the counts
+      // Re-buffer on failure so we don't lose the counts or names
       for (const entry of entries) {
         const key = bufferKey(entry.discord_id, entry.date);
         const counts = this.buffer.get(key) ?? { ic: 0, ooc: 0, rolls: 0, cubby: 0 };
         counts[entry.category] += entry.count;
         this.buffer.set(key, counts);
+      }
+      for (const [id, name] of nameSnapshot) {
+        this.nameBuffer.set(id, name);
       }
     }
   }

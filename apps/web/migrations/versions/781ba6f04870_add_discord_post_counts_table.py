@@ -18,6 +18,14 @@ depends_on = None
 
 def upgrade():
     op.create_table(
+        'discord_display_names',
+        sa.Column('discord_id', sa.String(length=30), nullable=False),
+        sa.Column('display_name', sa.String(length=200), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint('discord_id'),
+    )
+
+    op.create_table(
         'discord_post_counts',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('discord_id', sa.String(length=30), nullable=False),
@@ -41,6 +49,8 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_table('discord_display_names')
+
     with op.batch_alter_table('discord_post_counts', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_discord_post_counts_discord_id'))
     op.drop_table('discord_post_counts')

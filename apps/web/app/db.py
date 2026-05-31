@@ -199,6 +199,14 @@ class DbReminderPreference(db.Model):
     updated_at = db.Column(String(20), default='')
 
 
+class DiscordDisplayName(db.Model):
+    """Discord display names updated by the bot when users post."""
+    __tablename__ = 'discord_display_names'
+    discord_id = db.Column(String(30), primary_key=True)
+    display_name = db.Column(String(200), nullable=False, default='')
+    updated_at = db.Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class DiscordPostCount(db.Model):
     """Daily Discord post counts per user per activity category (ic/ooc/rolls/cubby)."""
     __tablename__ = 'discord_post_counts'

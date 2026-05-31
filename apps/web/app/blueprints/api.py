@@ -1690,8 +1690,61 @@ def discord_activity_record():
         )
         flushed += 1
 
+    # Optional names dict: { discord_id: display_name }
+    from datetime import datetime, timezone
+    names = body.get('names', {})
+    if isinstance(names, dict):
+        ts = datetime.now(timezone.utc).isoformat()
+        for discord_id, display_name in names.items():
+            discord_id = str(discord_id).strip()
+            display_name = str(display_name).strip()[:200]
+            if not discord_id or not display_name:
+                continue
+            db.session.execute(
+                text(
+                    "INSERT INTO discord_display_names (discord_id, display_name, updated_at)"
+                    " VALUES (:did, :name, :ts)"
+                    " ON CONFLICT(discord_id)"
+                    " DO UPDATE SET display_name=excluded.display_name, updated_at=excluded.updated_at"
+                ),
+                {'did': discord_id, 'name': display_name, 'ts': ts},
+            )
+
     db.session.commit()
     return jsonify({'ok': True, 'flushed': flushed})
+
+
+@bp.route('/periods/recent', methods=['GET'])
+@require_bot_scope('read')
+@_limit('60 per minute')
+def periods_recent():
+    """Return the most recent N play periods with their date ranges.
+
+    Query param: count (default 2, max 10).
+    Response: { periods: [{ label, nightNumber, startDate, endDate }] }
+    """
+    from app.db import DbPlayPeriod
+    try:
+        count = min(10, max(1, int(request.args.get('count', 2))))
+    except (ValueError, TypeError):
+        count = 2
+    rows = (
+        DbPlayPeriod.query
+        .order_by(DbPlayPeriod.night_number.desc())
+        .limit(count)
+        .all()
+    )
+    return jsonify({
+        'periods': [
+            {
+                'label': p.period_label,
+                'nightNumber': p.night_number,
+                'startDate': p.start_date or '',
+                'endDate': p.end_date or '',
+            }
+            for p in rows
+        ]
+    })
 
 
 @bp.route('/sheets/reconcile', methods=['POST'])
