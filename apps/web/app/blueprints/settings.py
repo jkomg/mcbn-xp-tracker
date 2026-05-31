@@ -516,6 +516,9 @@ def index():
         row.key[len('STAFF_NAME_'):]: row.value
         for row in _AppSetting.query.filter(_AppSetting.key.like('STAFF_NAME_%')).all()
     }
+    _admin_ids = current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
+    _allowed_ids = current_app.config.get('ALLOWED_DISCORD_IDS', set())
+    _env_ids = _admin_ids | _allowed_ids
     staff_members = [
         {
             'discord_id': row.key[len('STAFF_MEMBER_'):],
@@ -523,13 +526,13 @@ def index():
             'role': row.value,
             'label': _ROLE_LABELS.get(row.value, row.value.capitalize()),
             'source': 'db',
+            # If this ID is also in env vars, removing the DB row won't revoke access.
+            'has_env_access': row.key[len('STAFF_MEMBER_'):] in _env_ids,
         }
         for row in db_staff
     ]
     # Include env-var IDs not already in DB so the full access list is visible.
-    _admin_ids = current_app.config.get('SETTINGS_ADMIN_DISCORD_IDS', set())
-    _allowed_ids = current_app.config.get('ALLOWED_DISCORD_IDS', set())
-    for _id in sorted(_admin_ids | _allowed_ids):
+    for _id in sorted(_env_ids):
         if _id and _id not in db_staff_ids:
             _role = 'administrator' if _id in _admin_ids else 'staff'
             staff_members.append({
@@ -538,6 +541,7 @@ def index():
                 'role': _role,
                 'label': _ROLE_LABELS.get(_role, 'Staff'),
                 'source': 'env',
+                'has_env_access': True,
             })
 
     return render_template(

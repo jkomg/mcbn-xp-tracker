@@ -246,12 +246,12 @@
               <span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% elif m.role == 'moderator' %}bg-info text-dark{% elif m.role == 'storyteller' %}bg-primary{% else %}bg-secondary{% endif %}">
                 {{ m.label }}
               </span>
-              {% if m.source == 'env' %}
+              {% if m.source == 'env' or m.has_env_access %}
                 <span class="badge bg-dark border border-secondary text-muted ms-1" title="Granted via environment variable — manage in server config">Env</span>
               {% endif %}
             </td>
             <td>
-              {% if m.source == 'db' %}
+              {% if m.source == 'db' and not m.has_env_access %}
               <form method="POST" action="{{ url_for('settings.staff_remove') }}" class="mb-0">
                 <input type="hidden" name="discord_id" value="{{ m.discord_id }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"
