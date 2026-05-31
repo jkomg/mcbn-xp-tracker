@@ -17,6 +17,12 @@ import { CUBBY_CATEGORY_NAMES } from './cubbyChannels';
 const MESSAGES_PER_FETCH = 100;
 // Flush to API every this many accumulated entries
 const FLUSH_THRESHOLD = 500;
+// Pause between channels to avoid Discord rate-limit aborts
+const CHANNEL_DELAY_MS = 250;
+// Retry delays (ms) for channels that abort — 3 attempts after the main pass
+const RETRY_DELAYS_MS = [3_000, 8_000, 15_000];
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 type ActivityEntry = { discord_id: string; date: string; category: ActivityCategory; count: number };
 
@@ -157,10 +163,13 @@ export async function runActivityBackfill(
 
   const countMap = new Map<string, Map<string, number>>();
   const nameMap = new Map<string, string>();
+  const allDiscordIds = new Set<string>();
   let totalMessages = 0;
   let channelsScanned = 0;
 
-  for (const { channel, category } of toScan) {
+  type ScanItem = { channel: TextChannel; category: ActivityCategory };
+
+  async function scanOne({ channel, category }: ScanItem): Promise<boolean> {
     try {
       const n = await scanChannel(channel as unknown as TextChannel | AnyThreadChannel, category, sinceDate, untilDate, countMap, nameMap);
       totalMessages += n;
@@ -170,30 +179,58 @@ export async function runActivityBackfill(
       // Flush periodically so we don't build up too much in memory
       const entries = countMapToEntries(countMap);
       if (entries.length >= FLUSH_THRESHOLD) {
+        for (const e of entries) allDiscordIds.add(e.discord_id);
         await adapter.recordDiscordActivity(entries, Object.fromEntries(nameMap));
         countMap.clear();
         nameMap.clear();
         log(`  Flushed ${entries.length} entries`);
       }
+      return true;
     } catch (err) {
       logEvent('warn', 'activity_backfill_channel_failed', {
         channelId: channel.id,
+        channelName: (channel as { name?: string }).name ?? '',
         error: errorToMessage(err),
       });
+      return false;
     }
+  }
+
+  // Main pass
+  let failed: ScanItem[] = [];
+  for (const item of toScan) {
+    const ok = await scanOne(item);
+    if (!ok) failed.push(item);
+    if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
+  }
+
+  // Retry passes with backoff
+  for (let attempt = 0; attempt < RETRY_DELAYS_MS.length && failed.length > 0; attempt++) {
+    const delay = RETRY_DELAYS_MS[attempt];
+    log(`Retrying ${failed.length} failed channel(s) (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length}, waiting ${delay / 1000}s)…`);
+    await sleep(delay);
+    const stillFailed: ScanItem[] = [];
+    for (const item of failed) {
+      const ok = await scanOne(item);
+      if (!ok) stillFailed.push(item);
+      if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
+    }
+    failed = stillFailed;
+  }
+
+  if (failed.length > 0) {
+    const names = failed.map(f => (f.channel as { name?: string }).name ?? f.channel.id).join(', ');
+    log(`Warning: ${failed.length} channel(s) could not be scanned after all retries: ${names}`);
   }
 
   // Final flush
   const finalEntries = countMapToEntries(countMap);
   if (finalEntries.length > 0) {
+    for (const e of finalEntries) allDiscordIds.add(e.discord_id);
     await adapter.recordDiscordActivity(finalEntries, Object.fromEntries(nameMap));
   }
 
-  const usersFound = new Set(finalEntries.map(e => e.discord_id)).size + (FLUSH_THRESHOLD > 0 ? 0 : 0);
-  // Recount unique users across all entries we've flushed
-  const allDiscordIds = new Set<string>();
-  for (const entry of finalEntries) allDiscordIds.add(entry.discord_id);
-
-  log(`Done: ${channelsScanned} channels, ${totalMessages} messages, ${allDiscordIds.size} users`);
+  const skipped = failed.length;
+  log(`Done: ${channelsScanned} channels, ${totalMessages} messages, ${allDiscordIds.size} users${skipped > 0 ? `, ${skipped} channel(s) skipped` : ''}`);
   return { channelsScanned, messagesScanned: totalMessages, usersFound: allDiscordIds.size };
 }
