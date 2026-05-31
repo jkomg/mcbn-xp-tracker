@@ -170,8 +170,23 @@ export async function runActivityBackfill(
   type ScanItem = { channel: TextChannel; category: ActivityCategory };
 
   async function scanOne({ channel, category }: ScanItem): Promise<boolean> {
+    // Use per-channel maps so an abort never leaves partial counts in the shared map.
+    // On success we merge; on failure we discard — retries always start clean.
+    const chanCountMap = new Map<string, Map<string, number>>();
+    const chanNameMap = new Map<string, string>();
     try {
-      const n = await scanChannel(channel as unknown as TextChannel | AnyThreadChannel, category, sinceDate, untilDate, countMap, nameMap);
+      const n = await scanChannel(channel as unknown as TextChannel | AnyThreadChannel, category, sinceDate, untilDate, chanCountMap, chanNameMap);
+
+      // Merge into shared maps
+      for (const [discordId, dateMap] of chanCountMap) {
+        const existing = countMap.get(discordId) ?? new Map<string, number>();
+        for (const [key, count] of dateMap) {
+          existing.set(key, (existing.get(key) ?? 0) + count);
+        }
+        countMap.set(discordId, existing);
+      }
+      for (const [discordId, name] of chanNameMap) nameMap.set(discordId, name);
+
       totalMessages += n;
       channelsScanned++;
       if (n > 0) log(`  #${(channel as { name: string }).name}: ${n} messages`);
@@ -187,6 +202,7 @@ export async function runActivityBackfill(
       }
       return true;
     } catch (err) {
+      // chanCountMap is discarded — shared countMap is untouched
       logEvent('warn', 'activity_backfill_channel_failed', {
         channelId: channel.id,
         channelName: (channel as { name?: string }).name ?? '',
