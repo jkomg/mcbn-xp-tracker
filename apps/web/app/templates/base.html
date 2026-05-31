@@ -139,6 +139,14 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link ps-4 {% if request.endpoint == 'reports.index' %}active{% endif %}"
+                           href="{{ url_for('reports.index') }}">
+                            <i class="bi bi-bar-chart"></i> <span>Reports</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if config.LOCAL_STATUS_ENABLED %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'local_status.status_page' %}active{% endif %}"
