@@ -71,8 +71,20 @@ export async function buildCubbyChannelMap(guild: Guild): Promise<Map<string, No
   const map = new Map<string, NotificationChannel>();
 
   const channels = await guild.channels.fetch();
+
+  // Restrict to channels inside a cubby category so we don't accidentally
+  // match same-named channels in other sections (e.g. Children of the Night).
+  const cubbyParentIds = new Set<string>();
   for (const channel of channels.values()) {
-    if (isNotificationChannel(channel)) {
+    if (channel && channel.type === ChannelType.GuildCategory) {
+      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+        cubbyParentIds.add(channel.id);
+      }
+    }
+  }
+
+  for (const channel of channels.values()) {
+    if (isNotificationChannel(channel) && channel.parentId && cubbyParentIds.has(channel.parentId)) {
       map.set(normalizeChannelName(channel.name), channel);
     }
   }
@@ -80,7 +92,10 @@ export async function buildCubbyChannelMap(guild: Guild): Promise<Map<string, No
   const activeThreads = await guild.channels.fetchActiveThreads().catch(() => null);
   if (activeThreads) {
     for (const thread of activeThreads.threads.values()) {
-      if (isNotificationChannel(thread)) {
+      if (!isNotificationChannel(thread)) continue;
+      // A thread's parent is a text channel; check that channel's category.
+      const parent = channels.get(thread.parentId ?? '');
+      if (parent && parent.parentId && cubbyParentIds.has(parent.parentId)) {
         map.set(normalizeChannelName(thread.name), thread);
       }
     }
