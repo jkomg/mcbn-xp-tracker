@@ -85,6 +85,18 @@ def index():
 
     total_active = sum(1 for c in all_roster if c.active)
 
+    roster_list = [
+        {
+            'name': c.character_name,
+            'clan': c.clan or '',
+            'age': c.age_category or '',
+            'sect': c.sect or '',
+            'player': c.player_discord_name or c.player_discord or '',
+            'active': c.active,
+        }
+        for c in all_roster
+    ]
+
     return render_template(
         'reports.html',
         recent_periods=recent_periods,
@@ -95,4 +107,5 @@ def index():
         by_sect=by_sect,
         total_active=total_active,
         total_all=len(all_roster),
+        roster_list=roster_list,
     )
