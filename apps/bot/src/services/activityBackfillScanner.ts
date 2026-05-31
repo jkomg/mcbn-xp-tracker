@@ -17,8 +17,10 @@ import { CUBBY_CATEGORY_NAMES } from './cubbyChannels';
 const MESSAGES_PER_FETCH = 100;
 // Flush to API every this many accumulated entries
 const FLUSH_THRESHOLD = 500;
-// Pause between channels to avoid Discord rate-limit aborts
-const CHANNEL_DELAY_MS = 250;
+// Pause between channels to avoid Discord request timeouts
+const CHANNEL_DELAY_MS = 500;
+// Pause between paginated batches within a single channel
+const BATCH_DELAY_MS = 300;
 // Retry delays (ms) for channels that abort — 3 attempts after the main pass
 const RETRY_DELAYS_MS = [3_000, 8_000, 15_000];
 
@@ -86,6 +88,8 @@ async function scanChannel(
     const oldest: Message | undefined = batch.last();
     if (!oldest) break;
     before = oldest.id;
+
+    if (BATCH_DELAY_MS > 0) await sleep(BATCH_DELAY_MS);
   }
 
   return scanned;
@@ -108,6 +112,7 @@ export async function runActivityBackfill(
   sinceDate: string,
   untilDate: string,
   onProgress?: (msg: string) => void,
+  categoryFilter?: ActivityCategory,
 ): Promise<{ channelsScanned: number; messagesScanned: number; usersFound: number }> {
   const log = (msg: string) => {
     logEvent('info', 'activity_backfill', { msg });
@@ -159,7 +164,11 @@ export async function runActivityBackfill(
     }
   }
 
-  log(`Found ${toScan.length} channels/threads to scan`);
+  const filtered = categoryFilter ? toScan.filter(c => c.category === categoryFilter) : toScan;
+  if (categoryFilter) log(`Category filter: ${categoryFilter} (${filtered.length}/${toScan.length} channels)`);
+  const toProcess = categoryFilter ? filtered : toScan;
+
+  log(`Found ${toProcess.length} channels/threads to scan`);
 
   const countMap = new Map<string, Map<string, number>>();
   const nameMap = new Map<string, string>();
@@ -214,7 +223,7 @@ export async function runActivityBackfill(
 
   // Main pass
   let failed: ScanItem[] = [];
-  for (const item of toScan) {
+  for (const item of toProcess) {
     const ok = await scanOne(item);
     if (!ok) failed.push(item);
     if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);

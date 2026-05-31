@@ -20,6 +20,7 @@ import { CubbySyncWorker } from '../services/cubbySyncWorker';
 import { errorToMessage, logEvent } from '../logger';
 import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
 import { runActivityBackfill } from '../services/activityBackfillScanner';
+import type { ActivityCategory } from '../services/discordActivityCategories';
 import { startEditWizard } from '../editWizard';
 
 export const name = config.lasombraCommandName;
@@ -99,6 +100,15 @@ export const data = new SlashCommandBuilder()
       )
       .addStringOption((o) =>
         o.setName('until').setDescription('End date YYYY-MM-DD — defaults to today'),
+      )
+      .addStringOption((o) =>
+        o.setName('category').setDescription('Scan only one category (default: all)')
+          .addChoices(
+            { name: 'IC', value: 'ic' },
+            { name: 'OOC', value: 'ooc' },
+            { name: 'Rolls', value: 'rolls' },
+            { name: 'Cubby', value: 'cubby' },
+          ),
       ),
   )
   .addSubcommand((s) =>
@@ -412,7 +422,10 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       scanLabel = periods.map(p => p.label).join(', ');
     }
 
-    await interaction.editReply(`Scanning channels **(${scanLabel})**…\nThis may take a few minutes.`);
+    const categoryOpt = (interaction.options.getString('category') ?? '') as ActivityCategory | '';
+    const categoryLabel = categoryOpt ? ` [${categoryOpt.toUpperCase()} only]` : '';
+
+    await interaction.editReply(`Scanning channels **(${scanLabel})**${categoryLabel}…\nThis may take a few minutes.`);
 
     try {
       const result = await runActivityBackfill(
@@ -420,9 +433,11 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
         ctx.adapter,
         sinceDate,
         untilDate,
+        undefined,
+        categoryOpt || undefined,
       );
       await interaction.editReply(
-        `Scan complete for **(${scanLabel})**.\n` +
+        `Scan complete for **(${scanLabel})**${categoryLabel}.\n` +
         `Channels scanned: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
         `Results are now visible on the Reports page.`,
       );
