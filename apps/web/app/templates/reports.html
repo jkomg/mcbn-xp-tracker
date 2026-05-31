@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+  <div class="mb-4">
+    <h2 class="mb-0">Reports</h2>
+    <small class="text-muted">Roster statistics and recent engagement.</small>
+  </div>
+
+  {# ── Engagement ── #}
+  <div class="card mb-4">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between">
+      <span class="fw-semibold">
+        <i class="bi bi-activity me-1"></i> Engaged Characters
+        <span class="badge bg-secondary ms-1">{{ engaged_chars | length }}</span>
+      </span>
+      <span class="text-muted small">
+        {% if period_labels %}
+          {{ period_labels | join(', ') }}
+        {% else %}
+          No play periods found
+        {% endif %}
+      </span>
+    </div>
+    <div class="card-body p-0">
+      {% if not recent_periods %}
+        <p class="text-muted p-3 mb-0">No play periods on record.</p>
+      {% elif not engaged_chars %}
+        <p class="text-muted p-3 mb-0">No XP claims or spend requests found for these periods.</p>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Character</th>
+                <th>Clan</th>
+                <th>Age</th>
+                <th>Sect</th>
+                <th>Player</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in engaged_chars %}
+              <tr>
+                <td class="fw-semibold">{{ c.character_name }}</td>
+                <td>{{ c.clan or '—' }}</td>
+                <td class="text-capitalize">{{ c.age_category or '—' }}</td>
+                <td>{{ c.sect or '—' }}</td>
+                <td>
+                  <span class="text-muted small font-monospace">
+                    {{ c.player_discord_name or c.player_discord or '—' }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Breakdown tables ── #}
+  <div class="row g-3">
+
+    {# By Clan #}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">
+          <i class="bi bi-diagram-3 me-1"></i> By Clan
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-dark table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Clan</th>
+                <th class="text-end">Active</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in by_clan %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="text-end">{{ row.active }}</td>
+                <td class="text-end text-muted">{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="border-top border-secondary">
+              <tr class="fw-semibold">
+                <td>Total</td>
+                <td class="text-end">{{ total_active }}</td>
+                <td class="text-end text-muted">{{ total_all }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# By Age #}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">
+          <i class="bi bi-hourglass-split me-1"></i> By Age
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-dark table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Age</th>
+                <th class="text-end">Active</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in by_age %}
+              <tr>
+                <td class="text-capitalize">{{ row.label }}</td>
+                <td class="text-end">{{ row.active }}</td>
+                <td class="text-end text-muted">{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="border-top border-secondary">
+              <tr class="fw-semibold">
+                <td>Total</td>
+                <td class="text-end">{{ total_active }}</td>
+                <td class="text-end text-muted">{{ total_all }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# By Sect #}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">
+          <i class="bi bi-shield-half me-1"></i> By Sect
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-dark table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Sect</th>
+                <th class="text-end">Active</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in by_sect %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="text-end">{{ row.active }}</td>
+                <td class="text-end text-muted">{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="border-top border-secondary">
+              <tr class="fw-semibold">
+                <td>Total</td>
+                <td class="text-end">{{ total_active }}</td>
+                <td class="text-end text-muted">{{ total_all }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>{# /row #}
+
+</div>
+{% endblock %}
