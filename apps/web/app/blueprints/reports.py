@@ -183,6 +183,12 @@ def activity_csv():
         entry = pivot.setdefault(key, {'ic': 0, 'ooc': 0, 'rolls': 0, 'cubby': 0})
         entry[row.category] = entry.get(row.category, 0) + row.count
 
+    def _csv_safe(val: str) -> str:
+        """Prevent CSV formula injection by prefixing dangerous leading chars."""
+        if val and val[0] in ('=', '+', '-', '@', '\t', '\r'):
+            return "'" + val
+        return val
+
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(['date', 'discord_id', 'display_name', 'ic', 'ooc', 'rolls', 'cubby', 'total'])
@@ -190,7 +196,7 @@ def activity_csv():
         writer.writerow([
             date,
             discord_id,
-            display_names.get(discord_id, ''),
+            _csv_safe(display_names.get(discord_id, '')),
             counts['ic'],
             counts['ooc'],
             counts['rolls'],
