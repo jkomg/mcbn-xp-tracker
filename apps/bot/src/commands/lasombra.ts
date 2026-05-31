@@ -19,6 +19,7 @@ import { buildCubbyChannelMap, getChannelsInCubbyCategories, normalizeChannelNam
 import { CubbySyncWorker } from '../services/cubbySyncWorker';
 import { errorToMessage, logEvent } from '../logger';
 import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
+import { runActivityBackfill } from '../services/activityBackfillScanner';
 import { startEditWizard } from '../editWizard';
 
 export const name = config.lasombraCommandName;
@@ -85,6 +86,11 @@ export const data = new SlashCommandBuilder()
     s
       .setName('sync-cubbies')
       .setDescription('Scan cubby channels, backfill channel IDs, and retire characters whose cubby is gone (staff only)'),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('scan-activity')
+      .setDescription('Backfill Discord post counts for the last 2 IC nights (staff only, run once after deploy)'),
   )
   .addSubcommand((s) =>
     s
@@ -339,6 +345,57 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       ].join('\n'),
       ephemeral: true,
     });
+    return;
+  }
+
+  if (sub === 'scan-activity') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    if (!interaction.guildId || !interaction.guild) {
+      await interaction.reply({ content: 'Must be run in the server.', ephemeral: true });
+      return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    let periods: Array<{ label: string; startDate: string; endDate: string }> = [];
+    try {
+      periods = await ctx.adapter.getRecentPeriods(2);
+    } catch (err) {
+      await interaction.editReply(`Could not fetch play periods: ${errorToMessage(err)}`);
+      return;
+    }
+
+    if (periods.length === 0 || !periods.some(p => p.startDate)) {
+      await interaction.editReply('No play periods with dates found — cannot determine scan range.');
+      return;
+    }
+
+    const startDates = periods.map(p => p.startDate).filter(Boolean);
+    const endDates = periods.map(p => p.endDate).filter(Boolean);
+    const sinceDate = startDates.sort()[0];
+    const untilDate = endDates.sort().reverse()[0] || new Date().toISOString().slice(0, 10);
+    const periodLabels = periods.map(p => p.label).join(', ');
+
+    await interaction.editReply(`Scanning channels for **${periodLabels}** (${sinceDate} → ${untilDate})…\nThis may take a few minutes.`);
+
+    try {
+      const result = await runActivityBackfill(
+        interaction.guild,
+        ctx.adapter,
+        sinceDate,
+        untilDate,
+      );
+      await interaction.editReply(
+        `Scan complete for **${periodLabels}**.\n` +
+        `Channels scanned: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
+        `Results are now visible on the Reports page.`,
+      );
+    } catch (err) {
+      await interaction.editReply(`Scan failed: ${errorToMessage(err)}`);
+    }
     return;
   }
 }

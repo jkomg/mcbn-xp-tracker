@@ -7,7 +7,7 @@ from collections import defaultdict
 from flask import Blueprint, render_template
 
 from app.auth import require_staff
-from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim
+from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordDisplayName, DiscordPostCount
 
 bp = Blueprint('reports', __name__)
 
@@ -97,6 +97,47 @@ def index():
         for c in all_roster
     ]
 
+    # ── Discord activity ───────────────────────────────────────────────────
+    discord_activity = []
+    if recent_periods:
+        end_dates = [p.end_date for p in recent_periods if p.end_date]
+        act_since = min(start_dates) if start_dates else ''
+        act_until = max(end_dates) if end_dates else ''
+
+        act_q = DiscordPostCount.query
+        if act_since:
+            act_q = act_q.filter(DiscordPostCount.date >= act_since)
+        if act_until:
+            act_q = act_q.filter(DiscordPostCount.date <= act_until)
+        act_rows = act_q.all()
+
+        act_map: dict[str, dict[str, int]] = {}
+        for row in act_rows:
+            entry = act_map.setdefault(row.discord_id, {'ic': 0, 'ooc': 0, 'rolls': 0, 'cubby': 0})
+            entry[row.category] = entry.get(row.category, 0) + row.count
+
+        # Pull stored display names for everyone who posted
+        name_rows = DiscordDisplayName.query.filter(
+            DiscordDisplayName.discord_id.in_(list(act_map.keys()))
+        ).all()
+        display_names = {r.discord_id: r.display_name for r in name_rows}
+
+        discord_activity = sorted(
+            [
+                {
+                    'discord_id': did,
+                    'display_name': display_names.get(did, ''),
+                    'ic': counts['ic'],
+                    'ooc': counts['ooc'],
+                    'rolls': counts['rolls'],
+                    'cubby': counts['cubby'],
+                    'total': counts['ic'] + counts['ooc'] + counts['rolls'] + counts['cubby'],
+                }
+                for did, counts in act_map.items()
+            ],
+            key=lambda r: -r['total'],
+        )
+
     return render_template(
         'reports.html',
         recent_periods=recent_periods,
@@ -108,4 +149,5 @@ def index():
         total_active=total_active,
         total_all=len(all_roster),
         roster_list=roster_list,
+        discord_activity=discord_activity,
     )

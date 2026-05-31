@@ -175,6 +175,54 @@
 
   </div>{# /row #}
 
+  {# ── Discord Activity ── #}
+  <div class="card mt-4 mb-4">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between">
+      <span class="fw-semibold">
+        <i class="bi bi-chat-dots me-1"></i> Discord Activity
+        <span class="badge bg-secondary ms-1">{{ discord_activity | length }}</span>
+      </span>
+      <span class="text-muted small">
+        {% if period_labels %}{{ period_labels | join(', ') }}{% else %}No play periods found{% endif %}
+        &mdash; all posters in monitored channels
+      </span>
+    </div>
+    <div class="card-body p-0">
+      {% if not discord_activity %}
+        <p class="text-muted p-3 mb-0">No Discord activity recorded for this window. The bot must be running to collect data.</p>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Discord ID</th>
+                <th class="text-end" title="IC channel posts">IC</th>
+                <th class="text-end" title="OOC channel posts">OOC</th>
+                <th class="text-end" title="Rolls channel posts">Rolls</th>
+                <th class="text-end" title="Character cubby posts">Cubby</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in discord_activity %}
+              <tr>
+                <td>{% if row.display_name %}{{ row.display_name }}{% else %}<span class="text-muted small">—</span>{% endif %}</td>
+                <td class="font-monospace small text-muted">{{ row.discord_id }}</td>
+                <td class="text-end">{% if row.ic %}<span class="text-info">{{ row.ic }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-end">{% if row.ooc %}{{ row.ooc }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-end">{% if row.rolls %}{{ row.rolls }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-end">{% if row.cubby %}<span class="text-success">{{ row.cubby }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-end fw-semibold">{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 {# ── Drill-down modal ── #}

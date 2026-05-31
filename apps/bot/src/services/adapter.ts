@@ -114,6 +114,11 @@ export interface TrackerAdapter {
     name: string,
     requester: { requesterDiscordId: string; requesterDiscordName: string },
   ): Promise<{ ok: boolean; message: string; hasHistory?: boolean }>;
+  recordDiscordActivity(
+    entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
+    names?: Record<string, string>,
+  ): Promise<void>;
+  getRecentPeriods(count?: number): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>>;
 }
 
 export type CharacterDetails = {
@@ -1038,6 +1043,27 @@ export class WebAppAdapter implements TrackerAdapter {
       return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
     }
     return { ok: true, message: 'Character deleted.' };
+  }
+
+  async recordDiscordActivity(
+    entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
+    names?: Record<string, string>,
+  ): Promise<void> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/discord-activity/record`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries, ...(names ? { names } : {}) }),
+    });
+    if (!res.ok) throw new Error(`discord-activity/record POST failed: ${res.status}`);
+  }
+
+  async getRecentPeriods(count = 2): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/periods/recent?count=${count}`, {
+      headers: this.readAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`periods/recent GET failed: ${res.status}`);
+    const data = await res.json() as { periods: Array<{ label: string; nightNumber: number; startDate: string; endDate: string }> };
+    return data.periods ?? [];
   }
 
   private async post(path: string, body: unknown, successMessage: string) {

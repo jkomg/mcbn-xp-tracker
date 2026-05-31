@@ -1648,6 +1648,105 @@ def cc_submitted_drafts():
     return jsonify({'events': events, 'has_more': has_more})
 
 
+@bp.route('/discord-activity/record', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def discord_activity_record():
+    """Accept batched Discord post count increments from the bot.
+
+    Body: { "entries": [{ "discord_id": "...", "date": "YYYY-MM-DD",
+                          "category": "ic|ooc|rolls|cubby", "count": N }] }
+    Each entry is upserted: existing counts are incremented, not replaced.
+    """
+    from app.db import db
+    from sqlalchemy import text
+    body = request.get_json(silent=True) or {}
+    entries = body.get('entries', [])
+    if not isinstance(entries, list):
+        return jsonify({'error': 'entries must be a list'}), 400
+    if len(entries) > 2000:
+        return jsonify({'error': 'too many entries'}), 400
+
+    _valid_categories = {'ic', 'ooc', 'rolls', 'cubby'}
+    flushed = 0
+    for entry in entries:
+        discord_id = str(entry.get('discord_id', '')).strip()
+        date = str(entry.get('date', '')).strip()
+        category = str(entry.get('category', '')).strip()
+        try:
+            count = int(entry.get('count', 0))
+        except (TypeError, ValueError):
+            continue
+        if not discord_id or not date or category not in _valid_categories or count <= 0:
+            continue
+        db.session.execute(
+            text(
+                "INSERT INTO discord_post_counts (discord_id, date, category, count)"
+                " VALUES (:did, :dt, :cat, :cnt)"
+                " ON CONFLICT(discord_id, date, category)"
+                " DO UPDATE SET count = discord_post_counts.count + excluded.count"
+            ),
+            {'did': discord_id, 'dt': date, 'cat': category, 'cnt': count},
+        )
+        flushed += 1
+
+    # Optional names dict: { discord_id: display_name }
+    from datetime import datetime, timezone
+    names = body.get('names', {})
+    if isinstance(names, dict):
+        ts = datetime.now(timezone.utc).isoformat()
+        for discord_id, display_name in names.items():
+            discord_id = str(discord_id).strip()
+            display_name = str(display_name).strip()[:200]
+            if not discord_id or not display_name:
+                continue
+            db.session.execute(
+                text(
+                    "INSERT INTO discord_display_names (discord_id, display_name, updated_at)"
+                    " VALUES (:did, :name, :ts)"
+                    " ON CONFLICT(discord_id)"
+                    " DO UPDATE SET display_name=excluded.display_name, updated_at=excluded.updated_at"
+                ),
+                {'did': discord_id, 'name': display_name, 'ts': ts},
+            )
+
+    db.session.commit()
+    return jsonify({'ok': True, 'flushed': flushed})
+
+
+@bp.route('/periods/recent', methods=['GET'])
+@require_bot_scope('read')
+@_limit('60 per minute')
+def periods_recent():
+    """Return the most recent N play periods with their date ranges.
+
+    Query param: count (default 2, max 10).
+    Response: { periods: [{ label, nightNumber, startDate, endDate }] }
+    """
+    from app.db import DbPlayPeriod
+    try:
+        count = min(10, max(1, int(request.args.get('count', 2))))
+    except (ValueError, TypeError):
+        count = 2
+    rows = (
+        DbPlayPeriod.query
+        .order_by(DbPlayPeriod.night_number.desc())
+        .limit(count)
+        .all()
+    )
+    return jsonify({
+        'periods': [
+            {
+                'label': p.period_label,
+                'nightNumber': p.night_number,
+                'startDate': p.start_date or '',
+                'endDate': p.end_date or '',
+            }
+            for p in rows
+        ]
+    })
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')
