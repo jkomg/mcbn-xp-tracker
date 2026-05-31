@@ -1648,6 +1648,52 @@ def cc_submitted_drafts():
     return jsonify({'events': events, 'has_more': has_more})
 
 
+@bp.route('/discord-activity/record', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def discord_activity_record():
+    """Accept batched Discord post count increments from the bot.
+
+    Body: { "entries": [{ "discord_id": "...", "date": "YYYY-MM-DD",
+                          "category": "ic|ooc|rolls|cubby", "count": N }] }
+    Each entry is upserted: existing counts are incremented, not replaced.
+    """
+    from app.db import db
+    from sqlalchemy import text
+    body = request.get_json(silent=True) or {}
+    entries = body.get('entries', [])
+    if not isinstance(entries, list):
+        return jsonify({'error': 'entries must be a list'}), 400
+    if len(entries) > 2000:
+        return jsonify({'error': 'too many entries'}), 400
+
+    _valid_categories = {'ic', 'ooc', 'rolls', 'cubby'}
+    flushed = 0
+    for entry in entries:
+        discord_id = str(entry.get('discord_id', '')).strip()
+        date = str(entry.get('date', '')).strip()
+        category = str(entry.get('category', '')).strip()
+        try:
+            count = int(entry.get('count', 0))
+        except (TypeError, ValueError):
+            continue
+        if not discord_id or not date or category not in _valid_categories or count <= 0:
+            continue
+        db.session.execute(
+            text(
+                "INSERT INTO discord_post_counts (discord_id, date, category, count)"
+                " VALUES (:did, :dt, :cat, :cnt)"
+                " ON CONFLICT(discord_id, date, category)"
+                " DO UPDATE SET count = discord_post_counts.count + excluded.count"
+            ),
+            {'did': discord_id, 'dt': date, 'cat': category, 'cnt': count},
+        )
+        flushed += 1
+
+    db.session.commit()
+    return jsonify({'ok': True, 'flushed': flushed})
+
+
 @bp.route('/sheets/reconcile', methods=['POST'])
 @require_bot_scope('write')
 @_limit('5 per hour')

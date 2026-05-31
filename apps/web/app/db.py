@@ -199,6 +199,19 @@ class DbReminderPreference(db.Model):
     updated_at = db.Column(String(20), default='')
 
 
+class DiscordPostCount(db.Model):
+    """Daily Discord post counts per user per activity category (ic/ooc/rolls/cubby)."""
+    __tablename__ = 'discord_post_counts'
+    __table_args__ = (
+        db.UniqueConstraint('discord_id', 'date', 'category', name='uq_discord_post_count'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    discord_id = db.Column(String(30), nullable=False, index=True)
+    date = db.Column(String(10), nullable=False)   # YYYY-MM-DD (UTC)
+    category = db.Column(String(10), nullable=False)  # ic | ooc | rolls | cubby
+    count = db.Column(Integer, nullable=False, default=0)
+
+
 class CharacterDraft(db.Model):
     """In-progress and submitted character creation drafts."""
     __tablename__ = 'character_drafts'

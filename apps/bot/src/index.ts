@@ -55,6 +55,7 @@ import { BotHeartbeatService } from './services/botHeartbeatService';
 import { CubbySyncWorker } from './services/cubbySyncWorker';
 import { liveConfig } from './liveConfig';
 import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
+import { DiscordActivityTracker } from './services/discordActivityTracker';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
 liveConfig.reviewNotifierEnabled = config.reviewNotifierEnabled;
@@ -218,6 +219,11 @@ void applyStartupConfigOverrides().then(() => {
     retiredCategoryId: config.cubbyRetiredCategoryId,
   });
 
+  const discordActivityGuildId = config.discordGuildId ?? config.reviewNotifierGuildId ?? '';
+  const discordActivityTracker = discordActivityGuildId
+    ? new DiscordActivityTracker(adapter, discordActivityGuildId)
+    : null;
+
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
   const wikiSyncCapable = Boolean(config.discordGuildId);
   const botHeartbeatService = new BotHeartbeatService(
@@ -265,6 +271,7 @@ void applyStartupConfigOverrides().then(() => {
     wikiSyncScheduler.start();
     cubbySyncWorker.start();
     characterSubmissionNotifier.start();
+    discordActivityTracker?.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,
@@ -417,6 +424,10 @@ void applyStartupConfigOverrides().then(() => {
 
     await interaction.reply({ content: 'Command failed.', ephemeral: true });
   }
+  });
+
+  client.on('messageCreate', (message) => {
+    discordActivityTracker?.handleMessage(message);
   });
 
   client.login(config.botToken);

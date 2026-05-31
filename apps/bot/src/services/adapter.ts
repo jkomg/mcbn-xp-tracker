@@ -114,6 +114,9 @@ export interface TrackerAdapter {
     name: string,
     requester: { requesterDiscordId: string; requesterDiscordName: string },
   ): Promise<{ ok: boolean; message: string; hasHistory?: boolean }>;
+  recordDiscordActivity(
+    entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
+  ): Promise<void>;
 }
 
 export type CharacterDetails = {
@@ -1038,6 +1041,17 @@ export class WebAppAdapter implements TrackerAdapter {
       return { ok: false, message: preview || `API rejected request (status ${resp.status}).` };
     }
     return { ok: true, message: 'Character deleted.' };
+  }
+
+  async recordDiscordActivity(
+    entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
+  ): Promise<void> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/discord-activity/record`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+    if (!res.ok) throw new Error(`discord-activity/record POST failed: ${res.status}`);
   }
 
   private async post(path: string, body: unknown, successMessage: string) {
