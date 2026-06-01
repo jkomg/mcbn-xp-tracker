@@ -1668,7 +1668,9 @@ def discord_activity_record():
         return jsonify({'error': 'too many entries'}), 400
 
     _valid_categories = {'ic', 'ooc', 'rolls', 'cubby'}
-    flushed = 0
+
+    # Validate and collect entries
+    valid: list[dict] = []
     for entry in entries:
         discord_id = str(entry.get('discord_id', '')).strip()
         date = str(entry.get('date', '')).strip()
@@ -1679,39 +1681,56 @@ def discord_activity_record():
             continue
         if not discord_id or not date or category not in _valid_categories or count <= 0:
             continue
+        valid.append({'did': discord_id, 'dt': date, 'cat': category, 'cnt': count})
+
+    # Bulk upsert all entries in one statement to avoid N round-trips to Turso.
+    # libsql supports up to 32766 bound variables; 4 per row × 500 rows = 2000, well within limit.
+    if valid:
+        placeholders = ', '.join(f'(:did_{i}, :dt_{i}, :cat_{i}, :cnt_{i})' for i in range(len(valid)))
+        params = {}
+        for i, row in enumerate(valid):
+            params[f'did_{i}'] = row['did']
+            params[f'dt_{i}'] = row['dt']
+            params[f'cat_{i}'] = row['cat']
+            params[f'cnt_{i}'] = row['cnt']
         db.session.execute(
             text(
-                "INSERT INTO discord_post_counts (discord_id, date, category, count)"
-                " VALUES (:did, :dt, :cat, :cnt)"
-                " ON CONFLICT(discord_id, date, category)"
-                " DO UPDATE SET count = discord_post_counts.count + excluded.count"
+                f"INSERT INTO discord_post_counts (discord_id, date, category, count)"
+                f" VALUES {placeholders}"
+                f" ON CONFLICT(discord_id, date, category)"
+                f" DO UPDATE SET count = discord_post_counts.count + excluded.count"
             ),
-            {'did': discord_id, 'dt': date, 'cat': category, 'cnt': count},
+            params,
         )
-        flushed += 1
 
-    # Optional names dict: { discord_id: display_name }
+    # Optional names dict: { discord_id: display_name } — bulk upsert
     from datetime import datetime, timezone
     names = body.get('names', {})
     if isinstance(names, dict):
         ts = datetime.now(timezone.utc).isoformat()
-        for discord_id, display_name in names.items():
-            discord_id = str(discord_id).strip()
-            display_name = str(display_name).strip()[:200]
-            if not discord_id or not display_name:
-                continue
+        valid_names = [
+            (str(did).strip(), str(name).strip()[:200])
+            for did, name in names.items()
+            if str(did).strip() and str(name).strip()
+        ]
+        if valid_names:
+            name_placeholders = ', '.join(f'(:did_{i}, :name_{i}, :ts)' for i in range(len(valid_names)))
+            name_params: dict = {'ts': ts}
+            for i, (did, name) in enumerate(valid_names):
+                name_params[f'did_{i}'] = did
+                name_params[f'name_{i}'] = name
             db.session.execute(
                 text(
-                    "INSERT INTO discord_display_names (discord_id, display_name, updated_at)"
-                    " VALUES (:did, :name, :ts)"
-                    " ON CONFLICT(discord_id)"
-                    " DO UPDATE SET display_name=excluded.display_name, updated_at=excluded.updated_at"
+                    f"INSERT INTO discord_display_names (discord_id, display_name, updated_at)"
+                    f" VALUES {name_placeholders}"
+                    f" ON CONFLICT(discord_id)"
+                    f" DO UPDATE SET display_name=excluded.display_name, updated_at=excluded.updated_at"
                 ),
-                {'did': discord_id, 'name': display_name, 'ts': ts},
+                name_params,
             )
 
     db.session.commit()
-    return jsonify({'ok': True, 'flushed': flushed})
+    return jsonify({'ok': True, 'flushed': len(valid)})
 
 
 @bp.route('/periods/recent', methods=['GET'])
