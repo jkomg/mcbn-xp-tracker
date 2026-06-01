@@ -16,7 +16,7 @@ import { CUBBY_CATEGORY_NAMES } from './cubbyChannels';
 
 const MESSAGES_PER_FETCH = 100;
 // Flush to API every this many accumulated entries
-const FLUSH_THRESHOLD = 500;
+const FLUSH_THRESHOLD = 200;
 // Pause between channels to avoid Discord request timeouts
 const CHANNEL_DELAY_MS = 500;
 // Pause between paginated batches within a single channel
