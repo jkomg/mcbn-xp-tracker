@@ -54,122 +54,124 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
     </div>
 )
 
-const CeremonyCard = ({
+const CeremonyRow = ({
     ceremony,
     canTake,
-    onTake
+    onTake,
 }: {
     ceremony: Ceremony
     canTake: boolean
     onTake: () => void
 }) => {
-    const [hovered, setHovered] = useState(false)
-    const isHighlighted = hovered && canTake
+    const [expanded, setExpanded] = useState(false)
     const prerequisiteLabel = getCeremonyPrerequisiteLabel(ceremony)
 
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                padding: "14px 16px",
-                borderRadius: 10,
-                border: `1px solid ${isHighlighted ? rgba(RAW_RED, 0.45) : "rgba(125, 91, 72, 0.25)"}`,
-                background: isHighlighted
-                    ? "linear-gradient(180deg, rgba(40, 14, 18, 0.85) 0%, rgba(20, 7, 10, 0.9) 100%)"
-                    : "linear-gradient(180deg, rgba(18, 13, 16, 0.55) 0%, rgba(8, 6, 8, 1) 100%)",
-                transition: "background 180ms ease, border-color 180ms ease",
-                marginBottom: 10
-            }}
-        >
-            <Group justify="space-between" align="flex-start" mb={6}>
+        <div style={{ borderBottom: "1px solid rgba(125, 91, 72, 0.15)", opacity: canTake ? 1 : 0.55 }}>
+            {/* Collapsed header */}
+            <button
+                onClick={() => setExpanded((e) => !e)}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left" as const,
+                }}
+            >
+                <Badge variant="light" color="pink" radius="sm" size="xs" style={{ flexShrink: 0 }}>
+                    lv {ceremony.level}
+                </Badge>
                 <Text
                     style={{
+                        flex: 1,
                         fontFamily: "Cinzel, Georgia, serif",
                         fontSize: "0.88rem",
                         fontWeight: 700,
                         color: canTake ? "rgba(244, 236, 232, 0.95)" : rgba(RAW_GREY, 0.54),
                         letterSpacing: "0.04em",
-                        flex: 1
                     }}
                 >
                     {ceremony.name}
                 </Text>
-                <Badge variant="light" color="pink" radius="sm" size="xs" style={{ flexShrink: 0 }}>
-                    lv {ceremony.level}
-                </Badge>
-            </Group>
+                {!canTake && (
+                    <Text
+                        style={{
+                            flexShrink: 0,
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: "0.72rem",
+                            color: "rgb(255, 112, 112)",
+                        }}
+                    >
+                        needs {prerequisiteLabel}
+                    </Text>
+                )}
+                <span style={{ color: "rgba(220, 210, 205, 0.45)", fontSize: "0.8rem", flexShrink: 0 }}>
+                    {expanded ? "▲" : "▼"}
+                </span>
+            </button>
 
-            <Text
-                style={{
-                    fontFamily: "Crimson Text, Georgia, serif",
-                    fontSize: "0.95rem",
-                    color: canTake ? rgba(RAW_GREY, 0.7) : rgba(RAW_GREY, 0.46),
-                    lineHeight: 1.45,
-                    marginBottom: 10,
-                    minHeight: "5.6rem"
-                }}
-            >
-                {upcase(ceremony.summary)}
-            </Text>
-            {!canTake ? (
-                <Text
-                    style={{
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: "0.78rem",
-                        color: "rgb(255, 112, 112)",
-                        fontWeight: 700,
-                        marginBottom: 10,
-                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.75)"
-                    }}
-                >
-                    Requires '{prerequisiteLabel}'
-                </Text>
-            ) : null}
+            {/* Expanded body */}
+            {expanded && (
+                <Box px={14} pb={14}>
+                    <Text
+                        style={{
+                            fontFamily: "Crimson Text, Georgia, serif",
+                            fontSize: "0.95rem",
+                            color: canTake ? rgba(RAW_GREY, 0.7) : rgba(RAW_GREY, 0.46),
+                            lineHeight: 1.45,
+                            marginBottom: 10,
+                        }}
+                    >
+                        {upcase(ceremony.summary)}
+                    </Text>
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "4px 16px",
-                    marginBottom: 12,
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    background: "rgba(255, 255, 255, 0.03)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)"
-                }}
-            >
-                <DetailRow label="Dice Pool" value={ceremony.dicePool} />
-                <DetailRow label="Time" value={ceremony.requiredTime} />
-                <DetailRow label="Requires" value={prerequisiteLabel} />
-                <DetailRow label="Rouse Checks" value={String(ceremony.rouseChecks)} />
-            </div>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "4px 16px",
+                            marginBottom: 12,
+                            padding: "8px 10px",
+                            borderRadius: 6,
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: "1px solid rgba(255, 255, 255, 0.05)",
+                        }}
+                    >
+                        <DetailRow label="Dice Pool" value={ceremony.dicePool} />
+                        <DetailRow label="Time" value={ceremony.requiredTime} />
+                        <DetailRow label="Requires" value={prerequisiteLabel} />
+                        <DetailRow label="Rouse Checks" value={String(ceremony.rouseChecks)} />
+                    </div>
 
-            <Button
-                size="xs"
-                variant="outline"
-                color="red"
-                fullWidth
-                mt="auto"
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
-                disabled={!canTake}
-                styles={{
-                    root: {
-                        borderColor: isHighlighted ? rgba(RAW_RED, 0.85) : rgba(RAW_RED, 0.4),
-                        background: isHighlighted ? rgba(RAW_RED, 0.24) : rgba(RAW_RED, 0.08),
-                        letterSpacing: "0.14em",
-                        textTransform: "uppercase",
-                        fontFamily: "Cinzel, Georgia, serif",
-                        fontSize: "0.72rem",
-                        cursor: canTake ? "pointer" : "not-allowed"
-                    }
-                }}
-                onClick={onTake}
-            >
-                Take {ceremony.name}
-            </Button>
+                    <Group justify="flex-end">
+                        <Button
+                            size="xs"
+                            variant="outline"
+                            color="red"
+                            disabled={!canTake}
+                            styles={{
+                                root: {
+                                    borderColor: rgba(RAW_RED, 0.5),
+                                    background: rgba(RAW_RED, 0.08),
+                                    letterSpacing: "0.12em",
+                                    textTransform: "uppercase",
+                                    fontFamily: "Cinzel, Georgia, serif",
+                                    fontSize: "0.72rem",
+                                    cursor: canTake ? "pointer" : "not-allowed",
+                                },
+                            }}
+                            onClick={onTake}
+                        >
+                            Take {ceremony.name}
+                        </Button>
+                    </Group>
+                </Box>
+            )}
         </div>
     )
 }
@@ -240,11 +242,10 @@ const CeremoniesPicker = ({ character, setCharacter, nextStep }: CeremoniesPicke
 
                         <div
                             style={{
-                                display: "grid",
-                                gridTemplateColumns: phoneScreen ? "1fr" : "1fr 1fr",
-                                alignItems: "stretch",
-                                gap: 12,
-                                columnGap: 12
+                                borderRadius: 8,
+                                border: "1px solid rgba(125, 91, 72, 0.2)",
+                                background: "rgba(18, 13, 16, 0.55)",
+                                overflow: "hidden",
                             }}
                         >
                             {levelOneCeremonies.map((ceremony) => {
@@ -252,9 +253,8 @@ const CeremoniesPicker = ({ character, setCharacter, nextStep }: CeremoniesPicke
                                     character,
                                     ceremony
                                 )
-
                                 return (
-                                    <CeremonyCard
+                                    <CeremonyRow
                                         key={ceremony.name}
                                         ceremony={ceremony}
                                         canTake={canTake}

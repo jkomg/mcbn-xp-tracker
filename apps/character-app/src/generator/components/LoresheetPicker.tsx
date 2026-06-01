@@ -103,6 +103,16 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
         cc.getRestrictions().then((r) => setBannedIds(new Set(r.loresheets))).catch(() => {})
     }, [])
 
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+    const toggleExpanded = (id: string) => {
+        setExpandedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
     const visibleLoresheets = LORESHEETS.filter(
         (ls) => isLoresheetAvailable(ls, clan) && !bannedIds.has(ls.id),
     )
@@ -225,28 +235,41 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                             margin: "0 auto",
                         }}
                     >
-                        {visibleLoresheets.map((loresheet) => (
+                        {visibleLoresheets.map((loresheet) => {
+                            const isExpanded = expandedIds.has(loresheet.id)
+                            const purchasedCount = (character.loresheet_purchases ?? []).filter(
+                                (p) => p.loresheet_id === loresheet.id,
+                            ).length
+
+                            return (
                             <div
                                 key={loresheet.id}
                                 style={{
                                     borderRadius: 10,
-                                    border: `1px solid ${C_BORDER}`,
+                                    border: `1px solid ${purchasedCount > 0 ? rgba(RAW_RED, 0.35) : C_BORDER}`,
                                     background: C_CARD,
                                     overflow: "hidden",
                                 }}
                             >
-                                {/* Loresheet header */}
-                                <div
+                                {/* Loresheet header — clickable toggle */}
+                                <button
+                                    onClick={() => toggleExpanded(loresheet.id)}
                                     style={{
-                                        padding: "14px 18px 12px",
-                                        borderBottom: `1px solid rgba(125, 91, 72, 0.2)`,
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         gap: 12,
+                                        width: "100%",
+                                        padding: "14px 18px 12px",
+                                        background: "transparent",
+                                        border: "none",
+                                        borderBottom: isExpanded ? `1px solid rgba(125, 91, 72, 0.2)` : "none",
+                                        cursor: "pointer",
+                                        textAlign: "left",
+                                        fontFamily: "inherit",
                                     }}
                                 >
-                                    <div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
                                         <p
                                             style={{
                                                 margin: 0,
@@ -274,26 +297,49 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                             </p>
                                         )}
                                     </div>
-                                    {/* Source badge */}
-                                    <span
-                                        style={{
-                                            flexShrink: 0,
-                                            padding: "3px 8px",
-                                            borderRadius: 4,
-                                            border: `1px solid rgba(125, 91, 72, 0.3)`,
-                                            fontFamily: FONT_UI,
-                                            fontSize: "0.62rem",
-                                            letterSpacing: "0.1em",
-                                            textTransform: "uppercase",
-                                            color: C_MUTED,
-                                        }}
-                                    >
-                                        {sourceLabel(loresheet.source)}
-                                    </span>
-                                </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                        {/* Purchased dots badge */}
+                                        {purchasedCount > 0 && (
+                                            <span
+                                                style={{
+                                                    padding: "2px 8px",
+                                                    borderRadius: 4,
+                                                    border: `1px solid ${rgba(RAW_RED, 0.45)}`,
+                                                    background: rgba(RAW_RED, 0.12),
+                                                    fontFamily: FONT_UI,
+                                                    fontSize: "0.62rem",
+                                                    letterSpacing: "0.1em",
+                                                    textTransform: "uppercase",
+                                                    color: C_RED_DIM,
+                                                }}
+                                            >
+                                                {purchasedCount} dot{purchasedCount !== 1 ? "s" : ""}
+                                            </span>
+                                        )}
+                                        {/* Source badge */}
+                                        <span
+                                            style={{
+                                                padding: "3px 8px",
+                                                borderRadius: 4,
+                                                border: `1px solid rgba(125, 91, 72, 0.3)`,
+                                                fontFamily: FONT_UI,
+                                                fontSize: "0.62rem",
+                                                letterSpacing: "0.1em",
+                                                textTransform: "uppercase",
+                                                color: C_MUTED,
+                                            }}
+                                        >
+                                            {sourceLabel(loresheet.source)}
+                                        </span>
+                                        {/* Chevron */}
+                                        <span style={{ color: "rgba(220, 210, 205, 0.45)", fontSize: "0.8rem" }}>
+                                            {isExpanded ? "▲" : "▼"}
+                                        </span>
+                                    </div>
+                                </button>
 
-                                {/* Dots */}
-                                <div style={{ padding: "8px 0" }}>
+                                {/* Dots — only when expanded */}
+                                {isExpanded && <div style={{ padding: "8px 0" }}>
                                     {loresheet.dots.map((dotEntry) => {
                                         const purchased = isPurchased(character, loresheet.id, dotEntry.dot)
                                         const dotAvailable = isDotAvailable(dotEntry, clan)
@@ -431,9 +477,10 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                             </button>
                                         )
                                     })}
-                                </div>
+                                </div>}
                             </div>
-                        ))}
+                        )
+                        })}
                     </div>
 
                     {/* Continue button */}

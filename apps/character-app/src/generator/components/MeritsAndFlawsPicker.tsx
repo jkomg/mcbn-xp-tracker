@@ -169,71 +169,73 @@ const MeritOrFlawCard = memo(
             <Box
                 key={lineKey}
                 style={{
-                    padding: phoneScreen ? "12px" : "14px 16px",
-                    borderRadius: 14,
-                    border: `1px solid ${alreadyPickedItem ? selectedBorder : baseBorder}`,
-                    background: alreadyPickedItem ? selectedBg : baseBg,
+                    padding: phoneScreen ? "8px 10px" : "9px 12px",
+                    borderRadius: 5,
+                    borderLeft: alreadyPickedItem ? `3px solid ${accentColor}` : "3px solid transparent",
+                    borderBottom: `1px solid ${alreadyPickedItem ? selectedBorder : baseBorder}`,
+                    background: alreadyPickedItem ? selectedBg : "transparent",
                     opacity: isExcluded ? 0.5 : 1,
-                    transition: "background 180ms ease, border-color 180ms ease"
+                    transition: "background 180ms ease",
                 }}
             >
-                <Group justify="space-between" align="flex-start" gap="sm" mb={6}>
+                <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
                     <Text
                         style={{
                             fontFamily: "Cinzel, Georgia, serif",
-                            fontSize: phoneScreen ? "0.88rem" : "0.94rem",
+                            fontSize: phoneScreen ? "0.84rem" : "0.88rem",
                             fontWeight: 600,
                             lineHeight: 1.3,
                             color: alreadyPickedItem ? accentColor : "rgba(244, 236, 232, 0.94)",
-                            flex: 1
+                            flex: 1,
+                            minWidth: 0,
                         }}
                     >
                         {icon} &nbsp;<span>{meritOrFlaw.name}</span>
                     </Text>
+                    <Group gap={4} style={{ flexShrink: 0 }}>
+                        {meritOrFlaw.cost.map((i) => createButton(i))}
+                        {alreadyPickedItem ? (
+                            <Button
+                                onClick={() => {
+                                    setPickedMeritsAndFlaws((prev) =>
+                                        prev.filter((m) => m.name !== meritOrFlaw.name)
+                                    )
+                                    if (isThinbloodFlaw(meritOrFlaw.name)) {
+                                        setRemainingThinbloodMeritPoints((prev) => prev - 1)
+                                    } else if (isThinbloodMerit(meritOrFlaw.name)) {
+                                        setRemainingThinbloodMeritPoints((prev) => prev + 1)
+                                    } else if (type === "flaw") {
+                                        setRemainingFlaws((prev) => prev + cost)
+                                    } else {
+                                        setRemainingMerits((prev) => prev + cost)
+                                    }
+                                }}
+                                size="xs"
+                                variant="subtle"
+                                color="yellow"
+                                styles={{ root: { paddingLeft: 6, paddingRight: 6 } }}
+                            >
+                                ×
+                            </Button>
+                        ) : null}
+                    </Group>
                 </Group>
 
                 <Text
                     style={{
                         fontFamily: "Crimson Text, Georgia, serif",
-                        fontSize: phoneScreen ? "0.95rem" : "1rem",
-                        lineHeight: 1.45,
+                        fontSize: phoneScreen ? "0.88rem" : "0.92rem",
+                        lineHeight: 1.4,
                         color: meritInPredatorType
                             ? "rgba(212, 176, 105, 0.88)"
                             : isExcluded
-                              ? rgba(RAW_GREY, 0.72)
-                              : rgba(RAW_GREY, 0.88)
+                              ? rgba(RAW_GREY, 0.6)
+                              : rgba(RAW_GREY, 0.72),
+                        marginTop: 2,
                     }}
                 >
                     {summaryText}
                 </Text>
-
-                <Group gap={6} mt={10}>
-                    {meritOrFlaw.cost.map((i) => createButton(i))}
-                    {alreadyPickedItem ? (
-                        <Button
-                            onClick={() => {
-                                setPickedMeritsAndFlaws((prev) =>
-                                    prev.filter((m) => m.name !== meritOrFlaw.name)
-                                )
-                                if (isThinbloodFlaw(meritOrFlaw.name)) {
-                                    setRemainingThinbloodMeritPoints((prev) => prev - 1)
-                                } else if (isThinbloodMerit(meritOrFlaw.name)) {
-                                    setRemainingThinbloodMeritPoints((prev) => prev + 1)
-                                } else if (type === "flaw") {
-                                    setRemainingFlaws((prev) => prev + cost)
-                                } else {
-                                    setRemainingMerits((prev) => prev + cost)
-                                }
-                            }}
-                            size="xs"
-                            variant="subtle"
-                            color="yellow"
-                            styles={{ root: { paddingLeft: 8, paddingRight: 8 } }}
-                        >
-                            Unpick
-                        </Button>
-                    ) : null}
-                </Group>
             </Box>
         )
 

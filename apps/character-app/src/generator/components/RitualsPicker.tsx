@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Group, ScrollArea, Stack, Text } from "@mantine/core"
+import { Badge, Box, Button, Group, ScrollArea, Text } from "@mantine/core"
 import { RAW_GOLD, RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { useEffect, useState } from "react"
 import ReactGA from "react-ga4"
@@ -24,104 +24,101 @@ type RitualsPickerProps = {
 
 const GOLD_LABEL_COLOR = rgba(RAW_GOLD, 1)
 
-const RitualCard = ({ ritual, onTake }: { ritual: Ritual; onTake: () => void }) => {
-    const [hovered, setHovered] = useState(false)
+const RitualRow = ({ ritual, onTake }: { ritual: Ritual; onTake: () => void }) => {
+    const [expanded, setExpanded] = useState(false)
 
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                padding: "14px 16px",
-                borderRadius: 10,
-                border: `1px solid ${hovered ? rgba(RAW_RED, 0.45) : "rgba(125, 91, 72, 0.25)"}`,
-                background: hovered
-                    ? "linear-gradient(180deg, rgba(40, 14, 18, 0.85) 0%, rgba(20, 7, 10, 0.9) 100%)"
-                    : "linear-gradient(180deg, rgba(18, 13, 16, 0.55) 0%, rgba(8, 6, 8, 1) 100%)",
-                transition: "background 180ms ease, border-color 180ms ease",
-                marginBottom: 10
-            }}
-        >
-            <Group justify="space-between" align="flex-start" mb={6}>
+        <div style={{ borderBottom: "1px solid rgba(125, 91, 72, 0.15)" }}>
+            {/* Collapsed header */}
+            <button
+                onClick={() => setExpanded((e) => !e)}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left" as const,
+                }}
+            >
+                <Badge variant="light" color="pink" radius="sm" size="xs" style={{ flexShrink: 0 }}>
+                    lv {ritual.level}
+                </Badge>
                 <Text
                     style={{
+                        flex: 1,
                         fontFamily: "Cinzel, Georgia, serif",
                         fontSize: "0.88rem",
                         fontWeight: 700,
                         color: "rgba(244, 236, 232, 0.95)",
                         letterSpacing: "0.04em",
-                        flex: 1
                     }}
                 >
                     {ritual.name}
                 </Text>
-                <Badge variant="light" color="pink" radius="sm" size="xs" style={{ flexShrink: 0 }}>
-                    lv {ritual.level}
-                </Badge>
-            </Group>
+                <span style={{ color: "rgba(220, 210, 205, 0.45)", fontSize: "0.8rem", flexShrink: 0 }}>
+                    {expanded ? "▲" : "▼"}
+                </span>
+            </button>
 
-            <Text
-                style={{
-                    fontFamily: "Crimson Text, Georgia, serif",
-                    fontSize: "0.95rem",
-                    color: rgba(RAW_GREY, 0.7),
-                    lineHeight: 1.45,
-                    marginBottom: 10,
-                    minHeight: "5.6rem"
-                }}
-            >
-                {upcase(ritual.summary)}
-            </Text>
+            {/* Expanded body */}
+            {expanded && (
+                <Box px={14} pb={14}>
+                    <Text
+                        style={{
+                            fontFamily: "Crimson Text, Georgia, serif",
+                            fontSize: "0.95rem",
+                            color: rgba(RAW_GREY, 0.7),
+                            lineHeight: 1.45,
+                            marginBottom: 10,
+                        }}
+                    >
+                        {upcase(ritual.summary)}
+                    </Text>
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "4px 16px",
-                    marginBottom: 12,
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    background: "rgba(255, 255, 255, 0.03)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)"
-                }}
-            >
-                <DetailRow label="Dice Pool" value={ritual.dicePool} />
-                <DetailRow label="Time" value={ritual.requiredTime} />
-                <DetailRow label="Ingredients" value={ritual.ingredients} />
-                <DetailRow label="Rouse Checks" value={String(ritual.rouseChecks)} />
-            </div>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "4px 16px",
+                            marginBottom: 12,
+                            padding: "8px 10px",
+                            borderRadius: 6,
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: "1px solid rgba(255, 255, 255, 0.05)",
+                        }}
+                    >
+                        <DetailRow label="Dice Pool" value={ritual.dicePool} />
+                        <DetailRow label="Time" value={ritual.requiredTime} />
+                        <DetailRow label="Ingredients" value={ritual.ingredients} />
+                        <DetailRow label="Rouse Checks" value={String(ritual.rouseChecks)} />
+                    </div>
 
-            <Button
-                size="xs"
-                variant="outline"
-                color="red"
-                fullWidth
-                mt="auto"
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
-                styles={{
-                    root: {
-                        borderColor: hovered ? rgba(RAW_RED, 0.85) : rgba(RAW_RED, 0.4),
-                        background: hovered ? rgba(RAW_RED, 0.24) : rgba(RAW_RED, 0.08),
-                        boxShadow: hovered
-                            ? `0 0 0 1px ${rgba(RAW_RED, 0.22)}, 0 0 18px ${rgba(RAW_RED, 0.18)}, 0 10px 24px ${rgba(RAW_RED, 0.18)}`
-                            : "none",
-                        transform: hovered
-                            ? "translateY(-1px) scale(1.01)"
-                            : "translateY(0) scale(1)",
-                        transition:
-                            "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
-                        letterSpacing: "0.14em",
-                        textTransform: "uppercase",
-                        fontFamily: "Cinzel, Georgia, serif",
-                        fontSize: "0.72rem"
-                    }
-                }}
-                onClick={onTake}
-            >
-                Take {ritual.name}
-            </Button>
+                    <Group justify="flex-end">
+                        <Button
+                            size="xs"
+                            variant="outline"
+                            color="red"
+                            styles={{
+                                root: {
+                                    borderColor: rgba(RAW_RED, 0.5),
+                                    background: rgba(RAW_RED, 0.08),
+                                    letterSpacing: "0.12em",
+                                    textTransform: "uppercase",
+                                    fontFamily: "Cinzel, Georgia, serif",
+                                    fontSize: "0.72rem",
+                                },
+                            }}
+                            onClick={onTake}
+                        >
+                            Take {ritual.name}
+                        </Button>
+                    </Group>
+                </Box>
+            )}
         </div>
     )
 }
@@ -200,15 +197,14 @@ const RitualsPicker = ({ character, setCharacter, nextStep }: RitualsPickerProps
 
                         <div
                             style={{
-                                display: "grid",
-                                gridTemplateColumns: phoneScreen ? "1fr" : "1fr 1fr",
-                                alignItems: "stretch",
-                                gap: 12,
-                                columnGap: 12
+                                borderRadius: 8,
+                                border: "1px solid rgba(125, 91, 72, 0.2)",
+                                background: "rgba(18, 13, 16, 0.55)",
+                                overflow: "hidden",
                             }}
                         >
                             {Rituals.map((ritual) => (
-                                <RitualCard
+                                <RitualRow
                                     key={ritual.name}
                                     ritual={ritual}
                                     onTake={() => handleTake(ritual)}
