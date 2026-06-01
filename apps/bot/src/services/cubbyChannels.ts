@@ -37,10 +37,20 @@ function isNotificationChannel(channel: GuildBasedChannel | null | undefined): c
 export async function findCubbyChannel(guild: Guild, characterName: string): Promise<NotificationChannel | null> {
   const target = normalizeChannelName(characterName);
   const channels = await guild.channels.fetch();
+
+  // Restrict to cubby categories (same logic as buildCubbyChannelMap).
+  const cubbyParentIds = new Set<string>();
   for (const channel of channels.values()) {
-    if (!isNotificationChannel(channel)) {
-      continue;
+    if (channel && channel.type === ChannelType.GuildCategory) {
+      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+        cubbyParentIds.add(channel.id);
+      }
     }
+  }
+
+  for (const channel of channels.values()) {
+    if (!isNotificationChannel(channel)) continue;
+    if (!channel.parentId || !cubbyParentIds.has(channel.parentId)) continue;
     if (normalizeChannelName(channel.name) === target) {
       return channel;
     }
@@ -51,9 +61,9 @@ export async function findCubbyChannel(guild: Guild, characterName: string): Pro
     return null;
   }
   for (const thread of activeThreads.threads.values()) {
-    if (!isNotificationChannel(thread)) {
-      continue;
-    }
+    if (!isNotificationChannel(thread)) continue;
+    const parent = channels.get(thread.parentId ?? '');
+    if (!parent?.parentId || !cubbyParentIds.has(parent.parentId)) continue;
     if (normalizeChannelName(thread.name) === target) {
       return thread;
     }
