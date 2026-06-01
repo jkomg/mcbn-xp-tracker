@@ -257,21 +257,27 @@ void applyStartupConfigOverrides().then(() => {
   client.once('ready', async () => {
     logEvent('info', 'bot_ready', { userTag: client.user?.tag });
     await registerCommands(client);
+
+    // Start immediately
     configSyncWorker.start();
-    botHeartbeatService.start();
     backgroundBlankReleaseService.start();
     botLogForwarder.start();
-    reviewNotifier.start();
     autoPeriodCreator.start();
     autoPeriodCloser.start();
-    submissionNotifier.start();
     claimReminderService.start();
     passageOfTimeService.start();
     sheetsReconcileService.start();
     wikiSyncScheduler.start();
     cubbySyncWorker.start();
-    characterSubmissionNotifier.start();
     discordActivityTracker?.start();
+
+    reviewNotifier.start();
+    submissionNotifier.start();
+    characterSubmissionNotifier.start();
+    // Stagger heartbeat relative to configSyncWorker so they don't fire at
+    // the same second and compete for connections during backfill scans.
+    // Notifiers start immediately so their cursor bootstrap isn't delayed.
+    setTimeout(() => botHeartbeatService.start(), 15_000);
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,

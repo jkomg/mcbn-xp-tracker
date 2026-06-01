@@ -21,10 +21,28 @@ const FLUSH_THRESHOLD = 500;
 const CHANNEL_DELAY_MS = 500;
 // Pause between paginated batches within a single channel
 const BATCH_DELAY_MS = 300;
+// Per-batch retry: attempts and base backoff before failing the whole channel
+const BATCH_MAX_RETRIES = 3;
+const BATCH_RETRY_BASE_MS = 3_000; // 3s, 6s
 // Retry delays (ms) for channels that abort — 3 attempts after the main pass
-const RETRY_DELAYS_MS = [3_000, 8_000, 15_000];
+const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+async function fetchBatch(
+  channel: TextChannel | AnyThreadChannel,
+  options: { limit: number; before?: string },
+): Promise<Collection<Snowflake, Message>> {
+  for (let attempt = 1; attempt <= BATCH_MAX_RETRIES; attempt++) {
+    try {
+      return await channel.messages.fetch(options);
+    } catch (err) {
+      if (attempt === BATCH_MAX_RETRIES) throw err;
+      await sleep(attempt * BATCH_RETRY_BASE_MS);
+    }
+  }
+  throw new Error('unreachable');
+}
 
 type ActivityEntry = { discord_id: string; date: string; category: ActivityCategory; count: number };
 
@@ -57,7 +75,7 @@ async function scanChannel(
   let before: string | undefined = undefined;
 
   while (true) {
-    const batch: Collection<Snowflake, Message> = await channel.messages.fetch({ limit: MESSAGES_PER_FETCH, ...(before ? { before } : {}) });
+    const batch: Collection<Snowflake, Message> = await fetchBatch(channel, { limit: MESSAGES_PER_FETCH, ...(before ? { before } : {}) });
     if (batch.size === 0) break;
 
     let hitFloor = false;
