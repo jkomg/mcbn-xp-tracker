@@ -48,20 +48,15 @@ export function cancelActivityBackfill(): boolean {
   return true;
 }
 
-class ScanCancelledError extends Error {
-  constructor() { super('Scan cancelled by user'); }
-}
 
 async function fetchBatch(
   channel: TextChannel | AnyThreadChannel,
   options: { limit: number; before?: string },
 ): Promise<Collection<Snowflake, Message>> {
   for (let attempt = 1; attempt <= BATCH_MAX_RETRIES; attempt++) {
-    if (_cancelRequested) throw new ScanCancelledError();
     try {
       return await channel.messages.fetch(options);
     } catch (err) {
-      if (err instanceof ScanCancelledError) throw err;
       if (attempt === BATCH_MAX_RETRIES) throw err;
       await sleep(attempt * BATCH_RETRY_BASE_MS);
     }
@@ -157,6 +152,9 @@ export async function runActivityBackfill(
   onProgress?: (msg: string) => void,
   categoryFilter?: ActivityCategory,
 ): Promise<{ channelsScanned: number; messagesScanned: number; usersFound: number; cancelled: boolean }> {
+  if (_isRunning) {
+    throw new Error('A backfill scan is already running. Use /lasombra cancel-scan to stop it first.');
+  }
   _cancelRequested = false;
   _isRunning = true;
   try {
@@ -272,7 +270,6 @@ async function _runActivityBackfillInner(
       }
       return true;
     } catch (err) {
-      if (err instanceof ScanCancelledError) throw err;
       // chanCountMap is discarded — shared countMap is untouched
       logEvent('warn', 'activity_backfill_channel_failed', {
         channelId: channel.id,
@@ -286,22 +283,14 @@ async function _runActivityBackfillInner(
   // Main pass
   let failed: ScanItem[] = [];
   let cancelled = false;
-  try {
-    for (const item of toProcess) {
-      if (_cancelRequested) {
-        cancelled = true;
-        break;
-      }
-      const ok = await scanOne(item);
-      if (!ok) failed.push(item);
-      if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
-    }
-  } catch (err) {
-    if (err instanceof ScanCancelledError) {
+  for (const item of toProcess) {
+    if (_cancelRequested) {
       cancelled = true;
-    } else {
-      throw err;
+      break;
     }
+    const ok = await scanOne(item);
+    if (!ok) failed.push(item);
+    if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
   }
 
   // Retry passes with backoff (skipped if cancelled)

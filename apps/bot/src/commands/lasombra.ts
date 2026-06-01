@@ -381,6 +381,10 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       await interaction.reply({ content: 'Must be run in the server.', ephemeral: true });
       return;
     }
+    if (isActivityBackfillRunning()) {
+      await interaction.reply({ content: 'A scan is already running. Use `/lasombra cancel-scan` to stop it first.', ephemeral: true });
+      return;
+    }
 
     await interaction.deferReply({ ephemeral: true });
 
