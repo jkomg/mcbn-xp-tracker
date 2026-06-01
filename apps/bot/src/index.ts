@@ -271,12 +271,13 @@ void applyStartupConfigOverrides().then(() => {
     cubbySyncWorker.start();
     discordActivityTracker?.start();
 
-    // Stagger interval-based HTTP workers so they don't all fire at the same
-    // second and saturate the connection pool (causes backfill scan aborts).
-    setTimeout(() => botHeartbeatService.start(), 10_000);
-    setTimeout(() => reviewNotifier.start(), 20_000);
-    setTimeout(() => submissionNotifier.start(), 30_000);
-    setTimeout(() => characterSubmissionNotifier.start(), 40_000);
+    reviewNotifier.start();
+    submissionNotifier.start();
+    characterSubmissionNotifier.start();
+    // Stagger heartbeat relative to configSyncWorker so they don't fire at
+    // the same second and compete for connections during backfill scans.
+    // Notifiers start immediately so their cursor bootstrap isn't delayed.
+    setTimeout(() => botHeartbeatService.start(), 15_000);
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,
