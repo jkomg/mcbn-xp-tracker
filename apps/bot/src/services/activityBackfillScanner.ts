@@ -29,14 +29,39 @@ const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
+// ── Cancellation ────────────────────────────────────────────────────────────
+let _cancelRequested = false;
+let _isRunning = false;
+
+/** Returns true if a backfill scan is currently running. */
+export function isActivityBackfillRunning(): boolean {
+  return _isRunning;
+}
+
+/**
+ * Signal the running backfill to stop after the current channel completes.
+ * Returns true if a scan was running, false if nothing was running.
+ */
+export function cancelActivityBackfill(): boolean {
+  if (!_isRunning) return false;
+  _cancelRequested = true;
+  return true;
+}
+
+class ScanCancelledError extends Error {
+  constructor() { super('Scan cancelled by user'); }
+}
+
 async function fetchBatch(
   channel: TextChannel | AnyThreadChannel,
   options: { limit: number; before?: string },
 ): Promise<Collection<Snowflake, Message>> {
   for (let attempt = 1; attempt <= BATCH_MAX_RETRIES; attempt++) {
+    if (_cancelRequested) throw new ScanCancelledError();
     try {
       return await channel.messages.fetch(options);
     } catch (err) {
+      if (err instanceof ScanCancelledError) throw err;
       if (attempt === BATCH_MAX_RETRIES) throw err;
       await sleep(attempt * BATCH_RETRY_BASE_MS);
     }
@@ -131,7 +156,25 @@ export async function runActivityBackfill(
   untilDate: string,
   onProgress?: (msg: string) => void,
   categoryFilter?: ActivityCategory,
-): Promise<{ channelsScanned: number; messagesScanned: number; usersFound: number }> {
+): Promise<{ channelsScanned: number; messagesScanned: number; usersFound: number; cancelled: boolean }> {
+  _cancelRequested = false;
+  _isRunning = true;
+  try {
+    return await _runActivityBackfillInner(guild, adapter, sinceDate, untilDate, onProgress, categoryFilter);
+  } finally {
+    _isRunning = false;
+    _cancelRequested = false;
+  }
+}
+
+async function _runActivityBackfillInner(
+  guild: Guild,
+  adapter: TrackerAdapter,
+  sinceDate: string,
+  untilDate: string,
+  onProgress?: (msg: string) => void,
+  categoryFilter?: ActivityCategory,
+): Promise<{ channelsScanned: number; messagesScanned: number; usersFound: number; cancelled: boolean }> {
   const log = (msg: string) => {
     logEvent('info', 'activity_backfill', { msg });
     onProgress?.(msg);
@@ -229,6 +272,7 @@ export async function runActivityBackfill(
       }
       return true;
     } catch (err) {
+      if (err instanceof ScanCancelledError) throw err;
       // chanCountMap is discarded — shared countMap is untouched
       logEvent('warn', 'activity_backfill_channel_failed', {
         channelId: channel.id,
@@ -241,19 +285,34 @@ export async function runActivityBackfill(
 
   // Main pass
   let failed: ScanItem[] = [];
-  for (const item of toProcess) {
-    const ok = await scanOne(item);
-    if (!ok) failed.push(item);
-    if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
+  let cancelled = false;
+  try {
+    for (const item of toProcess) {
+      if (_cancelRequested) {
+        cancelled = true;
+        break;
+      }
+      const ok = await scanOne(item);
+      if (!ok) failed.push(item);
+      if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
+    }
+  } catch (err) {
+    if (err instanceof ScanCancelledError) {
+      cancelled = true;
+    } else {
+      throw err;
+    }
   }
 
-  // Retry passes with backoff
-  for (let attempt = 0; attempt < RETRY_DELAYS_MS.length && failed.length > 0; attempt++) {
+  // Retry passes with backoff (skipped if cancelled)
+  for (let attempt = 0; !cancelled && attempt < RETRY_DELAYS_MS.length && failed.length > 0; attempt++) {
+    if (_cancelRequested) { cancelled = true; break; }
     const delay = RETRY_DELAYS_MS[attempt];
     log(`Retrying ${failed.length} failed channel(s) (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length}, waiting ${delay / 1000}s)…`);
     await sleep(delay);
     const stillFailed: ScanItem[] = [];
     for (const item of failed) {
+      if (_cancelRequested) { cancelled = true; break; }
       const ok = await scanOne(item);
       if (!ok) stillFailed.push(item);
       if (CHANNEL_DELAY_MS > 0) await sleep(CHANNEL_DELAY_MS);
@@ -261,19 +320,24 @@ export async function runActivityBackfill(
     failed = stillFailed;
   }
 
-  if (failed.length > 0) {
+  if (!cancelled && failed.length > 0) {
     const names = failed.map(f => (f.channel as { name?: string }).name ?? f.channel.id).join(', ');
     log(`Warning: ${failed.length} channel(s) could not be scanned after all retries: ${names}`);
   }
 
-  // Final flush
+  // Final flush — always flush whatever was accumulated, even on cancel
   const finalEntries = countMapToEntries(countMap);
   if (finalEntries.length > 0) {
     for (const e of finalEntries) allDiscordIds.add(e.discord_id);
     await adapter.recordDiscordActivity(finalEntries, Object.fromEntries(nameMap));
+    if (cancelled) log(`Flushed ${finalEntries.length} partial entries before stopping.`);
   }
 
   const skipped = failed.length;
-  log(`Done: ${channelsScanned} channels, ${totalMessages} messages, ${allDiscordIds.size} users${skipped > 0 ? `, ${skipped} channel(s) skipped` : ''}`);
-  return { channelsScanned, messagesScanned: totalMessages, usersFound: allDiscordIds.size };
+  if (cancelled) {
+    log(`Cancelled: ${channelsScanned} channels scanned, ${totalMessages} messages, ${allDiscordIds.size} users (partial data saved)`);
+  } else {
+    log(`Done: ${channelsScanned} channels, ${totalMessages} messages, ${allDiscordIds.size} users${skipped > 0 ? `, ${skipped} channel(s) skipped` : ''}`);
+  }
+  return { channelsScanned, messagesScanned: totalMessages, usersFound: allDiscordIds.size, cancelled };
 }

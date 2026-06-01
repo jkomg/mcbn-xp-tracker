@@ -19,7 +19,7 @@ import { buildCubbyChannelMap, getChannelsInCubbyCategories, normalizeChannelNam
 import { CubbySyncWorker } from '../services/cubbySyncWorker';
 import { errorToMessage, logEvent } from '../logger';
 import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../approveWizard';
-import { runActivityBackfill } from '../services/activityBackfillScanner';
+import { runActivityBackfill, cancelActivityBackfill, isActivityBackfillRunning } from '../services/activityBackfillScanner';
 import type { ActivityCategory } from '../services/discordActivityCategories';
 import { startEditWizard } from '../editWizard';
 
@@ -110,6 +110,11 @@ export const data = new SlashCommandBuilder()
             { name: 'Cubby', value: 'cubby' },
           ),
       ),
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('cancel-scan')
+      .setDescription('Cancel a running scan-activity backfill (staff only)'),
   )
   .addSubcommand((s) =>
     s
@@ -436,13 +441,41 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
         undefined,
         categoryOpt || undefined,
       );
-      await interaction.editReply(
-        `Scan complete for **(${scanLabel})**${categoryLabel}.\n` +
-        `Channels scanned: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
-        `Results are now visible on the Reports page.`,
-      );
+      if (result.cancelled) {
+        await interaction.editReply(
+          `Scan **cancelled** for **(${scanLabel})**${categoryLabel}.\n` +
+          `Channels scanned before cancel: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
+          `Partial data has been saved.`,
+        );
+      } else {
+        await interaction.editReply(
+          `Scan complete for **(${scanLabel})**${categoryLabel}.\n` +
+          `Channels scanned: **${result.channelsScanned}** | Messages counted: **${result.messagesScanned}** | Unique users: **${result.usersFound}**\n` +
+          `Results are now visible on the Reports page.`,
+        );
+      }
     } catch (err) {
       await interaction.editReply(`Scan failed: ${errorToMessage(err)}`);
+    }
+    return;
+  }
+
+  if (sub === 'cancel-scan') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    const wasRunning = cancelActivityBackfill();
+    if (wasRunning) {
+      await interaction.reply({
+        content: 'Cancel signal sent. The scan will stop after the current channel finishes and flush any partial data.',
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: 'No scan is currently running.',
+        ephemeral: true,
+      });
     }
     return;
   }
