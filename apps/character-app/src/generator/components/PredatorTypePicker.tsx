@@ -1,4 +1,4 @@
-import { Box, Button, ScrollArea, SimpleGrid, Stack, Text } from "@mantine/core"
+import { Box, Button, ScrollArea, Stack, Text } from "@mantine/core"
 import { RAW_GRAPE, RAW_GREY, RAW_RED, rgba } from "~/theme/colors"
 import { useDisclosure } from "@mantine/hooks"
 import { useEffect, useState } from "react"
@@ -100,7 +100,7 @@ const PredatorTypePicker = ({ character, setCharacter, nextStep }: PredatorTypeP
     const [specialty, setSpecialty] = useState("")
     const [discipline, setDiscipline] = useState("")
 
-    const createCard = (predatorTypeName: PredatorTypeName, meta: CategoryMeta) => {
+    const createRow = (predatorTypeName: PredatorTypeName, meta: CategoryMeta) => {
         const clanDisabled =
             clans[character.clan]?.excludedPredatorTypes?.includes(predatorTypeName) ?? false
         const isDisabled = clanDisabled || isThinBlood
@@ -121,95 +121,84 @@ const PredatorTypePicker = ({ character, setCharacter, nextStep }: PredatorTypeP
                     openModal()
                 }}
                 onMouseEnter={(e) => {
-                    if (!isDisabled && !isSelected) {
-                        e.currentTarget.style.background = meta.bgActiveColor
-                        e.currentTarget.style.borderColor = meta.borderColor
-                        e.currentTarget.style.transform = "translateY(-2px)"
-                    }
+                    if (!isDisabled && !isSelected)
+                        e.currentTarget.style.background = "rgba(255,255,255,0.04)"
                 }}
                 onMouseLeave={(e) => {
-                    e.currentTarget.style.background = isSelected
-                        ? meta.bgActiveColor
-                        : meta.bgColor
-                    e.currentTarget.style.borderColor = isSelected
-                        ? meta.borderActiveColor
-                        : meta.borderColor
-                    e.currentTarget.style.transform = "translateY(0)"
+                    e.currentTarget.style.background = isSelected ? meta.bgActiveColor : "transparent"
                 }}
                 style={{
-                    padding: "10px 12px",
-                    borderRadius: "12px",
-                    border: `1px solid ${isSelected ? meta.borderActiveColor : meta.borderColor}`,
-                    background: isSelected ? meta.bgActiveColor : meta.bgColor,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "9px 14px 9px 12px",
+                    borderRadius: 7,
+                    borderLeft: `3px solid ${isSelected ? meta.accentColor : "transparent"}`,
+                    border: `1px solid ${isSelected ? meta.borderActiveColor : "rgba(125, 91, 72, 0.15)"}`,
+                    background: isSelected ? meta.bgActiveColor : "transparent",
                     cursor: isDisabled ? "not-allowed" : "pointer",
                     opacity: isDisabled ? 0.38 : 1,
-                    transition:
-                        "background 200ms ease, border-color 200ms ease, transform 160ms ease",
-                    display: "flex",
-                    flexDirection: "column" as const,
-                    gap: "6px",
-                    boxShadow: isSelected ? `0 0 18px ${meta.bgActiveColor}` : "none"
+                    transition: "background 150ms ease, border-color 150ms ease",
+                    marginBottom: 4,
                 }}
             >
-                <Text
-                    style={{
-                        fontFamily: "Cinzel, Georgia, serif",
-                        fontSize: "0.95rem",
-                        fontWeight: 800,
-                        letterSpacing: "0.04em",
-                        color: "rgb(244, 236, 232)"
-                    }}
-                >
-                    {predatorTypeName}
+                {/* Name */}
+                <div style={{ flex: "0 0 auto", minWidth: phoneScreen ? 100 : 130 }}>
+                    <Text
+                        style={{
+                            fontFamily: "Cinzel, Georgia, serif",
+                            fontSize: "0.88rem",
+                            fontWeight: 700,
+                            letterSpacing: "0.03em",
+                            color: isSelected ? meta.accentColor : "rgba(244, 236, 232, 0.95)",
+                        }}
+                    >
+                        {predatorTypeName}
+                    </Text>
                     {clanDisabled && (
-                        <span
+                        <Text
                             style={{
-                                marginLeft: 8,
-                                fontSize: "0.78rem",
+                                fontSize: "0.72rem",
                                 color: "rgba(244, 236, 232, 0.35)",
                                 fontFamily: "Inter, sans-serif",
-                                fontWeight: 400,
-                                letterSpacing: 0
                             }}
                         >
                             excluded for {character.clan}
-                        </span>
+                        </Text>
                     )}
-                </Text>
+                </div>
 
+                {/* Summary */}
                 <Text
                     style={{
+                        flex: 1,
                         fontFamily: "Crimson Text, Georgia, serif",
-                        fontSize: "0.9rem",
-                        color: rgba(RAW_GREY, 0.93),
-                        lineHeight: 1.4
+                        fontSize: "0.88rem",
+                        color: rgba(RAW_GREY, 0.75),
+                        lineHeight: 1.35,
                     }}
                 >
                     {predatorType.summary}
                 </Text>
 
-                <div
-                    style={{
-                        display: "flex",
-                        gap: "4px",
-                        flexWrap: "wrap" as const,
-                        marginTop: "3px"
-                    }}
-                >
+                {/* Discipline pills */}
+                <div style={{ flexShrink: 0, display: "flex", gap: 4, flexWrap: "wrap" as const, justifyContent: "flex-end" }}>
                     {predatorType.disciplineOptions.map((disc) => (
                         <span
                             key={disc.name}
                             style={{
-                                fontSize: "0.72rem",
+                                fontSize: "0.68rem",
                                 fontFamily: "Inter, Segoe UI, sans-serif",
-                                padding: "2px 8px",
+                                padding: "2px 7px",
                                 borderRadius: "999px",
                                 background: meta.pillColor,
                                 border: `1px solid ${meta.borderColor}`,
-                                letterSpacing: "0.03em"
+                                letterSpacing: "0.03em",
+                                color: "rgba(244, 236, 232, 0.85)",
+                                whiteSpace: "nowrap" as const,
                             }}
                         >
-                            <Text fz={"xs"}>{titleCase(disc.name)}</Text>
+                            {titleCase(disc.name)}
                         </span>
                     ))}
                 </div>
@@ -233,9 +222,9 @@ const PredatorTypePicker = ({ character, setCharacter, nextStep }: PredatorTypeP
                         color={meta.accentColor}
                         lineColor={meta.lineColor}
                     />
-                    <SimpleGrid cols={phoneScreen ? 1 : 2} spacing="sm">
-                        {meta.predatorTypes.map((name) => createCard(name, meta))}
-                    </SimpleGrid>
+                    <div>
+                        {meta.predatorTypes.map((name) => createRow(name, meta))}
+                    </div>
                 </Box>
             ))}
         </Stack>
