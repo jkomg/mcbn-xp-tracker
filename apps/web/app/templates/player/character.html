@@ -88,6 +88,21 @@
 {% endfor %}
 {% endif %}
 
+<!-- Living sheet import prompt -->
+{% if not has_approved_draft %}
+<div class="alert alert-secondary d-flex align-items-center gap-3 mb-3">
+    <i class="bi bi-file-earmark-person fs-4 text-muted"></i>
+    <div class="flex-grow-1">
+        <strong>No living sheet linked.</strong>
+        Import your character sheet from Realm of Darkness to enable automatic sheet updates when spends are approved.
+    </div>
+    <a href="{{ url_for('player.import_sheet', name=char.character_name) }}"
+       class="btn btn-sm btn-outline-secondary text-nowrap">
+        <i class="bi bi-cloud-upload"></i> Import Sheet
+    </a>
+</div>
+{% endif %}
+
 <!-- Pending notifications -->
 {% if pending_claims_count > 0 or pending_spends_count > 0 %}
 <div class="alert alert-info">

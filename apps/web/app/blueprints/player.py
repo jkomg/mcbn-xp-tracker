@@ -2,6 +2,9 @@
 
 import csv
 import io
+import json
+import logging
+from datetime import datetime, timezone
 from flask import (
     Blueprint, render_template, request, abort, flash, redirect, url_for,
     session, Response,
@@ -11,9 +14,11 @@ from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
 )
-from app.db import CharacterDraft
+from app.db import CharacterDraft, DbCharacter, db
 from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('player', __name__)
 
@@ -189,6 +194,17 @@ def character(name):
     backgrounds = db_service.get_character_backgrounds(name)
     current_night = open_periods[0] if open_periods else None
 
+    # Check whether this character has an approved living sheet draft
+    char_row = DbCharacter.query.filter(
+        DbCharacter.character_name.ilike(name)
+    ).first()
+    has_approved_draft = False
+    if char_row:
+        has_approved_draft = CharacterDraft.query.filter_by(
+            roster_character_id=char_row.id,
+            status='approved',
+        ).first() is not None
+
     return render_template(
         'player/character.html',
         char=char,
@@ -209,6 +225,7 @@ def character(name):
         spend_categories=SPEND_CATEGORIES,
         backgrounds=backgrounds,
         current_night=current_night,
+        has_approved_draft=has_approved_draft,
     )
 
 
@@ -633,3 +650,163 @@ def export_xp_csv(name):
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename="{safe_name}_xp_history.csv"'},
     )
+
+
+def _map_rod_to_cc(rod: dict) -> dict:
+    """Map a Realm of Darkness V5 sheet export to CC character_data format."""
+    # Basic identity fields
+    data: dict = {
+        'name': rod.get('name', ''),
+        'clan': rod.get('clan', ''),
+        'generation': rod.get('generation', 13),
+        'predatorType': rod.get('predator_type', ''),
+        'bloodPotency': rod.get('blood_potency', 0),
+        'humanity': rod.get('humanity', 7),
+        'ambition': rod.get('ambition', ''),
+        'desire': rod.get('desire', ''),
+        'touchstones': rod.get('touchstones', []),
+        'age_category': 'ancilla',  # existing characters are treated as ancilla
+    }
+
+    # Attributes (RoD already uses a flat dict)
+    data['attributes'] = dict(rod.get('attributes', {}))
+
+    # Skills: RoD uses {skill: {value: n, spec: [...]}} — flatten to {skill: n}
+    data['skills'] = {
+        k: (v.get('value', 0) if isinstance(v, dict) else int(v or 0))
+        for k, v in rod.get('skills', {}).items()
+    }
+
+    # Disciplines: RoD dict-of-disciplines → CC array of power objects
+    cc_disciplines = []
+    for disc_key, disc_data in (rod.get('disciplines') or {}).items():
+        if not isinstance(disc_data, dict):
+            continue
+        disc_display = disc_data.get('name', disc_key)
+        for level_str, power_data in (disc_data.get('powers') or {}).items():
+            if power_data is None:
+                continue
+            try:
+                level = int(level_str)
+            except (ValueError, TypeError):
+                continue
+            cc_disciplines.append({
+                'name': power_data.get('name', ''),
+                'discipline': disc_display.lower(),
+                'level': level,
+                'summary': power_data.get('description', ''),
+                'rouseChecks': 1,
+            })
+    data['disciplines'] = cc_disciplines
+
+    def _map_adv(item: dict) -> dict:
+        return {
+            'name': item.get('name', ''),
+            'level': item.get('rating', 0),
+            'summary': (item.get('description') or item.get('notes') or ''),
+            'excludes': [],
+            'type': 'merit',
+        }
+
+    # Merits + Backgrounds (both map to CC merits list)
+    data['merits'] = (
+        [_map_adv(m) for m in (rod.get('merits') or [])]
+        + [_map_adv(b) for b in (rod.get('backgrounds') or [])]
+    )
+    data['flaws'] = [_map_adv(f) for f in (rod.get('flaws') or [])]
+
+    # Loresheets
+    data['loresheet_purchases'] = [
+        {
+            'loresheet_id': ls.get('name', ''),
+            'name': ls.get('name', ''),
+            'dot': ls.get('rating', 1),
+            'st_approved': False,
+        }
+        for ls in (rod.get('loresheets') or [])
+    ]
+
+    # Willpower / Health totals
+    wp = rod.get('willpower', {})
+    data['willpower'] = wp.get('total', 6) if isinstance(wp, dict) else 6
+    hp = rod.get('health', {})
+    data['maxHealth'] = hp.get('total', 7) if isinstance(hp, dict) else 7
+
+    return data
+
+
+@bp.route('/<name>/import-sheet', methods=['GET', 'POST'])
+@require_character_owner
+@_limit("5 per minute")
+def import_sheet(name):
+    """Let a player import a Realm of Darkness JSON export as their living character sheet."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    char_row = DbCharacter.query.filter(DbCharacter.character_name.ilike(name)).first()
+    if not char_row:
+        abort(404)
+
+    # Block if an approved draft already exists
+    existing = CharacterDraft.query.filter_by(
+        roster_character_id=char_row.id,
+        status='approved',
+    ).first()
+    if existing:
+        flash('This character already has a linked living sheet.', 'warning')
+        return redirect(url_for('player.character', name=name))
+
+    if request.method == 'GET':
+        return render_template('player/import_sheet.html', char=char)
+
+    json_text = request.form.get('sheet_json', '').strip()
+    if not json_text:
+        flash('Please paste your character sheet JSON.', 'danger')
+        return render_template('player/import_sheet.html', char=char)
+
+    try:
+        rod_data = json.loads(json_text)
+    except json.JSONDecodeError:
+        flash('Invalid JSON — please copy the exact output from the /sheet export command.', 'danger')
+        return render_template('player/import_sheet.html', char=char)
+
+    if not isinstance(rod_data, dict) or 'attributes' not in rod_data:
+        flash('This does not look like a V5 character sheet export. Make sure you copied the full JSON.', 'danger')
+        return render_template('player/import_sheet.html', char=char)
+
+    try:
+        cc_data = _map_rod_to_cc(rod_data)
+    except Exception as exc:
+        logger.warning('RoD sheet import mapping error for %s: %s', name, exc)
+        flash('Could not parse the sheet data. Please contact staff for help.', 'danger')
+        return render_template('player/import_sheet.html', char=char)
+
+    discord_id = get_player_discord_id()
+    discord_name = session.get('discord_name', 'unknown')
+    now = datetime.now(timezone.utc)
+
+    draft = CharacterDraft(
+        player_discord_id=discord_id,
+        character_name=char_row.character_name,
+        status='approved',
+        roster_character_id=char_row.id,
+        character_data=json.dumps(cc_data),
+        approved_at=now,
+        approved_by=f'player:{discord_name} (RoD import)',
+    )
+    db.session.add(draft)
+    db_service.log_action(
+        staff_user=f'player:{discord_name}',
+        action_type='player_sheet_import',
+        target=name,
+        details='Imported character sheet from Realm of Darkness export',
+    )
+    db.session.commit()
+
+    flash(
+        'Character sheet imported! Your living sheet is now active — '
+        'approved spends will update it automatically.',
+        'success',
+    )
+    return redirect(url_for('player.character', name=name))
