@@ -28,27 +28,34 @@
         <h6 class="text-muted mb-2">Pending Drafts</h6>
         <div class="list-group mb-4" id="pending-drafts-list">
             {% for draft in pending_drafts %}
-            <div class="list-group-item d-flex justify-content-between align-items-center"
-                 id="draft-row-{{ draft.id }}">
-                <div>
-                    <strong>{{ draft.character_name or 'Untitled Draft' }}</strong>
-                    {% if draft.status == 'revision_requested' %}
-                    <span class="badge bg-warning text-dark ms-2">Revision Requested</span>
-                    {% else %}
-                    <span class="badge bg-secondary ms-2">In Progress</span>
-                    {% endif %}
+            <div class="list-group-item" id="draft-row-{{ draft.id }}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ draft.character_name or 'Untitled Draft' }}</strong>
+                        {% if draft.status == 'revision_requested' %}
+                        <span class="badge bg-warning text-dark ms-2">Revision Requested</span>
+                        {% else %}
+                        <span class="badge bg-secondary ms-2">In Progress</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <a href="{{ url_for('character_creator.character_creator_new') }}"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger draft-delete-btn"
+                                data-draft-id="{{ draft.id }}"
+                                data-draft-name="{{ draft.character_name or 'Untitled Draft' }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <a href="{{ url_for('character_creator.character_creator_new') }}"
-                       class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-pencil"></i> Edit
-                    </a>
-                    <button class="btn btn-sm btn-outline-danger draft-delete-btn"
-                            data-draft-id="{{ draft.id }}"
-                            data-draft-name="{{ draft.character_name or 'Untitled Draft' }}">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                {% if draft.status == 'revision_requested' and draft.revision_notes %}
+                <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:0.85rem;">
+                    <strong><i class="bi bi-pencil-square"></i> Staff notes:</strong>
+                    <div style="white-space:pre-wrap;">{{ draft.revision_notes }}</div>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
