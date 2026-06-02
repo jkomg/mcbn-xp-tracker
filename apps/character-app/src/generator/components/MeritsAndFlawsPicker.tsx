@@ -20,6 +20,7 @@ import { trackEvent } from "../../utils/analytics"
 import { Character, MeritFlaw } from "../../data/Character"
 import { clans } from "../../data/Clans"
 import {
+    advancedMeritsAndFlaws,
     essentialMeritsAndFlaws,
     essentialThinbloodMeritsAndFlaws,
     isThinbloodFlaw,
@@ -324,9 +325,30 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         tbFlawCount - tbMeritCount
     )
 
-    const BACKGROUND_TITLES = new Set(["🏠 Haven", "💰 Resources", "🧛 Kindred", "👱 Mortals"])
-    const backgroundCategories = essentialMeritsAndFlaws.filter((cat) => BACKGROUND_TITLES.has(cat.title))
-    const meritFlawCategories = essentialMeritsAndFlaws.filter((cat) => !BACKGROUND_TITLES.has(cat.title))
+    // Categories treated as Backgrounds (shown in alphabetical flat list)
+    const ESSENTIAL_BG_TITLES = new Set(["🏠 Haven", "💰 Resources", "🧛 Kindred", "👱 Mortals"])
+    const ADVANCED_BG_TITLES = new Set(["Haven", "Resources", "Fame", "Influence"])
+
+    type MeritFlawEntry = { item: MeritOrFlaw; entryType: "merit" | "flaw" }
+    const allBackgroundEntries: MeritFlawEntry[] = [
+        ...essentialMeritsAndFlaws
+            .filter((cat) => ESSENTIAL_BG_TITLES.has(cat.title))
+            .flatMap((cat) => [
+                ...cat.merits.map((m) => ({ item: m, entryType: "merit" as const })),
+                ...cat.flaws.map((f) => ({ item: f, entryType: "flaw" as const })),
+            ]),
+        ...advancedMeritsAndFlaws
+            .filter((cat) => ADVANCED_BG_TITLES.has(cat.title))
+            .flatMap((cat) => [
+                ...cat.merits.map((m) => ({ item: m, entryType: "merit" as const })),
+                ...cat.flaws.map((f) => ({ item: f, entryType: "flaw" as const })),
+            ]),
+    ].sort((a, b) => a.item.name.localeCompare(b.item.name))
+
+    // M&F categories: essentials (non-background) + advanced (non-background)
+    const essentialMFCategories = essentialMeritsAndFlaws.filter((cat) => !ESSENTIAL_BG_TITLES.has(cat.title))
+    const advancedMFCategories = advancedMeritsAndFlaws.filter((cat) => !ADVANCED_BG_TITLES.has(cat.title))
+    const allMFCategories = [...essentialMFCategories, ...advancedMFCategories]
 
     const [expandedLoresheetIds, setExpandedLoresheetIds] = useState<Set<string>>(new Set())
     const toggleLoresheetExpanded = (id: string) => {
@@ -589,13 +611,9 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     >
                         <ScrollArea {...columnScrollProps}>
                             <Stack gap="sm" pb="xl">
-                                {backgroundCategories.map((cat) => (
-                                    <Stack gap="sm" key={cat.title}>
-                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                    </Stack>
-                                ))}
+                                {allBackgroundEntries.map((entry) =>
+                                    getMeritOrFlawLine(entry.item, entry.entryType)
+                                )}
                             </Stack>
                         </ScrollArea>
                     </div>
@@ -853,7 +871,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                             <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
                                         </>
                                     ) : null}
-                                    {meritFlawCategories.map((cat) => (
+                                    {allMFCategories.map((cat) => (
                                         <Stack gap="sm" key={cat.title}>
                                             <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
                                             {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
@@ -873,7 +891,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                                     {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
                                                 </Stack>
                                             ) : null}
-                                            {meritFlawCategories
+                                            {allMFCategories
                                                 .filter((_, i) => i % 2 === 0)
                                                 .map((cat) => (
                                                     <Stack gap="sm" key={cat.title}>
@@ -897,7 +915,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                                     <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
                                                 </>
                                             ) : null}
-                                            {meritFlawCategories
+                                            {allMFCategories
                                                 .filter((_, i) => i % 2 !== 0)
                                                 .map((cat) => (
                                                     <Stack gap="sm" key={cat.title}>
