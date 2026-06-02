@@ -489,8 +489,8 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 <div style={generatorScrollableContentStyle}>
                     <GeneratorStepHero
                         leadText="Shape your"
-                        accentText="Backgrounds, Merits & Flaws"
-                        description="Spend merit points on loresheet dots under Backgrounds, then pick your Merits and Flaws."
+                        accentText="Advantages"
+                        description="Spend your points on Backgrounds, Merits & Flaws, and Loresheets."
                         maxWidth={720}
                         marginBottom={8}
                     />
