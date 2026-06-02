@@ -11,227 +11,238 @@
         <h2 class="mb-0 d-inline">{{ char.character_name }}</h2>
         {% if char.clan %}<span class="badge bg-secondary ms-2">{{ char.clan }}</span>{% endif %}
         {% if char.age_category %}<span class="badge bg-dark border ms-1">{{ char.age_category }}</span>{% endif %}
+        {% if sheet_data and sheet_data.get('predatorType') %}<span class="text-muted small ms-2">· {{ sheet_data.predatorType }}</span>{% endif %}
     </div>
+    {% if draft %}
+    <span class="ms-auto text-muted small">Updated {{ draft.updated_at.strftime('%Y-%m-%d') if draft.updated_at else draft.approved_at.strftime('%Y-%m-%d') if draft.approved_at else '—' }}</span>
+    {% endif %}
 </div>
 
 {% if not sheet_data %}
 <div class="alert alert-secondary">
-    <i class="bi bi-file-earmark-person"></i>
     No living sheet linked yet.
     <a href="{{ url_for('player.import_sheet', name=char.character_name) }}" class="alert-link">Import your sheet</a>
-    to enable automatic updates from approved XP spends.
+    from Realm of Darkness to enable automatic updates from approved spends.
 </div>
 {% else %}
 
-{% set attrs = sheet_data.get('attributes', {}) %}
-{% set skills = sheet_data.get('skills', {}) %}
-{% set disciplines = sheet_data.get('disciplines', []) %}
-{% set rituals = sheet_data.get('rituals', []) %}
-{% set merits = sheet_data.get('merits', []) %}
-{% set flaws = sheet_data.get('flaws', []) %}
-{% set bp = sheet_data.get('bloodPotency', 0) %}
-{% set humanity = sheet_data.get('humanity', 0) %}
+{% set _a   = sheet_data.get('attributes', {}) %}
+{% set _s   = sheet_data.get('skills', {}) %}
+{% set _d   = sheet_data.get('disciplines', []) %}
+{% set _m   = sheet_data.get('merits', []) %}
+{% set _f   = sheet_data.get('flaws', []) %}
+{% set _r   = sheet_data.get('rituals', []) %}
+{% set _bp  = sheet_data.get('bloodPotency', 0) %}
+{% set _hum = sheet_data.get('humanity', 7) %}
+{% set _wil = sheet_data.get('willpower', 0) %}
+{% set _hp  = sheet_data.get('maxHealth', 0) %}
+{% set _gen = sheet_data.get('generation', 0) %}
+{% set _touch = sheet_data.get('touchstones', []) %}
 
-<!-- Vitals bar -->
-<div class="card mb-4">
-    <div class="card-body py-2">
-        <div class="d-flex gap-4 flex-wrap align-items-center">
-            {% if bp %}
-            <div class="text-center">
-                <div class="text-muted small" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Blood Potency</div>
-                <div class="fw-bold fs-5">{{ bp }}</div>
-            </div>
-            {% endif %}
-            {% if humanity %}
-            <div class="text-center">
-                <div class="text-muted small" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Humanity</div>
-                <div class="fw-bold fs-5">{{ humanity }}</div>
-            </div>
-            {% endif %}
-            {% if sheet_data.get('generation') %}
-            <div class="text-center">
-                <div class="text-muted small" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Generation</div>
-                <div class="fw-bold fs-5">{{ sheet_data.generation }}th</div>
-            </div>
-            {% endif %}
-            {% if sheet_data.get('predatorType') %}
-            <div class="text-center">
-                <div class="text-muted small" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Predator Type</div>
-                <div class="fw-bold">{{ sheet_data.predatorType }}</div>
-            </div>
-            {% endif %}
-            {% if draft %}
-            <div class="ms-auto text-muted small">
-                Last updated {{ draft.updated_at.strftime('%Y-%m-%d') if draft.updated_at else draft.approved_at.strftime('%Y-%m-%d') if draft.approved_at else '—' }}
-            </div>
-            {% endif %}
+{# ══════════════════════════════════════════════════════════════ ATTRIBUTES #}
+<div class="sheet-section-label">Attributes</div>
+<div class="row g-0 mb-4">
+    {% for group, keys in [
+        ('Physical', ['strength','dexterity','stamina']),
+        ('Social',   ['charisma','manipulation','composure']),
+        ('Mental',   ['intelligence','wits','resolve'])
+    ] %}
+    <div class="col-4">
+        <div class="sheet-group-label">{{ group }}</div>
+        {% for k in keys %}{% set v = _a.get(k, 0) %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ k | title }}</span>
+            <span class="dot-pips">
+                {% for i in range(1, 6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}
+            </span>
         </div>
+        {% endfor %}
     </div>
+    {% endfor %}
 </div>
 
-<div class="row g-4">
-
-    <!-- Attributes -->
-    {% if attrs %}
-    <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Attributes</small>
-            </div>
-            <div class="card-body">
-                {% for group_name, keys in [('Physical', ['strength','dexterity','stamina']), ('Social', ['charisma','manipulation','composure']), ('Mental', ['intelligence','wits','resolve'])] %}
-                <div class="mb-3">
-                    <div class="text-muted small mb-1" style="font-size:0.7rem;text-transform:uppercase;">{{ group_name }}</div>
-                    {% for k in keys %}
-                    {% set v = attrs.get(k, 0) %}
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span style="font-size:0.9rem;">{{ k | title }}</span>
-                        <span class="dot-pips">
-                            {% for i in range(1, 6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}
-                        </span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endfor %}
-            </div>
+{# ══════════════════════════════════════════════════════════════════ SKILLS #}
+<div class="sheet-section-label">Skills</div>
+<div class="row g-0 mb-4">
+    {% set phys = ['athletics','brawl','craft','drive','firearms','larceny','melee','stealth','survival'] %}
+    {% set soc  = ['animal_ken','etiquette','insight','intimidation','leadership','performance','persuasion','streetwise','subterfuge'] %}
+    {% set ment = ['academics','awareness','finance','investigation','medicine','occult','politics','science','technology'] %}
+    {% for group, keys in [('Physical', phys), ('Social', soc), ('Mental', ment)] %}
+    <div class="col-4">
+        <div class="sheet-group-label">{{ group }}</div>
+        {% for k in keys %}{% set v = _s.get(k, 0) %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ k | replace('_',' ') | title }}</span>
+            <span class="dot-pips">
+                {% for i in range(1, 6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}
+            </span>
         </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+{# ══════════════════════════════════════════════ DISCIPLINES / ADVANTAGES #}
+<div class="sheet-section-label">Disciplines &amp; Advantages</div>
+<div class="row g-4 mb-4">
+
+    {% if _d %}
+    <div class="col-md-4">
+        <div class="sheet-group-label">Disciplines</div>
+        {% set disc_groups = {} %}
+        {% for p in _d %}
+            {% set dn = p.get('discipline', 'Unknown') | title %}
+            {% if dn not in disc_groups %}{% set _ = disc_groups.update({dn: []}) %}{% endif %}
+            {% set _ = disc_groups[dn].append(p) %}
+        {% endfor %}
+        {% for dn, powers in disc_groups | dictsort %}
+        <div class="mb-3">
+            <div class="sheet-disc-name">{{ dn }}</div>
+            {% for p in powers | sort(attribute='level') %}
+            <div class="sheet-trait-row">
+                <span class="sheet-trait-name">{{ p.get('name', '?') }}</span>
+                <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ p.get('level', '?') }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 
-    <!-- Skills -->
-    {% if skills %}
-    <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Skills</small>
-            </div>
-            <div class="card-body">
-                {% set physical_skills = ['athletics','brawl','craft','drive','firearms','larceny','melee','stealth','survival'] %}
-                {% set social_skills = ['animal_ken','etiquette','insight','intimidation','leadership','performance','persuasion','streetwise','subterfuge'] %}
-                {% set mental_skills = ['academics','awareness','finance','investigation','medicine','occult','politics','science','technology'] %}
-                {% for group_name, group_keys in [('Physical', physical_skills), ('Social', social_skills), ('Mental', mental_skills)] %}
-                <div class="mb-3">
-                    <div class="text-muted small mb-1" style="font-size:0.7rem;text-transform:uppercase;">{{ group_name }}</div>
-                    {% for k in group_keys %}
-                    {% set v = skills.get(k, 0) %}
-                    {% if v > 0 %}
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span style="font-size:0.9rem;">{{ k | replace('_', ' ') | title }}</span>
-                        <span class="dot-pips">
-                            {% for i in range(1, 6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}
-                        </span>
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-                {% endfor %}
-            </div>
+    {% if _m or _f %}
+    <div class="col-md-4">
+        {% if _m %}
+        <div class="sheet-group-label">Merits &amp; Backgrounds</div>
+        {% for m in _m %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ m.get('name', '?') }}</span>
+            <span class="dot-pips">
+                {% set lv = m.get('level', 0) %}
+                {% for i in range(1, 6) %}<span class="dot-pip {% if i <= lv %}filled{% endif %}"></span>{% endfor %}
+            </span>
         </div>
+        {% endfor %}
+        {% endif %}
+        {% if _f %}
+        <div class="sheet-group-label mt-3">Flaws</div>
+        {% for f in _f %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ f.get('name', '?') }}</span>
+            <span class="dot-pips">
+                {% set lv = f.get('level', 0) %}
+                {% for i in range(1, 6) %}<span class="dot-pip {% if i <= lv %}filled{% endif %}"></span>{% endfor %}
+            </span>
+        </div>
+        {% endfor %}
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- Disciplines, Merits, Flaws -->
-    <div class="col-lg-4">
-
-        {% if disciplines %}
-        <div class="card mb-3">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Disciplines</small>
-            </div>
-            <div class="card-body pb-1">
-                {% set disc_groups = {} %}
-                {% for p in disciplines %}
-                    {% set disc = p.get('discipline', 'Unknown') | title %}
-                    {% if disc not in disc_groups %}{% set _ = disc_groups.update({disc: []}) %}{% endif %}
-                    {% set _ = disc_groups[disc].append(p) %}
-                {% endfor %}
-                {% for disc_name, powers in disc_groups | dictsort %}
-                <div class="mb-2">
-                    <div class="fw-500 small mb-1">{{ disc_name }}</div>
-                    {% for p in powers | sort(attribute='level') %}
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span style="font-size:0.85rem;" class="text-muted">{{ p.get('name', '?') }}</span>
-                        <span class="badge bg-dark border text-muted">L{{ p.get('level', '?') }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endfor %}
-            </div>
+    {% if _r %}
+    <div class="col-md-4">
+        {% set bs_r = _r | selectattr('discipline', 'equalto', 'blood sorcery') | list %}
+        {% set tb_r = _r | selectattr('discipline', 'equalto', 'thin-blood alchemy') | list %}
+        {% set oth_r = _r | rejectattr('discipline', 'in', ['blood sorcery','thin-blood alchemy']) | list %}
+        {% if bs_r %}
+        <div class="sheet-group-label">Blood Sorcery Rituals</div>
+        {% for r in bs_r | sort(attribute='level') %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ r.get('name', '?') }}</span>
+            <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ r.get('level', '?') }}</span>
         </div>
+        {% endfor %}
         {% endif %}
-
-        {% set bs_rituals = rituals | selectattr('discipline', 'equalto', 'blood sorcery') | list %}
-        {% set tba_rituals = rituals | selectattr('discipline', 'equalto', 'thin-blood alchemy') | list %}
-        {% if bs_rituals %}
-        <div class="card mb-3">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Blood Sorcery Rituals</small>
-            </div>
-            <div class="card-body pb-1">
-                {% for r in bs_rituals | sort(attribute='level') %}
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span style="font-size:0.85rem;" class="text-muted">{{ r.get('name', '?') }}</span>
-                    <span class="badge bg-dark border text-muted">L{{ r.get('level', '?') }}</span>
-                </div>
-                {% endfor %}
-            </div>
+        {% if tb_r %}
+        <div class="sheet-group-label {% if bs_r %}mt-3{% endif %}">Thin-Blood Alchemy</div>
+        {% for r in tb_r | sort(attribute='level') %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ r.get('name', '?') }}</span>
+            <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ r.get('level', '?') }}</span>
         </div>
+        {% endfor %}
         {% endif %}
-        {% if tba_rituals %}
-        <div class="card mb-3">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Thin-Blood Alchemy</small>
-            </div>
-            <div class="card-body pb-1">
-                {% for r in tba_rituals | sort(attribute='level') %}
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span style="font-size:0.85rem;" class="text-muted">{{ r.get('name', '?') }}</span>
-                    <span class="badge bg-dark border text-muted">L{{ r.get('level', '?') }}</span>
-                </div>
-                {% endfor %}
-            </div>
+        {% if oth_r %}
+        <div class="sheet-group-label {% if bs_r or tb_r %}mt-3{% endif %}">Ceremonies</div>
+        {% for r in oth_r | sort(attribute='level') %}
+        <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ r.get('name', '?') }}</span>
+            <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ r.get('level', '?') }}</span>
         </div>
+        {% endfor %}
         {% endif %}
-
-        {% if merits %}
-        <div class="card mb-3">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Merits &amp; Backgrounds</small>
-            </div>
-            <div class="card-body pb-1">
-                {% for m in merits %}
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span style="font-size:0.85rem;" class="text-muted">{{ m.get('name', '?') }}</span>
-                    <span class="dot-pips">
-                        {% set lv = m.get('level', 0) %}
-                        {% for i in range(1, 6) %}<span class="dot-pip {% if i <= lv %}filled{% endif %}"></span>{% endfor %}
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        {% if flaws %}
-        <div class="card mb-3">
-            <div class="card-header py-2">
-                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Flaws</small>
-            </div>
-            <div class="card-body pb-1">
-                {% for f in flaws %}
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span style="font-size:0.85rem;" class="text-muted">{{ f.get('name', '?') }}</span>
-                    <span class="dot-pips">
-                        {% set lv = f.get('level', 0) %}
-                        {% for i in range(1, 6) %}<span class="dot-pip {% if i <= lv %}filled{% endif %}"></span>{% endfor %}
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
     </div>
+    {% endif %}
+
 </div>
+
+{# ══════════════════════════════════════════════════════════════════ VITALS #}
+<div class="sheet-section-label">Humanity, Health &amp; Extras</div>
+<div class="row g-4 mb-2">
+
+    <div class="col-md-5">
+        <div class="mb-3">
+            <div class="sheet-group-label">Humanity</div>
+            <div class="dot-pips dot-pips-lg">
+                {% for i in range(1, 11) %}<span class="dot-pip {% if i <= _hum %}filled{% endif %}"></span>{% endfor %}
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="sheet-group-label">Blood Potency</div>
+            <div class="dot-pips dot-pips-lg">
+                {% for i in range(1, 11) %}<span class="dot-pip {% if i <= _bp %}filled{% endif %}"></span>{% endfor %}
+            </div>
+        </div>
+        {% if _hp %}
+        <div class="mb-3">
+            <div class="sheet-group-label">Health</div>
+            <div class="dot-pips dot-pips-lg">
+                {% for i in range(1, _hp + 1) %}<span class="dot-pip square"></span>{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if _wil %}
+        <div class="mb-3">
+            <div class="sheet-group-label">Willpower</div>
+            <div class="dot-pips dot-pips-lg">
+                {% for i in range(1, _wil + 1) %}<span class="dot-pip square"></span>{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        {% if _gen %}
+        <div class="mb-3">
+            <div class="sheet-group-label">Generation</div>
+            <div class="sheet-trait-name">{{ _gen }}th</div>
+        </div>
+        {% endif %}
+        {% set _ambi = sheet_data.get('ambition','') %}
+        {% set _desi = sheet_data.get('desire','') %}
+        {% if _ambi %}
+        <div class="mb-2">
+            <div class="sheet-group-label">Ambition</div>
+            <div class="sheet-trait-name">{{ _ambi }}</div>
+        </div>
+        {% endif %}
+        {% if _desi %}
+        <div class="mb-2">
+            <div class="sheet-group-label">Desire</div>
+            <div class="sheet-trait-name">{{ _desi }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if _touch %}
+    <div class="col-md-3">
+        <div class="sheet-group-label">Touchstones &amp; Convictions</div>
+        {% for t in _touch %}
+        <div class="sheet-trait-name mb-1">{{ t if t is string else t.get('description', t.get('name', '')) }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
 {% endif %}
 {% endblock %}
