@@ -112,6 +112,80 @@
 </div>
 {% endif %}
 
+<!-- Collapsible character sheet (shown only when sheet exists) -->
+{% if has_approved_draft and sheet_data %}
+{% set _attrs = sheet_data.get('attributes', {}) %}
+{% set _skills = sheet_data.get('skills', {}) %}
+{% set _discs = sheet_data.get('disciplines', []) %}
+{% set _merits = sheet_data.get('merits', []) %}
+{% set _flaws = sheet_data.get('flaws', []) %}
+<div class="card mb-4">
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#inline-sheet" role="button" style="cursor:pointer;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i> Character Sheet <i class="bi bi-chevron-down float-end small"></i></h5>
+            <div class="d-flex gap-2 align-items-center">
+                {% if sheet_data.get('bloodPotency') %}<span class="badge bg-dark border text-muted">BP {{ sheet_data.bloodPotency }}</span>{% endif %}
+                {% if sheet_data.get('humanity') %}<span class="badge bg-dark border text-muted">Humanity {{ sheet_data.humanity }}</span>{% endif %}
+                <a href="{{ url_for('player.view_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Full Sheet</a>
+            </div>
+        </div>
+    </div>
+    <div class="collapse" id="inline-sheet">
+    <div class="card-body">
+        <div class="row g-3">
+            {% if _attrs %}
+            <div class="col-lg-4">
+                <div class="text-muted small mb-2" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Attributes</div>
+                {% for k in ['strength','dexterity','stamina','charisma','manipulation','composure','intelligence','wits','resolve'] %}
+                {% set v = _attrs.get(k, 0) %}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:0.85rem;">{{ k | title }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if _skills %}
+            <div class="col-lg-4">
+                <div class="text-muted small mb-2" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Skills (rated)</div>
+                {% for k, v in _skills | dictsort %}
+                {% if v > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:0.85rem;">{{ k | replace('_',' ') | title }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= v %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if _discs or _merits or _flaws %}
+            <div class="col-lg-4">
+                {% if _discs %}
+                <div class="text-muted small mb-2" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Disciplines</div>
+                {% set disc_groups = {} %}
+                {% for p in _discs %}{% set d = p.get('discipline','Unknown')|title %}{% if d not in disc_groups %}{% set _ = disc_groups.update({d:[]}) %}{% endif %}{% set _ = disc_groups[d].append(p) %}{% endfor %}
+                {% for disc_name, powers in disc_groups | dictsort %}
+                <div class="mb-1"><span class="text-muted small">{{ disc_name }}:</span>
+                {% for p in powers | sort(attribute='level') %}<span class="badge bg-dark border text-muted ms-1">{{ p.get('name','?') }} L{{ p.get('level','?') }}</span>{% endfor %}
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if _merits %}
+                <div class="text-muted small mt-2 mb-1" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Merits &amp; Backgrounds</div>
+                {% for m in _merits %}<span class="badge bg-dark border text-muted me-1 mb-1">{{ m.get('name','?') }} {{ m.get('level',0) }}</span>{% endfor %}
+                {% endif %}
+                {% if _flaws %}
+                <div class="text-muted small mt-2 mb-1" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Flaws</div>
+                {% for f in _flaws %}<span class="badge bg-dark border text-muted me-1 mb-1">{{ f.get('name','?') }} {{ f.get('level',0) }}</span>{% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    </div><!-- /#inline-sheet -->
+</div>
+{% endif %}
+
 <!-- Pending notifications -->
 {% if pending_claims_count > 0 or pending_spends_count > 0 %}
 <div class="alert alert-info">
@@ -127,12 +201,13 @@
 
 <!-- Backgrounds -->
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Background Blanking</h5>
+    <div class="card-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#background-blanking" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Background Blanking <i class="bi bi-chevron-down float-end ms-2 small"></i></h5>
         {% if current_night %}
         <span class="badge bg-secondary">Current: {{ current_night.period_label }}</span>
         {% endif %}
     </div>
+    <div class="collapse show" id="background-blanking">
     <div class="card-body">
         {% if backgrounds %}
         <div class="table-responsive mb-3">
@@ -206,6 +281,7 @@
             </div>
         </form>
     </div>
+    </div><!-- /#background-blanking -->
 </div>
 
 <!-- ═══ Submission Forms ═══ -->
@@ -449,9 +525,10 @@
 
 <!-- Approved Claims History -->
 <div class="card mb-4" id="xp-claims-history">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History</h5>
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#claims-history-body" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History <i class="bi bi-chevron-down float-end small"></i></h5>
     </div>
+    <div class="collapse" id="claims-history-body">
     <div class="card-body">
         {% if approved_claims or ledger %}
         <div class="table-responsive">
@@ -501,10 +578,11 @@
         <p class="text-muted mb-0">No approved XP claims yet.</p>
         {% endif %}
     </div>
+    </div><!-- /#claims-history-body -->
 </div>
 
-<!-- Pending / Denied Spends -->
-{% if pending_spends_list or denied_spends %}
+<!-- Pending Spends -->
+{% if pending_spends_list %}
 <div class="card mb-4">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#spends-in-progress" role="button" style="cursor:pointer;">
         <div class="d-flex justify-content-between align-items-center">
@@ -512,14 +590,7 @@
                 <i class="bi bi-hourglass-split"></i> Spend Requests In Progress
                 <i class="bi bi-chevron-down float-end"></i>
             </h5>
-            <div class="d-flex gap-2">
-                {% if pending_spends_list %}
-                <span class="badge bg-warning text-dark">{{ pending_spends_list|length }} pending</span>
-                {% endif %}
-                {% if denied_spends %}
-                <span class="badge bg-danger">{{ denied_spends|length }} denied</span>
-                {% endif %}
-            </div>
+            <span class="badge bg-warning text-dark">{{ pending_spends_list|length }} pending</span>
         </div>
     </div>
     <div class="collapse show" id="spends-in-progress">
@@ -532,7 +603,6 @@
                             <th class="d-none d-sm-table-cell">Category</th>
                             <th>Dots</th>
                             <th>XP</th>
-                            <th>Status</th>
                             <th class="d-none d-sm-table-cell">Notes</th>
                         </tr>
                     </thead>
@@ -543,18 +613,7 @@
                             <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
                             <td><span class="text-muted">{{ s.current_dots }}→{{ s.new_dots }}</span></td>
                             <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
-                            <td><span class="badge bg-warning text-dark">Pending</span></td>
                             <td class="d-none d-sm-table-cell"></td>
-                        </tr>
-                        {% endfor %}
-                        {% for s in denied_spends %}
-                        <tr>
-                            <td>{{ s.trait_name }}</td>
-                            <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
-                            <td><span class="text-muted">{{ s.current_dots }}→{{ s.new_dots }}</span></td>
-                            <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
-                            <td><span class="badge bg-danger">Denied</span></td>
-                            <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.st_notes or '' }}</small></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -565,11 +624,12 @@
 </div>
 {% endif %}
 
-<!-- Approved Spends History — Character Sheet View -->
+<!-- Approved Spends History -->
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Approved Spends</h5>
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#approved-spends-body" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Approved Spends <i class="bi bi-chevron-down float-end small"></i></h5>
     </div>
+    <div class="collapse" id="approved-spends-body">
     <div class="card-body">
         {% if approved_spends %}
         {% for category, spends in approved_spends | groupby('spend_category') %}
@@ -593,6 +653,7 @@
         <p class="text-muted mb-0">No approved spends yet.</p>
         {% endif %}
     </div>
+    </div><!-- /#approved-spends-body -->
 </div>
 
 <!-- Wish List -->
