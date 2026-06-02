@@ -77,14 +77,18 @@ const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   claimContextRetryBaseMs: config.claimContextRetryBaseMs,
 });
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
-}) as BotClient;
+const baseIntents = [
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.MessageContent,
+];
+// GuildMembers is a privileged intent that must be enabled in the Discord
+// Developer Portal. Only request it when staff role sync actually needs it.
+if (config.staffRoleSyncEnabled) {
+  baseIntents.push(GatewayIntentBits.GuildMembers);
+}
+
+const client = new Client({ intents: baseIntents }) as BotClient;
 
 initClientCommandCollection(client);
 
