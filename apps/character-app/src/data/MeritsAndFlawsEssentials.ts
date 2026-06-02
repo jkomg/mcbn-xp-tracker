@@ -224,6 +224,12 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [2],
                 summary: "-2 dice in Social rolls",
                 excludes: ["Beautiful", "Stunning", "Ugly"]
+            },
+            {
+                name: "Unblinking Visage",
+                cost: [1],
+                summary: "your dead body has forgotten blinking, breathing, and automatic reflexes. Count Humanity as two levels lower (minimum zero) for Blush of Life and similar life-mimicking activities.",
+                excludes: []
             }
         ]
     },
@@ -509,6 +515,12 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 name: "Touchstone Embraced by Your Enemies",
                 cost: [2],
                 summary: "a former Touchstone was Embraced and now runs with your enemies. A single neonate Adversary with allies; confronting them risks Stains.",
+                excludes: []
+            },
+            {
+                name: "Secret Master",
+                cost: [1],
+                summary: "requires Mawla 1+. Your Mawla has a hold over you and once per story requires a minor secret task. Failure escalates next story. Continued failure forfeits the flaw, replaced by 2+ dots of other flaws.",
                 excludes: []
             },
             {

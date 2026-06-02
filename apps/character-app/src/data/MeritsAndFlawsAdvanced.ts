@@ -129,6 +129,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Up All Night",
+                cost: [2, 4],
+                summary: "for Blush of Life, eating/drinking, and sexual intercourse, treat Humanity as 1 higher (●●) or 2 higher (●●●●). Cannot combine with other Humanity-treating-as-higher effects. Nosferatu cannot select; Hecata can only select at 2 dots.",
+                excludes: []
+            },
+            {
                 name: "Famous Face",
                 cost: [1],
                 summary: "look like a celebrity; helps socially but makes you memorable",
@@ -544,9 +550,28 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [5],
                 summary: "you cannot be blood bound",
                 excludes: ["Bondslave", "Bond Junkie", "Long Bond"]
+            },
+            {
+                name: "Bonds of Fealty",
+                cost: [2],
+                summary: "requires Dominate. Your Dominate powers do not require eye contact when targeting someone blood bound to you. You still need to communicate your instructions, but need not be physically present.",
+                excludes: []
+            },
+            {
+                name: "Enduring Bond",
+                cost: [1],
+                summary: "your blood bonds last longer than normal. Complete and partial blood bonds only weaken every other month, not every month.",
+                excludes: ["Short Bond"]
             }
         ],
-        flaws: []
+        flaws: [
+            {
+                name: "Two Masters",
+                cost: [1],
+                summary: "you can be Blood Bound to two individuals simultaneously. May cause complications if you drink Kindred blood recreationally.",
+                excludes: []
+            }
+        ]
     },
     {
         title: "Influence",
@@ -852,6 +877,69 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 excludes: []
             }
         ]
+    },
+    {
+        title: "Blood Ties",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Consanguineous Sense",
+                cost: [1],
+                summary: "your Blood calls out to close relations. Instinctively recognize direct bloodline members within a few paces. Resolve + Awareness vs Difficulty 3 to confirm if a Kindred within ~3m shares your bloodline (but not their exact Generation distance). Not available to Caitiff or Duskborn.",
+                excludes: []
+            },
+            {
+                name: "Consanguineous Influence",
+                cost: [2],
+                summary: "mental Disciplines are more effective on those of the same bloodline: +1 die against any clan member or direct ancestor/descendant, or +2 dice if only one or two generations removed. Not available to Caitiff or Duskborn.",
+                excludes: []
+            },
+            {
+                name: "Sins of the Fathers",
+                cost: [2, 3],
+                summary: "after committing diablerie on a direct ancestor or descendant, you show no telltale signs. Powers like Scry the Soul or A Taste for Blood do not detect the crime. ●●●: extends to any member of your own clan. Caitiff and Duskborn cannot take the 3-dot version.",
+                excludes: []
+            }
+        ],
+        flaws: []
+    },
+    {
+        title: "Diablerie",
+        complexity: "advanced",
+        merits: [],
+        flaws: [
+            {
+                name: "Blatant Diablerist",
+                cost: [1],
+                summary: "telltale signs of diablerie are always noticeable to those who can sense it. Powers such as Scry the Soul or A Taste for Blood always reveal diablerie, even on an otherwise failed test. Can only be taken at creation if the character has a history of diablerie.",
+                excludes: []
+            },
+            {
+                name: "Inherited Bane",
+                cost: [1],
+                summary: "you suffer another clan's bane in addition to your own (e.g., Tremere may take the Salubri clan bane).",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "Psychological",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Soothed Beast",
+                cost: [1],
+                summary: "choose a Storyteller character as your obsession. Once per session when in their presence, ignore one Bestial Failure or Messy Critical. If they die, gain 3 Stains but choose a new obsession at the start of the next session.",
+                excludes: []
+            },
+            {
+                name: "False Love",
+                cost: [1],
+                summary: "choose a Storyteller character as your obsession. When in their presence, treat Humanity as 1 higher (max 10) for Blush of Life, eating/drinking, and intercourse. Does not combine with other Humanity-treating-as-higher effects. If they die, gain 3 Stains but choose a new obsession next session.",
+                excludes: ["Up All Night"]
+            }
+        ],
+        flaws: []
     },
     {
         title: "Archaic",
