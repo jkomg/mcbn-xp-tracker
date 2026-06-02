@@ -442,7 +442,7 @@
                     </tr>
                     {% endfor %}
                     {% for entry in ledger %}
-                    {% if entry.awarded != 0 or entry.spent != 0 %}
+                    {% if (entry.awarded != 0 or entry.spent != 0) and 'claim approved' not in entry.reason %}
                     <tr class="table-secondary">
                         <td><span class="badge bg-secondary">Staff Adjustment</span></td>
                         <td>

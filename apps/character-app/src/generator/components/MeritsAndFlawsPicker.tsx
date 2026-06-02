@@ -330,20 +330,19 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const ADVANCED_BG_TITLES = new Set(["Haven", "Resources", "Fame", "Influence"])
 
     type MeritFlawEntry = { item: MeritOrFlaw; entryType: "merit" | "flaw" }
-    const allBackgroundEntries: MeritFlawEntry[] = [
-        ...essentialMeritsAndFlaws
-            .filter((cat) => ESSENTIAL_BG_TITLES.has(cat.title))
-            .flatMap((cat) => [
-                ...cat.merits.map((m) => ({ item: m, entryType: "merit" as const })),
-                ...cat.flaws.map((f) => ({ item: f, entryType: "flaw" as const })),
-            ]),
-        ...advancedMeritsAndFlaws
-            .filter((cat) => ADVANCED_BG_TITLES.has(cat.title))
-            .flatMap((cat) => [
-                ...cat.merits.map((m) => ({ item: m, entryType: "merit" as const })),
-                ...cat.flaws.map((f) => ({ item: f, entryType: "flaw" as const })),
-            ]),
-    ].sort((a, b) => a.item.name.localeCompare(b.item.name))
+    // Essential entries first, then advanced — advanced wins on duplicate names
+    const _bgEntryMap = new Map<string, MeritFlawEntry>()
+    for (const cat of essentialMeritsAndFlaws.filter((cat) => ESSENTIAL_BG_TITLES.has(cat.title))) {
+        for (const m of cat.merits) _bgEntryMap.set(m.name, { item: m, entryType: "merit" })
+        for (const f of cat.flaws)  _bgEntryMap.set(f.name, { item: f, entryType: "flaw" })
+    }
+    for (const cat of advancedMeritsAndFlaws.filter((cat) => ADVANCED_BG_TITLES.has(cat.title))) {
+        for (const m of cat.merits) _bgEntryMap.set(m.name, { item: m, entryType: "merit" })
+        for (const f of cat.flaws)  _bgEntryMap.set(f.name, { item: f, entryType: "flaw" })
+    }
+    const allBackgroundEntries = [..._bgEntryMap.values()].sort((a, b) =>
+        a.item.name.localeCompare(b.item.name)
+    )
 
     // M&F categories: essentials (non-background) + advanced (non-background)
     const essentialMFCategories = essentialMeritsAndFlaws.filter((cat) => !ESSENTIAL_BG_TITLES.has(cat.title))
@@ -358,18 +357,20 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
             return next
         })
     }
-    const isLoresheetDotSelected = (dotName: string) =>
-        pickedMeritsAndFlaws.some(m => m.name === dotName && m.type === "merit")
-    const toggleLoresheetDot = (dot: LoresheetDot) => {
-        const selected = isLoresheetDotSelected(dot.name)
+    const loresheetDotKey = (lsName: string, dotName: string) => `${lsName}: ${dotName}`
+    const isLoresheetDotSelected = (lsName: string, dotName: string) =>
+        pickedMeritsAndFlaws.some(m => m.name === loresheetDotKey(lsName, dotName) && m.type === "merit")
+    const toggleLoresheetDot = (lsName: string, dot: LoresheetDot) => {
+        const key = loresheetDotKey(lsName, dot.name)
+        const selected = isLoresheetDotSelected(lsName, dot.name)
         const cost = dot.dot
         if (selected) {
-            setPickedMeritsAndFlaws(prev => prev.filter(m => m.name !== dot.name))
+            setPickedMeritsAndFlaws(prev => prev.filter(m => m.name !== key))
             setRemainingMerits(prev => prev + cost)
         } else {
             if (remainingMerits < cost) return
             setPickedMeritsAndFlaws(prev => [...prev, {
-                name: dot.name,
+                name: key,
                 level: cost,
                 summary: dot.description,
                 excludes: [] as string[],
@@ -629,7 +630,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                         .filter(ls => !ls.clanRestriction?.length || ls.clanRestriction.includes(character.clan))
                                         .map(ls => {
                                             const isExpanded = expandedLoresheetIds.has(ls.id)
-                                            const purchasedCount = ls.dots.filter(d => isLoresheetDotSelected(d.name)).length
+                                            const purchasedCount = ls.dots.filter(d => isLoresheetDotSelected(ls.name, d.name)).length
                                             return (
                                                 <div
                                                     key={ls.id}
@@ -719,13 +720,13 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                                         <div style={{ padding: "8px 0" }}>
                                                             {ls.dots.map(dot => {
                                                                 const dotAvailable = !dot.clanRestriction?.length || dot.clanRestriction.includes(character.clan)
-                                                                const selected = isLoresheetDotSelected(dot.name)
+                                                                const selected = isLoresheetDotSelected(ls.name, dot.name)
                                                                 const cost = dot.dot
                                                                 const clickable = dotAvailable && (selected || remainingMerits >= cost)
                                                                 return (
                                                                     <button
                                                                         key={dot.dot}
-                                                                        onClick={() => { if (clickable) toggleLoresheetDot(dot) }}
+                                                                        onClick={() => { if (clickable) toggleLoresheetDot(ls.name, dot) }}
                                                                         style={{
                                                                             display: "flex",
                                                                             alignItems: "flex-start",
