@@ -56,6 +56,7 @@ import { CubbySyncWorker } from './services/cubbySyncWorker';
 import { liveConfig } from './liveConfig';
 import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
 import { DiscordActivityTracker } from './services/discordActivityTracker';
+import { StaffRoleSyncService } from './services/staffRoleSyncService';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
 liveConfig.reviewNotifierEnabled = config.reviewNotifierEnabled;
@@ -77,7 +78,12 @@ const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
 });
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
 }) as BotClient;
 
 initClientCommandCollection(client);
@@ -224,6 +230,19 @@ void applyStartupConfigOverrides().then(() => {
     ? new DiscordActivityTracker(adapter, discordActivityGuildId)
     : null;
 
+  const staffRoleSyncGuildId = config.discordGuildId ?? config.reviewNotifierGuildId ?? '';
+  const staffRoleSync = config.staffRoleSyncEnabled && staffRoleSyncGuildId
+    ? new StaffRoleSyncService(client, adapter, {
+        guildId: staffRoleSyncGuildId,
+        roleMap: new Map([
+          [config.staffRoleSystemHelperId, 'system_helper'],
+          [config.staffRoleStorytellerId, 'storyteller'],
+          [config.staffRoleModeratorId, 'moderator'],
+          [config.staffRoleAdministratorId, 'administrator'],
+        ]),
+      })
+    : null;
+
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
   const wikiSyncCapable = Boolean(config.discordGuildId);
   const botHeartbeatService = new BotHeartbeatService(
@@ -278,6 +297,7 @@ void applyStartupConfigOverrides().then(() => {
     // the same second and compete for connections during backfill scans.
     // Notifiers start immediately so their cursor bootstrap isn't delayed.
     setTimeout(() => botHeartbeatService.start(), 15_000);
+    staffRoleSync?.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,

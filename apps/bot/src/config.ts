@@ -162,6 +162,11 @@ const envSchema = z.object({
   CUBBY_SYNC_STAFF_CHANNEL_ID: z.string().optional(),
   CUBBY_RETIRED_CATEGORY_ID: z.string().optional(),
   LASOMBRA_COMMAND_NAME: z.string().regex(/^[-_a-z0-9]{1,32}$/, 'LASOMBRA_COMMAND_NAME must be 1-32 chars, lowercase letters/numbers/hyphens/underscores only').optional(),
+  STAFF_ROLE_SYNC_ENABLED: z.string().optional(),
+  STAFF_ROLE_SYSTEM_HELPER_ID: z.string().optional(),
+  STAFF_ROLE_STORYTELLER_ID: z.string().optional(),
+  STAFF_ROLE_MODERATOR_ID: z.string().optional(),
+  STAFF_ROLE_ADMINISTRATOR_ID: z.string().optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -382,6 +387,11 @@ export const config = {
   cubbySyncStaffChannelId: env.CUBBY_SYNC_STAFF_CHANNEL_ID ?? '',
   cubbyRetiredCategoryId: env.CUBBY_RETIRED_CATEGORY_ID ?? '1225070632799043685',
   lasombraCommandName: env.LASOMBRA_COMMAND_NAME ?? 'lasombra',
+  staffRoleSyncEnabled: (env.STAFF_ROLE_SYNC_ENABLED ?? 'false').toLowerCase() === 'true',
+  staffRoleSystemHelperId: env.STAFF_ROLE_SYSTEM_HELPER_ID ?? '1168649906324520992',
+  staffRoleStorytellerId: env.STAFF_ROLE_STORYTELLER_ID ?? '1168649373731790948',
+  staffRoleModeratorId: env.STAFF_ROLE_MODERATOR_ID ?? '1168650352132890794',
+  staffRoleAdministratorId: env.STAFF_ROLE_ADMINISTRATOR_ID ?? '1168648955731648554',
 };
 
 if (config.testRequesterDiscordId) {
