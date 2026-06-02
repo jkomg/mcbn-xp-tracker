@@ -324,6 +324,10 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         tbFlawCount - tbMeritCount
     )
 
+    const BACKGROUND_TITLES = new Set(["🏠 Haven", "💰 Resources", "🧛 Kindred", "👱 Mortals"])
+    const backgroundCategories = essentialMeritsAndFlaws.filter((cat) => BACKGROUND_TITLES.has(cat.title))
+    const meritFlawCategories = essentialMeritsAndFlaws.filter((cat) => !BACKGROUND_TITLES.has(cat.title))
+
     const [expandedLoresheetIds, setExpandedLoresheetIds] = useState<Set<string>>(new Set())
     const toggleLoresheetExpanded = (id: string) => {
         setExpandedLoresheetIds(prev => {
@@ -563,10 +567,10 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                 Backgrounds
                             </Tabs.Tab>
                             <Tabs.Tab value="merits" style={activeTab === "merits" ? activeTabStyle : undefined}>
-                                Merits
+                                Merits & Flaws
                             </Tabs.Tab>
-                            <Tabs.Tab value="flaws" style={activeTab === "flaws" ? activeTabStyle : undefined}>
-                                Flaws
+                            <Tabs.Tab value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
+                                Loresheets
                             </Tabs.Tab>
                         </Tabs.List>
                     </div>
@@ -574,6 +578,31 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
 
                 {/* Backgrounds panel */}
                 <Tabs.Panel value="backgrounds">
+                    <div
+                        style={{
+                            ...generatorScrollableContentStyle,
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            padding: "0 20px"
+                        }}
+                    >
+                        <ScrollArea {...columnScrollProps}>
+                            <Stack gap="sm" pb="xl">
+                                {backgroundCategories.map((cat) => (
+                                    <Stack gap="sm" key={cat.title}>
+                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                    </Stack>
+                                ))}
+                            </Stack>
+                        </ScrollArea>
+                    </div>
+                </Tabs.Panel>
+
+                {/* Loresheets panel (collapsible) */}
+                <Tabs.Panel value="loresheets">
                     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px" }}>
                         <div style={{ ...generatorScrollableContentStyle, height: "100%", display: "flex", flexDirection: "column" }}>
                             <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
@@ -783,7 +812,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     </div>
                 </Tabs.Panel>
 
-                {/* Merits panel */}
+                {/* Merits & Flaws panel */}
                 <Tabs.Panel value="merits">
                     <div
                         style={{
@@ -794,73 +823,97 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                             padding: "0 20px"
                         }}
                     >
-                        <ScrollArea {...columnScrollProps}>
-                            <Stack gap="sm" pb="xl">
-                                {isThinBlood ? (
-                                    <Stack gap="sm">
-                                        <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                        {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                    </Stack>
-                                ) : null}
-                                {essentialMeritsAndFlaws.map((cat) =>
-                                    cat.merits.length > 0 ? (
+                        {isThinBlood && phoneScreen ? (
+                            <Text
+                                ta="center"
+                                style={{
+                                    flexShrink: 0,
+                                    fontFamily: "Crimson Text, Georgia, serif",
+                                    fontSize: "1.05rem",
+                                    color: theme.colors.grape[3],
+                                    padding: "4px 0 8px"
+                                }}
+                            >
+                                Pick Thin-blood flaws to gain Thin-blood merit points
+                            </Text>
+                        ) : null}
+                        {phoneScreen ? (
+                            <ScrollArea {...columnScrollProps}>
+                                <Stack gap="sm" pb="xl">
+                                    {isThinBlood ? (
+                                        <>
+                                            <Stack gap="sm">
+                                                <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                            </Stack>
+                                            <Stack gap="sm">
+                                                <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                            </Stack>
+                                            <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
+                                        </>
+                                    ) : null}
+                                    {meritFlawCategories.map((cat) => (
                                         <Stack gap="sm" key={cat.title}>
                                             <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
                                             {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
                                         </Stack>
-                                    ) : null
-                                )}
-                            </Stack>
-                        </ScrollArea>
+                                    ))}
+                                </Stack>
+                            </ScrollArea>
+                        ) : (
+                            <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 16, overflow: "hidden", paddingTop: 4 }}>
+                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                    <ScrollArea {...columnScrollProps}>
+                                        <Stack gap="sm" pb="xl">
+                                            {isThinBlood ? (
+                                                <Stack gap="sm">
+                                                    <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                    {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                </Stack>
+                                            ) : null}
+                                            {meritFlawCategories
+                                                .filter((_, i) => i % 2 === 0)
+                                                .map((cat) => (
+                                                    <Stack gap="sm" key={cat.title}>
+                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                ))}
+                                        </Stack>
+                                    </ScrollArea>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                    <ScrollArea {...columnScrollProps}>
+                                        <Stack gap="sm" pb="xl">
+                                            {isThinBlood ? (
+                                                <>
+                                                    <Stack gap="sm">
+                                                        <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                    <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
+                                                </>
+                                            ) : null}
+                                            {meritFlawCategories
+                                                .filter((_, i) => i % 2 !== 0)
+                                                .map((cat) => (
+                                                    <Stack gap="sm" key={cat.title}>
+                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                ))}
+                                        </Stack>
+                                    </ScrollArea>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Tabs.Panel>
 
-                {/* Flaws panel */}
-                <Tabs.Panel value="flaws">
-                    <div
-                        style={{
-                            ...generatorScrollableContentStyle,
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                            padding: "0 20px"
-                        }}
-                    >
-                        <ScrollArea {...columnScrollProps}>
-                            <Stack gap="sm" pb="xl">
-                                {isThinBlood ? (
-                                    <>
-                                        <Text
-                                            ta="center"
-                                            style={{
-                                                flexShrink: 0,
-                                                fontFamily: "Crimson Text, Georgia, serif",
-                                                fontSize: "1.05rem",
-                                                color: theme.colors.grape[3],
-                                                padding: "4px 0 8px"
-                                            }}
-                                        >
-                                            Pick Thin-blood flaws to gain Thin-blood merit points
-                                        </Text>
-                                        <Stack gap="sm">
-                                            <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                            {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                        </Stack>
-                                        <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
-                                    </>
-                                ) : null}
-                                {essentialMeritsAndFlaws.map((cat) =>
-                                    cat.flaws.length > 0 ? (
-                                        <Stack gap="sm" key={cat.title}>
-                                            <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                        </Stack>
-                                    ) : null
-                                )}
-                            </Stack>
-                        </ScrollArea>
-                    </div>
-                </Tabs.Panel>
             </Tabs>
 
             {/* ── Confirm button ── */}
