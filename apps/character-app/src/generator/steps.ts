@@ -50,7 +50,7 @@ const allGeneratorSteps: GeneratorStep[] = [
     { id: "rituals", label: "Rituals" },
     { id: "ceremonies", label: "Ceremonies" },
     { id: "touchstones", label: "Touchstones", progressKey: "touchstones" },
-    { id: "merits", label: "Merits & Flaws", progressKey: "merits" },
+    { id: "merits", label: "Advantages", progressKey: "merits" },
     { id: "loresheet", label: "Loresheets" },
     { id: "in-memoriam", label: "Oceans of Time" },
     { id: "final", label: "Review & Submit" },

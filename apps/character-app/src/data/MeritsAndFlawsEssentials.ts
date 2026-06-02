@@ -461,9 +461,15 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 excludes: []
             },
             {
-                name: "Allies",
-                cost: [1, 2, 3, 4, 5],
-                summary: "group of mortals to advise or help you",
+                name: "Allies: Effectiveness",
+                cost: [1, 2, 3, 4],
+                summary: "how capable your ally group is. ● weak mortal (likely useless in violence). ●● average mortal or tight-knit group of weak mortals (church group, NGO chapter). ●●● gifted mortal or dangerous average group (street gang, blue-collar union local). ●●●● deadly mortal, gifted mortal with supernatural power, or well-armed group (private security squad, Mafia bratva). Effectiveness + Reliability combined may not exceed 6.",
+                excludes: []
+            },
+            {
+                name: "Allies: Reliability",
+                cost: [1, 2, 3],
+                summary: "how dependable your ally group is. ● appear about half the time. ●● appear within 1–10 hours (roll a die). ●●● appear as soon as possible. Effectiveness + Reliability combined may not exceed 6.",
                 excludes: []
             },
             {
@@ -499,7 +505,7 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
             {
                 name: "Enemy",
                 cost: [1, 2],
-                summary: "group of mortals that want to harm you",
+                summary: "mortal group working against you, rated two dots below their Effectiveness. ● enemy at Effectiveness ●●● (gifted mortal or dangerous group). ●● enemy at Effectiveness ●●●● (deadly mortal, well-armed group). Number of enemy groups equals number of player characters.",
                 excludes: []
             },
             {
