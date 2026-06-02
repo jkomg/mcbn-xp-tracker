@@ -399,6 +399,7 @@ def submit_spend(name):
 
     spend_category = request.form.get('spend_category', '').strip()
     trait_name = request.form.get('trait_name', '').strip()
+    power_name = request.form.get('power_name', '').strip()[:100]
     justification = request.form.get('justification', '').strip()[:1000]
 
     if not spend_category or not trait_name:
@@ -436,6 +437,7 @@ def submit_spend(name):
             character_name=name,
             spend_category=spend_category,
             trait_name=trait_name,
+            power_name=power_name,
             current_dots=current_dots,
             new_dots=new_dots,
             is_in_clan=is_in_clan,
