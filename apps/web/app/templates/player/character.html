@@ -416,34 +416,51 @@
 </div>
 
 <!-- Approved Claims History -->
-<div class="card mb-4">
+<div class="card mb-4" id="xp-claims-history">
     <div class="card-header">
         <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History</h5>
     </div>
     <div class="card-body">
-        {% if approved_claims %}
+        {% if approved_claims or ledger %}
         <div class="table-responsive">
             <table class="table table-dark table-striped mb-0">
                 <thead>
                     <tr>
-                        <th>Period</th>
-                        <th>XP Awarded</th>
+                        <th>Type</th>
+                        <th>XP Change</th>
                         <th>Date</th>
-                        {% if approved_claims[0].st_notes is defined %}
-                        <th>ST Notes</th>
-                        {% endif %}
+                        <th>Notes</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for claim in approved_claims %}
                     <tr>
                         <td>{{ claim.play_period }}</td>
-                        <td>
-                            <span class="badge bg-success">+{{ claim.approved_xp }}</span>
-                        </td>
+                        <td><span class="badge bg-success">+{{ claim.approved_xp }}</span></td>
                         <td>{{ claim.review_date or claim.timestamp }}</td>
                         <td>{{ claim.st_notes if claim.st_notes and not claim.st_notes.startswith('STAFF ADJUSTMENT') else '' }}</td>
                     </tr>
+                    {% endfor %}
+                    {% for entry in ledger %}
+                    {% if entry.awarded != 0 or entry.spent != 0 %}
+                    <tr class="table-secondary">
+                        <td><span class="badge bg-secondary">Staff Adjustment</span></td>
+                        <td>
+                            {% if entry.awarded > 0 %}
+                            <span class="badge bg-success">+{{ entry.awarded }}</span>
+                            {% elif entry.awarded < 0 %}
+                            <span class="badge bg-danger">{{ entry.awarded }}</span>
+                            {% endif %}
+                            {% if entry.spent > 0 %}
+                            <span class="badge bg-warning text-dark">−{{ entry.spent }} spend</span>
+                            {% elif entry.spent < 0 %}
+                            <span class="badge bg-info text-dark">+{{ entry.spent|abs }} spend refund</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ entry.date }}</td>
+                        <td>{{ entry.reason | replace('Staff Adjustment: ', '') | replace('Staff Adjustment (removal): ', '') | replace('Staff Refund: ', '') | replace('Staff Adjustment (add spend): ', '') }}</td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -616,60 +633,6 @@
     </div>
 </div>
 
-<!-- XP Ledger (collapsible) -->
-{% if ledger %}
-<div class="card mb-4">
-    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#xp-ledger" role="button" style="cursor: pointer;">
-        <h5 class="mb-0">
-            <i class="bi bi-journal-text"></i> XP Ledger
-            <span class="badge bg-secondary ms-2">{{ ledger|length }} entries</span>
-            <i class="bi bi-chevron-down float-end"></i>
-        </h5>
-    </div>
-    <div class="collapse" id="xp-ledger">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-dark table-striped table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Awarded</th>
-                            <th>Spent</th>
-                            <th>Balance</th>
-                            <th>Reason</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% set ns = namespace(balance=0) %}
-                        {% for entry in ledger|reverse %}
-                        {% set ns.balance = ns.balance + entry.awarded - entry.spent %}
-                        <tr>
-                            <td>{{ entry.date }}</td>
-                            <td>
-                                {% if entry.awarded %}
-                                <span class="text-success">+{{ entry.awarded }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if entry.spent %}
-                                <span class="text-danger">-{{ entry.spent }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="{% if ns.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    {{ ns.balance }}
-                                </span>
-                            </td>
-                            <td>{{ entry.reason }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 <!-- XP Cost Reference (collapsed) -->
 <div class="card mb-4">
@@ -728,7 +691,7 @@
         <i class="bi bi-bookmark-star"></i>
         <span>Wish List</span>
     </button>
-    <a href="#xp-ledger" class="player-bottom-nav-item" id="bottom-history-btn">
+    <a href="#xp-claims-history" class="player-bottom-nav-item" id="bottom-history-btn">
         <i class="bi bi-journal-text"></i>
         <span>History</span>
     </a>
@@ -757,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('bottom-history-btn')?.addEventListener('click', function(e) {
         e.preventDefault();
-        document.getElementById('xp-ledger')?.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('xp-claims-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     document.getElementById('bottom-wishlist-btn')?.addEventListener('click', function() {
         expandAndScroll('wish-list');
