@@ -129,6 +129,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Up All Night",
+                cost: [2, 4],
+                summary: "for Blush of Life, eating/drinking, and sexual intercourse, treat Humanity as 1 higher (●●) or 2 higher (●●●●). Cannot combine with other Humanity-treating-as-higher effects. Nosferatu cannot select; Hecata can only select at 2 dots.",
+                excludes: []
+            },
+            {
                 name: "Famous Face",
                 cost: [1],
                 summary: "look like a celebrity; helps socially but makes you memorable",
@@ -194,6 +200,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         ],
         flaws: [
             {
+                name: "Outdated Preference",
+                cost: [2],
+                summary: "your preferred vessel has become nearly impossible to find (castrati, quaalude addicts, footmen, etc). You must force mortals to fit your preference, or always spend 1 Willpower to feed.",
+                excludes: []
+            },
+            {
                 name: "Vegan",
                 cost: [2],
                 summary: "feed only from animals; human blood costs Willpower",
@@ -232,6 +244,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Object of Power",
+                cost: [1, 2, 3],
+                summary: "a rare and powerful item. ● set of uncommonly lucky dice: reroll one non-Hunger die once per story. ●● Grimoire: +1 die to all Level 1 Ritual tests. ●●● golden eye amulet: free Premonition warning once per session when someone is about to harm you.",
+                excludes: []
+            },
+            {
                 name: "Luck of the Devil",
                 cost: [4],
                 summary: "once per session, shift a misfortune onto someone nearby",
@@ -264,6 +282,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
             }
         ],
         flaws: [
+            {
+                name: "Cursed Object",
+                cost: [1],
+                summary: "something you own wants you dead. Once per session at a time determined by the Storyteller, you must reroll a successful test, risking failure instead.",
+                excludes: []
+            },
             {
                 name: "Starving Decay",
                 cost: [2],
@@ -351,7 +375,14 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 excludes: []
             }
         ],
-        flaws: []
+        flaws: [
+            {
+                name: "Banned From...",
+                cost: [1, 2, 3],
+                summary: "barred from a Kindred-ruled city. ● small city (Portland, Salzburg). ●● mid-sized city (Venice, Sacramento). ●●● large city (Paris, Tokyo, Cairo). Getting in anyway causes serious trouble.",
+                excludes: []
+            }
+        ]
     },
     {
         title: "Cult",
@@ -519,9 +550,28 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [5],
                 summary: "you cannot be blood bound",
                 excludes: ["Bondslave", "Bond Junkie", "Long Bond"]
+            },
+            {
+                name: "Bonds of Fealty",
+                cost: [2],
+                summary: "requires Dominate. Your Dominate powers do not require eye contact when targeting someone blood bound to you. You still need to communicate your instructions, but need not be physically present.",
+                excludes: []
+            },
+            {
+                name: "Enduring Bond",
+                cost: [1],
+                summary: "your blood bonds last longer than normal. Complete and partial blood bonds only weaken every other month, not every month.",
+                excludes: ["Short Bond"]
             }
         ],
-        flaws: []
+        flaws: [
+            {
+                name: "Two Masters",
+                cost: [1],
+                summary: "you can be Blood Bound to two individuals simultaneously. May cause complications if you drink Kindred blood recreationally.",
+                excludes: []
+            }
+        ]
     },
     {
         title: "Influence",
@@ -667,6 +717,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Check the Trunk",
+                cost: [1],
+                summary: "easy access to an armory or cache of tools (Resources 2 value cap); +2 dice to Preparedness pools for items within that band",
+                excludes: []
+            },
+            {
                 name: "Pack Diablerie",
                 cost: [2],
                 summary:
@@ -698,6 +754,215 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [1],
                 summary:
                     "Masquerade enforcers distrust your attempt to live too much like a mortal",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "◐ Caitiff specific",
+        complexity: "advanced",
+        restriction: "caitiff",
+        merits: [
+            {
+                name: "Favored Blood",
+                cost: [4],
+                summary: "buy dots in any Discipline without tasting that Discipline's blood first",
+                excludes: ["Muddled Blood"]
+            },
+            {
+                name: "Mark of Caine",
+                cost: [2],
+                summary: "+2 dice to intimidate or cow vampires who believe in the myth of Caine; diablerists cannot add Blood Potency vs you and failure on their roll results in a bestial failure",
+                excludes: []
+            },
+            {
+                name: "Mockingbird",
+                cost: [3],
+                summary: "for one night after drinking 1 Hunger die of blood from a vampire, borrow one of their Discipline powers (up to your highest Discipline level); mimic donor's bane at their severity during this time; once per night",
+                excludes: []
+            },
+            {
+                name: "Sun-Scarred",
+                cost: [5],
+                summary: "first turn of sunlight: no Health damage, 1 Aggravated Willpower damage, auto-succeed terror frenzy roll; remainder of scene: all sun Health damage becomes Superficial",
+                excludes: []
+            },
+            {
+                name: "Uncle Fangs",
+                cost: [3],
+                summary: "easy access to a local coterie of 3–5 thin-bloods; treat as Allies (undead); they often know street events early and may provide Alchemical concoctions",
+                excludes: ["Liquidator"]
+            }
+        ],
+        flaws: [
+            {
+                name: "Befouling Vitae",
+                cost: [2],
+                summary: "any mortal you Embrace or kill by feeding returns as a wight within a few nights; the local Prince or Baron will hear about it",
+                excludes: []
+            },
+            {
+                name: "Clan Curse",
+                cost: [2],
+                summary: "suffer a clan bane of your choice (likely your sire's) at half severity, minimum 1; can sometimes help you pass for that clan",
+                excludes: []
+            },
+            {
+                name: "Debt Peon",
+                cost: [2],
+                summary: "owe boons to a high-Status vampire who never considers them settled; two-dice penalty to Social combat against you in front of other Kindred; refusal adds the Shunned flaw and risks a Blood Hunt",
+                excludes: []
+            },
+            {
+                name: "Liquidator",
+                cost: [1],
+                summary: "thin-bloods shun and avoid you; -2 dice to Social skill pools against thin-bloods except Intimidation",
+                excludes: ["Uncle Fangs"]
+            },
+            {
+                name: "Muddled Blood",
+                cost: [1],
+                summary: "must drink blood of someone with a Discipline to buy dots in it, even if you already possess it",
+                excludes: ["Favored Blood"]
+            },
+            {
+                name: "Walking Omen",
+                cost: [2],
+                summary: "scrying, premonitions, and fortune-telling in your domain regularly point to you as a source of disaster; at least one serious altercation per story as oracles or hunters seek you out",
+                excludes: []
+            },
+            {
+                name: "Word-Scarred",
+                cost: [1],
+                summary: "your body is covered in ancient vampiric lore text; the major occult force in the chronicle seeks to imprison, flense, or otherwise neutralize you; others who read the full text learn a terrible Gehenna secret",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "◐ Ghoul specific",
+        complexity: "advanced",
+        restriction: "ghoul",
+        merits: [
+            {
+                name: "Blood Empathy",
+                cost: [2],
+                summary: "sense your domitor's emotional/psychological state within 1 mile; know when they are in peril or require your presence; does not allow telepathic communication",
+                excludes: []
+            },
+            {
+                name: "Unseemly Aura",
+                cost: [2],
+                summary: "your aura appears vampiric rather than mortal; may cause others to overestimate you",
+                excludes: []
+            }
+        ],
+        flaws: [
+            {
+                name: "Baneful Blood",
+                cost: [1, 2],
+                summary: "experience your first domitor's clan bane at 1 level per dot; domitor must be Lasombra, Malkavian, Ministry, Nosferatu, Ravnos, Salubri, or Toreador; bane does not change if domitor changes",
+                excludes: []
+            },
+            {
+                name: "Crone's Curse",
+                cost: [2],
+                summary: "the Blood aged you rapidly; appear at least a decade older than you are and have one fewer Health box",
+                excludes: []
+            },
+            {
+                name: "Distressing Fangs",
+                cost: [1],
+                summary: "the Blood gave you strange, unsettling teeth; -1 die to Social pools with mortals",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "Blood Ties",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Consanguineous Sense",
+                cost: [1],
+                summary: "your Blood calls out to close relations. Instinctively recognize direct bloodline members within a few paces. Resolve + Awareness vs Difficulty 3 to confirm if a Kindred within ~3m shares your bloodline (but not their exact Generation distance). Not available to Caitiff or Duskborn.",
+                excludes: []
+            },
+            {
+                name: "Consanguineous Influence",
+                cost: [2],
+                summary: "mental Disciplines are more effective on those of the same bloodline: +1 die against any clan member or direct ancestor/descendant, or +2 dice if only one or two generations removed. Not available to Caitiff or Duskborn.",
+                excludes: []
+            },
+            {
+                name: "Sins of the Fathers",
+                cost: [2, 3],
+                summary: "after committing diablerie on a direct ancestor or descendant, you show no telltale signs. Powers like Scry the Soul or A Taste for Blood do not detect the crime. ●●●: extends to any member of your own clan. Caitiff and Duskborn cannot take the 3-dot version.",
+                excludes: []
+            }
+        ],
+        flaws: []
+    },
+    {
+        title: "Diablerie",
+        complexity: "advanced",
+        merits: [],
+        flaws: [
+            {
+                name: "Blatant Diablerist",
+                cost: [1],
+                summary: "telltale signs of diablerie are always noticeable to those who can sense it. Powers such as Scry the Soul or A Taste for Blood always reveal diablerie, even on an otherwise failed test. Can only be taken at creation if the character has a history of diablerie.",
+                excludes: []
+            },
+            {
+                name: "Inherited Bane",
+                cost: [1],
+                summary: "you suffer another clan's bane in addition to your own (e.g., Tremere may take the Salubri clan bane).",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "Psychological",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Soothed Beast",
+                cost: [1],
+                summary: "choose a Storyteller character as your obsession. Once per session when in their presence, ignore one Bestial Failure or Messy Critical. If they die, gain 3 Stains but choose a new obsession at the start of the next session.",
+                excludes: []
+            },
+            {
+                name: "False Love",
+                cost: [1],
+                summary: "choose a Storyteller character as your obsession. When in their presence, treat Humanity as 1 higher (max 10) for Blush of Life, eating/drinking, and intercourse. Does not combine with other Humanity-treating-as-higher effects. If they die, gain 3 Stains but choose a new obsession next session.",
+                excludes: ["Up All Night"]
+            }
+        ],
+        flaws: []
+    },
+    {
+        title: "Archaic",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Custodian of History",
+                cost: [1],
+                summary: "an elder confided their version of a lost age to you. Choose one subject (Book of Nod, First Inquisition, Constantinople, Revelations of the Dark Mother, Antiquity and Carthage, etc.): +1 die to all Skill tests pertaining to it.",
+                excludes: []
+            }
+        ],
+        flaws: [
+            {
+                name: "Grief Phobia",
+                cost: [1],
+                summary: "a lost Touchstone left you with a permanent phobia for something that reminds you of them. -1 die to all tests made in the presence of your phobic stimulus. Can be taken once per lost Touchstone.",
+                excludes: []
+            },
+            {
+                name: "Old Tricks",
+                cost: [1],
+                summary: "you've never mastered the modern age: all your Skill specialties must be Archaic specialties.",
                 excludes: []
             }
         ]

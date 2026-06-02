@@ -56,6 +56,42 @@ export const thinbloodMeritsAndFlaws: MeritsAndFlaws = {
             excludes: []
         },
         {
+            name: "Abhorrent Blood",
+            cost: [1],
+            summary: "other vampires cannot stomach your blood; anyone trying to drink from you must spend 2 Willpower per turn to continue; mortals and Thin-blood Alchemy unaffected",
+            excludes: []
+        },
+        {
+            name: "Faith-Proof",
+            cost: [1],
+            summary: "too close to mortality for True Faith to affect you",
+            excludes: []
+        },
+        {
+            name: "Low Appetite",
+            cost: [1],
+            summary: "when rising at Hunger 0 or 1, roll two dice on your Rouse Check and take the highest",
+            excludes: []
+        },
+        {
+            name: "Lucid Dreamer",
+            cost: [1],
+            summary: "you dream and can recall them; once per session ask the ST for a clue from the previous night's memories or a story hint suitable for dream revelation",
+            excludes: []
+        },
+        {
+            name: "Mortality's Mien",
+            cost: [1],
+            summary: "your aura appears mortal rather than vampiric; +2 dice to any attempt to appear mortal",
+            excludes: []
+        },
+        {
+            name: "Swift Feeder",
+            cost: [1],
+            summary: "slake 1 Hunger in one turn including licking the wound closed; once per scene",
+            excludes: []
+        },
+        {
             name: "Memories of the Fallen",
             cost: [2],
             summary: "Ashe visions make some Blood Alchemy rolls critically stronger",
@@ -103,6 +139,54 @@ export const thinbloodMeritsAndFlaws: MeritsAndFlaws = {
             excludes: []
         },
         {
+            name: "Heliophobia",
+            cost: [1],
+            summary: "fear sunlight as though a full vampire; susceptible to terror frenzy from sunlight",
+            excludes: []
+        },
+        {
+            name: "Night Terrors",
+            cost: [1],
+            summary: "once per session night terrors onset and you take a -1 die penalty to all actions for the rest of the scene",
+            excludes: []
+        },
+        {
+            name: "Plague Bearer",
+            cost: [1],
+            summary: "still susceptible to mortal illness; roll a die per Hunger slaked when feeding — on a 1 you catch something (ST determines effect); only slaking to Hunger 0 cures you; can infect those you feed on",
+            excludes: []
+        },
+        {
+            name: "Sloppy Drinker",
+            cost: [1],
+            summary: "make Dex + Medicine vs difficulty = Hunger slaked after feeding to close wound marks; on failure the wound is too ragged, risking the Masquerade",
+            excludes: []
+        },
+        {
+            name: "Sun-Faded",
+            cost: [1],
+            summary: "cannot use Disciplines or Thin-blood Alchemy in sunlight; indoors by day suffer -2 dice penalty as long as no sunlight reaches you",
+            excludes: []
+        },
+        {
+            name: "Supernatural Tell",
+            cost: [1],
+            summary: "other supernatural entities can sense your presence; -2 dice from Stealth pools against supernatural opponents including other vampires",
+            excludes: []
+        },
+        {
+            name: "Twilight Presence",
+            cost: [1],
+            summary: "mortals and Kindred are uncomfortable around you; -1 die from Social pools with everyone except other thin-bloods",
+            excludes: []
+        },
+        {
+            name: "Unending Hunger",
+            cost: [1],
+            summary: "your Beast always hungers for more; slake 1 fewer Hunger than other thin-bloods per scene",
+            excludes: []
+        },
+        {
             name: "Ashe Addiction",
             cost: [2],
             summary: "failed Ashe-related alchemy leaves you distracted for the session",
@@ -140,6 +224,12 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [2],
                 summary: "-2 dice in Social rolls",
                 excludes: ["Beautiful", "Stunning", "Ugly"]
+            },
+            {
+                name: "Unblinking Visage",
+                cost: [1],
+                summary: "your dead body has forgotten blinking, breathing, and automatic reflexes. Count Humanity as two levels lower (minimum zero) for Blush of Life and similar life-mimicking activities.",
+                excludes: []
             }
         ]
     },
@@ -409,7 +499,30 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
             }
         ],
         flaws: [
-            { name: "Adversary", cost: [1], summary: "kindred enemy", excludes: [] },
+            {
+                name: "Adversary",
+                cost: [1, 2, 3, 4, 5],
+                summary: "Kindred who opposes you, rated by their Status or relevant Trait. ● Neonate. ●● Ancilla. ●●● Elder. ●●●● Primogen or Anarch Revolutionary Council member. ●●●●● Prince or Baron.",
+                excludes: []
+            },
+            {
+                name: "Shameful Childe",
+                cost: [1],
+                summary: "you Embraced someone and abandoned them. They're out there somewhere, and sooner or later they'll come back to confront you.",
+                excludes: []
+            },
+            {
+                name: "Touchstone Embraced by Your Enemies",
+                cost: [2],
+                summary: "a former Touchstone was Embraced and now runs with your enemies. A single neonate Adversary with allies; confronting them risks Stains.",
+                excludes: []
+            },
+            {
+                name: "Secret Master",
+                cost: [1],
+                summary: "requires Mawla 1+. Your Mawla has a hold over you and once per story requires a minor secret task. Failure escalates next story. Continued failure forfeits the flaw, replaced by 2+ dots of other flaws.",
+                excludes: []
+            },
             {
                 name: "Suspect",
                 cost: [1],
@@ -457,7 +570,7 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 name: "Retainer",
                 cost: [1, 2, 3],
                 summary:
-                    "loyal mortal servant, 1 - weak lowlife, 3 - skilled professional retainer",
+                    "loyal servant. ● weak mortal (child, criminal lowlife, or horror nerd). ●● average mortal or ghoul with no Advantages (family servant, human lover, dominated thrall). ●●● gifted mortal or ghoul with supernatural abilities, competent enough to act independently.",
                 excludes: []
             },
             {
