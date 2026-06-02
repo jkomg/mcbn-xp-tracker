@@ -347,7 +347,11 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     // M&F categories: essentials (non-background) + advanced (non-background)
     const essentialMFCategories = essentialMeritsAndFlaws.filter((cat) => !ESSENTIAL_BG_TITLES.has(cat.title))
     const advancedMFCategories = advancedMeritsAndFlaws.filter((cat) => !ADVANCED_BG_TITLES.has(cat.title))
-    const allMFCategories = [...essentialMFCategories, ...advancedMFCategories]
+    const allMFCategories = [...essentialMFCategories, ...advancedMFCategories].filter((cat) => {
+        if (cat.restriction === "caitiff") return character.clan === "Caitiff"
+        if (cat.restriction === "ghoul") return character.age_category === "ghoul"
+        return true
+    })
 
     const [expandedLoresheetIds, setExpandedLoresheetIds] = useState<Set<string>>(new Set())
     const toggleLoresheetExpanded = (id: string) => {

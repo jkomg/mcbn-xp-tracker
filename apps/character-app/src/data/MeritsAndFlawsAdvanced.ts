@@ -667,6 +667,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Check the Trunk",
+                cost: [1],
+                summary: "easy access to an armory or cache of tools (Resources 2 value cap); +2 dice to Preparedness pools for items within that band",
+                excludes: []
+            },
+            {
                 name: "Pack Diablerie",
                 cost: [2],
                 summary:
@@ -698,6 +704,126 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 cost: [1],
                 summary:
                     "Masquerade enforcers distrust your attempt to live too much like a mortal",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "◐ Caitiff specific",
+        complexity: "advanced",
+        restriction: "caitiff",
+        merits: [
+            {
+                name: "Favored Blood",
+                cost: [4],
+                summary: "buy dots in any Discipline without tasting that Discipline's blood first",
+                excludes: ["Muddled Blood"]
+            },
+            {
+                name: "Mark of Caine",
+                cost: [2],
+                summary: "+2 dice to intimidate or cow vampires who believe in the myth of Caine; diablerists cannot add Blood Potency vs you and failure on their roll results in a bestial failure",
+                excludes: []
+            },
+            {
+                name: "Mockingbird",
+                cost: [3],
+                summary: "for one night after drinking 1 Hunger die of blood from a vampire, borrow one of their Discipline powers (up to your highest Discipline level); mimic donor's bane at their severity during this time; once per night",
+                excludes: []
+            },
+            {
+                name: "Sun-Scarred",
+                cost: [5],
+                summary: "first turn of sunlight: no Health damage, 1 Aggravated Willpower damage, auto-succeed terror frenzy roll; remainder of scene: all sun Health damage becomes Superficial",
+                excludes: []
+            },
+            {
+                name: "Uncle Fangs",
+                cost: [3],
+                summary: "easy access to a local coterie of 3–5 thin-bloods; treat as Allies (undead); they often know street events early and may provide Alchemical concoctions",
+                excludes: ["Liquidator"]
+            }
+        ],
+        flaws: [
+            {
+                name: "Befouling Vitae",
+                cost: [2],
+                summary: "any mortal you Embrace or kill by feeding returns as a wight within a few nights; the local Prince or Baron will hear about it",
+                excludes: []
+            },
+            {
+                name: "Clan Curse",
+                cost: [2],
+                summary: "suffer a clan bane of your choice (likely your sire's) at half severity, minimum 1; can sometimes help you pass for that clan",
+                excludes: []
+            },
+            {
+                name: "Debt Peon",
+                cost: [2],
+                summary: "owe boons to a high-Status vampire who never considers them settled; two-dice penalty to Social combat against you in front of other Kindred; refusal adds the Shunned flaw and risks a Blood Hunt",
+                excludes: []
+            },
+            {
+                name: "Liquidator",
+                cost: [1],
+                summary: "thin-bloods shun and avoid you; -2 dice to Social skill pools against thin-bloods except Intimidation",
+                excludes: ["Uncle Fangs"]
+            },
+            {
+                name: "Muddled Blood",
+                cost: [1],
+                summary: "must drink blood of someone with a Discipline to buy dots in it, even if you already possess it",
+                excludes: ["Favored Blood"]
+            },
+            {
+                name: "Walking Omen",
+                cost: [2],
+                summary: "scrying, premonitions, and fortune-telling in your domain regularly point to you as a source of disaster; at least one serious altercation per story as oracles or hunters seek you out",
+                excludes: []
+            },
+            {
+                name: "Word-Scarred",
+                cost: [1],
+                summary: "your body is covered in ancient vampiric lore text; the major occult force in the chronicle seeks to imprison, flense, or otherwise neutralize you; others who read the full text learn a terrible Gehenna secret",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "◐ Ghoul specific",
+        complexity: "advanced",
+        restriction: "ghoul",
+        merits: [
+            {
+                name: "Blood Empathy",
+                cost: [2],
+                summary: "sense your domitor's emotional/psychological state within 1 mile; know when they are in peril or require your presence; does not allow telepathic communication",
+                excludes: []
+            },
+            {
+                name: "Unseemly Aura",
+                cost: [2],
+                summary: "your aura appears vampiric rather than mortal; may cause others to overestimate you",
+                excludes: []
+            }
+        ],
+        flaws: [
+            {
+                name: "Baneful Blood",
+                cost: [1, 2],
+                summary: "experience your first domitor's clan bane at 1 level per dot; domitor must be Lasombra, Malkavian, Ministry, Nosferatu, Ravnos, Salubri, or Toreador; bane does not change if domitor changes",
+                excludes: []
+            },
+            {
+                name: "Crone's Curse",
+                cost: [2],
+                summary: "the Blood aged you rapidly; appear at least a decade older than you are and have one fewer Health box",
+                excludes: []
+            },
+            {
+                name: "Distressing Fangs",
+                cost: [1],
+                summary: "the Blood gave you strange, unsettling teeth; -1 die to Social pools with mortals",
                 excludes: []
             }
         ]

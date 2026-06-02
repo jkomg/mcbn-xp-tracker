@@ -21,6 +21,7 @@ export type MeritsAndFlaws = {
     merits: MeritOrFlaw[]
     flaws: MeritOrFlaw[]
     complexity?: MeritFlawComplexity
+    restriction?: "caitiff" | "ghoul"
 }
 
 export type RequirementFunction = (character: Character) => boolean
