@@ -23,6 +23,9 @@
                     <div>
                         <div class="text-muted small mb-1" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Trait</div>
                         <h4 class="mb-0">{{ spend.trait_name }}</h4>
+                        {% if spend.power_name %}
+                        <div class="text-muted small mt-1"><i class="bi bi-lightning"></i> {{ spend.power_name }}</div>
+                        {% endif %}
                     </div>
                     {% if spend.current_dots is not none and spend.new_dots %}
                     <div class="ms-auto text-end">

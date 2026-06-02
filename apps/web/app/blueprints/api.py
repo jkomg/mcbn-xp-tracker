@@ -1054,6 +1054,7 @@ def submit_spend():
     character_name = str(payload.get('characterName', '')).strip()
     spend_category = str(payload.get('spendCategory', '')).strip()
     trait_name = str(payload.get('traitName', '')).strip()
+    power_name = str(payload.get('powerName', '')).strip()[:100]
     justification = str(payload.get('justification', '')).strip()
 
     if not character_name or not spend_category or not trait_name or not justification:
@@ -1080,6 +1081,7 @@ def submit_spend():
             character_name=character_name,
             spend_category=spend_category,
             trait_name=trait_name,
+            power_name=power_name,
             current_dots=current_dots,
             new_dots=new_dots,
             is_in_clan=is_in_clan,
