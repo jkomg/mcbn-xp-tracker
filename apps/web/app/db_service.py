@@ -174,6 +174,7 @@ def _row_to_spend(row: DbSpendRequest) -> SpendRequest:
         character_name=row.character_name or '',
         spend_category=row.spend_category or '',
         trait_name=row.trait_name or '',
+        power_name=row.power_name or '',
         current_dots=row.current_dots or 0,
         new_dots=row.new_dots or 0,
         xp_cost=row.xp_cost or 0,
@@ -765,7 +766,8 @@ class DBService:
     def submit_spend_request(self, character_name: str, spend_category: str,
                              trait_name: str, current_dots: int,
                              new_dots: int, is_in_clan: bool,
-                             justification: str, depends_on: int = 0) -> int:
+                             justification: str, depends_on: int = 0,
+                             power_name: str = '') -> int:
         """Submit a new spend request. Returns the calculated XP cost.
 
         Raises ValueError if the cost calculation fails.
@@ -778,6 +780,7 @@ class DBService:
             character_name=character_name,
             spend_category=spend_category,
             trait_name=trait_name,
+            power_name=power_name or '',
             current_dots=current_dots,
             new_dots=new_dots,
             xp_cost=xp_cost,

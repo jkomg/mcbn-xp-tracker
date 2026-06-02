@@ -6,6 +6,7 @@ from flask import (
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
+from app.character_sheet import patch_character_draft
 
 bp = Blueprint('spends', __name__)
 
@@ -81,6 +82,7 @@ def approve(row_id):
     staff = get_staff_user()
 
     db_service.approve_spend(row_id, verified_cost, staff, notes)
+    patch_character_draft(spend)
     db_service.log_action(
         staff_user=staff,
         action_type='approve_spend',
@@ -216,6 +218,7 @@ def bulk_approve():
         verified_cost = validation['correct_cost']
 
         db_service.approve_spend(row_id, verified_cost, staff, '')
+        patch_character_draft(spend)
         db_service.log_action(
             staff_user=staff,
             action_type='approve_spend',

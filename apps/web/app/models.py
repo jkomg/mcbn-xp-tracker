@@ -118,6 +118,7 @@ class SpendRequest:
     character_name: str = ''
     spend_category: str = ''   # Attribute, Skill, Discipline, etc.
     trait_name: str = ''       # e.g., "Strength", "Dominate"
+    power_name: str = ''       # specific power/ritual name (discipline spends only)
     current_dots: int = 0
     new_dots: int = 0
     xp_cost: int = 0          # Player-submitted cost

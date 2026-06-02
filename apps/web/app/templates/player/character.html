@@ -88,6 +88,21 @@
 {% endfor %}
 {% endif %}
 
+<!-- Living sheet import prompt -->
+{% if not has_approved_draft %}
+<div class="alert alert-secondary d-flex align-items-center gap-3 mb-3">
+    <i class="bi bi-file-earmark-person fs-4 text-muted"></i>
+    <div class="flex-grow-1">
+        <strong>No living sheet linked.</strong>
+        Import your character sheet from Realm of Darkness to enable automatic sheet updates when spends are approved.
+    </div>
+    <a href="{{ url_for('player.import_sheet', name=char.character_name) }}"
+       class="btn btn-sm btn-outline-secondary text-nowrap">
+        <i class="bi bi-cloud-upload"></i> Import Sheet
+    </a>
+</div>
+{% endif %}
+
 <!-- Pending notifications -->
 {% if pending_claims_count > 0 or pending_spends_count > 0 %}
 <div class="alert alert-info">
@@ -339,6 +354,14 @@
                             <label for="trait_name" class="form-label fw-bold">Trait Name</label>
                             <input type="text" class="form-control" name="trait_name" id="trait_name"
                                    placeholder="e.g., Strength, Dominate, Allies" required>
+                        </div>
+
+                        <!-- Power Name (discipline spends only) -->
+                        <div class="mb-3 d-none" id="power-name-group">
+                            <label for="power_name" class="form-label fw-bold">Power Name <span class="text-muted fw-normal">(specific power being purchased)</span></label>
+                            <input type="text" class="form-control" name="power_name" id="power_name"
+                                   placeholder="e.g., Mesmerize, Prowl, Sense the Unseen">
+                            <div class="form-text">Enter the exact name of the discipline power you are purchasing. This updates your character sheet.</div>
                         </div>
 
                         <!-- Dots Row -->
@@ -794,6 +817,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentDots = document.getElementById('current_dots');
     const newDots = document.getElementById('new_dots');
     const inClanGroup = document.getElementById('in-clan-group');
+    const powerNameGroup = document.getElementById('power-name-group');
+    const powerNameInput = document.getElementById('power_name');
     const costValue = document.getElementById('spend-cost-value');
     const costFormula = document.getElementById('spend-cost-formula');
     const xpWarning = document.getElementById('spend-xp-warning');
@@ -906,6 +931,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 inClanGroup.classList.remove('d-none');
             } else {
                 inClanGroup.classList.add('d-none');
+            }
+        }
+
+        // Show Power Name field for all discipline categories (including Ghoul)
+        const needsPowerName = isDiscipline || cat === 'Ghoul Discipline';
+        if (powerNameGroup) {
+            if (needsPowerName) {
+                powerNameGroup.classList.remove('d-none');
+                if (powerNameInput) powerNameInput.required = true;
+            } else {
+                powerNameGroup.classList.add('d-none');
+                if (powerNameInput) {
+                    powerNameInput.required = false;
+                    powerNameInput.value = '';
+                }
             }
         }
     }

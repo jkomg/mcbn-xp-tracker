@@ -108,6 +108,7 @@ class DbSpendRequest(db.Model):
     reviewed_by = db.Column(String(100), default='')
     review_date = db.Column(String(20), default='')
     st_notes = db.Column(Text, default='')
+    power_name = db.Column(String(100), default='')   # specific power/ritual name for discipline spends
     depends_on = db.Column(Integer, nullable=True)  # FK to another spend request id
 
 
