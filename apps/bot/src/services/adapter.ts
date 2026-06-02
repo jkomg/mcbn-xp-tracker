@@ -119,6 +119,10 @@ export interface TrackerAdapter {
     names?: Record<string, string>,
   ): Promise<void>;
   getRecentPeriods(count?: number): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>>;
+  syncStaff(
+    operations: Array<{ action: 'upsert' | 'remove'; discord_id: string; display_name: string; role: string }>,
+    fullSync?: boolean,
+  ): Promise<{ ok: boolean; processed: number }>;
 }
 
 export type CharacterDetails = {
@@ -1225,6 +1229,19 @@ export class WebAppAdapter implements TrackerAdapter {
   private writeAuthHeaders(): Record<string, string> {
     const token = this.writeToken ?? this.legacyToken;
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async syncStaff(
+    operations: Array<{ action: 'upsert' | 'remove'; discord_id: string; display_name: string; role: string }>,
+    fullSync = false,
+  ): Promise<{ ok: boolean; processed: number }> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/staff/sync`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operations, full_sync: fullSync }),
+    });
+    if (!res.ok) throw new Error(`staff/sync POST failed: ${res.status}`);
+    return res.json() as Promise<{ ok: boolean; processed: number }>;
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
