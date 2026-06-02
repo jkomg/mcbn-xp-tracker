@@ -1792,3 +1792,84 @@ def sheets_reconcile():
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
     return jsonify(summary)
+
+
+@bp.route('/staff/sync', methods=['POST'])
+@require_bot_scope('write')
+def staff_sync():
+    """Sync staff role membership from Discord.
+
+    Accepts a list of upsert/remove operations and optionally performs a full
+    replacement (removes any DB staff entries not present in the upsert list).
+
+    Body:
+      {
+        "operations": [
+          {"action": "upsert", "discord_id": "...", "display_name": "...", "role": "storyteller"},
+          {"action": "remove", "discord_id": "..."}
+        ],
+        "full_sync": true   // optional: remove DB entries not in this payload
+      }
+    """
+    from app.db import AppSetting, db
+    body = request.get_json(silent=True) or {}
+    operations = body.get('operations', [])
+    full_sync = bool(body.get('full_sync', False))
+
+    if not isinstance(operations, list):
+        return jsonify({'error': 'operations must be an array'}), 400
+
+    valid_roles = {'system_helper', 'storyteller', 'moderator', 'administrator'}
+    valid_actions = {'upsert', 'remove'}
+
+    upserted_ids: set[str] = set()
+
+    for op in operations:
+        action = op.get('action')
+        discord_id = str(op.get('discord_id', '')).strip()
+        if not discord_id or action not in valid_actions:
+            return jsonify({'error': f'Invalid operation: {op}'}), 400
+
+        if action == 'upsert':
+            role = op.get('role')
+            if role not in valid_roles:
+                return jsonify({'error': f'Invalid role: {role}'}), 400
+            display_name = str(op.get('display_name', '')).strip()
+            member_key = f'STAFF_MEMBER_{discord_id}'
+            name_key = f'STAFF_NAME_{discord_id}'
+            row = AppSetting.query.get(member_key)
+            if row:
+                row.value = role
+            else:
+                db.session.add(AppSetting(key=member_key, value=role))
+            name_row = AppSetting.query.get(name_key)
+            if name_row:
+                name_row.value = display_name
+            else:
+                db.session.add(AppSetting(key=name_key, value=display_name))
+            upserted_ids.add(discord_id)
+        else:  # remove
+            member_key = f'STAFF_MEMBER_{discord_id}'
+            name_key = f'STAFF_NAME_{discord_id}'
+            row = AppSetting.query.get(member_key)
+            if row:
+                db.session.delete(row)
+            name_row = AppSetting.query.get(name_key)
+            if name_row:
+                db.session.delete(name_row)
+
+    if full_sync:
+        # Remove any DB staff entries not present in this payload's upsert list
+        existing = AppSetting.query.filter(
+            AppSetting.key.like('STAFF_MEMBER_%')
+        ).all()
+        for row in existing:
+            existing_id = row.key[len('STAFF_MEMBER_'):]
+            if existing_id not in upserted_ids:
+                db.session.delete(row)
+                name_row = AppSetting.query.get(f'STAFF_NAME_{existing_id}')
+                if name_row:
+                    db.session.delete(name_row)
+
+    db.session.commit()
+    return jsonify({'ok': True, 'processed': len(operations)})
