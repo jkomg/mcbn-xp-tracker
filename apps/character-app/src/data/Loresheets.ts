@@ -2426,27 +2426,27 @@ export const LORESHEETS: Loresheet[] = [
             {
                 dot: 1,
                 name: "The Art of Negotiation",
-                description: "As a skilled diplomat, advisor, or negotiator reflecting the legacy of Tegyrius, when you mediate between two opposing individuals or groups you receive a two-dice bonus to Intimidation or Persuasion skill tests.",
+                description: "As a skilled diplomat, advisor, or negotiator, the legacy of Tegyrius is reflected in you. When you mediate between two opposing individuals or groups, you receive a two-dice bonus to Intimidation or Persuasion skill tests.",
             },
             {
                 dot: 2,
                 name: "The Pen is Mightier",
-                description: "Following in the footsteps of Tegyrius, you value knowledge and hone your mental abilities as much as your fighting skills. You have access to a Banu Haqim library transplanted from Alamut during the Schism — a two-dot Haven (••) with a two-dot Library (••) — but its contents are sought by one of the Shepherds of Ur-Shulgi, counting as a two-dot Adversary.",
+                description: "Following in the footsteps of Tegyrius, you value knowledge and choose to hone your mental abilities just as much as you do your fighting skills. As a protégé of Tegyrius, you have access to a Banu Haqim library transplanted from Alamut during the Schism. The library counts as a two-dot Haven (••) with a two-dot Library (••), but its contents are being sought after by one of the Shepherds of Ur-Shulgi, counting as a two-dot Adversary.",
             },
             {
                 dot: 3,
                 name: "Hear My Words",
-                description: "You are a known ally of Tegyrius, and when you speak, others listen. As a source of wisdom and restraint, you get three additional dice for any social test against a Banu Haqim of the same sect, and two additional dice for any social test against a Banu Haqim of a different sect.",
+                description: "You are a known ally of Tegyrius, and when you speak, others listen. As a source of wisdom and restraint, you get three additional dice for any social test against another Banu Haqim of the same sect, and two additional dice for any social test against a Banu Haqim of a different sect.",
             },
             {
                 dot: 4,
                 name: "Perception is Power",
-                description: "You sat on the Council of Scrolls in Alamut, and under Tegyrius' guidance learned that one cannot fight what one cannot see. You have access to the Auspex Discipline and may buy dots using experience points as if it were one of your clan Disciplines.",
+                description: "In the hallowed halls of Alamut, the Council of Scrolls dedicated their unlives to the pursuit of academic knowledge. But when Ur-Shulgi awoke and seized the Black Throne, the Council disbanded. You sat on the Council, and under Tegyrius' guidance, learned that one cannot fight what one cannot see. You have access to the Auspex Discipline and may buy dots using experience points as if it was one of your clan Disciplines.",
             },
             {
                 dot: 5,
                 name: "A Matter of Honor",
-                description: "Not only were you a guest of honor at the Vermillion Wedding, but Tegyrius himself owes you a debt of gratitude. Once per chronicle, Tegyrius functions as a five-dot Mawla and uses his lofty position to aid you as best he can, short of violating the alliance between the Camarilla and the Ashirra.",
+                description: "Not only were you a guest of honor at the Vermillion Wedding, but Tegyrius himself owes you a debt of gratitude. Perhaps you assisted in his negotiations with the Camarilla, or maybe you saved his life several years ago. Once per chronicle, Tegyrius functions as a five-dot Mawla, and uses his lofty position to aid you as best he can (short of violating the alliance between the Camarilla and the Ashirra).",
             },
         ],
     },
@@ -2542,7 +2542,7 @@ export const LORESHEETS: Loresheet[] = [
             {
                 dot: 4,
                 name: "Hero of the Revolution",
-                description: "You were pivotal to the success of the Revolt and your compatriots know it. Once per story, you may call on former allies to summon an Anarch gang to your aid — five neonates, each with 4 dots in Disciplines (no power higher than level three) and a General Difficulty of 4/3. They only help if the action can be presented as part of the righteous struggle against the Camarilla.",
+                description: "Not only were you in Los Angeles, you were pivotal to the success of the Revolt and your compatriots know it. You fought in a crucial battle or stopped an important VIP from escaping. Once per story, you may call on former allies to summon an Anarch gang to your aid — five neonates, each with 4 dots in Disciplines (no power higher than level three) and a General Difficulty of 4/3. They only help if the action can be presented as part of the righteous struggle against the Camarilla.",
             },
             {
                 dot: 5,

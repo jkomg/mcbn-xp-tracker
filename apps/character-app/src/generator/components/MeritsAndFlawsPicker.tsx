@@ -28,10 +28,10 @@ import {
 } from "../../data/MeritsAndFlaws"
 import { PredatorTypes } from "../../data/PredatorType"
 import { globals } from "../../globals"
-import { Loresheets } from "./Loresheets"
+import { LORESHEETS, LoresheetDot } from "~/data/Loresheets"
+import { IconCheck } from "@tabler/icons-react"
 import { updateHealthAndWillpowerAndBloodPotencyAndHumanity } from "../utils"
 import {
-    generatorScrollableAreaStyle,
     generatorScrollableContentStyle,
     generatorScrollableShellStyle
 } from "./sharedGeneratorScrollableLayout"
@@ -53,6 +53,29 @@ const flawIcon = () => {
 }
 const meritIcon = () => {
     return <FontAwesomeIcon icon={faPlay} rotation={270} style={{ color: "rgb(47, 158, 68)" }} />
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+    core: "Core",
+    camarilla: "Camarilla",
+    anarch: "Anarch",
+    chicago: "Chicago by Night",
+    "players-guide": "Player's Guide",
+    "gehenna-war": "Gehenna War",
+    "in-memoriam": "In Memoriam",
+    "tattered-facade": "Tattered Facade",
+    "blood-sigils": "Blood Sigils",
+    "cults-of-the-blood-gods": "Cults of the Blood Gods",
+    "chicago-folios": "Chicago Folios",
+    "children-of-the-blood": "Children of the Blood",
+    "book-of-nod-apocrypha": "Book of Nod Apocrypha",
+    "let-the-streets-run-red": "Let the Streets Run Red",
+    "fall-of-london": "The Fall of London",
+    "forbidden-religions": "Forbidden Religions",
+    "trails-of-ash-and-bone": "Trails of Ash and Bone",
+    download: "Download",
+    "winters-teeth": "Winter's Teeth",
+    custom: "Nashville",
 }
 
 type MeritOrFlawCardProps = {
@@ -262,7 +285,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const theme = useMantineTheme()
     const phoneScreen = globals.isPhoneScreen
 
-    const [activeTab, setActiveTab] = useState<string | null>("merits")
+    const [activeTab, setActiveTab] = useState<string | null>("backgrounds")
     const [resetTarget, setResetTarget] = useState<ResetTarget>(null)
 
     const [pickedMeritsAndFlaws, setPickedMeritsAndFlaws] = useState<MeritFlaw[]>([
@@ -300,6 +323,35 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const [remainingThinbloodMeritPoints, setRemainingThinbloodMeritPoints] = useState(
         tbFlawCount - tbMeritCount
     )
+
+    const [expandedLoresheetIds, setExpandedLoresheetIds] = useState<Set<string>>(new Set())
+    const toggleLoresheetExpanded = (id: string) => {
+        setExpandedLoresheetIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) { next.delete(id) } else { next.add(id) }
+            return next
+        })
+    }
+    const isLoresheetDotSelected = (dotName: string) =>
+        pickedMeritsAndFlaws.some(m => m.name === dotName && m.type === "merit")
+    const toggleLoresheetDot = (dot: LoresheetDot) => {
+        const selected = isLoresheetDotSelected(dot.name)
+        const cost = dot.dot
+        if (selected) {
+            setPickedMeritsAndFlaws(prev => prev.filter(m => m.name !== dot.name))
+            setRemainingMerits(prev => prev + cost)
+        } else {
+            if (remainingMerits < cost) return
+            setPickedMeritsAndFlaws(prev => [...prev, {
+                name: dot.name,
+                level: cost,
+                summary: dot.description,
+                excludes: [] as string[],
+                type: "merit" as const
+            }])
+            setRemainingMerits(prev => prev - cost)
+        }
+    }
 
     const predatorTypePickedNames = useMemo(
         () => new Set(character.predatorType.pickedMeritsAndFlaws.map((item) => item.name)),
@@ -433,10 +485,10 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 <div style={generatorScrollableContentStyle}>
                     <GeneratorStepHero
                         leadText="Shape your"
-                        accentText="Merits & Flaws"
-                        description="Define what empowers you, what complicates your unlife, and which loresheets still fit your story."
+                        accentText="Backgrounds, Merits & Flaws"
+                        description="Spend merit points on loresheet dots under Backgrounds, then pick your Merits and Flaws."
                         maxWidth={720}
-                        marginBottom={phoneScreen ? 8 : 10}
+                        marginBottom={8}
                     />
                     <Grid m={0} gutter="sm" mb="sm">
                         <Grid.Col span={isThinBlood ? (phoneScreen ? 6 : 4) : 6}>
@@ -507,17 +559,231 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 <div style={{ flexShrink: 0, padding: "0 20px" }}>
                     <div style={generatorScrollableContentStyle}>
                         <Tabs.List>
-                            <Tabs.Tab value="merits" style={activeTab === "merits" ? activeTabStyle : undefined}>
-                                Merits & Flaws
+                            <Tabs.Tab value="backgrounds" style={activeTab === "backgrounds" ? activeTabStyle : undefined}>
+                                Backgrounds
                             </Tabs.Tab>
-                            <Tabs.Tab value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
-                                Loresheets
+                            <Tabs.Tab value="merits" style={activeTab === "merits" ? activeTabStyle : undefined}>
+                                Merits
+                            </Tabs.Tab>
+                            <Tabs.Tab value="flaws" style={activeTab === "flaws" ? activeTabStyle : undefined}>
+                                Flaws
                             </Tabs.Tab>
                         </Tabs.List>
                     </div>
                 </div>
 
-                {/* Merits & Flaws panel */}
+                {/* Backgrounds panel */}
+                <Tabs.Panel value="backgrounds">
+                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px" }}>
+                        <div style={{ ...generatorScrollableContentStyle, height: "100%", display: "flex", flexDirection: "column" }}>
+                            <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 700, margin: "0 auto", paddingTop: 8, paddingBottom: 40 }}>
+                                    {LORESHEETS
+                                        .filter(ls => !ls.clanRestriction?.length || ls.clanRestriction.includes(character.clan))
+                                        .map(ls => {
+                                            const isExpanded = expandedLoresheetIds.has(ls.id)
+                                            const purchasedCount = ls.dots.filter(d => isLoresheetDotSelected(d.name)).length
+                                            return (
+                                                <div
+                                                    key={ls.id}
+                                                    style={{
+                                                        borderRadius: 10,
+                                                        border: `1px solid ${purchasedCount > 0 ? rgba(RAW_RED, 0.35) : "rgba(125, 91, 72, 0.35)"}`,
+                                                        background: "rgba(26, 20, 24, 0.88)",
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    <button
+                                                        onClick={() => toggleLoresheetExpanded(ls.id)}
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
+                                                            gap: 12,
+                                                            width: "100%",
+                                                            padding: "14px 18px 12px",
+                                                            background: "transparent",
+                                                            border: "none",
+                                                            borderBottom: isExpanded ? "1px solid rgba(125, 91, 72, 0.2)" : "none",
+                                                            cursor: "pointer",
+                                                            textAlign: "left",
+                                                            fontFamily: "inherit",
+                                                        }}
+                                                    >
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <p style={{
+                                                                margin: 0,
+                                                                fontFamily: "Cinzel, Georgia, serif",
+                                                                fontSize: "0.95rem",
+                                                                fontWeight: 600,
+                                                                letterSpacing: "0.06em",
+                                                                color: "rgba(244, 236, 232, 0.95)",
+                                                            }}>
+                                                                {ls.name}
+                                                            </p>
+                                                            {ls.requiresStPermission && (
+                                                                <p style={{
+                                                                    margin: "3px 0 0",
+                                                                    fontFamily: "Inter, Segoe UI, sans-serif",
+                                                                    fontSize: "0.68rem",
+                                                                    letterSpacing: "0.08em",
+                                                                    textTransform: "uppercase" as const,
+                                                                    color: "rgba(195, 155, 90, 0.4)",
+                                                                }}>
+                                                                    Requires ST approval
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                                            {purchasedCount > 0 && (
+                                                                <span style={{
+                                                                    padding: "2px 8px",
+                                                                    borderRadius: 4,
+                                                                    border: `1px solid ${rgba(RAW_RED, 0.45)}`,
+                                                                    background: rgba(RAW_RED, 0.12),
+                                                                    fontFamily: "Inter, Segoe UI, sans-serif",
+                                                                    fontSize: "0.62rem",
+                                                                    letterSpacing: "0.1em",
+                                                                    textTransform: "uppercase" as const,
+                                                                    color: rgba(RAW_RED, 0.7),
+                                                                }}>
+                                                                    {purchasedCount} dot{purchasedCount !== 1 ? "s" : ""}
+                                                                </span>
+                                                            )}
+                                                            <span style={{
+                                                                padding: "3px 8px",
+                                                                borderRadius: 4,
+                                                                border: "1px solid rgba(125, 91, 72, 0.3)",
+                                                                fontFamily: "Inter, Segoe UI, sans-serif",
+                                                                fontSize: "0.62rem",
+                                                                letterSpacing: "0.1em",
+                                                                textTransform: "uppercase" as const,
+                                                                color: "rgba(220, 210, 205, 0.6)",
+                                                            }}>
+                                                                {SOURCE_LABELS[ls.source] ?? ls.source}
+                                                            </span>
+                                                            <span style={{ color: "rgba(220, 210, 205, 0.45)", fontSize: "0.8rem" }}>
+                                                                {isExpanded ? "▲" : "▼"}
+                                                            </span>
+                                                        </div>
+                                                    </button>
+
+                                                    {isExpanded && (
+                                                        <div style={{ padding: "8px 0" }}>
+                                                            {ls.dots.map(dot => {
+                                                                const dotAvailable = !dot.clanRestriction?.length || dot.clanRestriction.includes(character.clan)
+                                                                const selected = isLoresheetDotSelected(dot.name)
+                                                                const cost = dot.dot
+                                                                const clickable = dotAvailable && (selected || remainingMerits >= cost)
+                                                                return (
+                                                                    <button
+                                                                        key={dot.dot}
+                                                                        onClick={() => { if (clickable) toggleLoresheetDot(dot) }}
+                                                                        style={{
+                                                                            display: "flex",
+                                                                            alignItems: "flex-start",
+                                                                            gap: 14,
+                                                                            width: "100%",
+                                                                            padding: "10px 18px",
+                                                                            background: selected ? rgba(RAW_RED, 0.07) : "transparent",
+                                                                            border: "none",
+                                                                            borderBottom: "1px solid rgba(125, 91, 72, 0.12)",
+                                                                            cursor: clickable ? "pointer" : "not-allowed",
+                                                                            textAlign: "left",
+                                                                            fontFamily: "inherit",
+                                                                            transition: "background 150ms ease",
+                                                                            opacity: clickable ? 1 : 0.38,
+                                                                        }}
+                                                                    >
+                                                                        <div style={{
+                                                                            flexShrink: 0,
+                                                                            width: 20,
+                                                                            height: 20,
+                                                                            marginTop: 1,
+                                                                            borderRadius: 4,
+                                                                            border: `1.5px solid ${selected ? rgba(RAW_RED, 1) : "rgba(125, 91, 72, 0.5)"}`,
+                                                                            background: selected ? rgba(RAW_RED, 0.15) : "transparent",
+                                                                            display: "flex",
+                                                                            alignItems: "center",
+                                                                            justifyContent: "center",
+                                                                            transition: "all 150ms ease",
+                                                                        }}>
+                                                                            {selected && <IconCheck size={12} color={rgba(RAW_RED, 1)} strokeWidth={2.5} />}
+                                                                        </div>
+                                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                                            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                                                                                <span style={{
+                                                                                    fontFamily: "Inter, Segoe UI, sans-serif",
+                                                                                    fontSize: "0.65rem",
+                                                                                    letterSpacing: "0.1em",
+                                                                                    color: selected ? rgba(RAW_RED, 0.45) : "rgba(220, 210, 205, 0.6)",
+                                                                                    flexShrink: 0,
+                                                                                }}>
+                                                                                    {"●".repeat(dot.dot)}{"○".repeat(5 - dot.dot)}
+                                                                                </span>
+                                                                                <span style={{
+                                                                                    fontFamily: "Crimson Text, Georgia, serif",
+                                                                                    fontSize: "0.92rem",
+                                                                                    fontWeight: 600,
+                                                                                    color: "rgba(244, 236, 232, 0.95)",
+                                                                                }}>
+                                                                                    {dot.name}
+                                                                                </span>
+                                                                                {!dotAvailable && dot.clanRestriction && (
+                                                                                    <span style={{
+                                                                                        fontFamily: "Inter, Segoe UI, sans-serif",
+                                                                                        fontSize: "0.62rem",
+                                                                                        letterSpacing: "0.08em",
+                                                                                        textTransform: "uppercase" as const,
+                                                                                        color: "rgba(195, 155, 90, 0.4)",
+                                                                                    }}>
+                                                                                        {dot.clanRestriction.join(" / ")} only
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <p style={{
+                                                                                margin: "3px 0 0",
+                                                                                fontFamily: "Crimson Text, Georgia, serif",
+                                                                                fontSize: "0.85rem",
+                                                                                color: "rgba(220, 210, 205, 0.6)",
+                                                                                lineHeight: 1.4,
+                                                                            }}>
+                                                                                {dot.description}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div style={{
+                                                                            flexShrink: 0,
+                                                                            padding: "4px 10px",
+                                                                            borderRadius: 6,
+                                                                            border: `1px solid ${selected ? rgba(RAW_RED, 0.4) : "rgba(125, 91, 72, 0.25)"}`,
+                                                                            background: selected ? rgba(RAW_RED, 0.1) : "rgba(255, 255, 255, 0.03)",
+                                                                            textAlign: "center",
+                                                                        }}>
+                                                                            <div style={{
+                                                                                fontFamily: "Cinzel, Georgia, serif",
+                                                                                fontSize: "0.85rem",
+                                                                                fontWeight: 700,
+                                                                                color: selected ? rgba(RAW_RED, 1) : "rgba(220, 210, 205, 0.6)",
+                                                                            }}>
+                                                                                {cost} pt{cost !== 1 ? "s" : ""}
+                                                                            </div>
+                                                                        </div>
+                                                                    </button>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })
+                                    }
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </div>
+                </Tabs.Panel>
+
+                {/* Merits panel */}
                 <Tabs.Panel value="merits">
                     <div
                         style={{
@@ -528,109 +794,70 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                             padding: "0 20px"
                         }}
                     >
-                        {isThinBlood && phoneScreen ? (
-                            <Text
-                                ta="center"
-                                style={{
-                                    flexShrink: 0,
-                                    fontFamily: "Crimson Text, Georgia, serif",
-                                    fontSize: "1.05rem",
-                                    color: theme.colors.grape[3],
-                                    padding: "4px 0 8px"
-                                }}
-                            >
-                                Pick Thin-blood flaws to gain Thin-blood merit points
-                            </Text>
-                        ) : null}
-
-                        {phoneScreen ? (
-                            /* Phone: single scrollable column */
-                            <ScrollArea {...columnScrollProps}>
-                                <Stack gap="sm" pb="xl">
-                                    {isThinBlood ? (
-                                        <>
-                                            <Stack gap="sm">
-                                                <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                            </Stack>
-                                            <Stack gap="sm">
-                                                <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                            </Stack>
-                                            <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
-                                        </>
-                                    ) : null}
-                                    {essentialMeritsAndFlaws.map((cat) => (
+                        <ScrollArea {...columnScrollProps}>
+                            <Stack gap="sm" pb="xl">
+                                {isThinBlood ? (
+                                    <Stack gap="sm">
+                                        <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                        {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                    </Stack>
+                                ) : null}
+                                {essentialMeritsAndFlaws.map((cat) =>
+                                    cat.merits.length > 0 ? (
                                         <Stack gap="sm" key={cat.title}>
                                             <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
                                             {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
                                         </Stack>
-                                    ))}
-                                </Stack>
-                            </ScrollArea>
-                        ) : (
-                            /* Desktop: two independent scroll columns */
-                            <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 16, overflow: "hidden", paddingTop: 4 }}>
-                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                    <ScrollArea {...columnScrollProps}>
-                                        <Stack gap="sm" pb="xl">
-                                            {isThinBlood ? (
-                                                <Stack gap="sm">
-                                                    <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                    {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                </Stack>
-                                            ) : null}
-                                            {essentialMeritsAndFlaws
-                                                .filter((_, i) => i % 2 === 0)
-                                                .map((cat) => (
-                                                    <Stack gap="sm" key={cat.title}>
-                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                ))}
-                                        </Stack>
-                                    </ScrollArea>
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                    <ScrollArea {...columnScrollProps}>
-                                        <Stack gap="sm" pb="xl">
-                                            {isThinBlood ? (
-                                                <>
-                                                    <Stack gap="sm">
-                                                        <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                    <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
-                                                </>
-                                            ) : null}
-                                            {essentialMeritsAndFlaws
-                                                .filter((_, i) => i % 2 !== 0)
-                                                .map((cat) => (
-                                                    <Stack gap="sm" key={cat.title}>
-                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                ))}
-                                        </Stack>
-                                    </ScrollArea>
-                                </div>
-                            </div>
-                        )}
+                                    ) : null
+                                )}
+                            </Stack>
+                        </ScrollArea>
                     </div>
                 </Tabs.Panel>
 
-                {/* Loresheets panel */}
-                <Tabs.Panel value="loresheets">
-                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px", maxWidth: 960, marginLeft: "auto", marginRight: "auto", width: "100%" }}>
-                        <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
-                            <Loresheets
-                                character={character}
-                                getMeritOrFlawLine={getMeritOrFlawLine}
-                                pickedMeritsAndFlaws={pickedMeritsAndFlaws}
-                            />
+                {/* Flaws panel */}
+                <Tabs.Panel value="flaws">
+                    <div
+                        style={{
+                            ...generatorScrollableContentStyle,
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            padding: "0 20px"
+                        }}
+                    >
+                        <ScrollArea {...columnScrollProps}>
+                            <Stack gap="sm" pb="xl">
+                                {isThinBlood ? (
+                                    <>
+                                        <Text
+                                            ta="center"
+                                            style={{
+                                                flexShrink: 0,
+                                                fontFamily: "Crimson Text, Georgia, serif",
+                                                fontSize: "1.05rem",
+                                                color: theme.colors.grape[3],
+                                                padding: "4px 0 8px"
+                                            }}
+                                        >
+                                            Pick Thin-blood flaws to gain Thin-blood merit points
+                                        </Text>
+                                        <Stack gap="sm">
+                                            <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                            {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                        </Stack>
+                                        <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
+                                    </>
+                                ) : null}
+                                {essentialMeritsAndFlaws.map((cat) =>
+                                    cat.flaws.length > 0 ? (
+                                        <Stack gap="sm" key={cat.title}>
+                                            <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                        </Stack>
+                                    ) : null
+                                )}
+                            </Stack>
                         </ScrollArea>
                     </div>
                 </Tabs.Panel>
