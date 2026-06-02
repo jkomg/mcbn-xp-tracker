@@ -194,6 +194,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         ],
         flaws: [
             {
+                name: "Outdated Preference",
+                cost: [2],
+                summary: "your preferred vessel has become nearly impossible to find (castrati, quaalude addicts, footmen, etc). You must force mortals to fit your preference, or always spend 1 Willpower to feed.",
+                excludes: []
+            },
+            {
                 name: "Vegan",
                 cost: [2],
                 summary: "feed only from animals; human blood costs Willpower",
@@ -232,6 +238,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         complexity: "advanced",
         merits: [
             {
+                name: "Object of Power",
+                cost: [1, 2, 3],
+                summary: "a rare and powerful item. ● set of uncommonly lucky dice: reroll one non-Hunger die once per story. ●● Grimoire: +1 die to all Level 1 Ritual tests. ●●● golden eye amulet: free Premonition warning once per session when someone is about to harm you.",
+                excludes: []
+            },
+            {
                 name: "Luck of the Devil",
                 cost: [4],
                 summary: "once per session, shift a misfortune onto someone nearby",
@@ -264,6 +276,12 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
             }
         ],
         flaws: [
+            {
+                name: "Cursed Object",
+                cost: [1],
+                summary: "something you own wants you dead. Once per session at a time determined by the Storyteller, you must reroll a successful test, risking failure instead.",
+                excludes: []
+            },
             {
                 name: "Starving Decay",
                 cost: [2],
@@ -351,7 +369,14 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 excludes: []
             }
         ],
-        flaws: []
+        flaws: [
+            {
+                name: "Banned From...",
+                cost: [1, 2, 3],
+                summary: "barred from a Kindred-ruled city. ● small city (Portland, Salzburg). ●● mid-sized city (Venice, Sacramento). ●●● large city (Paris, Tokyo, Cairo). Getting in anyway causes serious trouble.",
+                excludes: []
+            }
+        ]
     },
     {
         title: "Cult",
@@ -824,6 +849,32 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
                 name: "Distressing Fangs",
                 cost: [1],
                 summary: "the Blood gave you strange, unsettling teeth; -1 die to Social pools with mortals",
+                excludes: []
+            }
+        ]
+    },
+    {
+        title: "Archaic",
+        complexity: "advanced",
+        merits: [
+            {
+                name: "Custodian of History",
+                cost: [1],
+                summary: "an elder confided their version of a lost age to you. Choose one subject (Book of Nod, First Inquisition, Constantinople, Revelations of the Dark Mother, Antiquity and Carthage, etc.): +1 die to all Skill tests pertaining to it.",
+                excludes: []
+            }
+        ],
+        flaws: [
+            {
+                name: "Grief Phobia",
+                cost: [1],
+                summary: "a lost Touchstone left you with a permanent phobia for something that reminds you of them. -1 die to all tests made in the presence of your phobic stimulus. Can be taken once per lost Touchstone.",
+                excludes: []
+            },
+            {
+                name: "Old Tricks",
+                cost: [1],
+                summary: "you've never mastered the modern age: all your Skill specialties must be Archaic specialties.",
                 excludes: []
             }
         ]

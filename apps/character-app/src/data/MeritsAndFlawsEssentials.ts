@@ -493,7 +493,24 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
             }
         ],
         flaws: [
-            { name: "Adversary", cost: [1], summary: "kindred enemy", excludes: [] },
+            {
+                name: "Adversary",
+                cost: [1, 2, 3, 4, 5],
+                summary: "Kindred who opposes you, rated by their Status or relevant Trait. ● Neonate. ●● Ancilla. ●●● Elder. ●●●● Primogen or Anarch Revolutionary Council member. ●●●●● Prince or Baron.",
+                excludes: []
+            },
+            {
+                name: "Shameful Childe",
+                cost: [1],
+                summary: "you Embraced someone and abandoned them. They're out there somewhere, and sooner or later they'll come back to confront you.",
+                excludes: []
+            },
+            {
+                name: "Touchstone Embraced by Your Enemies",
+                cost: [2],
+                summary: "a former Touchstone was Embraced and now runs with your enemies. A single neonate Adversary with allies; confronting them risks Stains.",
+                excludes: []
+            },
             {
                 name: "Suspect",
                 cost: [1],
@@ -541,7 +558,7 @@ export const essentialMeritsAndFlaws: MeritsAndFlaws[] = [
                 name: "Retainer",
                 cost: [1, 2, 3],
                 summary:
-                    "loyal mortal servant, 1 - weak lowlife, 3 - skilled professional retainer",
+                    "loyal servant. ● weak mortal (child, criminal lowlife, or horror nerd). ●● average mortal or ghoul with no Advantages (family servant, human lover, dominated thrall). ●●● gifted mortal or ghoul with supernatural abilities, competent enough to act independently.",
                 excludes: []
             },
             {
