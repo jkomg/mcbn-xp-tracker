@@ -240,7 +240,7 @@ export default function CreatorPage() {
                 style={{
                     flex: 1,
                     minHeight: 0,
-                    backgroundImage: "linear-gradient(rgba(10,10,20,0.78), rgba(16,21,40,0.88)), url('/static/images/music.png')",
+                    backgroundImage: "linear-gradient(rgba(10,10,20,0.92), rgba(16,21,40,0.96)), url('/static/images/music.png')",
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     display: "flex",
