@@ -118,6 +118,9 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
             'discipline': discipline,
             'level': new_dots,
             'summary': '',
+            'description': '',
+            'dicePool': '',
+            'amalgamPrerequisites': '',
             'rouseChecks': 1,
         })
         return True

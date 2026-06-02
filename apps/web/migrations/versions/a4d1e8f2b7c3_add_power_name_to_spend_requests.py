@@ -1,7 +1,7 @@
 """add power_name to spend_requests
 
 Revision ID: a4d1e8f2b7c3
-Revises: f4c8b2e6a1d9
+Revises: 781ba6f04870
 Create Date: 2026-06-02
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'a4d1e8f2b7c3'
-down_revision = 'f4c8b2e6a1d9'
+down_revision = '781ba6f04870'
 branch_labels = None
 depends_on = None
 
