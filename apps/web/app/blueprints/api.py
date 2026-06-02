@@ -1650,6 +1650,73 @@ def cc_submitted_drafts():
     return jsonify({'events': events, 'has_more': has_more})
 
 
+@bp.route('/cc/approved-drafts', methods=['GET'])
+@require_bot_scope('read')
+@_limit('30 per minute')
+def cc_approved_drafts():
+    """Return recently-approved CC drafts since sinceEpoch.
+
+    Used by the bot's CharacterApprovalNotifier to post to #player-character-sheets.
+    Only returns non-SPC drafts.
+    """
+    import json as _json
+    from app.db import CharacterDraft
+
+    try:
+        since_epoch = int(request.args.get('sinceEpoch', '0'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'sinceEpoch must be an integer'}), 400
+    try:
+        limit = int(request.args.get('limit', '50'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be an integer'}), 400
+    if limit < 1 or limit > 200:
+        return jsonify({'error': 'limit must be between 1 and 200'}), 400
+
+    since_dt = datetime.fromtimestamp(since_epoch, tz=timezone.utc)
+    rows = (
+        CharacterDraft.query
+        .filter(
+            CharacterDraft.status == 'approved',
+            CharacterDraft.approved_at > since_dt,
+            CharacterDraft.is_spc == False,  # noqa: E712
+        )
+        .order_by(CharacterDraft.approved_at.asc())
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    def _cd(draft, key):
+        try:
+            data = _json.loads(draft.character_data) if draft.character_data else {}
+            return data.get(key)
+        except Exception:
+            return None
+
+    def _predator_name(draft):
+        pt = _cd(draft, 'predatorType')
+        if isinstance(pt, dict):
+            return pt.get('name', '')
+        return pt or ''
+
+    events = [
+        {
+            'id': d.id,
+            'character_name': d.character_name or '',
+            'player_discord_id': d.player_discord_id,
+            'approved_at_epoch': int(d.approved_at.timestamp()),
+            'approved_by': d.approved_by or '',
+            'clan': _cd(d, 'clan') or '',
+            'age_category': _cd(d, 'age_category') or '',
+            'predator_type': _predator_name(d),
+        }
+        for d in rows
+    ]
+    return jsonify({'events': events, 'has_more': has_more})
+
+
 @bp.route('/discord-activity/record', methods=['POST'])
 @require_bot_scope('write')
 @_limit('120 per minute')

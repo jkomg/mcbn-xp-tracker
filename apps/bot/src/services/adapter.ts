@@ -73,6 +73,10 @@ export interface TrackerAdapter {
     sinceEpoch?: number;
     limit?: number;
   }): Promise<{ events: CcSubmittedDraft[]; hasMore: boolean }>;
+  getCcApprovedDrafts(opts?: {
+    sinceEpoch?: number;
+    limit?: number;
+  }): Promise<{ events: CcApprovedDraft[]; hasMore: boolean }>;
   submitClaim(payload: ClaimPayload): Promise<{ ok: boolean; message: string }>;
   submitSpend(payload: SpendPayload): Promise<{ ok: boolean; message: string }>;
   getHealthReport(requester: RequesterContext): Promise<AdapterHealthReport>;
@@ -349,6 +353,23 @@ export type CcSubmittedDraft = z.infer<typeof ccSubmittedDraftSchema>;
 
 const ccSubmittedDraftsSchema = z.object({
   events: z.array(ccSubmittedDraftSchema),
+  has_more: z.boolean().optional(),
+});
+
+const ccApprovedDraftSchema = z.object({
+  id: z.string(),
+  character_name: z.string(),
+  player_discord_id: z.string(),
+  approved_at_epoch: z.number(),
+  approved_by: z.string(),
+  clan: z.string(),
+  age_category: z.string(),
+  predator_type: z.string(),
+});
+export type CcApprovedDraft = z.infer<typeof ccApprovedDraftSchema>;
+
+const ccApprovedDraftsSchema = z.object({
+  events: z.array(ccApprovedDraftSchema),
   has_more: z.boolean().optional(),
 });
 
@@ -665,6 +686,29 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     const parsed = ccSubmittedDraftsSchema.parse(raw);
+    return { events: parsed.events, hasMore: parsed.has_more === true };
+  }
+
+  async getCcApprovedDrafts(opts: {
+    sinceEpoch?: number;
+    limit?: number;
+  } = {}): Promise<{ events: CcApprovedDraft[]; hasMore: boolean }> {
+    const params = new URLSearchParams();
+    if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
+      params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
+    }
+    if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
+      params.set('limit', String(Math.floor(opts.limit)));
+    }
+    const query = params.toString();
+    const url = `${this.baseUrl}/api/cc/approved-drafts${query ? `?${query}` : ''}`;
+    const resp = await this.fetchWithTimeout(url, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp) throw new Error('Unable to reach web app cc/approved-drafts API.');
+    if (!resp.ok) throw new Error(`Web app cc/approved-drafts API failed (${resp.status})`);
+    const raw = await resp.json();
+    const parsed = ccApprovedDraftsSchema.parse(raw);
     return { events: parsed.events, hasMore: parsed.has_more === true };
   }
 
