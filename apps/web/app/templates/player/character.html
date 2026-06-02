@@ -88,8 +88,17 @@
 {% endfor %}
 {% endif %}
 
-<!-- Living sheet import prompt -->
-{% if not has_approved_draft %}
+<!-- Living sheet banner -->
+{% if has_approved_draft %}
+<div class="alert alert-dark d-flex align-items-center gap-3 mb-3 border">
+    <i class="bi bi-file-earmark-person fs-4 text-muted"></i>
+    <div class="flex-grow-1 text-muted small">Living sheet active — approved spends update your sheet automatically.</div>
+    <a href="{{ url_for('player.view_sheet', name=char.character_name) }}"
+       class="btn btn-sm btn-outline-secondary text-nowrap">
+        <i class="bi bi-person-lines-fill"></i> View Sheet
+    </a>
+</div>
+{% else %}
 <div class="alert alert-secondary d-flex align-items-center gap-3 mb-3">
     <i class="bi bi-file-earmark-person fs-4 text-muted"></i>
     <div class="flex-grow-1">
@@ -950,8 +959,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ═══ Living Sheet — pre-fill current dots from imported sheet data ═══
+    const SHEET_DATA = {{ sheet_data | tojson if sheet_data else 'null' }};
+
+    function lookupCurrentDots(cat, traitName) {
+        if (!SHEET_DATA || !traitName) return null;
+        const key = traitName.trim().toLowerCase().replace(/\s+/g, '_');
+        if (cat === 'Attribute') {
+            const v = SHEET_DATA.attributes && SHEET_DATA.attributes[key];
+            return (v != null) ? v : null;
+        }
+        if (cat === 'Skill' || cat === 'New Skill') {
+            const v = SHEET_DATA.skills && SHEET_DATA.skills[key];
+            return (v != null) ? v : null;
+        }
+        if (cat === 'Discipline (In-Clan)' || cat === 'Discipline (Out-of-Clan)' || cat === 'Caitiff Discipline' || cat === 'Ghoul Discipline') {
+            // Look for the highest level power in this discipline
+            const discs = SHEET_DATA.disciplines || [];
+            const disc = discs.filter(p => (p.discipline || '').toLowerCase() === key);
+            if (disc.length) return Math.max(...disc.map(p => p.level || 0));
+            return null;
+        }
+        if (cat === 'Advantage (Merit/Background)') {
+            const merits = SHEET_DATA.merits || [];
+            const m = merits.find(m => m.name && m.name.toLowerCase() === traitName.trim().toLowerCase());
+            return m ? (m.level || 0) : null;
+        }
+        return null;
+    }
+
+    const traitNameInput = document.getElementById('trait_name');
+    function autofillCurrentDots() {
+        const cat = spendCategory.value;
+        const trait = traitNameInput ? traitNameInput.value : '';
+        const dots = lookupCurrentDots(cat, trait);
+        if (dots != null) {
+            currentDots.value = dots;
+            calcCost();
+        }
+    }
+    if (traitNameInput) {
+        traitNameInput.addEventListener('change', autofillCurrentDots);
+        traitNameInput.addEventListener('blur', autofillCurrentDots);
+    }
+
     spendCategory.addEventListener('change', function() {
         updateDotConstraints();
+        autofillCurrentDots();
         calcCost();
     });
     currentDots.addEventListener('input', calcCost);

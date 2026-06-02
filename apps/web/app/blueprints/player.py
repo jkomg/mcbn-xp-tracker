@@ -62,6 +62,26 @@ def my_characters():
         .all()
     )
 
+    # Which roster characters have an approved living sheet
+    chars_with_sheet: set[str] = set()
+    if my_chars:
+        char_ids = [
+            row.id for row in DbCharacter.query.filter(
+                DbCharacter.character_name.in_([c.character_name for c in my_chars])
+            ).all()
+        ]
+        approved_drafts = CharacterDraft.query.filter(
+            CharacterDraft.roster_character_id.in_(char_ids),
+            CharacterDraft.status == 'approved',
+        ).all()
+        sheet_id_set = {d.roster_character_id for d in approved_drafts}
+        name_map = {
+            row.id: row.character_name for row in DbCharacter.query.filter(
+                DbCharacter.id.in_(char_ids)
+            ).all()
+        }
+        chars_with_sheet = {name_map[i] for i in sheet_id_set if i in name_map}
+
     # Staff also see a full character search
     if check_is_staff():
         all_characters = db_service.get_active_characters()
@@ -74,6 +94,7 @@ def my_characters():
             open_periods=open_periods,
             calendar=calendar,
             pending_drafts=pending_drafts,
+            chars_with_sheet=chars_with_sheet,
         )
 
     if not my_chars and not pending_drafts:
@@ -89,6 +110,7 @@ def my_characters():
         open_periods=open_periods,
         calendar=calendar,
         pending_drafts=pending_drafts,
+        chars_with_sheet=chars_with_sheet,
     )
 
 
@@ -194,16 +216,24 @@ def character(name):
     backgrounds = db_service.get_character_backgrounds(name)
     current_night = open_periods[0] if open_periods else None
 
-    # Check whether this character has an approved living sheet draft
+    # Check whether this character has an approved living sheet draft; load data for spend form
     char_row = DbCharacter.query.filter(
         DbCharacter.character_name.ilike(name)
     ).first()
     has_approved_draft = False
+    sheet_data = None
     if char_row:
-        has_approved_draft = CharacterDraft.query.filter_by(
+        approved_draft = CharacterDraft.query.filter_by(
             roster_character_id=char_row.id,
             status='approved',
-        ).first() is not None
+        ).first()
+        if approved_draft:
+            has_approved_draft = True
+            if approved_draft.character_data:
+                try:
+                    sheet_data = json.loads(approved_draft.character_data)
+                except (json.JSONDecodeError, TypeError):
+                    sheet_data = None
 
     return render_template(
         'player/character.html',
@@ -226,6 +256,7 @@ def character(name):
         backgrounds=backgrounds,
         current_night=current_night,
         has_approved_draft=has_approved_draft,
+        sheet_data=sheet_data,
     )
 
 
@@ -810,3 +841,28 @@ def import_sheet(name):
         'success',
     )
     return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/sheet')
+@require_character_owner
+def view_sheet(name):
+    """Display the player's living character sheet."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    char_row = DbCharacter.query.filter(DbCharacter.character_name.ilike(name)).first()
+    sheet_data = None
+    draft = None
+    if char_row:
+        draft = CharacterDraft.query.filter_by(
+            roster_character_id=char_row.id,
+            status='approved',
+        ).first()
+        if draft and draft.character_data:
+            try:
+                sheet_data = json.loads(draft.character_data)
+            except (json.JSONDecodeError, TypeError):
+                sheet_data = None
+
+    return render_template('player/sheet.html', char=char, sheet_data=sheet_data, draft=draft)
