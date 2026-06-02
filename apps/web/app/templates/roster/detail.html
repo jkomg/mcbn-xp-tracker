@@ -85,6 +85,9 @@
       <a href="{{ url_for('roster.edit', name=char.character_name) }}" class="btn btn-sm btn-primary">
         <i class="bi bi-pencil"></i> Edit
       </a>
+      <a href="{{ url_for('roster.edit_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-file-earmark-person"></i> Edit Sheet
+      </a>
       <form method="POST" action="{{ url_for('roster.set_status', name=char.character_name) }}" class="d-inline">
         {% set current_status = char.status or ('active' if char.active else 'retired') %}
         <select name="status" class="form-select form-select-sm d-inline-block w-auto"

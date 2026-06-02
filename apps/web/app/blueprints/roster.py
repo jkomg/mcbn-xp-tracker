@@ -2,6 +2,9 @@
 
 import csv
 import io
+import json
+import logging
+from datetime import datetime, timezone
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
     Response,
@@ -9,6 +12,9 @@ from flask import (
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
+from app.db import CharacterDraft, DbCharacter, db
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('roster', __name__)
 
@@ -873,3 +879,88 @@ def export_xp_csv(name):
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename="{safe_name}_xp_history.csv"'},
     )
+
+
+@bp.route('/<name>/edit-sheet', methods=['GET', 'POST'])
+@require_staff
+def edit_sheet(name):
+    """Staff: view and edit a character's living sheet JSON."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    char_row = DbCharacter.query.filter(DbCharacter.character_name.ilike(name)).first()
+    if not char_row:
+        abort(404)
+
+    draft = CharacterDraft.query.filter_by(
+        roster_character_id=char_row.id,
+        status='approved',
+    ).first()
+
+    if request.method == 'GET':
+        sheet_json = json.dumps(json.loads(draft.character_data), indent=2) if draft else ''
+        return render_template(
+            'roster/edit_sheet.html',
+            char=char,
+            draft=draft,
+            sheet_json=sheet_json,
+        )
+
+    action = request.form.get('action', 'save')
+
+    if action == 'delete':
+        if draft:
+            db.session.delete(draft)
+            staff = get_staff_user()
+            db_service.log_action(
+                staff_user=staff,
+                action_type='staff_sheet_delete',
+                target=name,
+                details='Staff deleted living character sheet',
+            )
+            db.session.commit()
+            flash('Living sheet deleted. The player can re-import a new one.', 'success')
+        return redirect(url_for('roster.detail', name=name))
+
+    json_text = request.form.get('sheet_json', '').strip()
+    if not json_text:
+        flash('Sheet JSON cannot be empty.', 'danger')
+        return render_template('roster/edit_sheet.html', char=char, draft=draft, sheet_json='')
+
+    try:
+        new_data = json.loads(json_text)
+    except json.JSONDecodeError as exc:
+        flash(f'Invalid JSON: {exc}', 'danger')
+        return render_template('roster/edit_sheet.html', char=char, draft=draft, sheet_json=json_text)
+
+    staff = get_staff_user()
+    now = datetime.now(timezone.utc)
+
+    if draft:
+        draft.character_data = json.dumps(new_data)
+        draft.updated_at = now
+        draft.approved_by = f'staff:{staff} (manual edit)'
+        action_details = 'Staff manually edited living character sheet'
+    else:
+        draft = CharacterDraft(
+            player_discord_id=None,
+            character_name=char_row.character_name,
+            status='approved',
+            roster_character_id=char_row.id,
+            character_data=json.dumps(new_data),
+            approved_at=now,
+            approved_by=f'staff:{staff} (manual create)',
+        )
+        db.session.add(draft)
+        action_details = 'Staff manually created living character sheet'
+
+    db_service.log_action(
+        staff_user=staff,
+        action_type='staff_sheet_edit',
+        target=name,
+        details=action_details,
+    )
+    db.session.commit()
+    flash('Character sheet saved.', 'success')
+    return redirect(url_for('roster.detail', name=name))

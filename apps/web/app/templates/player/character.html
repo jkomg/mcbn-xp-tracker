@@ -122,6 +122,7 @@
                 {% if _bp %}<span class="badge bg-dark border text-muted">BP {{ _bp }}</span>{% endif %}
                 {% if _hum %}<span class="badge bg-dark border text-muted">Humanity {{ _hum }}</span>{% endif %}
                 <a href="{{ url_for('player.view_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Full Sheet</a>
+                <a href="{{ url_for('player.import_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()" title="Re-import from Realm of Darkness"><i class="bi bi-arrow-clockwise"></i></a>
             </div>
         </div>
     </div>
