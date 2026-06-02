@@ -51,10 +51,10 @@
             </div>
             <div class="card-body">
                 <ol class="mb-3 ps-3" style="font-size:0.9rem;">
-                    <li class="mb-2">In Discord, use <code>/sheet</code> to pull up your character on the Realm of Darkness bot.</li>
-                    <li class="mb-2">Click the <strong>Export JSON</strong> button (download icon, bottom of the sheet).</li>
-                    <li class="mb-2">Copy the full JSON text that appears.</li>
-                    <li>Paste it in the box to the left and click <strong>Import Sheet</strong>.</li>
+                    <li class="mb-2">Go to <a href="https://realmofdarkness.app" target="_blank" rel="noopener noreferrer">realmofdarkness.app</a> and open your character sheet. <em>You must have created your character on the website — not just in Discord — for this to work.</em></li>
+                    <li class="mb-2">On your sheet, click the <strong>purple down-arrow button</strong>. It says <strong>Export JSON</strong> when you hover over it.</li>
+                    <li class="mb-2">Copy the full contents of the file that downloads.</li>
+                    <li>Paste it into the box on the left and click <strong>Import Sheet</strong>.</li>
                 </ol>
                 <p class="text-muted small mb-0">
                     Your attributes, skills, disciplines, merits, and flaws will be imported.
@@ -67,8 +67,12 @@
             <div class="card-body py-2 px-3">
                 <p class="small mb-0 text-warning-emphasis">
                     <i class="bi bi-exclamation-triangle"></i>
-                    <strong>One-time import.</strong> Once imported, your sheet is locked and updated only through approved XP spends.
-                    If your RoD sheet has errors, contact staff to fix them.
+                    {% if has_sheet %}
+                    <strong>Re-import will overwrite your current sheet.</strong> Once active, your sheet is updated through approved XP spends.
+                    {% else %}
+                    <strong>After import, your sheet is updated only through approved XP spends.</strong>
+                    {% endif %}
+                    If you have trouble, contact staff.
                 </p>
             </div>
         </div>

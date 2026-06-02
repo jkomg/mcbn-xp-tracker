@@ -58,9 +58,9 @@
         <h6 class="text-muted mb-2">Your Characters</h6>
         <div class="list-group mb-4">
             {% for char in my_characters %}
-            <a href="{{ url_for('player.character', name=char.character_name) }}"
-               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}">
-                <div class="d-flex align-items-center gap-2">
+            <div class="list-group-item d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}">
+                <a href="{{ url_for('player.character', name=char.character_name) }}"
+                   class="d-flex align-items-center gap-2 flex-grow-1 text-decoration-none">
                     {% if char.clan %}
                     <img src="{{ url_for('static', filename='images/symbols/' + char.clan | lower | replace(' ', '-') + '.png') }}"
                          class="char-list-clan-symbol" aria-hidden="true"
@@ -72,9 +72,18 @@
                         <span class="clan-badge clan-{{ char.clan | lower | replace(' ', '-') }} ms-2">{{ char.clan }}</span>
                         {% endif %}
                     </div>
+                </a>
+                <div class="d-flex align-items-center gap-2 ms-2">
+                    {% if char.character_name in chars_with_sheet %}
+                    <a href="{{ url_for('player.view_sheet', name=char.character_name) }}"
+                       class="btn btn-sm btn-outline-secondary" title="View character sheet">
+                        <i class="bi bi-person-lines-fill"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('player.character', name=char.character_name) }}"
+                       class="text-muted"><i class="bi bi-chevron-right"></i></a>
                 </div>
-                <i class="bi bi-chevron-right text-muted"></i>
-            </a>
+            </div>
             {% endfor %}
         </div>
         <div class="text-center mb-4">

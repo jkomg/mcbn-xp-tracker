@@ -62,6 +62,26 @@ def my_characters():
         .all()
     )
 
+    # Which roster characters have an approved living sheet
+    chars_with_sheet: set[str] = set()
+    if my_chars:
+        char_ids = [
+            row.id for row in DbCharacter.query.filter(
+                DbCharacter.character_name.in_([c.character_name for c in my_chars])
+            ).all()
+        ]
+        approved_drafts = CharacterDraft.query.filter(
+            CharacterDraft.roster_character_id.in_(char_ids),
+            CharacterDraft.status == 'approved',
+        ).all()
+        sheet_id_set = {d.roster_character_id for d in approved_drafts}
+        name_map = {
+            row.id: row.character_name for row in DbCharacter.query.filter(
+                DbCharacter.id.in_(char_ids)
+            ).all()
+        }
+        chars_with_sheet = {name_map[i] for i in sheet_id_set if i in name_map}
+
     # Staff also see a full character search
     if check_is_staff():
         all_characters = db_service.get_active_characters()
@@ -74,6 +94,7 @@ def my_characters():
             open_periods=open_periods,
             calendar=calendar,
             pending_drafts=pending_drafts,
+            chars_with_sheet=chars_with_sheet,
         )
 
     if not my_chars and not pending_drafts:
@@ -89,6 +110,7 @@ def my_characters():
         open_periods=open_periods,
         calendar=calendar,
         pending_drafts=pending_drafts,
+        chars_with_sheet=chars_with_sheet,
     )
 
 
@@ -194,16 +216,24 @@ def character(name):
     backgrounds = db_service.get_character_backgrounds(name)
     current_night = open_periods[0] if open_periods else None
 
-    # Check whether this character has an approved living sheet draft
+    # Check whether this character has an approved living sheet draft; load data for spend form
     char_row = DbCharacter.query.filter(
         DbCharacter.character_name.ilike(name)
     ).first()
     has_approved_draft = False
+    sheet_data = None
     if char_row:
-        has_approved_draft = CharacterDraft.query.filter_by(
+        approved_draft = CharacterDraft.query.filter_by(
             roster_character_id=char_row.id,
             status='approved',
-        ).first() is not None
+        ).first()
+        if approved_draft:
+            has_approved_draft = True
+            if approved_draft.character_data:
+                try:
+                    sheet_data = json.loads(approved_draft.character_data)
+                except (json.JSONDecodeError, TypeError):
+                    sheet_data = None
 
     return render_template(
         'player/character.html',
@@ -226,6 +256,7 @@ def character(name):
         backgrounds=backgrounds,
         current_night=current_night,
         has_approved_draft=has_approved_draft,
+        sheet_data=sheet_data,
     )
 
 
@@ -664,7 +695,11 @@ def _map_rod_to_cc(rod: dict) -> dict:
         'humanity': rod.get('humanity', 7),
         'ambition': rod.get('ambition', ''),
         'desire': rod.get('desire', ''),
-        'touchstones': rod.get('touchstones', []),
+        'touchstones': (
+            [t.strip() for t in rod['touchstones'].split(',') if t.strip()]
+            if isinstance(rod.get('touchstones'), str)
+            else (rod.get('touchstones') or [])
+        ),
         'age_category': 'ancilla',  # existing characters are treated as ancilla
     }
 
@@ -748,17 +783,13 @@ def import_sheet(name):
     if not char_row:
         abort(404)
 
-    # Block if an approved draft already exists
     existing = CharacterDraft.query.filter_by(
         roster_character_id=char_row.id,
         status='approved',
     ).first()
-    if existing:
-        flash('This character already has a linked living sheet.', 'warning')
-        return redirect(url_for('player.character', name=name))
 
     if request.method == 'GET':
-        return render_template('player/import_sheet.html', char=char)
+        return render_template('player/import_sheet.html', char=char, has_sheet=existing is not None)
 
     json_text = request.form.get('sheet_json', '').strip()
     if not json_text:
@@ -786,27 +817,61 @@ def import_sheet(name):
     discord_name = session.get('discord_name', 'unknown')
     now = datetime.now(timezone.utc)
 
-    draft = CharacterDraft(
-        player_discord_id=discord_id,
-        character_name=char_row.character_name,
-        status='approved',
-        roster_character_id=char_row.id,
-        character_data=json.dumps(cc_data),
-        approved_at=now,
-        approved_by=f'player:{discord_name} (RoD import)',
-    )
-    db.session.add(draft)
+    if existing:
+        existing.character_data = json.dumps(cc_data)
+        existing.updated_at = now
+        existing.approved_by = f'player:{discord_name} (RoD re-import)'
+        action_details = 'Re-imported character sheet from Realm of Darkness export'
+        flash_msg = 'Character sheet updated from your new RoD export.'
+    else:
+        draft = CharacterDraft(
+            player_discord_id=discord_id,
+            character_name=char_row.character_name,
+            status='approved',
+            roster_character_id=char_row.id,
+            character_data=json.dumps(cc_data),
+            approved_at=now,
+            approved_by=f'player:{discord_name} (RoD import)',
+        )
+        db.session.add(draft)
+        action_details = 'Imported character sheet from Realm of Darkness export'
+        flash_msg = (
+            'Character sheet imported! Your living sheet is now active — '
+            'approved spends will update it automatically.'
+        )
+
     db_service.log_action(
         staff_user=f'player:{discord_name}',
         action_type='player_sheet_import',
         target=name,
-        details='Imported character sheet from Realm of Darkness export',
+        details=action_details,
     )
     db.session.commit()
 
-    flash(
-        'Character sheet imported! Your living sheet is now active — '
-        'approved spends will update it automatically.',
-        'success',
-    )
+    flash(flash_msg, 'success')
     return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/sheet')
+@require_character_owner
+def view_sheet(name):
+    """Display the player's living character sheet."""
+    char = db_service.get_character(name)
+    if not char:
+        abort(404)
+
+    char_row = DbCharacter.query.filter(DbCharacter.character_name.ilike(name)).first()
+    sheet_data = None
+    draft = None
+    if char_row:
+        draft = CharacterDraft.query.filter_by(
+            roster_character_id=char_row.id,
+            status='approved',
+        ).first()
+        if draft and draft.character_data:
+            try:
+                sheet_data = json.loads(draft.character_data)
+            except (json.JSONDecodeError, TypeError):
+                sheet_data = None
+
+    return render_template('player/sheet.html', char=char, sheet_data=sheet_data, draft=draft)

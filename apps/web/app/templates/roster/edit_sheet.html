@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Sheet — {{ char.character_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a href="{{ url_for('roster.detail', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+    <div>
+        <h2 class="mb-0 d-inline">Edit Living Sheet</h2>
+        <span class="badge bg-secondary ms-2">{{ char.character_name }}</span>
+        {% if char.clan %}<span class="badge bg-dark border ms-1">{{ char.clan }}</span>{% endif %}
+    </div>
+    {% if draft %}
+    <span class="ms-auto text-muted small">
+        Last updated {{ draft.updated_at.strftime('%Y-%m-%d') if draft.updated_at else draft.approved_at.strftime('%Y-%m-%d') if draft.approved_at else '—' }}
+        {% if draft.approved_by %}<span class="ms-1 text-muted">· {{ draft.approved_by }}</span>{% endif %}
+    </span>
+    {% endif %}
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2">
+                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">
+                    <i class="bi bi-file-earmark-code"></i> Sheet JSON
+                </small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('roster.edit_sheet', name=char.character_name) }}">
+                    <input type="hidden" name="action" value="save">
+                    <div class="mb-3">
+                        <textarea class="form-control font-monospace"
+                                  id="sheet_json" name="sheet_json"
+                                  rows="28"
+                                  style="font-size:0.75rem;resize:vertical;">{{ sheet_json }}</textarea>
+                        <div class="form-text">
+                            Edit the JSON directly. This is the canonical living sheet data — be careful.
+                            Must be valid JSON starting with <code>{</code>.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-floppy"></i> Save Sheet
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {% if draft %}
+        <div class="card border-secondary mb-3">
+            <div class="card-header py-2">
+                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">
+                    Quick Actions
+                </small>
+            </div>
+            <div class="card-body d-flex flex-column gap-2">
+                <a href="{{ url_for('player.view_sheet', name=char.character_name) }}"
+                   class="btn btn-sm btn-outline-info" target="_blank">
+                    <i class="bi bi-eye"></i> View Sheet
+                </a>
+                <button class="btn btn-sm btn-outline-danger" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#delete-confirm">
+                    <i class="bi bi-trash"></i> Delete Sheet
+                </button>
+                <div class="collapse" id="delete-confirm">
+                    <div class="alert alert-danger mt-2 mb-0 py-2 px-3" style="font-size:0.85rem;">
+                        <strong>Delete the living sheet?</strong> The player will need to re-import.
+                        <form method="POST" action="{{ url_for('roster.edit_sheet', name=char.character_name) }}" class="mt-2">
+                            <input type="hidden" name="action" value="delete">
+                            <button type="submit" class="btn btn-danger btn-sm">Yes, delete it</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary">
+            No living sheet exists for this character yet. Paste valid JSON above and save to create one.
+        </div>
+        {% endif %}
+
+        <div class="card border-info">
+            <div class="card-header bg-info bg-opacity-10 py-2">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Key Fields</h6>
+            </div>
+            <div class="card-body" style="font-size:0.82rem;">
+                <ul class="mb-0 ps-3">
+                    <li><code>attributes</code> — flat dict, e.g. <code>"strength": 3</code></li>
+                    <li><code>skills</code> — flat dict, e.g. <code>"athletics": 2</code></li>
+                    <li><code>disciplines</code> — array of power objects with <code>name</code>, <code>discipline</code>, <code>level</code></li>
+                    <li><code>merits</code> / <code>flaws</code> — arrays with <code>name</code>, <code>level</code></li>
+                    <li><code>bloodPotency</code>, <code>humanity</code>, <code>willpower</code>, <code>maxHealth</code></li>
+                    <li><code>touchstones</code> — array of strings</li>
+                    <li><code>generation</code>, <code>predatorType</code>, <code>ambition</code>, <code>desire</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

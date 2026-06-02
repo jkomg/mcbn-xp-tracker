@@ -88,7 +88,6 @@
 {% endfor %}
 {% endif %}
 
-<!-- Living sheet import prompt -->
 {% if not has_approved_draft %}
 <div class="alert alert-secondary d-flex align-items-center gap-3 mb-3">
     <i class="bi bi-file-earmark-person fs-4 text-muted"></i>
@@ -100,6 +99,189 @@
        class="btn btn-sm btn-outline-secondary text-nowrap">
         <i class="bi bi-cloud-upload"></i> Import Sheet
     </a>
+</div>
+{% endif %}
+
+<!-- Collapsible character sheet (shown only when sheet exists) -->
+{% if has_approved_draft and sheet_data %}
+{% set _a = sheet_data.get('attributes', {}) %}
+{% set _s = sheet_data.get('skills', {}) %}
+{% set _d = sheet_data.get('disciplines', []) %}
+{% set _m = sheet_data.get('merits', []) %}
+{% set _f = sheet_data.get('flaws', []) %}
+{% set _ls = sheet_data.get('loresheet_purchases', []) %}
+{% set _r = sheet_data.get('rituals', []) %}
+{% set _bp = sheet_data.get('bloodPotency', 0) %}
+{% set _hum = sheet_data.get('humanity', 0) %}
+{% set _wil = sheet_data.get('willpower', 0) %}
+{% set _hp = sheet_data.get('maxHealth', 0) %}
+<div class="card mb-4">
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#inline-sheet" role="button" style="cursor:pointer;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i> Character Sheet <i class="bi bi-chevron-down float-end small"></i></h5>
+            <div class="d-flex gap-2 align-items-center">
+                {% if _bp %}<span class="badge bg-dark border text-muted">BP {{ _bp }}</span>{% endif %}
+                {% if _hum %}<span class="badge bg-dark border text-muted">Humanity {{ _hum }}</span>{% endif %}
+                <a href="{{ url_for('player.view_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Full Sheet</a>
+                <a href="{{ url_for('player.import_sheet', name=char.character_name) }}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()" title="Re-import from Realm of Darkness"><i class="bi bi-arrow-clockwise"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="collapse" id="inline-sheet">
+    <div class="card-body pb-2">
+
+        {# ── Attributes ── #}
+        <div class="sheet-section-label">Attributes</div>
+        <div class="row g-0 mb-3">
+            {% for group, keys in [('Physical',['strength','dexterity','stamina']),('Social',['charisma','manipulation','composure']),('Mental',['intelligence','wits','resolve'])] %}
+            <div class="col-4">
+                <div class="sheet-group-label">{{ group }}</div>
+                {% for k in keys %}{% set v = _a.get(k,0) %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ k|title }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i<=v %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {# ── Skills ── #}
+        <div class="sheet-section-label">Skills</div>
+        <div class="row g-0 mb-3">
+            {% set phys_skills = ['athletics','brawl','craft','drive','firearms','larceny','melee','stealth','survival'] %}
+            {% set soc_skills  = ['animal_ken','etiquette','insight','intimidation','leadership','performance','persuasion','streetwise','subterfuge'] %}
+            {% set ment_skills = ['academics','awareness','finance','investigation','medicine','occult','politics','science','technology'] %}
+            {% for group, keys in [('Physical',phys_skills),('Social',soc_skills),('Mental',ment_skills)] %}
+            <div class="col-4">
+                <div class="sheet-group-label">{{ group }}</div>
+                {% for k in keys %}{% set v = _s.get(k,0) %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ k|replace('_',' ')|title }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i<=v %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {# ── Advantages / Disciplines / Rituals ── #}
+        <div class="sheet-section-label">Advantages &amp; Disciplines</div>
+        <div class="row g-3 mb-3">
+            {# Disciplines #}
+            {% if _d %}
+            <div class="col-md-4">
+                <div class="sheet-group-label">Disciplines</div>
+                {% set disc_groups = {} %}
+                {% for p in _d %}{% set dn = p.get('discipline','?')|title %}{% if dn not in disc_groups %}{% set _ = disc_groups.update({dn:[]}) %}{% endif %}{% set _ = disc_groups[dn].append(p) %}{% endfor %}
+                {% for dn, powers in disc_groups|dictsort %}
+                <div class="mb-2">
+                    <div class="sheet-disc-name">{{ dn }}</div>
+                    {% for p in powers|sort(attribute='level') %}
+                    <div class="sheet-trait-row">
+                        <span class="sheet-trait-name">{{ p.get('name','?') }}</span>
+                        <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ p.get('level','?') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {# Merits, Loresheets & Flaws #}
+            {% if _m or _f or _ls %}
+            <div class="col-md-4">
+                {% if _m %}
+                <div class="sheet-group-label">Merits &amp; Backgrounds</div>
+                {% for m in _m %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ m.get('name','?') }}</span>
+                    <span class="dot-pips">{% set lv=m.get('level',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if _ls %}
+                <div class="sheet-group-label {% if _m %}mt-2{% endif %}">Loresheets</div>
+                {% for ls in _ls %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ ls.get('name','?') }}</span>
+                    <span class="dot-pips">{% set lv=ls.get('dot',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if _f %}
+                <div class="sheet-group-label mt-2">Flaws</div>
+                {% for f in _f %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ f.get('name','?') }}</span>
+                    <span class="dot-pips">{% set lv=f.get('level',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+            {# Rituals #}
+            {% if _r %}
+            <div class="col-md-4">
+                {% set bs_r = _r|selectattr('discipline','equalto','blood sorcery')|list %}
+                {% set tb_r = _r|selectattr('discipline','equalto','thin-blood alchemy')|list %}
+                {% if bs_r %}
+                <div class="sheet-group-label">Blood Sorcery Rituals</div>
+                {% for r in bs_r|sort(attribute='level') %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ r.get('name','?') }}</span>
+                    <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ r.get('level','?') }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if tb_r %}
+                <div class="sheet-group-label mt-2">Thin-Blood Alchemy</div>
+                {% for r in tb_r|sort(attribute='level') %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ r.get('name','?') }}</span>
+                    <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ r.get('level','?') }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Vitals ── #}
+        <div class="sheet-section-label">Vitals</div>
+        <div class="d-flex flex-wrap gap-4 mb-3">
+            <div>
+                <div class="sheet-group-label">Humanity</div>
+                <div class="dot-pips">{% for i in range(1,11) %}<span class="dot-pip {% if i<=_hum %}filled{% endif %}"></span>{% endfor %}</div>
+            </div>
+            <div>
+                <div class="sheet-group-label">Blood Potency</div>
+                <div class="dot-pips">{% for i in range(1,11) %}<span class="dot-pip {% if i<=_bp %}filled{% endif %}"></span>{% endfor %}</div>
+            </div>
+            {% if _hp %}
+            <div>
+                <div class="sheet-group-label">Health</div>
+                <div class="dot-pips">{% for i in range(1,_hp+1) %}<span class="dot-pip square"></span>{% endfor %}</div>
+            </div>
+            {% endif %}
+            {% if _wil %}
+            <div>
+                <div class="sheet-group-label">Willpower</div>
+                <div class="dot-pips">{% for i in range(1,_wil+1) %}<span class="dot-pip square"></span>{% endfor %}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% set _touch = sheet_data.get('touchstones', []) %}
+        {% if _touch %}
+        <div>
+            <div class="sheet-group-label">Touchstones &amp; Convictions</div>
+            {% for t in _touch %}
+            <div class="sheet-trait-name">{{ t if t is string else t.get('description', t.get('name','')) }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+    </div><!-- /#inline-sheet -->
 </div>
 {% endif %}
 
@@ -118,12 +300,13 @@
 
 <!-- Backgrounds -->
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Background Blanking</h5>
+    <div class="card-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#background-blanking" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-check2-square"></i> Background Blanking <i class="bi bi-chevron-down float-end ms-2 small"></i></h5>
         {% if current_night %}
         <span class="badge bg-secondary">Current: {{ current_night.period_label }}</span>
         {% endif %}
     </div>
+    <div class="collapse show" id="background-blanking">
     <div class="card-body">
         {% if backgrounds %}
         <div class="table-responsive mb-3">
@@ -197,6 +380,7 @@
             </div>
         </form>
     </div>
+    </div><!-- /#background-blanking -->
 </div>
 
 <!-- ═══ Submission Forms ═══ -->
@@ -440,9 +624,10 @@
 
 <!-- Approved Claims History -->
 <div class="card mb-4" id="xp-claims-history">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History</h5>
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#claims-history-body" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-journal-check"></i> XP Claims History <i class="bi bi-chevron-down float-end small"></i></h5>
     </div>
+    <div class="collapse" id="claims-history-body">
     <div class="card-body">
         {% if approved_claims or ledger %}
         <div class="table-responsive">
@@ -492,10 +677,11 @@
         <p class="text-muted mb-0">No approved XP claims yet.</p>
         {% endif %}
     </div>
+    </div><!-- /#claims-history-body -->
 </div>
 
-<!-- Pending / Denied Spends -->
-{% if pending_spends_list or denied_spends %}
+<!-- Pending Spends -->
+{% if pending_spends_list %}
 <div class="card mb-4">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#spends-in-progress" role="button" style="cursor:pointer;">
         <div class="d-flex justify-content-between align-items-center">
@@ -503,14 +689,7 @@
                 <i class="bi bi-hourglass-split"></i> Spend Requests In Progress
                 <i class="bi bi-chevron-down float-end"></i>
             </h5>
-            <div class="d-flex gap-2">
-                {% if pending_spends_list %}
-                <span class="badge bg-warning text-dark">{{ pending_spends_list|length }} pending</span>
-                {% endif %}
-                {% if denied_spends %}
-                <span class="badge bg-danger">{{ denied_spends|length }} denied</span>
-                {% endif %}
-            </div>
+            <span class="badge bg-warning text-dark">{{ pending_spends_list|length }} pending</span>
         </div>
     </div>
     <div class="collapse show" id="spends-in-progress">
@@ -523,7 +702,6 @@
                             <th class="d-none d-sm-table-cell">Category</th>
                             <th>Dots</th>
                             <th>XP</th>
-                            <th>Status</th>
                             <th class="d-none d-sm-table-cell">Notes</th>
                         </tr>
                     </thead>
@@ -534,18 +712,7 @@
                             <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
                             <td><span class="text-muted">{{ s.current_dots }}→{{ s.new_dots }}</span></td>
                             <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
-                            <td><span class="badge bg-warning text-dark">Pending</span></td>
                             <td class="d-none d-sm-table-cell"></td>
-                        </tr>
-                        {% endfor %}
-                        {% for s in denied_spends %}
-                        <tr>
-                            <td>{{ s.trait_name }}</td>
-                            <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
-                            <td><span class="text-muted">{{ s.current_dots }}→{{ s.new_dots }}</span></td>
-                            <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
-                            <td><span class="badge bg-danger">Denied</span></td>
-                            <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.st_notes or '' }}</small></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -556,11 +723,12 @@
 </div>
 {% endif %}
 
-<!-- Approved Spends History — Character Sheet View -->
+<!-- Approved Spends History -->
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Approved Spends</h5>
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#approved-spends-body" role="button" style="cursor:pointer;">
+        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Approved Spends <i class="bi bi-chevron-down float-end small"></i></h5>
     </div>
+    <div class="collapse" id="approved-spends-body">
     <div class="card-body">
         {% if approved_spends %}
         {% for category, spends in approved_spends | groupby('spend_category') %}
@@ -584,6 +752,7 @@
         <p class="text-muted mb-0">No approved spends yet.</p>
         {% endif %}
     </div>
+    </div><!-- /#approved-spends-body -->
 </div>
 
 <!-- Wish List -->
@@ -950,8 +1119,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ═══ Living Sheet — pre-fill current dots from imported sheet data ═══
+    const SHEET_DATA = {{ sheet_data | tojson if sheet_data else 'null' }};
+
+    function lookupCurrentDots(cat, traitName) {
+        if (!SHEET_DATA || !traitName) return null;
+        const key = traitName.trim().toLowerCase().replace(/\s+/g, '_');
+        if (cat === 'Attribute') {
+            const v = SHEET_DATA.attributes && SHEET_DATA.attributes[key];
+            return (v != null) ? v : null;
+        }
+        if (cat === 'Skill' || cat === 'New Skill') {
+            const v = SHEET_DATA.skills && SHEET_DATA.skills[key];
+            return (v != null) ? v : null;
+        }
+        if (cat === 'Discipline (In-Clan)' || cat === 'Discipline (Out-of-Clan)' || cat === 'Caitiff Discipline' || cat === 'Ghoul Discipline') {
+            // Look for the highest level power in this discipline
+            const discs = SHEET_DATA.disciplines || [];
+            const disc = discs.filter(p => (p.discipline || '').toLowerCase() === key);
+            if (disc.length) return Math.max(...disc.map(p => p.level || 0));
+            return null;
+        }
+        if (cat === 'Advantage (Merit/Background)') {
+            const merits = SHEET_DATA.merits || [];
+            const m = merits.find(m => m.name && m.name.toLowerCase() === traitName.trim().toLowerCase());
+            return m ? (m.level || 0) : null;
+        }
+        return null;
+    }
+
+    const traitNameInput = document.getElementById('trait_name');
+    function autofillCurrentDots() {
+        const cat = spendCategory.value;
+        const trait = traitNameInput ? traitNameInput.value : '';
+        const dots = lookupCurrentDots(cat, trait);
+        if (dots != null) {
+            currentDots.value = dots;
+            calcCost();
+        }
+    }
+    if (traitNameInput) {
+        traitNameInput.addEventListener('change', autofillCurrentDots);
+        traitNameInput.addEventListener('blur', autofillCurrentDots);
+    }
+
     spendCategory.addEventListener('change', function() {
         updateDotConstraints();
+        autofillCurrentDots();
         calcCost();
     });
     currentDots.addEventListener('input', calcCost);
