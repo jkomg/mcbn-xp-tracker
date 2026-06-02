@@ -37,6 +37,17 @@ export const Ceremonies: Ceremony[] = [
         prerequisitePowers: ["The Binding Fetter"]
     },
     {
+        name: "Knowing Stone",
+        summary: "Identify the locations and existences of specific ghosts. The caster must know the ghost's name.",
+        rouseChecks: 1,
+        requiredTime: "5 min",
+        dicePool: defaultDicePool,
+        ingredients: "A stone and the ghost's name",
+        level: 1,
+        discipline: "oblivion",
+        prerequisitePowers: ["Ashes to Ashes", "The Binding Fetter"]
+    },
+    {
         name: "Traveler's Call",
         summary:
             "Send a vision of your surroundings through Oblivion to call another Shalimite to you.",
@@ -82,6 +93,28 @@ export const Ceremonies: Ceremony[] = [
         level: 2,
         discipline: "oblivion",
         prerequisitePowers: ["Where the Shroud Thins"]
+    },
+    {
+        name: "Ashen Relic",
+        summary: "Preserve a Kindred's body against decay. Three successes in the margin preserves more completely.",
+        rouseChecks: 1,
+        requiredTime: "10 min",
+        dicePool: defaultDicePool,
+        ingredients: "",
+        level: 2,
+        discipline: "oblivion",
+        prerequisitePowers: ["Ashes to Ashes", "Oblivion's Sight"]
+    },
+    {
+        name: "Maw of Ahriman",
+        summary: "Open a portal to the Abyss, usually within the caster's own mouth. The caster cannot speak until the portal is cancelled or the next sunrise.",
+        rouseChecks: 1,
+        requiredTime: "10 min",
+        dicePool: defaultDicePool,
+        ingredients: "",
+        level: 2,
+        discipline: "oblivion",
+        prerequisitePowers: []
     },
     {
         name: "Host Spirit",
@@ -178,6 +211,28 @@ export const Ceremonies: Ceremony[] = [
         prerequisitePowers: ["Shadow Perspective", "Touch of Oblivion"]
     },
     {
+        name: "Shallow Slumber",
+        summary: "Reduce time spent in torpor.",
+        rouseChecks: 1,
+        requiredTime: "15 min",
+        dicePool: defaultDicePool,
+        ingredients: "",
+        level: 3,
+        discipline: "oblivion",
+        prerequisitePowers: ["Passion Feast", "Touch of Oblivion"]
+    },
+    {
+        name: "Wisdom of the Dead",
+        summary: "Gain information by speaking with a corpse skull or severed head. Add two dice to the pool if still carrying the skull or head for the rest of the night.",
+        rouseChecks: 1,
+        requiredTime: "15 min",
+        dicePool: defaultDicePool,
+        ingredients: "A corpse skull or severed head",
+        level: 3,
+        discipline: "oblivion",
+        prerequisitePowers: ["Where the Shroud Thins", "Oblivion's Sight"]
+    },
+    {
         name: "Bind the Spirit",
         summary:
             "Anchor a compelled wraith to a place or person, causing its strongest emotions to haunt the target.",
@@ -191,7 +246,7 @@ export const Ceremonies: Ceremony[] = [
         prerequisitePowers: ["Necrotic Plague"]
     },
     {
-        name: "Split the Shroud",
+        name: "Split the Veil",
         summary:
             "Tear open the boundary to the Shadowlands, making passage easier and allowing ghosts through if widened enough.",
         rouseChecks: 1,
@@ -212,7 +267,7 @@ export const Ceremonies: Ceremony[] = [
         ingredients: "The vampire's saliva",
         level: 4,
         discipline: "oblivion",
-        prerequisitePowers: ["Touch of Oblivion"]
+        prerequisitePowers: ["Necrotic Plague"]
     },
     {
         name: "Death Rattle",
