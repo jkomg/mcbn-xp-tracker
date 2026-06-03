@@ -22,7 +22,7 @@ import logging
 
 from app.auth import require_staff
 from app.db import CharacterDraft, CcRestriction, DbCharacter, db
-from app import db_service
+from app import db_service, sheets_sync
 from app.models import Character
 
 logger = logging.getLogger(__name__)
@@ -243,6 +243,11 @@ def draft_approve(draft_id):
                     status='active',
                 )
                 db_service.add_character(new_char)
+                if sheets_sync:
+                    try:
+                        sheets_sync.sync_add_character(new_char)
+                    except Exception as sync_exc:
+                        logger.warning('CC approval: sheets sync failed for %s: %s', char_name, sync_exc)
                 new_row = DbCharacter.query.filter(
                     DbCharacter.character_name.ilike(char_name)
                 ).first()

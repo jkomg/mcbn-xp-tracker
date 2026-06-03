@@ -6,7 +6,7 @@ import type { TrackerAdapter, CcApprovedDraft } from './adapter';
 
 const STATE_PATH = path.resolve('./data/cc-approval-cursor.json');
 
-type CursorState = { cursorEpoch: number };
+type CursorState = { cursorEpoch: number; seenIds?: string[] };
 
 function loadCursorState(): CursorState | null {
   try {
@@ -104,8 +104,13 @@ export class CharacterApprovalNotifier {
         const saved = loadCursorState();
         if (saved) {
           this.cursorEpoch = saved.cursorEpoch;
+          // Restore persisted seenIds to prevent duplicates after restart
+          for (const id of saved.seenIds ?? []) this.seenIds.add(id);
           this.initialized = true;
-          logEvent('info', 'cc_approval_notifier_resumed', { cursorEpoch: this.cursorEpoch });
+          logEvent('info', 'cc_approval_notifier_resumed', {
+            cursorEpoch: this.cursorEpoch,
+            seenCount: this.seenIds.size,
+          });
           return;
         }
         // No saved state — bootstrap: mark existing approvals as seen without posting.
@@ -121,7 +126,7 @@ export class CharacterApprovalNotifier {
           }
         }
         this.initialized = true;
-        saveCursorState({ cursorEpoch: this.cursorEpoch });
+        saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
         logEvent('info', 'cc_approval_notifier_bootstrapped', {
           cursorEpoch: this.cursorEpoch,
           seenCount: this.seenIds.size,
@@ -159,8 +164,9 @@ export class CharacterApprovalNotifier {
 
         if (draft.approved_at_epoch > this.cursorEpoch) {
           this.cursorEpoch = draft.approved_at_epoch;
-          saveCursorState({ cursorEpoch: this.cursorEpoch });
         }
+        // Always persist seenIds so duplicate-prevention survives restarts
+        saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
       }
     } catch (err) {
       logEvent('warn', 'cc_approval_notifier_poll_error', { error: errorToMessage(err) });
