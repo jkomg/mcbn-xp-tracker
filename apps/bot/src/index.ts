@@ -45,6 +45,7 @@ import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
+import { CharacterApprovalNotifier } from './services/characterApprovalNotifier';
 import {
   startHuntConsequenceMonitor,
   isHuntConsequenceButton,
@@ -147,6 +148,13 @@ void applyStartupConfigOverrides().then(() => {
     enabled: config.ccSubmissionNotifierEnabled,
     intervalMs: config.ccSubmissionNotifierIntervalMs,
     lookbackSeconds: config.ccSubmissionNotifierLookbackSeconds,
+  });
+
+  const characterApprovalNotifier = new CharacterApprovalNotifier(client, adapter, {
+    enabled: config.ccApprovalNotifierEnabled,
+    channelId: config.approvePlayerSheetsChannelId,
+    intervalMs: config.ccApprovalNotifierIntervalMs,
+    lookbackSeconds: config.ccApprovalNotifierLookbackSeconds,
   });
 
   const claimReminderService = new ClaimReminderService(client, adapter, {
@@ -297,6 +305,7 @@ void applyStartupConfigOverrides().then(() => {
     reviewNotifier.start();
     submissionNotifier.start();
     characterSubmissionNotifier.start();
+    characterApprovalNotifier.start();
     // Stagger heartbeat relative to configSyncWorker so they don't fire at
     // the same second and compete for connections during backfill scans.
     // Notifiers start immediately so their cursor bootstrap isn't delayed.
