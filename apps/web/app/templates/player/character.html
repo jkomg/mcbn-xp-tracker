@@ -106,6 +106,7 @@
 {% if has_approved_draft and sheet_data %}
 {% set _a = sheet_data.get('attributes', {}) %}
 {% set _s = sheet_data.get('skills', {}) %}
+{% set _spec = sheet_data.get('skill_specialties', {}) %}
 {% set _d = sheet_data.get('disciplines', []) %}
 {% set _m = sheet_data.get('merits', []) %}
 {% set _f = sheet_data.get('flaws', []) %}
@@ -160,6 +161,9 @@
                     <span class="sheet-trait-name">{{ k|replace('_',' ')|title }}</span>
                     <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i<=v %}filled{% endif %}"></span>{% endfor %}</span>
                 </div>
+                {% if _spec.get(k) %}
+                <div class="sheet-specialty-row">{{ _spec[k] | join(', ') }}</div>
+                {% endif %}
                 {% endfor %}
             </div>
             {% endfor %}

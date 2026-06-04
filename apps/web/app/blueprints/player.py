@@ -707,9 +707,15 @@ def _map_rod_to_cc(rod: dict) -> dict:
     data['attributes'] = dict(rod.get('attributes', {}))
 
     # Skills: RoD uses {skill: {value: n, spec: [...]}} — flatten to {skill: n}
+    # and preserve specialties as {skill: [spec, ...]}
     data['skills'] = {
         k: (v.get('value', 0) if isinstance(v, dict) else int(v or 0))
         for k, v in rod.get('skills', {}).items()
+    }
+    data['skill_specialties'] = {
+        k: v.get('spec') or []
+        for k, v in rod.get('skills', {}).items()
+        if isinstance(v, dict) and v.get('spec')
     }
 
     # Disciplines: RoD dict-of-disciplines → CC array of power objects
