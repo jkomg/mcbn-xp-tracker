@@ -281,6 +281,10 @@ def add_advantage(slug: str):
         flash('Advantage name is required.', 'danger')
         return redirect(url_for('coteries.view', slug=slug))
 
+    if dots < 1:
+        flash('Dots must be at least 1.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
     if advantage_type not in ('background', 'merit', 'flaw'):
         advantage_type = 'background'
 

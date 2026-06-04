@@ -309,6 +309,19 @@ def blank_background(name):
         dots = 1
     dots = max(1, min(dots, 10))
 
+    # Donated backgrounds can only be blanked through the coterie page
+    from app.db import DbCharacterBackground as _BgModel
+    _bg_row = _BgModel.query.filter_by(
+        character_name=name,
+        background_name=background_name,
+    ).first()
+    if _bg_row and _bg_row.donated_coterie_id:
+        flash(
+            'This background is donated to a coterie — blank it from the coterie page.',
+            'warning',
+        )
+        return redirect(url_for('player.character', name=name))
+
     all_periods = db_service.get_all_periods()
     open_periods = [p for p in all_periods if p.submissions_open and p.active]
     open_periods.sort(key=lambda p: p.night_number, reverse=True)

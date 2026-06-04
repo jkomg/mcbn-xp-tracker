@@ -426,6 +426,15 @@ def blank_background():
     if not _requester_can_access_character(char, effective_discord_id):
         return _forbidden()
 
+    # Donated backgrounds can only be blanked through coterie routes
+    from app.db import DbCharacterBackground as _BgModel
+    _bg_row = _BgModel.query.filter_by(
+        character_name=char.character_name,
+        background_name=background_name,
+    ).first()
+    if _bg_row and _bg_row.donated_coterie_id:
+        return jsonify({'error': 'This background is donated to a coterie — use the coterie blanking route.'}), 409
+
     current_night = _current_open_night()
     if not current_night:
         return jsonify({'error': 'No active open night found'}), 409

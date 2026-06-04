@@ -281,6 +281,10 @@ class DbCharacterBackground(db.Model):
     # While donated, only coterie members may blank it (not the PC owner independently).
     donated_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
 
+    @property
+    def dots_available(self) -> int:
+        return max(0, (self.dots_total or 0) - (self.dots_blanked or 0))
+
 
 class Coterie(db.Model):
     __tablename__ = 'coteries'
