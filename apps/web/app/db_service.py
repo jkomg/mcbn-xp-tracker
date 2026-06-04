@@ -29,6 +29,7 @@ from app.db import (
     DbCharacterBackground,
 )
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
+from app.game_calendar import next_night_after_downtime
 
 
 def _now_str() -> str:
@@ -1278,7 +1279,10 @@ class DBService:
 
         row.dots_blanked = blanked + dots
         row.blanked_at_night_number = current_night_number
-        row.release_night_number = current_night_number + 1
+        row.release_night_number = (
+            next_night_after_downtime(current_night_number)
+            or current_night_number + 1
+        )
         row.updated_at = _now_str()
         row.updated_by = updated_by[:100]
         db.session.commit()
