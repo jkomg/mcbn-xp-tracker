@@ -231,7 +231,7 @@ def character(name):
             has_approved_draft = True
             if approved_draft.character_data:
                 try:
-                    sheet_data = json.loads(approved_draft.character_data)
+                    sheet_data = _normalize_sheet_data(json.loads(approved_draft.character_data))
                 except (json.JSONDecodeError, TypeError):
                     sheet_data = None
 
@@ -683,6 +683,29 @@ def export_xp_csv(name):
     )
 
 
+def _normalize_sheet_data(data: dict) -> dict:
+    """Normalize character_data for sheet rendering.
+
+    Unifies the two specialty formats:
+    - CC format: skillSpecialties: [{skill, name}, ...]
+    - RoD import: skill_specialties: {skill: [name, ...]}
+
+    Always produces skill_specialties in dict form so templates have one format to handle.
+    """
+    if 'skill_specialties' not in data:
+        cc_specs = data.get('skillSpecialties') or []
+        merged: dict[str, list[str]] = {}
+        for item in cc_specs:
+            if isinstance(item, dict):
+                skill = item.get('skill', '')
+                name = item.get('name', '').strip()
+                if skill and name:
+                    merged.setdefault(skill, []).append(name)
+        if merged:
+            data['skill_specialties'] = merged
+    return data
+
+
 def _map_rod_to_cc(rod: dict) -> dict:
     """Map a Realm of Darkness V5 sheet export to CC character_data format."""
     # Basic identity fields
@@ -876,7 +899,7 @@ def view_sheet(name):
         ).first()
         if draft and draft.character_data:
             try:
-                sheet_data = json.loads(draft.character_data)
+                sheet_data = _normalize_sheet_data(json.loads(draft.character_data))
             except (json.JSONDecodeError, TypeError):
                 sheet_data = None
 
