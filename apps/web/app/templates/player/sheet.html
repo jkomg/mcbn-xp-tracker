@@ -38,6 +38,7 @@
 {% set _hp  = sheet_data.get('maxHealth', 0) %}
 {% set _gen = sheet_data.get('generation', 0) %}
 {% set _touch = sheet_data.get('touchstones', []) %}
+{% set _conv = sheet_data.get('convictions', []) %}
 {% set _ls  = sheet_data.get('loresheet_purchases', []) %}
 {% set _spec = sheet_data.get('skill_specialties', {}) %}
 
@@ -252,21 +253,36 @@
 
 </div>
 
-{% if _touch %}
+{% if _touch or _conv %}
 <div class="mt-3">
-    <div class="sheet-group-label">Touchstones &amp; Convictions</div>
-    <div class="row g-2">
-        {% for t in _touch %}
-        {% set txt = t if t is string else t.get('description', t.get('name', '')) %}
-        {% if txt %}
-        <div class="col-md-4 col-lg-3">
-            <div class="sheet-trait-name">{{ txt }}</div>
+    <div class="row g-4">
+        {% if _touch %}
+        <div class="col-md-6">
+            <div class="sheet-group-label">Touchstones</div>
+            {% for t in _touch %}
+            {% set txt = t if t is string else t.get('description', t.get('name', '')) %}
+            {% if txt %}<div class="sheet-trait-name">{{ txt }}</div>{% endif %}
+            {% endfor %}
         </div>
         {% endif %}
-        {% endfor %}
+        {% if _conv %}
+        <div class="col-md-6">
+            <div class="sheet-group-label">Convictions</div>
+            {% for c in _conv %}
+            {% if c %}<div class="sheet-trait-name">{{ c }}</div>{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endif %}
+
+<div class="mt-4">
+    <div class="sheet-group-label">Chronicle Tenets</div>
+    <div class="sheet-trait-name">Thou shalt not kill.</div>
+    <div class="sheet-trait-name">Thou shall not harm children.</div>
+    <div class="sheet-trait-name">Thou shall not engage in excessive cruelty.</div>
+</div>
 
 {% endif %}
 {% endblock %}

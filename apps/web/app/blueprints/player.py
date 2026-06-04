@@ -736,6 +736,15 @@ def _map_rod_to_cc(rod: dict) -> dict:
             if isinstance(rod.get('touchstones'), str)
             else (rod.get('touchstones') or [])
         ),
+        'convictions': (
+            [c.strip() for c in rod['convictions'].split(',') if c.strip()]
+            if isinstance(rod.get('convictions'), str)
+            else [
+                (c if isinstance(c, str) else c.get('description', c.get('name', '')))
+                for c in (rod.get('convictions') or [])
+                if c
+            ]
+        ),
         'age_category': 'ancilla',  # existing characters are treated as ancilla
     }
 
