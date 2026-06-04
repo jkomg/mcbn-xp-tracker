@@ -703,7 +703,12 @@ def _normalize_sheet_data(data: dict) -> dict:
     - CC format: skillSpecialties: [{skill, name}, ...]
     - RoD import: skill_specialties: {skill: [name, ...]}
 
-    Always produces skill_specialties in dict form so templates have one format to handle.
+    Unifies the two conviction formats:
+    - CC format: convictions embedded on each touchstone as t.conviction
+    - RoD import: top-level convictions array
+
+    Always produces skill_specialties (dict) and convictions (list) so
+    templates have one format to handle.
     """
     if 'skill_specialties' not in data:
         cc_specs = data.get('skillSpecialties') or []
@@ -716,6 +721,16 @@ def _normalize_sheet_data(data: dict) -> dict:
                     merged.setdefault(skill, []).append(name)
         if merged:
             data['skill_specialties'] = merged
+
+    if 'convictions' not in data:
+        conv_from_ts = [
+            t['conviction']
+            for t in (data.get('touchstones') or [])
+            if isinstance(t, dict) and t.get('conviction')
+        ]
+        if conv_from_ts:
+            data['convictions'] = conv_from_ts
+
     return data
 
 
@@ -735,6 +750,15 @@ def _map_rod_to_cc(rod: dict) -> dict:
             [t.strip() for t in rod['touchstones'].split(',') if t.strip()]
             if isinstance(rod.get('touchstones'), str)
             else (rod.get('touchstones') or [])
+        ),
+        'convictions': (
+            [c.strip() for c in rod['convictions'].split(',') if c.strip()]
+            if isinstance(rod.get('convictions'), str)
+            else [
+                (c if isinstance(c, str) else c.get('description', c.get('name', '')))
+                for c in (rod.get('convictions') or [])
+                if c
+            ]
         ),
         'age_category': 'ancilla',  # existing characters are treated as ancilla
     }

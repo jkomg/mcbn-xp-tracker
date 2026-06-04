@@ -275,14 +275,29 @@
             {% endif %}
         </div>
         {% set _touch = sheet_data.get('touchstones', []) %}
+        {% set _conv = sheet_data.get('convictions', []) %}
         {% if _touch %}
         <div>
-            <div class="sheet-group-label">Touchstones &amp; Convictions</div>
+            <div class="sheet-group-label">Touchstones</div>
             {% for t in _touch %}
             <div class="sheet-trait-name">{{ t if t is string else t.get('description', t.get('name','')) }}</div>
             {% endfor %}
         </div>
         {% endif %}
+        {% if _conv %}
+        <div class="mt-2">
+            <div class="sheet-group-label">Convictions</div>
+            {% for c in _conv %}
+            {% if c %}<div class="sheet-trait-name">{{ c }}</div>{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="mt-2">
+            <div class="sheet-group-label">Chronicle Tenets</div>
+            <div class="sheet-trait-name">Thou shalt not kill.</div>
+            <div class="sheet-trait-name">Thou shall not harm children.</div>
+            <div class="sheet-trait-name">Thou shall not engage in excessive cruelty.</div>
+        </div>
 
     </div>
     </div><!-- /#inline-sheet -->
