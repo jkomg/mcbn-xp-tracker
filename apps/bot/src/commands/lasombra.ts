@@ -118,6 +118,17 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((s) =>
     s
+      .setName('coterie-create')
+      .setDescription('Create a coterie on the site and post the setup link here (staff only)')
+      .addStringOption((o) =>
+        o
+          .setName('name')
+          .setDescription('Exact coterie name as entered on the site')
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((s) =>
+    s
       .setName('blank')
       .setDescription('Blank a tracked background for one night')
       .addStringOption((o) =>
@@ -461,6 +472,55 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     } catch (err) {
       await interaction.editReply(`Scan failed: ${errorToMessage(err)}`);
     }
+    return;
+  }
+
+  if (sub === 'coterie-create') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    const coterieName = interaction.options.getString('name', true).trim();
+    const channelId = interaction.channelId;
+    await interaction.deferReply();
+
+    let result: Awaited<ReturnType<typeof ctx.adapter.activateCoterie>>;
+    try {
+      result = await ctx.adapter.activateCoterie(coterieName, channelId);
+    } catch (err) {
+      await interaction.editReply({
+        content: `Failed to activate coterie: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return;
+    }
+
+    const { coterie } = result;
+    const baseUrl = config.webAppBaseUrl.replace(/\/+$/, '');
+    const coterieUrl = `${baseUrl}/coteries/${coterie.slug}`;
+    const memberMentions = coterie.members
+      .filter((m) => m.player_discord_id)
+      .map((m) => `<@${m.player_discord_id}>`)
+      .join(' ');
+    const totalDots = coterie.free_pool_total;
+    const memberCount = coterie.members.length;
+
+    await interaction.editReply({
+      embeds: [
+        {
+          title: `🏰 ${coterie.name}`,
+          description: [
+            `**${memberCount} member${memberCount !== 1 ? 's' : ''}** · **${totalDots} free dot${totalDots !== 1 ? 's' : ''}** in the pool`,
+            '',
+            coterie.members.map((m) => `• ${m.character_name} (${m.free_dots} free dot${m.free_dots !== 1 ? 's' : ''})`).join('\n'),
+            '',
+            `[View & set up your coterie](${coterieUrl})`,
+          ].join('\n'),
+          color: 0x8b0000,
+          url: coterieUrl,
+        },
+      ],
+      content: memberMentions ? `${memberMentions} — your coterie is ready!` : undefined,
+    });
     return;
   }
 

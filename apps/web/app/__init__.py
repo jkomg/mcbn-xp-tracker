@@ -146,6 +146,7 @@ def create_app():
     from .blueprints.character_creator import bp as character_creator_bp
     from .blueprints.cc_admin import bp as cc_admin_bp
     from .blueprints.reports import bp as reports_bp
+    from .blueprints.coteries import bp as coteries_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(claims_bp, url_prefix='/claims')
@@ -161,6 +162,7 @@ def create_app():
     app.register_blueprint(character_creator_bp)
     app.register_blueprint(cc_admin_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(coteries_bp, url_prefix='/coteries')
     csrf.exempt(api_bp)
     csrf.exempt(character_creator_bp)
 

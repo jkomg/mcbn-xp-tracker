@@ -426,6 +426,15 @@ def blank_background():
     if not _requester_can_access_character(char, effective_discord_id):
         return _forbidden()
 
+    # Donated backgrounds can only be blanked through coterie routes
+    from app.db import DbCharacterBackground as _BgModel
+    _bg_row = _BgModel.query.filter_by(
+        character_name=char.character_name,
+        background_name=background_name,
+    ).first()
+    if _bg_row and _bg_row.donated_coterie_id:
+        return jsonify({'error': 'This background is donated to a coterie — use the coterie blanking route.'}), 409
+
     current_night = _current_open_night()
     if not current_night:
         return jsonify({'error': 'No active open night found'}), 409
@@ -1940,3 +1949,84 @@ def staff_sync():
 
     db.session.commit()
     return jsonify({'ok': True, 'processed': len(operations)})
+
+
+# ---------------------------------------------------------------------------
+# Coterie API — for bot and wiki sync
+# ---------------------------------------------------------------------------
+
+@bp.route('/coteries', methods=['GET'])
+@require_bot_scope('read')
+def list_coteries():
+    """Return all active coteries with members. Used by wiki sync and bot."""
+    from app.db import Coterie
+    coteries = Coterie.query.filter_by(status='active').order_by(Coterie.name).all()
+    result = []
+    for c in coteries:
+        members = []
+        for m in c.members:
+            char = m.character
+            members.append({
+                'character_name': char.character_name,
+                'clan': char.clan or '',
+                'player_discord_id': char.player_discord or '',
+            })
+        result.append({
+            'id': c.id,
+            'name': c.name,
+            'slug': c.slug,
+            'description': c.description or '',
+            'discord_channel_id': c.discord_channel_id,
+            'members': members,
+        })
+    return jsonify({'coteries': result})
+
+
+@bp.route('/coteries/activate', methods=['POST'])
+@require_bot_scope('write')
+def activate_coterie():
+    """Bot: find a pending coterie by name, set its Discord channel, return data.
+
+    Body: { name: str, discord_channel_id: str }
+    """
+    from app.db import Coterie, db
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    channel_id = (data.get('discord_channel_id') or '').strip()
+
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+
+    coterie = Coterie.query.filter(
+        Coterie.name.ilike(name)
+    ).first()
+    if not coterie:
+        return jsonify({'error': f'No coterie found with name "{name}"'}), 404
+    if coterie.status == 'active':
+        return jsonify({'error': f'"{name}" is already active'}), 409
+
+    from datetime import datetime, timezone
+    coterie.status = 'active'
+    if channel_id:
+        coterie.discord_channel_id = channel_id
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    members = [
+        {
+            'character_name': m.character.character_name,
+            'player_discord_id': m.character.player_discord or '',
+            'free_dots': m.free_dots_remaining,
+        }
+        for m in coterie.members
+    ]
+    return jsonify({
+        'ok': True,
+        'coterie': {
+            'id': coterie.id,
+            'name': coterie.name,
+            'slug': coterie.slug,
+            'members': members,
+            'free_pool_total': sum(m.free_dots_remaining for m in coterie.members),
+        },
+    })

@@ -127,6 +127,27 @@ export interface TrackerAdapter {
     operations: Array<{ action: 'upsert' | 'remove'; discord_id: string; display_name: string; role: string }>,
     fullSync?: boolean,
   ): Promise<{ ok: boolean; processed: number }>;
+  activateCoterie(
+    name: string,
+    discordChannelId: string,
+  ): Promise<{
+    ok: boolean;
+    coterie: {
+      id: number;
+      name: string;
+      slug: string;
+      members: Array<{ character_name: string; player_discord_id: string; free_dots: number }>;
+      free_pool_total: number;
+    };
+  }>;
+  listCoteries(): Promise<Array<{
+    id: number;
+    name: string;
+    slug: string;
+    description: string;
+    discord_channel_id: string | null;
+    members: Array<{ character_name: string; clan: string; player_discord_id: string }>;
+  }>>;
 }
 
 export type CharacterDetails = {
@@ -1286,6 +1307,29 @@ export class WebAppAdapter implements TrackerAdapter {
     });
     if (!res.ok) throw new Error(`staff/sync POST failed: ${res.status}`);
     return res.json() as Promise<{ ok: boolean; processed: number }>;
+  }
+
+  async activateCoterie(name: string, discordChannelId: string) {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/coteries/activate`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, discord_channel_id: discordChannelId }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      throw new Error((body.error as string | undefined) ?? `coteries/activate POST failed: ${res.status}`);
+    }
+    return res.json() as ReturnType<TrackerAdapter['activateCoterie']>;
+  }
+
+  async listCoteries() {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/coteries`, {
+      method: 'GET',
+      headers: this.readAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`coteries GET failed: ${res.status}`);
+    const data = await res.json() as { coteries: ReturnType<TrackerAdapter['listCoteries']> extends Promise<infer T> ? T : never };
+    return data.coteries;
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
