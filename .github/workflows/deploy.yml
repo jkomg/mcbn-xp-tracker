@@ -23,6 +23,7 @@ jobs:
     name: Deploy to ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: ${{ (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') && 'production' || null }}
 
     env:
       PROJECT: mcbn-xp-tracker
