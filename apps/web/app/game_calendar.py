@@ -45,6 +45,43 @@ _RAW = [
 ]
 
 
+def _night_number_from_label(label: str) -> int | None:
+    """Parse the night number from a label like 'Night 62'. Returns None if not a night label."""
+    parts = label.split()
+    if len(parts) == 2 and parts[0].lower() == 'night':
+        try:
+            return int(parts[1])
+        except ValueError:
+            pass
+    return None
+
+
+def next_night_after_downtime(current_night_number: int) -> int | None:
+    """Return the night_number of the first IC night after the next downtime.
+
+    This is the standard blank release point: a background blanked on any night
+    stays blanked until the opening of the first night after the subsequent downtime.
+    Returns None if no future downtime exists in the calendar (caller should fall back).
+    """
+    found_current = False
+    past_downtime = False
+    for kind, label, _start, _end, _note in _RAW:
+        if not found_current:
+            if kind == 'night' and _night_number_from_label(label) == current_night_number:
+                found_current = True
+            continue
+        if not past_downtime:
+            if kind == 'downtime':
+                past_downtime = True
+            continue
+        # Past the next downtime — first night entry is our target
+        if kind == 'night':
+            n = _night_number_from_label(label)
+            if n is not None:
+                return n
+    return None
+
+
 def get_calendar():
     """Return all calendar entries with status computed for today."""
     today = date.today()
