@@ -277,3 +277,67 @@ class DbCharacterBackground(db.Model):
     release_night_number = db.Column(Integer, nullable=True)
     updated_at = db.Column(String(20), nullable=False, default='')
     updated_by = db.Column(String(100), nullable=False, default='')
+    # Set when this background has been donated to a coterie pool.
+    # While donated, only coterie members may blank it (not the PC owner independently).
+    donated_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
+
+
+class Coterie(db.Model):
+    __tablename__ = 'coteries'
+    __table_args__ = (
+        db.Index('ix_coteries_slug', 'slug'),
+        db.Index('ix_coteries_status', 'status'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    name = db.Column(String(200), nullable=False, unique=True)
+    slug = db.Column(String(200), nullable=False, unique=True)
+    description = db.Column(Text, default='')
+    discord_channel_id = db.Column(String(50), nullable=True)
+    status = db.Column(String(20), nullable=False, default='pending')  # pending | active
+    created_at = db.Column(DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    members = db.relationship('CoterieMember', back_populates='coterie',
+                              cascade='all, delete-orphan')
+    advantages = db.relationship('CoterieAdvantage', back_populates='coterie',
+                                 cascade='all, delete-orphan')
+    donated_backgrounds = db.relationship('DbCharacterBackground',
+                                          foreign_keys='DbCharacterBackground.donated_coterie_id',
+                                          backref='coterie')
+
+
+class CoterieMember(db.Model):
+    __tablename__ = 'coterie_members'
+    __table_args__ = (
+        db.UniqueConstraint('coterie_id', 'roster_character_id', name='uq_coterie_member'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=False, index=True)
+    roster_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False)
+    free_dots_remaining = db.Column(Integer, nullable=False, default=2)
+    setup_complete = db.Column(Boolean, nullable=False, default=False)
+    joined_at = db.Column(DateTime, nullable=False,
+                          default=lambda: datetime.now(timezone.utc))
+
+    coterie = db.relationship('Coterie', back_populates='members')
+    character = db.relationship('DbCharacter', backref='coterie_memberships')
+
+
+class CoterieAdvantage(db.Model):
+    """An item in the coterie pool funded by free dots or flaw compensation."""
+    __tablename__ = 'coterie_advantages'
+    id = db.Column(Integer, primary_key=True)
+    coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=False, index=True)
+    name = db.Column(String(200), nullable=False)
+    dots = db.Column(Integer, nullable=False, default=1)
+    # background | merit | flaw
+    advantage_type = db.Column(String(20), nullable=False, default='background')
+    notes = db.Column(Text, default='')
+    added_by = db.Column(String(200), nullable=False, default='')
+    created_at = db.Column(DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+
+    coterie = db.relationship('Coterie', back_populates='advantages')
