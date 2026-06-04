@@ -82,13 +82,20 @@ def view(slug: str):
     ).all()
 
     # Determine if the current player is a member (for blanking controls)
+    from flask import session as _session
     is_member = False
     player_char = None
-    if 'discord_id' in __import__('flask').session:
+    my_backgrounds = []
+    if _session.get('authenticated'):
         discord_id = get_player_discord_id()
         player_char = _get_player_character(discord_id)
         if player_char:
             is_member = bool(_get_coterie_member(coterie, player_char))
+            # Backgrounds the player can donate (not already donated anywhere)
+            my_backgrounds = DbCharacterBackground.query.filter_by(
+                character_name=player_char.character_name,
+                donated_coterie_id=None,
+            ).filter(DbCharacterBackground.dots_total > 0).all()
 
     pool_backgrounds = [a for a in coterie.advantages if a.advantage_type == 'background']
     pool_merits = [a for a in coterie.advantages if a.advantage_type == 'merit']
@@ -103,6 +110,7 @@ def view(slug: str):
         pool_flaws=pool_flaws,
         is_member=is_member,
         player_char=player_char,
+        my_backgrounds=my_backgrounds,
         is_staff_user=is_staff(),
     )
 

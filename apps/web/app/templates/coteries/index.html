@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Coteries — MCbN{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <h2 class="mb-0"><i class="bi bi-people-fill text-danger"></i> Coteries</h2>
+    {% if session.get('is_staff') %}
+    <a href="{{ url_for('coteries.new') }}" class="btn btn-sm btn-outline-danger ms-auto">
+        <i class="bi bi-plus-lg"></i> New Coterie
+    </a>
+    {% endif %}
+</div>
+
+{% if coteries %}
+<div class="row g-3">
+    {% for c in coteries %}
+    <div class="col-md-4">
+        <div class="card h-100 {% if c.status == 'pending' %}border-secondary opacity-75{% endif %}">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-1">
+                    <h5 class="card-title mb-0">
+                        <a href="{{ url_for('coteries.view', slug=c.slug) }}" class="text-decoration-none">{{ c.name }}</a>
+                    </h5>
+                    {% if c.status == 'pending' %}
+                    <span class="badge bg-secondary ms-2">pending</span>
+                    {% endif %}
+                </div>
+                <p class="text-muted small mb-2">{{ c.members | length }} member{{ 's' if c.members | length != 1 }}</p>
+                {% if c.description %}
+                <p class="card-text small text-muted">{{ c.description | truncate(120) }}</p>
+                {% endif %}
+            </div>
+            {% if session.get('is_staff') %}
+            <div class="card-footer">
+                <a href="{{ url_for('coteries.manage', slug=c.slug) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-gear"></i> Manage
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No coteries yet.</p>
+{% endif %}
+{% endblock %}

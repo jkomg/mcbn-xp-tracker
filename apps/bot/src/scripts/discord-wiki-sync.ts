@@ -43,8 +43,6 @@ import {
   fetchPins,
 } from './notionSync/discordIngest';
 import {
-  CHAR_TO_COTERIE,
-  COTERIE_MEMBERS,
   FACTIONS,
   inferSpcType,
   mapDomain,
@@ -208,6 +206,30 @@ async function fetchActiveRoster(webBase: string, webReadToken: string): Promise
   }
 }
 
+interface ApiCoterie {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  members: Array<{ character_name: string; clan: string; player_discord_id: string }>;
+}
+
+async function fetchCoteries(webBase: string, webReadToken: string): Promise<ApiCoterie[]> {
+  if (!webReadToken) return [];
+  try {
+    const res = await fetch(`${webBase}/api/coteries`, {
+      headers: { Authorization: `Bearer ${webReadToken}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) { console.log(`  [warn] Coteries API returned ${res.status}`); return []; }
+    const body = await res.json() as { coteries: ApiCoterie[] };
+    return body.coteries ?? [];
+  } catch (err) {
+    console.log(`  [warn] Could not reach coteries API: ${err}`);
+    return [];
+  }
+}
+
 function firstImage(messages: DiscordMessage[]): string | null {
   for (const msg of messages) {
     for (const a of msg.attachments ?? []) {
@@ -266,11 +288,22 @@ async function main(opts: WikiSyncOptions) {
   }
 
   // ------------------------------------------------------------------
-  // 2. Active PC roster
+  // 2. Active PC roster + coteries from web API
   // ------------------------------------------------------------------
-  console.log('\n[2/7] Fetching active roster from web API…');
+  console.log('\n[2/7] Fetching active roster and coteries from web API…');
   const activeRoster = await fetchActiveRoster(WEB_BASE, WEB_READ_TOKEN);
   console.log(`  Active characters: ${activeRoster.length}`);
+
+  const dbCoteries = await fetchCoteries(WEB_BASE, WEB_READ_TOKEN);
+  console.log(`  Active coteries: ${dbCoteries.length}`);
+
+  // Build char→coterie lookup from DB data
+  const CHAR_TO_COTERIE = new Map<string, string>();
+  for (const c of dbCoteries) {
+    for (const m of c.members) {
+      CHAR_TO_COTERIE.set(m.character_name.toLowerCase(), c.name);
+    }
+  }
 
   // ------------------------------------------------------------------
   // 3. Location Database
@@ -453,24 +486,31 @@ async function main(opts: WikiSyncOptions) {
   }
 
   // ------------------------------------------------------------------
-  // 6.5 Coteries wiki pages (built from static COTERIE_MEMBERS map)
+  // 6.5 Coteries wiki pages (sourced from DB via web API)
   // ------------------------------------------------------------------
-  console.log('\n[6.5/7] Populating Coteries wiki pages…');
+  console.log('\n[6.5/7] Populating Coteries wiki pages from DB…');
   let coterieCreatedCount = 0;
-  for (const [coterieName, members] of Object.entries(COTERIE_MEMBERS)) {
-    const memberList = members.map((m) => `- [${toTitleCase(m)}](/wiki/${wikiSlug('characters', m)})`).join('\n');
-    const body = `## Members\n\n${memberList}`;
-    console.log(`  → ${coterieName} (${members.length} members)`);
+  for (const coterie of dbCoteries) {
+    const memberList = coterie.members
+      .map((m) => `- [${m.character_name}](/wiki/${wikiSlug('characters', m.character_name)})${m.clan ? ` — ${m.clan}` : ''}`)
+      .join('\n');
+    const body = [
+      coterie.description ? `${coterie.description}\n` : '',
+      '## Members',
+      '',
+      memberList || '_(none)_',
+    ].join('\n');
+    console.log(`  → ${coterie.name} (${coterie.members.length} members)`);
     await wikiClient.upsertPage({
-      slug: wikiSlug('coteries', coterieName),
-      title: coterieName,
+      slug: wikiSlug('coteries', coterie.name),
+      title: coterie.name,
       category: 'coteries',
       body_markdown: body,
       published: true,
     });
     coterieCreatedCount++;
   }
-  console.log(`  Created ${coterieCreatedCount} coterie pages.`);
+  console.log(`  Synced ${coterieCreatedCount} coterie pages from DB.`);
 
   // ------------------------------------------------------------------
   // 6.6 Factions wiki pages (built from active roster sect field)

@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}{{ coterie.name }} — Coterie{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-3 mb-1 flex-wrap">
+    <a href="{{ url_for('coteries.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h2 class="mb-0">{{ coterie.name }}</h2>
+    {% if is_staff_user %}
+    <a href="{{ url_for('coteries.manage', slug=coterie.slug) }}" class="btn btn-sm btn-outline-secondary ms-auto">
+        <i class="bi bi-gear"></i> Manage
+    </a>
+    {% endif %}
+</div>
+
+{% if coterie.status == 'pending' %}
+<div class="alert alert-secondary py-2 mb-3">This coterie is pending setup.</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}<div class="alert alert-{{ cat }} py-2">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if coterie.description %}
+<p class="text-muted mb-4">{{ coterie.description }}</p>
+{% endif %}
+
+<div class="row g-4">
+
+    <!-- Members -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header fw-bold"><i class="bi bi-people"></i> Members</div>
+            <ul class="list-group list-group-flush">
+                {% for m in coterie.members %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('player.character', name=m.character.character_name) }}"
+                           class="text-decoration-none">{{ m.character.character_name }}</a>
+                        <br><small class="text-muted">{{ m.character.clan or '—' }}</small>
+                    </div>
+                    {% if is_member and player_char and player_char.id == m.roster_character_id %}
+                    <span class="badge bg-secondary">you</span>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">No members yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Pool advantages -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header fw-bold"><i class="bi bi-gem"></i> Coterie Pool</div>
+            <div class="card-body">
+                {% if pool_backgrounds %}
+                <div class="sheet-group-label">Backgrounds</div>
+                {% for a in pool_backgrounds %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ a.name }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= a.dots %}filled{% endif %}"></span>{% endfor %}</span>
+                    {% if is_staff_user %}
+                    <form method="POST" action="{{ url_for('coteries.remove_advantage', slug=coterie.slug, adv_id=a.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-link btn-sm p-0 text-danger ms-1" title="Remove">×</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% if a.notes %}<div class="sheet-specialty-row">{{ a.notes }}</div>{% endif %}
+                {% endfor %}
+                {% endif %}
+
+                {% if pool_merits %}
+                <div class="sheet-group-label {% if pool_backgrounds %}mt-3{% endif %}">Merits</div>
+                {% for a in pool_merits %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ a.name }}</span>
+                    <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= a.dots %}filled{% endif %}"></span>{% endfor %}</span>
+                    {% if is_staff_user %}
+                    <form method="POST" action="{{ url_for('coteries.remove_advantage', slug=coterie.slug, adv_id=a.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-link btn-sm p-0 text-danger ms-1" title="Remove">×</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% if a.notes %}<div class="sheet-specialty-row">{{ a.notes }}</div>{% endif %}
+                {% endfor %}
+                {% endif %}
+
+                {% if pool_flaws %}
+                <div class="sheet-group-label {% if pool_backgrounds or pool_merits %}mt-3{% endif %}">Flaws</div>
+                {% for a in pool_flaws %}
+                <div class="sheet-trait-row">
+                    <span class="sheet-trait-name">{{ a.name }}</span>
+                    {% if a.dots %}<span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= a.dots %}filled{% endif %}"></span>{% endfor %}</span>{% endif %}
+                    {% if is_staff_user %}
+                    <form method="POST" action="{{ url_for('coteries.remove_advantage', slug=coterie.slug, adv_id=a.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-link btn-sm p-0 text-danger ms-1" title="Remove">×</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% if a.notes %}<div class="sheet-specialty-row">{{ a.notes }}</div>{% endif %}
+                {% endfor %}
+                {% endif %}
+
+                {% if not pool_backgrounds and not pool_merits and not pool_flaws %}
+                <p class="text-muted small mb-0">No pool items yet.</p>
+                {% endif %}
+
+                <!-- Add advantage (members + staff) -->
+                {% if is_member or is_staff_user %}
+                {% set my_member = coterie.members | selectattr('roster_character_id', 'equalto', player_char.id if player_char else -1) | list %}
+                {% set dots_left = (my_member[0].free_dots_remaining if my_member else 0) if not is_staff_user else 99 %}
+                <hr class="my-3">
+                <p class="small text-muted mb-2">
+                    {% if not is_staff_user %}Your free dots remaining: <strong>{{ dots_left }}</strong>{% else %}Staff: add pool item{% endif %}
+                </p>
+                <form method="POST" action="{{ url_for('coteries.add_advantage', slug=coterie.slug) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-2">
+                        <input type="text" name="name" class="form-control form-control-sm" placeholder="Name (e.g. Haven)" required>
+                    </div>
+                    <div class="d-flex gap-2 mb-2">
+                        <input type="number" name="dots" class="form-control form-control-sm" style="width:80px" value="1" min="1" max="5">
+                        <select name="advantage_type" class="form-select form-select-sm">
+                            <option value="background">Background</option>
+                            <option value="merit">Merit</option>
+                            <option value="flaw">Flaw</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)">
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary w-100">Add to Pool</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Donated backgrounds -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header fw-bold"><i class="bi bi-share"></i> Donated Backgrounds</div>
+            <div class="card-body">
+                {% if donated_bgs %}
+                {% for bg in donated_bgs %}
+                <div class="sheet-trait-row">
+                    <span>
+                        <span class="sheet-trait-name">{{ bg.background_name }}</span>
+                        <br><small class="text-muted">{{ bg.character_name }}</small>
+                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= bg.dots_total %}filled{% endif %}"></span>{% endfor %}</span>
+                        {% if bg.dots_blanked > 0 %}
+                        <span class="badge bg-warning text-dark" title="Blanked until Night {{ bg.release_night_number }}">
+                            {{ bg.dots_blanked }} blanked
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Blank control (any member) -->
+                {% if is_member and bg.dots_available > 0 %}
+                <form method="POST" action="{{ url_for('coteries.blank_donated_background', slug=coterie.slug, bg_id=bg.id) }}"
+                      class="d-flex gap-2 mt-1 mb-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="number" name="dots" class="form-control form-control-sm" style="width:70px"
+                           value="1" min="1" max="{{ bg.dots_available }}">
+                    <button class="btn btn-sm btn-outline-warning">Blank</button>
+                </form>
+                {% endif %}
+                <!-- Un-donate control (owner only) -->
+                {% if player_char and player_char.character_name == bg.character_name %}
+                <form method="POST" action="{{ url_for('coteries.undonate_background', slug=coterie.slug, bg_id=bg.id) }}"
+                      class="mb-2" onsubmit="return confirm('Remove {{ bg.background_name }} from the coterie pool?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary">Un-donate</button>
+                </form>
+                {% endif %}
+                {% endfor %}
+                {% else %}
+                <p class="text-muted small mb-3">No donated backgrounds yet.</p>
+                {% endif %}
+
+                <!-- Donate form (own backgrounds) -->
+                {% if is_member and player_char %}
+                {% set my_bgs = player_char | attr('character_name') %}
+                <hr class="my-3">
+                <p class="small text-muted mb-2">Donate one of your backgrounds:</p>
+                {% set available_bgs = [] %}
+                {% for bg in donated_bgs %}{% endfor %}{# loop used below #}
+                {# fetch player bgs via context — rendered from blueprint #}
+                {% if my_backgrounds %}
+                <form method="POST" action="{{ url_for('coteries.donate_background', slug=coterie.slug, bg_id=0) }}"
+                      id="donate-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="_bg_id" class="form-select form-select-sm mb-2" id="donate-bg-select" required>
+                        <option value="">Select background…</option>
+                        {% for bg in my_backgrounds %}
+                        <option value="{{ bg.id }}">{{ bg.background_name }} ({{ bg.dots_total }}●{% if bg.dots_blanked %}, {{ bg.dots_blanked }} blanked{% endif %})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" name="flaw_notes" class="form-control form-control-sm mb-2"
+                           placeholder="Flaw notes (e.g. Haven - Creepy, •)">
+                    <button class="btn btn-sm btn-outline-secondary w-100">Donate to Coterie</button>
+                </form>
+                <script>
+                document.getElementById('donate-form').addEventListener('submit', function(e) {
+                    const sel = document.getElementById('donate-bg-select');
+                    const bgId = sel.value;
+                    if (!bgId) { e.preventDefault(); return; }
+                    this.action = this.action.replace('/0', '/' + bgId);
+                });
+                </script>
+                {% else %}
+                <p class="text-muted small">No undated backgrounds to donate.</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
