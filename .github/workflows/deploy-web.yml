@@ -1,16 +1,13 @@
 name: Deploy Web to Cloud Run
 
 on:
-  # Trigger after CI completes on main — only deploy when CI passes
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-  # Manual trigger (e.g. hotfix deploy without a code change)
+  # Manual trigger only — prod never deploys automatically.
+  # Dev auto-deploys on every CI pass (see deploy-web-dev.yml).
+  # Requires approval from the "production" GitHub Environment.
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual deploy'
+        description: 'Reason for deploy'
         required: false
         default: 'manual trigger'
 
@@ -19,13 +16,8 @@ jobs:
     name: Build & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # For workflow_run: only deploy when CI actually passed.
-    # For workflow_dispatch: always run.
-    if: |
-      github.repository == 'jkomg/mcbn-xp-tracker' && (
-        github.event_name == 'workflow_dispatch' ||
-        github.event.workflow_run.conclusion == 'success'
-      )
+    environment: production
+    if: github.repository == 'jkomg/mcbn-xp-tracker'
 
     env:
       REGION: us-central1
@@ -33,16 +25,9 @@ jobs:
       REGISTRY: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo/mcbn-xp-tracker
 
     steps:
-      # workflow_run events check out the workflow repo, not the triggering commit.
-      # Resolve the correct SHA so we build exactly what passed CI.
       - name: Resolve deploy SHA
         id: sha
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@v6
