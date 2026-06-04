@@ -14,7 +14,6 @@ from app.db import (
     DbCharacter, DbCharacterBackground,
 )
 from app.db_service import DBService
-from app.game_calendar import next_night_after_downtime
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +171,7 @@ def manage(slug: str):
     # All active characters not yet in this coterie
     existing_ids = [m.roster_character_id for m in coterie.members]
     available_chars = DbCharacter.query.filter(
-        DbCharacter.active == True,
+        DbCharacter.active,
         ~DbCharacter.id.in_(existing_ids) if existing_ids else True,
     ).order_by(DbCharacter.character_name).all()
 

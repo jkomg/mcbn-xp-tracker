@@ -1959,7 +1959,7 @@ def staff_sync():
 @require_bot_scope('read')
 def list_coteries():
     """Return all active coteries with members. Used by wiki sync and bot."""
-    from app.db import Coterie, CoterieMember, DbCharacter
+    from app.db import Coterie
     coteries = Coterie.query.filter_by(status='active').order_by(Coterie.name).all()
     result = []
     for c in coteries:
