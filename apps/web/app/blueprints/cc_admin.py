@@ -277,6 +277,36 @@ def draft_request_revision(draft_id):
     return redirect(url_for('cc_admin.draft_list'))
 
 
+@bp.route('/cc-admin/drafts/<draft_id>/delete', methods=['POST'])
+@require_staff
+def draft_delete(draft_id):
+    """Permanently delete a character draft and optionally its roster entry."""
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None:
+        abort(404)
+
+    char_name = draft.character_name or str(draft_id)
+    also_delete_roster = request.form.get('delete_roster') == '1'
+
+    if also_delete_roster and draft.roster_character_id:
+        roster_row = db.session.get(DbCharacter, draft.roster_character_id)
+        if roster_row:
+            db.session.delete(roster_row)
+
+    db.session.delete(draft)
+    db.session.commit()
+
+    actor = session.get('discord_name') or 'staff'
+    db_service.log_action(
+        staff_user=actor,
+        action_type='draft_deleted',
+        target=char_name,
+        details=f'Draft {draft_id} deleted' + (' + roster entry' if also_delete_roster else ''),
+    )
+    flash(f'Draft for "{char_name}" deleted.', 'success')
+    return redirect(url_for('cc_admin.draft_list'))
+
+
 @bp.route('/cc-admin/loresheets/<loresheet_id>/unban', methods=['POST'])
 @require_staff
 def loresheet_unban(loresheet_id):
