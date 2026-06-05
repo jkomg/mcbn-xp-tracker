@@ -60,7 +60,8 @@
         </div>
         <div class="col-sm-4">
           <div class="text-muted small">Predator Type</div>
-          <div>{{ char_data.get('predatorType', {}).get('name') or '—' }}</div>
+          {% set _pt = char_data.get('predatorType', '') %}
+          <div>{{ (_pt if _pt is string else (_pt.get('name', '') if _pt else '')) or '—' }}</div>
         </div>
         <div class="col-sm-4">
           <div class="text-muted small">Sire</div>
@@ -239,9 +240,13 @@
     <div class="card-body">
       {% for t in touchstones %}
         <div class="mb-2">
-          <div class="fw-semibold">{{ t.get('name', '?') }}</div>
-          {% if t.get('conviction') %}<div class="text-muted small">Conviction: {{ t.get('conviction') }}</div>{% endif %}
-          {% if t.get('description') %}<div class="small mt-1">{{ t.get('description') }}</div>{% endif %}
+          {% if t is string %}
+            <div class="fw-semibold">{{ t }}</div>
+          {% else %}
+            <div class="fw-semibold">{{ t.get('name', '?') }}</div>
+            {% if t.get('conviction') %}<div class="text-muted small">Conviction: {{ t.get('conviction') }}</div>{% endif %}
+            {% if t.get('description') %}<div class="small mt-1">{{ t.get('description') }}</div>{% endif %}
+          {% endif %}
         </div>
       {% endfor %}
     </div>
