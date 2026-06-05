@@ -722,7 +722,7 @@ def _normalize_sheet_data(data: dict) -> dict:
         if merged:
             data['skill_specialties'] = merged
 
-    if 'convictions' not in data:
+    if not data.get('convictions'):
         conv_from_ts = [
             t['conviction']
             for t in (data.get('touchstones') or [])
