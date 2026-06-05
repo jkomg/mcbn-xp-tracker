@@ -722,7 +722,7 @@ def _normalize_sheet_data(data: dict) -> dict:
         if merged:
             data['skill_specialties'] = merged
 
-    if 'convictions' not in data:
+    if not data.get('convictions'):
         conv_from_ts = [
             t['conviction']
             for t in (data.get('touchstones') or [])
@@ -747,12 +747,12 @@ def _map_rod_to_cc(rod: dict) -> dict:
         'ambition': rod.get('ambition', ''),
         'desire': rod.get('desire', ''),
         'touchstones': (
-            [t.strip() for t in rod['touchstones'].split(',') if t.strip()]
+            [t.strip() for t in rod['touchstones'].split('\n\n') if t.strip()]
             if isinstance(rod.get('touchstones'), str)
             else (rod.get('touchstones') or [])
         ),
         'convictions': (
-            [c.strip() for c in rod['convictions'].split(',') if c.strip()]
+            [c.strip() for c in rod['convictions'].split('\n\n') if c.strip()]
             if isinstance(rod.get('convictions'), str)
             else [
                 (c if isinstance(c, str) else c.get('description', c.get('name', '')))
