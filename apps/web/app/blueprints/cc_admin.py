@@ -291,6 +291,13 @@ def draft_delete(draft_id):
     if also_delete_roster and draft.roster_character_id:
         roster_row = db.session.get(DbCharacter, draft.roster_character_id)
         if roster_row:
+            if roster_row.active:
+                flash('Deactivate the character on the roster before deleting.', 'danger')
+                return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+            confirm = request.form.get('confirm_name', '').strip()
+            if confirm.lower() != (roster_row.character_name or '').lower():
+                flash('Confirmation name did not match — roster entry was NOT deleted.', 'danger')
+                return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
             db.session.delete(roster_row)
 
     db.session.delete(draft)
