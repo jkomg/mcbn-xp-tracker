@@ -288,8 +288,17 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         .filter((f) => !isThinbloodFlaw(f.name) && !predatorTypeProvidedNames.has(f.name))
         .reduce((acc, { level }) => acc + level, 0)
 
-    const meritPoints = character.age_category === "ancilla" ? 9 : 7
-    const flawPoints = character.age_category === "ancilla" ? 4 : 2
+    const isImAncilla =
+        character.age_category === "ancilla" &&
+        !!character.in_memoriam &&
+        !character.in_memoriam.use_standard
+    const imGen = character.im_generation ?? ""
+    const meritPoints = isImAncilla
+        ? imGen === "9-8" ? 0 : 8
+        : character.age_category === "ancilla" ? 9 : 7
+    const flawPoints = isImAncilla
+        ? imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3
+        : character.age_category === "ancilla" ? 4 : 2
 
     const [remainingMerits, setRemainingMerits] = useState(meritPoints - usedMeritsLevel)
     const [remainingFlaws, setRemainingFlaws] = useState(flawPoints - usedFLawsLevel)
