@@ -18,7 +18,7 @@ import { parseMessageLink } from './utils/linkValidator';
 
 const CATEGORY_OPTIONS = [
   { key: 'posted_once', label: 'Posted at least once' },
-  { key: 'hunting_awakening', label: 'Hunting / Awakening scene' },
+  { key: 'hunting_awakening', label: 'Hunting / Awakening scene or Daytime post' },
   { key: 'scene_with_another', label: 'Scene with another character' },
   { key: 'conflict', label: 'Conflict with another character' },
   { key: 'combat', label: 'Combat with another character' },
