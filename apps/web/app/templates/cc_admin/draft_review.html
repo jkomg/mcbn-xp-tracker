@@ -309,5 +309,33 @@
   </div>
   {% endif %}
 
+  {# ── Danger zone ── #}
+  <div class="card mb-4 border-danger">
+    <div class="card-header py-2 fw-semibold text-danger">Danger Zone</div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('cc_admin.draft_delete', draft_id=draft.id) }}"
+            onsubmit="return confirm('Permanently delete this draft? This cannot be undone.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if draft.roster_character_id %}
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="delete_roster" value="1" id="delete_roster"
+                 onchange="document.getElementById('roster-confirm').classList.toggle('d-none', !this.checked)">
+          <label class="form-check-label text-danger" for="delete_roster">
+            Also delete linked roster entry ({{ draft.character_name }})
+          </label>
+        </div>
+        <div id="roster-confirm" class="d-none mb-3 ms-4">
+          <div class="text-muted small mb-1">Character must be inactive. Type the character name to confirm:</div>
+          <input type="text" name="confirm_name" class="form-control form-control-sm" style="max-width:260px"
+                 placeholder="{{ draft.character_name }}">
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-trash me-1"></i> Delete Draft
+        </button>
+      </form>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
