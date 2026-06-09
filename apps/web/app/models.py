@@ -79,7 +79,7 @@ class XPClaim:
                 'link': self.posted_once_link,
             },
             {
-                'name': 'Hunting / Awakening scene',
+                'name': 'Hunting / Awakening scene or Daytime post',
                 'claimed': self.hunting_awakening,
                 'link': self.hunting_awakening_link,
             },

@@ -21,7 +21,7 @@ import { calculateXpCost } from '../xpRules';
 
 const CLAIM_CATEGORY_CHOICES = [
   { name: 'Posted at least once', value: 'posted_once' },
-  { name: 'Hunting / Awakening scene', value: 'hunting_awakening' },
+  { name: 'Hunting / Awakening scene or Daytime post', value: 'hunting_awakening' },
   { name: 'Scene with another character', value: 'scene_with_another' },
   { name: 'Conflict with another character', value: 'conflict' },
   { name: 'Combat with another character', value: 'combat' },
