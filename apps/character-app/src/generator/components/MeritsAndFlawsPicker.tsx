@@ -318,12 +318,14 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         !!character.in_memoriam &&
         !character.in_memoriam.use_standard
     const imGen = character.im_generation ?? ""
-    const meritPoints = isImAncilla
-        ? imGen === "9-8" ? 0 : 8
-        : character.age_category === "ancilla" ? 9 : 7
+    const imHumanitySacrifice = isImAncilla && (character.in_memoriam?.humanity_sacrifice ?? false)
+    const imBaseMeritPoints = isImAncilla ? (imGen === "9-8" ? 0 : 8) : character.age_category === "ancilla" ? 9 : 7
+    const meritPoints = imBaseMeritPoints + (imHumanitySacrifice ? 2 : 0)
     const flawPoints = isImAncilla
         ? imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3
         : character.age_category === "ancilla" ? 4 : 2
+    // For IM ancilla, flaws are mandatory (must spend all flaw points)
+    const hasMandatoryFlaws = isImAncilla && flawPoints > 0
 
     const [remainingMerits, setRemainingMerits] = useState(meritPoints - usedMeritsLevel)
     const [remainingFlaws, setRemainingFlaws] = useState(flawPoints - usedFLawsLevel)
@@ -470,7 +472,9 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         />
     )
 
-    const isConfirmDisabled = isThinBlood && remainingThinbloodMeritPoints < 0
+    const isConfirmDisabled =
+        (isThinBlood && remainingThinbloodMeritPoints < 0) ||
+        (hasMandatoryFlaws && remainingFlaws > 0)
     const handleReset = () => {
         if (resetTarget === "merit") {
             const nextPickedMeritsAndFlaws = pickedMeritsAndFlaws.filter(
@@ -951,9 +955,14 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
 
             {/* ── Confirm button ── */}
             <Stack gap="xs" align="center" py="xs">
-                {isConfirmDisabled ? (
+                {isThinBlood && remainingThinbloodMeritPoints < 0 ? (
                     <Text c={theme.colors.red[5]} ta="center">
                         Need to balance Thin-blood merit points
+                    </Text>
+                ) : null}
+                {hasMandatoryFlaws && remainingFlaws > 0 ? (
+                    <Text c={theme.colors.red[5]} ta="center">
+                        Must take {flawPoints} flaw dot{flawPoints !== 1 ? "s" : ""} ({remainingFlaws} remaining) — generation requirement
                     </Text>
                 ) : null}
                 <Button

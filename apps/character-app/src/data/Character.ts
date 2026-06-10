@@ -34,6 +34,7 @@ export const inMemoriamSchema = z.object({
   eras: z.array(inMemoriamEraSchema).default([]),
   total_xp: z.number().default(0),
   total_humanity_loss: z.number().default(0),
+  humanity_sacrifice: z.boolean().optional().default(false),
 })
 
 export type InMemoram = z.infer<typeof inMemoriamSchema>
