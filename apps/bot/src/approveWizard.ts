@@ -59,7 +59,9 @@ function ch(id: string): string {
   return id ? `<#${id}>` : '*(channel TBD)*';
 }
 
-function welcomeMessage(playerMention: string): string {
+function welcomeMessage(playerMention: string, characterName: string): string {
+  const baseUrl = config.webAppBaseUrl.replace(/\/+$/, '');
+  const dashboardUrl = `${baseUrl}/player/${encodeURIComponent(characterName)}`;
   return [
     `✅ Attributes`,
     `✅ Skills`,
@@ -74,11 +76,14 @@ function welcomeMessage(playerMention: string): string {
     `Character Approved`,
     `Welcome to Music City, ${playerMention}!`,
     ``,
+    `You can view your character on the player dashboard here:`,
+    dashboardUrl,
+    ``,
     `If you want you can create your character profile in:`,
     ch(WELCOME_CHANNEL_CHILDREN_OF_THE_NIGHT),
     ``,
-    `And you can put your character in Realm of Darkness now in here:`,
-    ch(WELCOME_CHANNEL_STANDARD_ROLLS),
+    `And you can put your character in Realm of Darkness now:`,
+    `https://realmofdarkness.app`,
     ``,
     `There is alot of helpful information about house rules and server ettiquette here`,
     ch(WELCOME_CHANNEL_THE_BASICS),
@@ -563,7 +568,7 @@ export async function handleApproveWizardButton(
       const cubbyChannel = await guild.channels.fetch(state.channelId);
       if (cubbyChannel && cubbyChannel.isTextBased() && 'send' in cubbyChannel) {
         await (cubbyChannel as TextChannel).send({
-          content: welcomeMessage(`<@${state.playerId}>`),
+          content: welcomeMessage(`<@${state.playerId}>`, state.characterName),
         });
         results.push('✅ Welcome message posted.');
       }
