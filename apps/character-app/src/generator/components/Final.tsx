@@ -5,9 +5,44 @@ import { useState } from "react"
 import { RAW_RED, RAW_GOLD, RAW_GREY, rgba } from "~/theme/colors"
 import ErrorDetails from "~/components/ErrorDetails"
 import ResetModal from "../../components/ResetModal"
-import { Character } from "../../data/Character"
+import { Character, InMemoriamEra } from "../../data/Character"
 import { cc } from "../../utils/api"
 import { GeneratorStepId } from "../steps"
+
+// Returns manual (non-XP) benefit strings for an IM era that require ST allocation
+function imEraManualBenefits(era: InMemoriamEra): string[] {
+    const items: string[] = []
+    switch (era.type) {
+        case "adversity":
+            items.push("2 Background Flaw dots (assign to an existing Background)")
+            items.push("1 Archaic specialty (any skill)")
+            break
+        case "calm":
+            items.push("1 Archaic specialty (any skill)")
+            if (era.gambit_taken && era.gambit_roll != null && era.gambit_roll <= 5)
+                items.push("1 dot of Antiquated Flaws (gambit failed)")
+            break
+        case "intrigue": {
+            const bgDots = 2 + (era.gambit_taken && era.gambit_roll != null && era.gambit_roll > 5 ? 2 : 0)
+            items.push(`${bgDots} Background Advantage dot${bgDots !== 1 ? "s" : ""} (assign to backgrounds)`)
+            items.push("1 Archaic specialty (any skill)")
+            break
+        }
+        case "excess":
+            items.push("3 Advantage dots (Bonding or Feeding Merits — assign in Freebies)")
+            break
+        case "violence":
+            if (era.gambit_roll != null && era.gambit_roll <= 5)
+                items.push("Dark Secret Flaw (••) gained — ensure it's in your flaws list")
+            break
+        case "torpor": {
+            const removeDots = 1 + (era.gambit_taken && era.gambit_roll != null && era.gambit_roll > 5 ? 2 : 0)
+            items.push(`Remove ${removeDots} Flaw dot${removeDots !== 1 ? "s" : ""} (coordinate with ST)`)
+            break
+        }
+    }
+    return items
+}
 
 type FinalProps = {
     character: Character
@@ -51,6 +86,26 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
     const ageLabel = CATEGORY_LABELS[character.age_category ?? ""] ?? ""
     const xpBudget = character.cc_xp_budget ?? 0
     const hasXpBudget = xpBudget > 0
+
+    const isImAncilla =
+        character.age_category === "ancilla" &&
+        !!character.in_memoriam &&
+        !character.in_memoriam.use_standard
+    const imEras = isImAncilla ? (character.in_memoriam?.eras ?? []) : []
+    const imManualItems: { eraLabel: string; benefits: string[] }[] = imEras.flatMap((era) => {
+        const ERA_LABELS: Record<string, string> = {
+            adversity: "A Time of Adversity",
+            calm: "A Time of Calm",
+            intrigue: "A Time of Intrigue",
+            excess: "A Time of Excess",
+            violence: "A Time of Violence",
+            sorcery: "A Time of Sorcery",
+            torpor: "Torpor",
+        }
+        const benefits = imEraManualBenefits(era)
+        return benefits.length > 0 ? [{ eraLabel: ERA_LABELS[era.type] ?? era.type, benefits }] : []
+    })
+    const hasImManualItems = imManualItems.length > 0
 
     const handleSubmit = async () => {
         if (!draftId) {
@@ -233,6 +288,75 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                         and return anytime to continue editing.
                     </p>
                 </div>
+
+                {/* Oceans of Time — manual allocation checklist */}
+                {hasImManualItems && (
+                    <div
+                        style={{
+                            padding: "16px 20px",
+                            borderRadius: 10,
+                            border: `1px solid ${rgba(RAW_RED, 0.35)}`,
+                            background: rgba(RAW_RED, 0.06),
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                        }}
+                    >
+                        <p
+                            style={{
+                                margin: 0,
+                                fontFamily: FONT_DISPLAY,
+                                fontSize: "0.85rem",
+                                letterSpacing: "0.06em",
+                                color: C_RED,
+                            }}
+                        >
+                            Oceans of Time — Items for ST Review
+                        </p>
+                        <p
+                            style={{
+                                margin: 0,
+                                fontFamily: FONT_BODY,
+                                fontSize: "0.88rem",
+                                color: C_MUTED,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            The following non-XP benefits from your eras cannot be applied automatically.
+                            Your ST will confirm these during review.
+                        </p>
+                        {imManualItems.map(({ eraLabel, benefits }) => (
+                            <div key={eraLabel} style={{ marginTop: 4 }}>
+                                <p
+                                    style={{
+                                        margin: "0 0 4px 0",
+                                        fontFamily: FONT_DISPLAY,
+                                        fontSize: "0.78rem",
+                                        letterSpacing: "0.08em",
+                                        color: rgba(RAW_RED, 0.7),
+                                    }}
+                                >
+                                    {eraLabel}
+                                </p>
+                                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                    {benefits.map((b) => (
+                                        <li
+                                            key={b}
+                                            style={{
+                                                fontFamily: FONT_UI,
+                                                fontSize: "0.82rem",
+                                                color: C_MUTED,
+                                                lineHeight: 1.6,
+                                            }}
+                                        >
+                                            {b}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Submission notes */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

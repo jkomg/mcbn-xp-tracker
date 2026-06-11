@@ -1,5 +1,4 @@
 import { ScrollArea, Stack, Text, Title } from "@mantine/core"
-import { useState } from "react"
 import { RAW_RED, rgba } from "~/theme/colors"
 import { Character } from "~/data/Character"
 import {
@@ -71,19 +70,7 @@ export default function GenerationPickerIM({
     nextStep,
 }: GenerationPickerIMProps) {
     const currentId = character.im_generation ?? ""
-    const [humanitySacrifice, setHumanitySacrifice] = useState<boolean>(
-        character.in_memoriam?.humanity_sacrifice ?? false
-    )
-
-    const handleSacrificeToggle = (checked: boolean) => {
-        setHumanitySacrifice(checked)
-        if (character.in_memoriam) {
-            setCharacter({
-                ...character,
-                in_memoriam: { ...character.in_memoriam, humanity_sacrifice: checked },
-            })
-        }
-    }
+    const humanitySacrifice = character.in_memoriam?.humanity_sacrifice ?? false
 
     const handlePick = (option: GenerationOption) => {
         const updated: Character = {
@@ -103,6 +90,14 @@ export default function GenerationPickerIM({
                 : character.in_memoriam,
         }
         setCharacter(updated)
+    }
+
+    const handleSacrificeToggle = (checked: boolean) => {
+        if (!character.in_memoriam) return
+        setCharacter({
+            ...character,
+            in_memoriam: { ...character.in_memoriam, humanity_sacrifice: checked },
+        })
     }
 
     return (
@@ -301,11 +296,11 @@ export default function GenerationPickerIM({
                             )
                         })}
                     </div>
+
                     {/* Humanity sacrifice — 9th/8th only */}
                     {currentId === "9-8" && (
                         <div
                             style={{
-                                marginTop: 20,
                                 maxWidth: 680,
                                 margin: "20px auto 0",
                                 padding: "16px 20px",
