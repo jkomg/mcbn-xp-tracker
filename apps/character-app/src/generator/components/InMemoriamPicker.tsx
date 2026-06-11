@@ -1,4 +1,4 @@
-import { Button, Divider, NumberInput, ScrollArea, Stack, Text, Title } from "@mantine/core"
+import { Button, Divider, NumberInput, ScrollArea, Stack, Text, TextInput, Title } from "@mantine/core"
 import { RAW_RED, rgba } from "~/theme/colors"
 import { useState } from "react"
 import { Character, InMemoriamEra, InMemoriamEraType } from "~/data/Character"
@@ -36,10 +36,12 @@ type EraDef = {
     label: string
     flavor: string
     baseXp: number
+    baseXpNote: string | null // restriction on base XP (e.g. "Skills only")
     baseOther: string | null // non-XP benefits
     baseHumanityLoss: number
     hasGambit: boolean
     gambitXp: number
+    gambitXpNote: string | null // restriction on gambit XP
     gambitOther: string | null
     gambitRisk: string
     gambitHumanityOnFail: number // humanity lost if roll 1-5
@@ -52,10 +54,12 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "You spent more nights than you would've preferred huddled up in damp cellars, licking your wounds and eyeing the rats.",
         baseXp: 12,
-        baseOther: "2 Background Flaw dots · 1 Archaic specialty",
+        baseXpNote: "Skills only",
+        baseOther: "2 Background Flaw dots · 1 Archaic Skill specialty",
         baseHumanityLoss: 0,
         hasGambit: true,
         gambitXp: 10,
+        gambitXpNote: "Disciplines only",
         gambitOther: null,
         gambitRisk: "On 1–5: −1 Humanity",
         gambitHumanityOnFail: 1,
@@ -66,12 +70,14 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "It went by much too quickly, but for a while, your nights were mostly free of dangers. You immersed yourself in your passions and grew your abilities.",
         baseXp: 6,
-        baseOther: "1 Archaic specialty",
+        baseXpNote: "Skills only",
+        baseOther: "1 Archaic Skill specialty",
         baseHumanityLoss: 0,
         hasGambit: true,
         gambitXp: 3,
+        gambitXpNote: null,
         gambitOther: null,
-        gambitRisk: "On 1–5: gain 1 dot of Antiquated Flaws",
+        gambitRisk: "On 1–5: gain one dot in Antiquated Flaws",
         gambitHumanityOnFail: 0,
     },
     {
@@ -80,10 +86,12 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "As others jealously reached for your assets, you had to be clever to protect yourself.",
         baseXp: 0,
-        baseOther: "2 Background Advantage dots · 1 Archaic specialty",
+        baseXpNote: null,
+        baseOther: "2 Background Advantage dots · 1 Archaic Skill specialty",
         baseHumanityLoss: 0,
         hasGambit: true,
         gambitXp: 0,
+        gambitXpNote: null,
         gambitOther: "+2 Background Advantage dots",
         gambitRisk: "On 1–5: −1 Humanity",
         gambitHumanityOnFail: 1,
@@ -94,12 +102,14 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "The consummate leech, you indulged in every vice and even managed to overcome some of them.",
         baseXp: 0,
-        baseOther: "3 Advantage dots (Bonding or Feeding Merits)",
+        baseXpNote: null,
+        baseOther: "3 Advantage dots (Bonding and Feeding Merits)",
         baseHumanityLoss: 0,
         hasGambit: true,
         gambitXp: 10,
+        gambitXpNote: "Disciplines only",
         gambitOther: null,
-        gambitRisk: "On 1–5: 3 dots of Supernatural/Substance Use Flaws, or −1 Humanity",
+        gambitRisk: "On 1–5: gain 3 dots of Supernatural/Substance Use Flaws, or −1 Humanity",
         gambitHumanityOnFail: 0, // player choice: flaws or Humanity
     },
     {
@@ -108,12 +118,14 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "You indulged your Beast, letting it loose upon your enemies and any others who were in the way.",
         baseXp: 15,
+        baseXpNote: "Any Disciplines",
         baseOther: null,
         baseHumanityLoss: 1,
         hasGambit: false,
         gambitXp: 0,
+        gambitXpNote: null,
         gambitOther: null,
-        gambitRisk: "Roll each time chosen: on 1–5, gain Dark Secret Flaw (••) and cannot choose again.",
+        gambitRisk: "Roll each time chosen: on 1–5, gain Dark Secret Flaw (••) and cannot choose this era again.",
         gambitHumanityOnFail: 0,
     },
     {
@@ -122,10 +134,12 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "You turned your mind to the sorcerous side of undead existence, finding secrets in the Blood.",
         baseXp: 15,
-        baseOther: "Spend on Mental Attributes, Occult, or Blood Sorcery/Oblivion (Rituals/Ceremonies only)",
+        baseXpNote: "Mental Attributes, Occult, or Blood Sorcery/Oblivion (Rituals/Ceremonies only)",
+        baseOther: null,
         baseHumanityLoss: 1,
         hasGambit: true,
         gambitXp: 3,
+        gambitXpNote: "Same restrictions as above",
         gambitOther: null,
         gambitRisk: "On 1–5: gain a Cursed Object (•)",
         gambitHumanityOnFail: 0,
@@ -136,12 +150,14 @@ const ERA_DEFS: EraDef[] = [
         flavor:
             "You spent an era in torpor, hoping time would erase some of your mistakes.",
         baseXp: 0,
+        baseXpNote: null,
         baseOther: "Remove 1 dot of Flaws",
         baseHumanityLoss: 0,
         hasGambit: true,
         gambitXp: 0,
+        gambitXpNote: null,
         gambitOther: "Remove 2 additional Flaw dots",
-        gambitRisk: "On 1–5: lose 1 dot from your lowest-rated Discipline",
+        gambitRisk: "On 1–5: lose one dot from your lowest-rated Discipline",
         gambitHumanityOnFail: 0,
     },
 ]
@@ -166,15 +182,18 @@ function computeEraXp(era: InMemoriamEra): number {
     return xp
 }
 
-function computeEraHumanityLoss(era: InMemoriamEra): number {
+function computeEraHumanityLossRaw(era: InMemoriamEra): number {
     const def = ERA_MAP[era.type]
     let loss = def.baseHumanityLoss
-    if (era.gambit_taken && era.gambit_roll != null) {
-        if (era.gambit_roll <= 5) {
-            loss += def.gambitHumanityOnFail
-        }
+    if (era.gambit_taken && era.gambit_roll != null && era.gambit_roll <= 5) {
+        loss += def.gambitHumanityOnFail
     }
     return loss
+}
+
+function computeEraHumanityLoss(era: InMemoriamEra): number {
+    const raw = computeEraHumanityLossRaw(era)
+    return raw > 0 && era.touchstone_sacrificed ? raw - 1 : raw
 }
 
 function computeTotals(eras: InMemoriamEra[], ageHumanityLoss: number) {
@@ -217,17 +236,20 @@ function EraCard({
     onChange,
     violenceBlocked,
     eraCount,
+    availableTouchstones,
 }: {
     slotIndex: number
     era: InMemoriamEra | null
     onChange: (era: InMemoriamEra | null) => void
     violenceBlocked: boolean
     eraCount: number
+    availableTouchstones: { name: string; conviction: string }[]
 }) {
     const selected = era?.type ?? null
     const def = selected ? ERA_MAP[selected] : null
 
     const eraXp = era ? computeEraXp(era) : 0
+    const eraHumanityRaw = era ? computeEraHumanityLossRaw(era) : 0
     const eraHumanity = era ? computeEraHumanityLoss(era) : 0
 
     const gamblerRollDone =
@@ -267,6 +289,11 @@ function EraCard({
                         }}
                     >
                         +{eraXp} XP
+                    </span>
+                )}
+                {selected && eraHumanityRaw > 0 && era?.touchstone_sacrificed && (
+                    <span style={{ fontFamily: FONT_UI, fontSize: "0.7rem", color: C_GOLD }}>
+                        Touchstone lost
                     </span>
                 )}
                 {selected && eraHumanity > 0 && (
@@ -402,8 +429,8 @@ function EraCard({
                         {def.baseXp > 0 && (
                             <p style={{ margin: "0 0 2px 0", fontFamily: FONT_UI, fontSize: "0.82rem", color: C_GOLD }}>
                                 +{def.baseXp} XP
-                                {def.type === "sorcery" && (
-                                    <span style={{ color: C_DIM }}> — Mental Attributes, Occult, or Blood Sorcery/Oblivion</span>
+                                {def.baseXpNote && (
+                                    <span style={{ color: C_DIM }}> — {def.baseXpNote}</span>
                                 )}
                             </p>
                         )}
@@ -489,6 +516,122 @@ function EraCard({
                         </div>
                     )}
 
+                    {/* Touchstone sacrifice — shown whenever this era has a humanity loss */}
+                    {eraHumanityRaw > 0 && (
+                        <div
+                            style={{
+                                marginBottom: 14,
+                                padding: "12px 14px",
+                                borderRadius: 8,
+                                border: `1px solid ${era.touchstone_sacrificed ? "rgba(185, 140, 55, 0.45)" : "rgba(125, 91, 72, 0.2)"}`,
+                                background: era.touchstone_sacrificed
+                                    ? "rgba(45, 30, 8, 0.45)"
+                                    : "rgba(255,255,255,0.02)",
+                            }}
+                        >
+                            <p
+                                style={{
+                                    margin: "0 0 8px 0",
+                                    fontFamily: FONT_UI,
+                                    fontSize: "0.72rem",
+                                    letterSpacing: "0.1em",
+                                    textTransform: "uppercase",
+                                    color: C_DIM,
+                                }}
+                            >
+                                Humanity loss — sacrifice a Conviction instead?
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                <label
+                                    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+                                >
+                                    <input
+                                        type="radio"
+                                        name={`ts-sacrifice-${slotIndex}`}
+                                        checked={!era.touchstone_sacrificed}
+                                        onChange={() =>
+                                            onChange({
+                                                ...era,
+                                                touchstone_sacrificed: undefined,
+                                                humanity_loss: eraHumanityRaw,
+                                            })
+                                        }
+                                        style={{ accentColor: C_RED, cursor: "pointer" }}
+                                    />
+                                    <span style={{ fontFamily: FONT_UI, fontSize: "0.8rem", color: C_WARN }}>
+                                        −1 Humanity
+                                    </span>
+                                </label>
+                                {availableTouchstones.length === 0 ? (
+                                    <p
+                                        style={{
+                                            margin: "2px 0 0 20px",
+                                            fontFamily: FONT_UI,
+                                            fontSize: "0.75rem",
+                                            color: C_DIM,
+                                            fontStyle: "italic",
+                                        }}
+                                    >
+                                        No starting touchstones defined above.
+                                    </p>
+                                ) : (
+                                    availableTouchstones.map((ts) => (
+                                        <label
+                                            key={ts.name}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "flex-start",
+                                                gap: 8,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name={`ts-sacrifice-${slotIndex}`}
+                                                checked={era.touchstone_sacrificed === ts.name}
+                                                onChange={() =>
+                                                    onChange({
+                                                        ...era,
+                                                        touchstone_sacrificed: ts.name,
+                                                        humanity_loss: Math.max(0, eraHumanityRaw - 1),
+                                                    })
+                                                }
+                                                style={{
+                                                    marginTop: 2,
+                                                    accentColor: C_RED,
+                                                    cursor: "pointer",
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+                                            <div>
+                                                <span
+                                                    style={{
+                                                        fontFamily: FONT_UI,
+                                                        fontSize: "0.8rem",
+                                                        color: C_FG,
+                                                    }}
+                                                >
+                                                    {ts.name}
+                                                </span>
+                                                {ts.conviction && (
+                                                    <span
+                                                        style={{
+                                                            fontFamily: FONT_UI,
+                                                            fontSize: "0.75rem",
+                                                            color: C_DIM,
+                                                        }}
+                                                    >
+                                                        {" "}— "{ts.conviction}"
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Optional gambit (non-Violence) */}
                     {def.hasGambit && def.type !== "violence" && (
                         <div
@@ -547,6 +690,9 @@ function EraCard({
                                             }}
                                         >
                                             +{def.gambitXp} XP
+                                            {def.gambitXpNote && (
+                                                <span style={{ color: C_DIM }}> — {def.gambitXpNote}</span>
+                                            )}
                                         </span>
                                     )}
                                     {def.gambitOther && (
@@ -655,6 +801,13 @@ export default function InMemoriamPicker({
     const [eras, setEras] = useState<(InMemoriamEra | null)[]>(
         im.eras?.length ? im.eras : []
     )
+    const [startingTouchstones, setStartingTouchstones] = useState<{ name: string; conviction: string }[]>(
+        im.starting_touchstones?.length
+            ? im.starting_touchstones.length >= 5
+                ? im.starting_touchstones
+                : [...im.starting_touchstones, ...Array(5 - im.starting_touchstones.length).fill({ name: "", conviction: "" })]
+            : Array(5).fill(null).map(() => ({ name: "", conviction: "" }))
+    )
 
     const ageConfig = embraceAge ? EMBRACE_AGES.find((a) => a.id === embraceAge) ?? null : null
     const eraCount = ageConfig?.eraCount ?? 0
@@ -673,19 +826,23 @@ export default function InMemoriamPicker({
 
     const completedEras = paddedEras.filter(Boolean) as InMemoriamEra[]
     const { totalXp, totalHumanityLoss } = computeTotals(completedEras, ageHumanityLoss)
+    const validStartingTouchstones = startingTouchstones.filter((ts) => ts.name.trim() !== "")
     const allErasDone = embraceAge !== null && paddedEras.every(Boolean)
-    const finalHumanity = Math.max(4, 7 - totalHumanityLoss)
+    const genSacrifice = im.humanity_sacrifice ? 1 : 0
+    const finalHumanity = Math.max(3, 7 - totalHumanityLoss - genSacrifice)
 
     const handleConfirm = () => {
         const updated: Character = {
             ...character,
             humanity: finalHumanity,
+            cc_xp_budget: totalXp,
             in_memoriam: {
                 ...im,
                 embrace_age: embraceAge!,
                 eras: completedEras,
                 total_xp: totalXp,
                 total_humanity_loss: totalHumanityLoss,
+                starting_touchstones: validStartingTouchstones,
             },
         }
         setCharacter(updated)
@@ -836,8 +993,36 @@ export default function InMemoriamPicker({
                             </div>
                         )}
 
+                        {/* XP breakdown by category */}
+                        {completedEras.length > 0 && totalXp > 0 && (() => {
+                            const pools: { label: string; xp: number }[] = []
+                            const add = (label: string, xp: number) => {
+                                const existing = pools.find(p => p.label === label)
+                                if (existing) existing.xp += xp
+                                else pools.push({ label, xp })
+                            }
+                            completedEras.forEach(era => {
+                                const def = ERA_MAP[era.type]
+                                if (def.baseXp > 0) add(def.baseXpNote ?? "Any", def.baseXp)
+                                if (era.gambit_taken && def.gambitXp > 0) add(def.gambitXpNote ?? "Any", def.gambitXp)
+                            })
+                            if (!pools.length) return null
+                            return (
+                                <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, border: `1px solid rgba(125, 91, 72, 0.25)`, background: "rgba(26,20,24,0.6)" }}>
+                                    <p style={{ margin: "0 0 6px 0", fontFamily: FONT_UI, fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C_DIM }}>
+                                        XP spending pools
+                                    </p>
+                                    {pools.map(({ label, xp }) => (
+                                        <p key={label} style={{ margin: "0 0 2px 0", fontFamily: FONT_UI, fontSize: "0.8rem", color: C_GOLD }}>
+                                            {xp} XP <span style={{ color: C_DIM }}>— {label}</span>
+                                        </p>
+                                    ))}
+                                </div>
+                            )
+                        })()}
+
                         {/* Humanity floor note */}
-                        {totalHumanityLoss > 3 && (
+                        {(totalHumanityLoss > 3 || genSacrifice > 0) && (
                             <div
                                 style={{
                                     marginBottom: 16,
@@ -848,15 +1033,121 @@ export default function InMemoriamPicker({
                                 }}
                             >
                                 <p style={{ margin: 0, fontFamily: FONT_UI, fontSize: "0.8rem", color: C_WARN }}>
-                                    Humanity cannot drop below 4 before the first session. Excess losses beyond that remove a Conviction and its Touchstone instead.
+                                    Era and age losses cannot reduce Humanity below 4 — excess losses remove a Conviction and Touchstone instead.
+                                    {genSacrifice > 0 && (
+                                        <span style={{ display: "block", marginTop: 4, color: C_MUTED }}>
+                                            Generation sacrifice (−1 Humanity for 2 Background dots) is applied on top of that floor.
+                                        </span>
+                                    )}
                                 </p>
+                            </div>
+                        )}
+
+                        {/* Starting Touchstones & Convictions */}
+                        {embraceAge && (
+                            <div style={{ marginBottom: 24 }}>
+                                <p
+                                    style={{
+                                        margin: "0 0 4px 0",
+                                        fontFamily: FONT_DISPLAY,
+                                        fontSize: "0.75rem",
+                                        letterSpacing: "0.15em",
+                                        textTransform: "uppercase",
+                                        color: C_RED_DIM,
+                                    }}
+                                >
+                                    Starting Touchstones & Convictions
+                                </p>
+                                <p
+                                    style={{
+                                        margin: "0 0 12px 0",
+                                        fontFamily: FONT_BODY,
+                                        fontSize: "0.88rem",
+                                        color: C_MUTED,
+                                    }}
+                                >
+                                    Define up to 5 Touchstones your character held at the start of their unlife.
+                                    You may sacrifice one in place of a Humanity loss during an era.
+                                </p>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {startingTouchstones.map((ts, i) => (
+                                        <div
+                                            key={i}
+                                            style={{ display: "flex", gap: 8, alignItems: "center" }}
+                                        >
+                                            <span
+                                                style={{
+                                                    fontFamily: FONT_UI,
+                                                    fontSize: "0.72rem",
+                                                    color: C_DIM,
+                                                    width: 14,
+                                                    flexShrink: 0,
+                                                    textAlign: "right",
+                                                }}
+                                            >
+                                                {i + 1}.
+                                            </span>
+                                            <TextInput
+                                                placeholder="Touchstone name"
+                                                value={ts.name}
+                                                onChange={(e) => {
+                                                    const updated = [...startingTouchstones]
+                                                    updated[i] = { ...updated[i], name: e.target.value }
+                                                    setStartingTouchstones(updated)
+                                                }}
+                                                style={{ flex: 1 }}
+                                                styles={{
+                                                    input: {
+                                                        background: "rgba(18, 13, 16, 0.8)",
+                                                        border: "1px solid rgba(125, 91, 72, 0.35)",
+                                                        color: C_FG,
+                                                        fontFamily: FONT_UI,
+                                                        fontSize: "0.82rem",
+                                                    },
+                                                }}
+                                            />
+                                            <TextInput
+                                                placeholder="Conviction"
+                                                value={ts.conviction}
+                                                onChange={(e) => {
+                                                    const updated = [...startingTouchstones]
+                                                    updated[i] = {
+                                                        ...updated[i],
+                                                        conviction: e.target.value,
+                                                    }
+                                                    setStartingTouchstones(updated)
+                                                }}
+                                                style={{ flex: 1 }}
+                                                styles={{
+                                                    input: {
+                                                        background: "rgba(18, 13, 16, 0.8)",
+                                                        border: "1px solid rgba(125, 91, 72, 0.35)",
+                                                        color: C_FG,
+                                                        fontFamily: FONT_UI,
+                                                        fontSize: "0.82rem",
+                                                    },
+                                                }}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
                         {/* Era slots */}
                         {eraCount > 0 && (
                             <Stack gap={16}>
-                                {paddedEras.map((era, i) => (
+                                {paddedEras.map((era, i) => {
+                                    const sacrificedElsewhere = new Set(
+                                        paddedEras
+                                            .filter((_, idx) => idx !== i)
+                                            .map((e) => e?.touchstone_sacrificed)
+                                            .filter(Boolean) as string[]
+                                    )
+                                    const availableForEra = validStartingTouchstones.filter(
+                                        (ts) => !sacrificedElsewhere.has(ts.name)
+                                    )
+                                    return (
                                     <EraCard
                                         key={i}
                                         slotIndex={i}
@@ -867,8 +1158,10 @@ export default function InMemoriamPicker({
                                             !(era?.type === "violence")
                                         }
                                         eraCount={eraCount}
+                                        availableTouchstones={availableForEra}
                                     />
-                                ))}
+                                    )
+                                })}
                             </Stack>
                         )}
 

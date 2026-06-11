@@ -169,6 +169,7 @@ function DisciplineAccordion({
     name,
     discipline,
     pickedPowers,
+    ptBonus,
     onTake,
     onUndo,
     maxDots,
@@ -179,6 +180,7 @@ function DisciplineAccordion({
     name: string
     discipline: Discipline
     pickedPowers: Power[]
+    ptBonus?: number // extra dots from predator type (counts toward prereqs automatically)
     onTake: (p: Power) => void
     onUndo: (p: Power) => void
     maxDots: number
@@ -243,7 +245,7 @@ function DisciplineAccordion({
                     {eligiblePowers.map((power) => {
                         const isPicked = pickedPowers.some((p) => p.name === power.name)
                         const prereqsMet =
-                            pickedPowers.filter((p) => p.discipline === name).length >=
+                            pickedPowers.filter((p) => p.discipline === name).length + (ptBonus ?? 0) >=
                             power.level - 1
                         const isDisabled =
                             !isPicked &&
@@ -277,28 +279,75 @@ export default function DisciplinesPickerIM({
     nextStep,
 }: DisciplinesPickerIMProps) {
     const savedSpread = character.im_discipline_spread as Spread | ""
-    const [spread, setSpread] = useState<Spread | null>(
-        savedSpread === "focused" || savedSpread === "strategic" ? savedSpread : null
-    )
 
-    // All clan discipline powers picked during this step
-    const [clanPowers, setClanPowers] = useState<Power[]>([])
-
-    // For Focused: which clan discipline is primary (gets 3 dots)
-    const [focusedPrimaryDisc, setFocusedPrimaryDisc] = useState<string | null>(null)
-
-    // "Any" discipline picks (non-clan slots)
-    const [anyDisc1, setAnyDisc1] = useState<string | null>(null)
-    const [anyPower1, setAnyPower1] = useState<Power | null>(null)
-    const [anyDisc2, setAnyDisc2] = useState<string | null>(null) // Strategic only
-    const [anyPower2, setAnyPower2] = useState<Power | null>(null)
-
-    // Predator type power (same as standard)
-    const [predatorPower, setPredatorPower] = useState<Power | undefined>()
-
+    // Computed from character (props) — must come before useState for use in initializers
     const clanDisciplines = getAvailableDisciplines(character)
     const clanDiscNames = Object.keys(clanDisciplines)
     const predatorTypeDiscipline = disciplines[character.predatorType.pickedDiscipline]
+    const ptDiscName = character.predatorType.pickedDiscipline
+
+    // Restore previously confirmed picks from character.disciplines (survives page refresh)
+    const initialFromSaved = (() => {
+        const saved = character.disciplines ?? []
+        if (!saved.length) return null
+        const spread = savedSpread === "focused" || savedSpread === "strategic" ? savedSpread : null
+        const clanDiscSet = new Set(clanDiscNames)
+        const isPTClan = clanDiscSet.has(ptDiscName)
+        const restoredClanPowers: Power[] = []
+        let restoredPredatorPower: Power | undefined
+        const anyPowers: Power[] = []
+        if (!isPTClan) {
+            for (const p of saved) {
+                if (clanDiscSet.has(p.discipline)) restoredClanPowers.push(p)
+                else if (p.discipline === ptDiscName) restoredPredatorPower = p
+                else anyPowers.push(p)
+            }
+        } else {
+            // PT discipline is also a clan discipline — the power that overflows
+            // the clan max (2 for strategic, 3 for focused primary) is the PT power
+            const ptMaxClan = spread === "focused" ? 3 : 2
+            const ptInSaved = saved.filter((p) => p.discipline === ptDiscName)
+            for (const p of saved) {
+                if (!clanDiscSet.has(p.discipline)) {
+                    anyPowers.push(p)
+                } else if (p.discipline === ptDiscName && ptInSaved.indexOf(p) >= ptMaxClan) {
+                    restoredPredatorPower = p
+                } else {
+                    restoredClanPowers.push(p)
+                }
+            }
+        }
+        let focusedPrimary: string | null = null
+        if (spread === "focused") {
+            const counts = new Map<string, number>()
+            for (const p of restoredClanPowers) counts.set(p.discipline, (counts.get(p.discipline) ?? 0) + 1)
+            for (const [disc, count] of counts) {
+                if (count >= 2) { focusedPrimary = disc; break }
+            }
+        }
+        return {
+            clanPowers: restoredClanPowers,
+            predatorPower: restoredPredatorPower,
+            anyPower1: anyPowers[0] ?? null,
+            anyDisc1: anyPowers[0]?.discipline ?? null,
+            anyPower2: anyPowers[1] ?? null,
+            anyDisc2: anyPowers[1]?.discipline ?? null,
+            focusedPrimaryDisc: focusedPrimary,
+        }
+    })()
+
+    const [spread, setSpread] = useState<Spread | null>(
+        savedSpread === "focused" || savedSpread === "strategic" ? savedSpread : null
+    )
+    const [clanPowers, setClanPowers] = useState<Power[]>(initialFromSaved?.clanPowers ?? [])
+    const [focusedPrimaryDisc, setFocusedPrimaryDisc] = useState<string | null>(
+        initialFromSaved?.focusedPrimaryDisc ?? null
+    )
+    const [anyDisc1, setAnyDisc1] = useState<string | null>(initialFromSaved?.anyDisc1 ?? null)
+    const [anyPower1, setAnyPower1] = useState<Power | null>(initialFromSaved?.anyPower1 ?? null)
+    const [anyDisc2, setAnyDisc2] = useState<string | null>(initialFromSaved?.anyDisc2 ?? null)
+    const [anyPower2, setAnyPower2] = useState<Power | null>(initialFromSaved?.anyPower2 ?? null)
+    const [predatorPower, setPredatorPower] = useState<Power | undefined>(initialFromSaved?.predatorPower)
 
     // ── Focused helpers ────────────────────────────────────────────────────────
     const focusedPrimaryCount = focusedPrimaryDisc
@@ -373,19 +422,29 @@ export default function DisciplinesPickerIM({
             const isSecondary = focusedSecondaryDisc === discName
             const noPrimaryYet = focusedPrimaryDisc === null
 
-            if (isPrimary) return { maxDots: 3, allowedLevels: [1, 2, 3] }
-            if (isSecondary) return { maxDots: 1, allowedLevels: [1] }
+            const ptBonusFocused = character.predatorType.pickedDiscipline === discName ? 1 : 0
+            if (isPrimary) {
+                const maxLevel = Math.min(3 + ptBonusFocused, 5)
+                return { maxDots: 3, allowedLevels: Array.from({ length: maxLevel }, (_, i) => i + 1), ptBonus: ptBonusFocused }
+            }
+            if (isSecondary) {
+                const maxLevel = 1 + ptBonusFocused
+                return { maxDots: 1, allowedLevels: Array.from({ length: maxLevel }, (_, i) => i + 1), ptBonus: ptBonusFocused }
+            }
             // Not yet designated — can start picking (up to 1 dot, becoming secondary unless we already have a secondary)
             if (noPrimaryYet || (!isSecondary && !focusedSecondaryDisc))
-                return { maxDots: 3, allowedLevels: [1, 2, 3] }
+                return { maxDots: 3, allowedLevels: [1, 2, 3], ptBonus: ptBonusFocused }
             // Both primary and secondary are taken — this discipline is locked
-            return { maxDots: 0, allowedLevels: [] }
+            return { maxDots: 0, allowedLevels: [], ptBonus: 0 }
         }
         // Strategic: 2 in each of 2 disciplines
         const alreadyTwo = strategicDiscs.length >= 2
         const inThis = clanPowers.filter((p) => p.discipline === discName).length
-        if (alreadyTwo && inThis === 0) return { maxDots: 0, allowedLevels: [] }
-        return { maxDots: 2, allowedLevels: [1, 2] }
+        if (alreadyTwo && inThis === 0) return { maxDots: 0, allowedLevels: [], ptBonus: 0 }
+        // If the predator type also grants this discipline, the combined total can reach 3
+        const ptBonus = character.predatorType.pickedDiscipline === discName ? 1 : 0
+        const maxLevel = 2 + ptBonus
+        return { maxDots: 2, allowedLevels: Array.from({ length: maxLevel }, (_, i) => i + 1), ptBonus }
     }
 
     const usedClanDiscs = clanDiscNames.filter((n) =>
@@ -427,7 +486,10 @@ export default function DisciplinesPickerIM({
                         setAnyPower(null)
                     }}
                     data={anyDiscSelectData.filter(
-                        (d) => d.value !== otherAnyDisc
+                        (d) =>
+                            d.value !== otherAnyDisc &&
+                            !usedClanDiscs.includes(d.value) &&
+                            d.value !== character.predatorType.pickedDiscipline
                     )}
                     searchable
                     mb={12}
@@ -720,13 +782,14 @@ export default function DisciplinesPickerIM({
                             }}
                         >
                             {clanDiscNames.map((name) => {
-                                const { maxDots, allowedLevels } = getClanConstraints(name)
+                                const { maxDots, allowedLevels, ptBonus } = getClanConstraints(name)
                                 return (
                                     <DisciplineAccordion
                                         key={name}
                                         name={name}
                                         discipline={clanDisciplines[name as DisciplineName]}
                                         pickedPowers={clanPowers}
+                                        ptBonus={ptBonus}
                                         onTake={takeClanPower}
                                         onUndo={undoClanPower}
                                         maxDots={maxDots}
@@ -799,22 +862,47 @@ export default function DisciplinesPickerIM({
                                     </Group>
                                 </Accordion.Control>
                                 <Accordion.Panel>
-                                    {predatorTypeDiscipline.powers
-                                        .filter((p) => p.level === 1)
-                                        .map((power) => (
-                                            <PowerCard
-                                                key={power.name}
-                                                power={power}
-                                                picked={predatorPower?.name === power.name}
-                                                disabled={
-                                                    !!predatorPower &&
-                                                    predatorPower.name !== power.name
-                                                }
-                                                onTake={() => setPredatorPower(power)}
-                                                onUndo={() => setPredatorPower(undefined)}
-                                                label="Taken as predator"
-                                            />
-                                        ))}
+                                    {(() => {
+                                        const ptDiscName = character.predatorType.pickedDiscipline
+                                        const clanDotsInPTDisc = clanPowers.filter(
+                                            (p) => p.discipline === ptDiscName
+                                        ).length
+                                        // Total dots in PT discipline = clan picks + this PT slot
+                                        const ptMaxLevel = clanDotsInPTDisc + 1
+
+                                        const amalgamMet = (p: Power) =>
+                                            p.amalgamPrerequisites.every((req) => {
+                                                const clanDots = clanPowers.filter(
+                                                    (cp) => cp.discipline === req.discipline
+                                                ).length
+                                                // PT slot counts as 1 dot in ptDiscName for prereq purposes
+                                                const ptContrib = req.discipline === ptDiscName ? 1 : 0
+                                                return clanDots + ptContrib >= req.level
+                                            })
+
+                                        return predatorTypeDiscipline.powers
+                                            .filter((p) => p.level <= ptMaxLevel && amalgamMet(p))
+                                            .map((power) => {
+                                                // Need N-1 prior dots to take a level N power
+                                                const prereqsMet = clanDotsInPTDisc >= power.level - 1
+                                                const takenInClan = clanPowers.some((cp) => cp.name === power.name)
+                                                return (
+                                                    <PowerCard
+                                                        key={power.name}
+                                                        power={power}
+                                                        picked={predatorPower?.name === power.name}
+                                                        disabled={
+                                                            takenInClan ||
+                                                            (!prereqsMet && predatorPower?.name !== power.name) ||
+                                                            (!!predatorPower && predatorPower.name !== power.name)
+                                                        }
+                                                        onTake={() => setPredatorPower(power)}
+                                                        onUndo={() => setPredatorPower(undefined)}
+                                                        label={takenInClan ? "Taken in clan section" : "Taken as predator"}
+                                                    />
+                                                )
+                                            })
+                                    })()}
                                 </Accordion.Panel>
                             </Accordion.Item>
                         </Accordion>
@@ -838,11 +926,13 @@ export default function DisciplinesPickerIM({
                                     },
                                 }}
                                 onClick={() => {
-                                    // Preserve BP set by GenerationPickerIM — calculateBloodPotency
-                                    // inside the helper maps gen 9/8 to the default (1) instead of 3.
+                                    // Preserve BP and humanity set by GenerationPickerIM — the
+                                    // helper overwrites both with defaults that don't apply here.
                                     const savedBP = character.bloodPotency
+                                    const savedHumanity = character.humanity
                                     updateHealthAndWillpowerAndBloodPotencyAndHumanity(character)
                                     character.bloodPotency = savedBP
+                                    character.humanity = savedHumanity
                                     const updatedCharacter: Character = {
                                         ...character,
                                         disciplines: allPickedPowers,

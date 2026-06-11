@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request, send_from_directory, session
 
-from app.auth import is_staff, require_login, require_character_owner
+from app.auth import is_staff, require_login, require_character_owner, require_staff
 from app.db import CharacterDraft, DbCharacter, db
 
 bp = Blueprint('character_creator', __name__)
@@ -74,6 +74,13 @@ def character_creator_new():
 @require_character_owner
 def character_creator_sheet(name):  # noqa: ARG001
     """Character sheet view/edit — serves the React SPA."""
+    return send_from_directory(_STATIC_DIR, 'index.html')
+
+
+@bp.route('/st/draft/<draft_id>')
+@require_staff
+def st_draft_edit(draft_id):  # noqa: ARG001
+    """ST character editor — serves the React SPA at the /st/draft/:draftId route."""
     return send_from_directory(_STATIC_DIR, 'index.html')
 
 

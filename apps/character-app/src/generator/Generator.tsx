@@ -12,6 +12,7 @@ import DisciplinesPickerIM from "./components/DisciplinesPickerIM"
 import Final from "./components/Final"
 import GenerationPickerIM from "./components/GenerationPickerIM"
 import InMemoriamPicker from "./components/InMemoriamPicker"
+import EraXpPicker from "./components/EraXpPicker"
 import LoresheetPicker from "./components/LoresheetPicker"
 import MeritsAndFlawsPicker from "./components/MeritsAndFlawsPicker"
 import PredatorTypePicker from "./components/PredatorTypePicker"
@@ -164,6 +165,14 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
             case "in-memoriam":
                 return (
                     <InMemoriamPicker
+                        character={character}
+                        setCharacter={setCharacter}
+                        nextStep={nextStep}
+                    />
+                )
+            case "era-xp":
+                return (
+                    <EraXpPicker
                         character={character}
                         setCharacter={setCharacter}
                         nextStep={nextStep}

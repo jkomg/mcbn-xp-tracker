@@ -1,4 +1,5 @@
 import { ScrollArea, Stack, Text, Title } from "@mantine/core"
+import { useState } from "react"
 import { RAW_RED, rgba } from "~/theme/colors"
 import { Character } from "~/data/Character"
 import {
@@ -70,6 +71,19 @@ export default function GenerationPickerIM({
     nextStep,
 }: GenerationPickerIMProps) {
     const currentId = character.im_generation ?? ""
+    const [humanitySacrifice, setHumanitySacrifice] = useState<boolean>(
+        character.in_memoriam?.humanity_sacrifice ?? false
+    )
+
+    const handleSacrificeToggle = (checked: boolean) => {
+        setHumanitySacrifice(checked)
+        if (character.in_memoriam) {
+            setCharacter({
+                ...character,
+                in_memoriam: { ...character.in_memoriam, humanity_sacrifice: checked },
+            })
+        }
+    }
 
     const handlePick = (option: GenerationOption) => {
         const updated: Character = {
@@ -77,9 +91,18 @@ export default function GenerationPickerIM({
             bloodPotency: option.bloodPotency,
             generation: parseInt(option.id.split("-")[0], 10),
             im_generation: option.id,
+            // Only clear sacrifice when switching away from 9-8
+            in_memoriam: character.in_memoriam
+                ? {
+                      ...character.in_memoriam,
+                      humanity_sacrifice:
+                          option.id === "9-8"
+                              ? character.in_memoriam.humanity_sacrifice
+                              : false,
+                  }
+                : character.in_memoriam,
         }
         setCharacter(updated)
-        nextStep(updated)
     }
 
     return (
@@ -278,6 +301,81 @@ export default function GenerationPickerIM({
                             )
                         })}
                     </div>
+                    {/* Humanity sacrifice — 9th/8th only */}
+                    {currentId === "9-8" && (
+                        <div
+                            style={{
+                                marginTop: 20,
+                                maxWidth: 680,
+                                margin: "20px auto 0",
+                                padding: "16px 20px",
+                                borderRadius: 10,
+                                border: `1px solid ${humanitySacrifice ? rgba(RAW_RED, 0.5) : C_BORDER}`,
+                                background: humanitySacrifice ? "rgba(45, 18, 22, 0.7)" : C_CARD,
+                            }}
+                        >
+                            <label
+                                style={{ display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer" }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={humanitySacrifice}
+                                    onChange={(e) => handleSacrificeToggle(e.target.checked)}
+                                    style={{ width: 18, height: 18, marginTop: 2, cursor: "pointer", accentColor: rgba(RAW_RED, 0.9), flexShrink: 0 }}
+                                />
+                                <div>
+                                    <p style={{ margin: "0 0 4px 0", fontFamily: FONT_DISPLAY, fontSize: "0.9rem", fontWeight: 600, color: humanitySacrifice ? rgba(RAW_RED, 0.9) : C_FG }}>
+                                        Sacrifice 1 Humanity for 2 Background Advantage dots
+                                    </p>
+                                    <p style={{ margin: 0, fontFamily: FONT_UI, fontSize: "0.8rem", color: C_MUTED, lineHeight: 1.5 }}>
+                                        Voluntarily reduce your starting Humanity by 1 in exchange for 2 additional Background Advantage dots in the Freebies step.
+                                        {humanitySacrifice && (
+                                            <span style={{ color: rgba(RAW_RED, 0.7), display: "block", marginTop: 4 }}>
+                                                −1 Humanity · +2 Background dots added to your Freebies budget
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                    )}
+
+                    {/* Continue button — only shown once a generation is picked */}
+                    {currentId && (
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                maxWidth: 680,
+                                margin: "20px auto 0",
+                            }}
+                        >
+                            <button
+                                onClick={() => nextStep()}
+                                style={{
+                                    padding: "11px 30px",
+                                    borderRadius: 8,
+                                    border: `1px solid ${C_BORDER_SELECTED}`,
+                                    background: rgba(RAW_RED, 0.15),
+                                    color: C_FG,
+                                    fontFamily: FONT_UI,
+                                    fontSize: "0.95rem",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    letterSpacing: "0.04em",
+                                    transition: "background 150ms ease, border-color 150ms ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = rgba(RAW_RED, 0.28)
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = rgba(RAW_RED, 0.15)
+                                }}
+                            >
+                                Continue →
+                            </button>
+                        </div>
+                    )}
                 </div>
             </ScrollArea>
         </div>

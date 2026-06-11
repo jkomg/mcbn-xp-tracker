@@ -81,6 +81,9 @@ export default function AncillaModePicker({
                 eras: [],
                 total_xp: 0,
                 total_humanity_loss: 0,
+                humanity_sacrifice: false,
+                starting_touchstones: [],
+                era_xp_spends: [],
             },
         }
         setCharacter(updated)
