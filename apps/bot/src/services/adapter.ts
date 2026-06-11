@@ -33,6 +33,7 @@ export interface BotConfigResponse {
   claimReminderIntervalMs: number | null;
   announcementsChannelId: string | null;
   ccTicketCategoryIds: string | null;
+  staffDiscordIds: string[] | null;
 }
 
 export interface TrackerAdapter {
