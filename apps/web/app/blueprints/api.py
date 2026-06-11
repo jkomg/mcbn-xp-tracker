@@ -804,6 +804,9 @@ def bot_config():
     for db_key, api_key in STR_KEYS.items():
         record = records.get(db_key)
         result[api_key] = record.value.strip() if record else None
+    # Include all staff Discord IDs from the DB so the bot can use them for local auth checks
+    staff_rows = AppSetting.query.filter(AppSetting.key.like('STAFF_MEMBER_%')).all()
+    result['staffDiscordIds'] = [row.key[len('STAFF_MEMBER_'):] for row in staff_rows]
     return jsonify(result)
 
 
