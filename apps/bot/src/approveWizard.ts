@@ -60,8 +60,8 @@ function ch(id: string): string {
 }
 
 function welcomeMessage(playerMention: string, characterName: string): string {
-  const baseUrl = config.webAppBaseUrl.replace(/\/+$/, '');
-  const dashboardUrl = `${baseUrl}/player/${encodeURIComponent(characterName)}`;
+  const baseUrl = config.playerWebUrl.replace(/\/+$/, '');
+  const dashboardUrl = `${baseUrl}/${encodeURIComponent(characterName)}`;
   return [
     `✅ Attributes`,
     `✅ Skills`,
