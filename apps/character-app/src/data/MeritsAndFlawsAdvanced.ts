@@ -553,7 +553,7 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
             },
             {
                 name: "Bonds of Fealty",
-                cost: [2],
+                cost: [3],
                 summary: "requires Dominate. Your Dominate powers do not require eye contact when targeting someone blood bound to you. You still need to communicate your instructions, but need not be physically present.",
                 excludes: []
             },
@@ -884,7 +884,7 @@ export const advancedMeritsAndFlaws: MeritsAndFlaws[] = [
         merits: [
             {
                 name: "Consanguineous Sense",
-                cost: [1],
+                cost: [2],
                 summary: "your Blood calls out to close relations. Instinctively recognize direct bloodline members within a few paces. Resolve + Awareness vs Difficulty 3 to confirm if a Kindred within ~3m shares your bloodline (but not their exact Generation distance). Not available to Caitiff or Duskborn.",
                 excludes: []
             },

@@ -320,9 +320,25 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const imGen = character.im_generation ?? ""
     const imHumanitySacrifice = isImAncilla && (character.in_memoriam?.humanity_sacrifice ?? false)
     const imBaseMeritPoints = isImAncilla ? (imGen === "9-8" ? 0 : 8) : character.age_category === "ancilla" ? 9 : 7
-    const meritPoints = imBaseMeritPoints + (imHumanitySacrifice ? 2 : 0)
+
+    // Era-granted advantage/flaw dots (Freebies step now runs after Oceans of Time)
+    const eraAdvantageBonus = isImAncilla
+        ? (character.in_memoriam?.eras ?? []).reduce((sum, era) => {
+            if (era.type === "intrigue") return sum + 2 + (era.gambit_taken ? 2 : 0)
+            if (era.type === "excess") return sum + 3
+            return sum
+          }, 0)
+        : 0
+    const eraFlawBonus = isImAncilla
+        ? (character.in_memoriam?.eras ?? []).reduce((sum, era) => {
+            if (era.type === "adversity") return sum + 2
+            return sum
+          }, 0)
+        : 0
+
+    const meritPoints = imBaseMeritPoints + (imHumanitySacrifice ? 2 : 0) + eraAdvantageBonus
     const flawPoints = isImAncilla
-        ? imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3
+        ? (imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3) + eraFlawBonus
         : character.age_category === "ancilla" ? 4 : 2
     // For IM ancilla, flaws are mandatory (must spend all flaw points)
     const hasMandatoryFlaws = isImAncilla && flawPoints > 0
@@ -531,7 +547,11 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     <GeneratorStepHero
                         leadText="Shape your"
                         accentText="Advantages"
-                        description="Spend your points on Backgrounds, Merits & Flaws, and Loresheets."
+                        description={
+                            isImAncilla && eraAdvantageBonus > 0
+                                ? `Spend your points on Backgrounds and Merits. Includes ${eraAdvantageBonus} dot${eraAdvantageBonus !== 1 ? "s" : ""} from your eras — Intrigue grants Background Advantages, Excess grants Bonding/Feeding Merit dots.`
+                                : "Spend your points on Backgrounds, Merits & Flaws, and Loresheets."
+                        }
                         maxWidth={720}
                         marginBottom={8}
                     />

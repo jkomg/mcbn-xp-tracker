@@ -23,10 +23,28 @@ export const inMemoriamEraSchema = z.object({
   gambit_roll: z.number().min(1).max(10).optional(),
   xp_gained: z.number().default(0),
   humanity_loss: z.number().default(0),
+  touchstone_sacrificed: z.string().optional(),
 })
 
 export type InMemoriamEra = z.infer<typeof inMemoriamEraSchema>
 export type InMemoriamEraType = InMemoriamEra["type"]
+
+export const eraXpSpendSchema = z.object({
+  pool: z.enum(["skills", "disciplines", "sorcery", "free"]),
+  category: z.enum(["skill", "discipline", "attribute", "ritual", "ceremony"]),
+  label: z.string(),
+  from_level: z.number(),
+  to_level: z.number(),
+  xp_cost: z.number(),
+  skill_name: z.string().optional(),
+  discipline_name: z.string().optional(),
+  power_name: z.string().optional(),
+  attribute_name: z.string().optional(),
+  ritual_name: z.string().optional(),
+  ceremony_name: z.string().optional(),
+})
+
+export type EraXpSpend = z.infer<typeof eraXpSpendSchema>
 
 export const inMemoriamSchema = z.object({
   use_standard: z.boolean(),
@@ -35,6 +53,8 @@ export const inMemoriamSchema = z.object({
   total_xp: z.number().default(0),
   total_humanity_loss: z.number().default(0),
   humanity_sacrifice: z.boolean().optional().default(false),
+  starting_touchstones: z.array(z.object({ name: z.string(), conviction: z.string() })).default([]),
+  era_xp_spends: z.array(eraXpSpendSchema).optional().default([]),
 })
 
 export type InMemoram = z.infer<typeof inMemoriamSchema>
@@ -111,7 +131,12 @@ export const characterSchema = z.object({
   inherited_xp: z.number().optional().default(0),
   submission_notes: z.string().optional().default(""),
   loresheet_purchases: z
-    .array(z.object({ loresheet_id: z.string(), dot: z.number().min(1).max(5).int() }))
+    .array(z.object({
+      loresheet_id: z.string(),
+      dot: z.number().min(1).max(5).int(),
+      dot_name: z.string().optional(),
+      description: z.string().optional(),
+    }))
     .optional()
     .default([]),
   in_memoriam: inMemoriamSchema.optional(),

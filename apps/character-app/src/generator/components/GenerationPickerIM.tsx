@@ -78,13 +78,18 @@ export default function GenerationPickerIM({
             bloodPotency: option.bloodPotency,
             generation: parseInt(option.id.split("-")[0], 10),
             im_generation: option.id,
-            // Clear sacrifice if switching away from 9-8
+            // Only clear sacrifice when switching away from 9-8
             in_memoriam: character.in_memoriam
-                ? { ...character.in_memoriam, humanity_sacrifice: false }
+                ? {
+                      ...character.in_memoriam,
+                      humanity_sacrifice:
+                          option.id === "9-8"
+                              ? character.in_memoriam.humanity_sacrifice
+                              : false,
+                  }
                 : character.in_memoriam,
         }
         setCharacter(updated)
-        nextStep(updated)
     }
 
     const handleSacrificeToggle = (checked: boolean) => {
@@ -296,7 +301,8 @@ export default function GenerationPickerIM({
                     {currentId === "9-8" && (
                         <div
                             style={{
-                                marginTop: 20,
+                                maxWidth: 680,
+                                margin: "20px auto 0",
                                 padding: "16px 20px",
                                 borderRadius: 10,
                                 border: `1px solid ${humanitySacrifice ? rgba(RAW_RED, 0.5) : C_BORDER}`,
@@ -326,6 +332,43 @@ export default function GenerationPickerIM({
                                     </p>
                                 </div>
                             </label>
+                        </div>
+                    )}
+
+                    {/* Continue button — only shown once a generation is picked */}
+                    {currentId && (
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                maxWidth: 680,
+                                margin: "20px auto 0",
+                            }}
+                        >
+                            <button
+                                onClick={() => nextStep()}
+                                style={{
+                                    padding: "11px 30px",
+                                    borderRadius: 8,
+                                    border: `1px solid ${C_BORDER_SELECTED}`,
+                                    background: rgba(RAW_RED, 0.15),
+                                    color: C_FG,
+                                    fontFamily: FONT_UI,
+                                    fontSize: "0.95rem",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    letterSpacing: "0.04em",
+                                    transition: "background 150ms ease, border-color 150ms ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = rgba(RAW_RED, 0.28)
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = rgba(RAW_RED, 0.15)
+                                }}
+                            >
+                                Continue →
+                            </button>
                         </div>
                     )}
                 </div>

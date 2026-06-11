@@ -75,12 +75,12 @@ function isPurchased(character: Character, loresheetId: string, dot: number): bo
     )
 }
 
-function togglePurchase(character: Character, loresheetId: string, dot: number): Character {
+function togglePurchase(character: Character, loresheetId: string, dotEntry: LoresheetDot): Character {
     const current = character.loresheet_purchases ?? []
-    const exists = current.some((p) => p.loresheet_id === loresheetId && p.dot === dot)
+    const exists = current.some((p) => p.loresheet_id === loresheetId && p.dot === dotEntry.dot)
     const updated = exists
-        ? current.filter((p) => !(p.loresheet_id === loresheetId && p.dot === dot))
-        : [...current, { loresheet_id: loresheetId, dot }]
+        ? current.filter((p) => !(p.loresheet_id === loresheetId && p.dot === dotEntry.dot))
+        : [...current, { loresheet_id: loresheetId, dot: dotEntry.dot, dot_name: dotEntry.name, description: dotEntry.description }]
     return { ...character, loresheet_purchases: updated }
 }
 
@@ -350,7 +350,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                                 key={dotEntry.dot}
                                                 onClick={() => {
                                                     if (!dotAvailable) return
-                                                    setCharacter(togglePurchase(character, loresheet.id, dotEntry.dot))
+                                                    setCharacter(togglePurchase(character, loresheet.id, dotEntry))
                                                 }}
                                                 disabled={!dotAvailable}
                                                 style={{
