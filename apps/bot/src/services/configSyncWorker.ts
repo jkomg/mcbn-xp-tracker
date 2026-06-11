@@ -35,8 +35,10 @@ export class ConfigSyncWorker {
       liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
         ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.ccTicketCategoryIds);
-      // Merge DB-configured staff into testerDiscordIds so dashboard role assignments
-      // are respected by local bot auth checks (e.g. /lasombra approve)
+      // Rebuild testerDiscordIds each sync so removals are respected:
+      // start from the env-seeded snapshot, then union in current DB staff.
+      config.testerDiscordIds = new Set(config.envTesterDiscordIds);
+      if (config.testRequesterDiscordId) config.testerDiscordIds.add(config.testRequesterDiscordId);
       if (Array.isArray(cfg.staffDiscordIds)) {
         for (const id of cfg.staffDiscordIds) {
           if (id) config.testerDiscordIds.add(id);
