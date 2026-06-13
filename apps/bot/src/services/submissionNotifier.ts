@@ -120,10 +120,32 @@ export class SubmissionNotifier {
         if (saved) {
           this.cursorEpoch = saved.cursorEpoch;
           this.cursorEventKey = saved.cursorEventKey;
+
+          // Re-seed seenEventKeys for the boundary epoch window to prevent
+          // duplicate notifications after restart.  Same fix as ReviewNotifier.
+          try {
+            const warmup = await this.adapter.getSubmissionEvents({
+              sinceEpoch: Math.max(0, this.cursorEpoch - 300),
+              limit: 250,
+            });
+            for (const event of warmup.events) {
+              if (
+                event.submittedAtEpoch < this.cursorEpoch ||
+                (event.submittedAtEpoch === this.cursorEpoch &&
+                  event.eventKey <= this.cursorEventKey)
+              ) {
+                this.seenEventKeys.add(event.eventKey);
+              }
+            }
+          } catch {
+            // Non-fatal: worst case is one duplicate notification on this restart cycle.
+          }
+
           this.initialized = true;
           logEvent('info', 'submission_notifier_resumed', {
             cursorEpoch: this.cursorEpoch,
             cursorEventKey: this.cursorEventKey,
+            seenOnResume: this.seenEventKeys.size,
           });
           return;
         }

@@ -6,7 +6,7 @@ import type { TrackerAdapter, CcSubmittedDraft } from './adapter';
 
 const STATE_PATH = path.resolve('./data/cc-submission-cursor.json');
 
-type CursorState = { cursorEpoch: number };
+type CursorState = { cursorEpoch: number; seenIds?: string[] };
 
 function loadCursorState(): CursorState | null {
   try {
@@ -106,8 +106,12 @@ export class CharacterSubmissionNotifier {
         const saved = loadCursorState();
         if (saved) {
           this.cursorEpoch = saved.cursorEpoch;
+          for (const id of saved.seenIds ?? []) this.seenIds.add(id);
           this.initialized = true;
-          logEvent('info', 'cc_submission_notifier_resumed', { cursorEpoch: this.cursorEpoch });
+          logEvent('info', 'cc_submission_notifier_resumed', {
+            cursorEpoch: this.cursorEpoch,
+            seenCount: this.seenIds.size,
+          });
           return;
         }
         // No saved state — bootstrap: mark existing submissions as seen without posting.
@@ -121,7 +125,7 @@ export class CharacterSubmissionNotifier {
           this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
         }
         this.initialized = true;
-        saveCursorState({ cursorEpoch: this.cursorEpoch });
+        saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
         logEvent('info', 'cc_submission_notifier_bootstrap', { seenCount: this.seenIds.size });
         return;
       }
@@ -143,7 +147,7 @@ export class CharacterSubmissionNotifier {
             const first = this.seenIds.values().next().value;
             if (first) this.seenIds.delete(first);
           }
-          saveCursorState({ cursorEpoch: this.cursorEpoch });
+          saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
 
           if (!draft.ticket_channel_id) {
             logEvent('warn', 'cc_submission_notifier_no_ticket_channel', {
