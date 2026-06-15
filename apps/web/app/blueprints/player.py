@@ -14,7 +14,7 @@ from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
 )
-from app.db import CharacterDraft, DbCharacter, db
+from app.db import AppSetting, CharacterDraft, DbCharacter, db
 from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
@@ -257,6 +257,7 @@ def character(name):
         current_night=current_night,
         has_approved_draft=has_approved_draft,
         sheet_data=sheet_data,
+        chronicle_tenets=_get_chronicle_tenets(),
     )
 
 
@@ -696,6 +697,13 @@ def export_xp_csv(name):
     )
 
 
+def _get_chronicle_tenets() -> list[str]:
+    row = db.session.get(AppSetting, 'CHRONICLE_TENETS')
+    if row and row.value:
+        return [t.strip() for t in row.value.splitlines() if t.strip()]
+    return []
+
+
 def _normalize_sheet_data(data: dict) -> dict:
     """Normalize character_data for sheet rendering.
 
@@ -943,4 +951,5 @@ def view_sheet(name):
             except (json.JSONDecodeError, TypeError):
                 sheet_data = None
 
-    return render_template('player/sheet.html', char=char, sheet_data=sheet_data, draft=draft)
+    return render_template('player/sheet.html', char=char, sheet_data=sheet_data, draft=draft,
+                           chronicle_tenets=_get_chronicle_tenets())

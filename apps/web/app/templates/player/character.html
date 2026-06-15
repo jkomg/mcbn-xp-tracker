@@ -292,12 +292,14 @@
             {% endfor %}
         </div>
         {% endif %}
+        {% if chronicle_tenets %}
         <div class="mt-2">
             <div class="sheet-group-label">Chronicle Tenets</div>
-            <div class="sheet-trait-name">Thou shalt not kill.</div>
-            <div class="sheet-trait-name">Thou shall not harm children.</div>
-            <div class="sheet-trait-name">Thou shall not engage in excessive cruelty.</div>
+            {% for t in chronicle_tenets %}
+            <div class="sheet-trait-name">{{ t }}</div>
+            {% endfor %}
         </div>
+        {% endif %}
 
     </div>
     </div><!-- /#inline-sheet -->
