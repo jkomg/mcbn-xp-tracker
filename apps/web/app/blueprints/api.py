@@ -1820,12 +1820,12 @@ def discord_activity_record():
 def periods_recent():
     """Return the most recent N play periods with their date ranges.
 
-    Query param: count (default 2, max 10).
+    Query param: count (default 2, max 50).
     Response: { periods: [{ label, nightNumber, startDate, endDate }] }
     """
     from app.db import DbPlayPeriod
     try:
-        count = min(10, max(1, int(request.args.get('count', 2))))
+        count = min(50, max(1, int(request.args.get('count', 2))))
     except (ValueError, TypeError):
         count = 2
     rows = (
