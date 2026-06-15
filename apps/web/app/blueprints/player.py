@@ -711,7 +711,9 @@ def _normalize_sheet_data(data: dict) -> dict:
     templates have one format to handle.
     """
     if 'skill_specialties' not in data:
-        cc_specs = data.get('skillSpecialties') or []
+        cc_specs = list(data.get('skillSpecialties') or [])
+        predator_specs = (data.get('predatorType') or {}).get('pickedSpecialties') or []
+        cc_specs = cc_specs + list(predator_specs)
         merged: dict[str, list[str]] = {}
         for item in cc_specs:
             if isinstance(item, dict):
