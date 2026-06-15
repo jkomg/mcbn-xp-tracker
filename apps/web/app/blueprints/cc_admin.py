@@ -228,6 +228,10 @@ def draft_approve(draft_id):
         name = (request.form.get(f'specialty_{i}_name') or '').strip()
         if skill is None:
             break
+        if skill and not name:
+            flash(f'Specialty name for "{skill}" cannot be blank — approval aborted.', 'danger')
+            db.session.rollback()
+            return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
         if skill and name:
             specialty_overrides.append({'skill': skill, 'name': name.lower()})
         i += 1
