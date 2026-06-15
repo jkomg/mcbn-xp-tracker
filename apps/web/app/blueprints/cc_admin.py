@@ -214,6 +214,31 @@ def draft_approve(draft_id):
     draft.approved_by = actor
     draft.approved_at = datetime.now(timezone.utc)
 
+    # Apply any ST-edited specialty overrides (IM ancilla archaic specialties)
+    char_data = {}
+    if draft.character_data:
+        try:
+            char_data = json.loads(draft.character_data)
+        except Exception:
+            pass
+    specialty_overrides = []
+    i = 0
+    while True:
+        skill = request.form.get(f'specialty_{i}_skill')
+        name = (request.form.get(f'specialty_{i}_name') or '').strip()
+        if skill is None:
+            break
+        if skill and not name:
+            flash(f'Specialty name for "{skill}" cannot be blank — approval aborted.', 'danger')
+            db.session.rollback()
+            return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+        if skill and name:
+            specialty_overrides.append({'skill': skill, 'name': name.lower()})
+        i += 1
+    if specialty_overrides:
+        char_data['skillSpecialties'] = specialty_overrides
+        draft.character_data = json.dumps(char_data)
+
     # Create or link roster entry (DbCharacter)
     char_name = draft.character_name or ''
     if char_name and not draft.roster_character_id:
