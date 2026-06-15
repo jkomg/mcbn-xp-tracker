@@ -291,6 +291,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 dicePool: "Manipulation + Animalism",
                 level: 5,
                 discipline: "animalism"
+            },
+            {
+                name: "Spirit Walk",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "prerequisite: Subsume the Spirit. When using Subsume the Spirit, duration is always indefinite as though a Critical was obtained. You can also activate Subsume the Spirit while already inhabiting an animal, transferring your consciousness from beast to beast without returning to your own body.",
+                dicePool: "",
+                level: 5,
+                discipline: "animalism"
             }
         ]
     },
@@ -488,6 +498,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 rouseChecks: 0,
                 amalgamPrerequisites: [],
                 summary: "automatically pass balance tests",
+                dicePool: "",
+                level: 1,
+                discipline: "celerity"
+            },
+            {
+                name: "Fluent Swiftness",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "when you Blood Surge to augment a Dexterity or Celerity test, you may reroll the Rouse Check",
                 dicePool: "",
                 level: 1,
                 discipline: "celerity"
@@ -801,6 +821,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 dicePool: "",
                 level: 5,
                 discipline: "dominate"
+            },
+            {
+                name: "Lethe's Call",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "prerequisite: Cloud Memory or The Forgetful Mind. No eye contact needed. Each success margin wipes up to a week's worth of memories. With a verbal command, instead erase all knowledge of one person or event from the same period. Mortals cannot resist. Can leave memory blank or replace with a vague sense of time having passed.",
+                dicePool: "Manipulation + Dominate vs Intelligence + Resolve",
+                level: 5,
+                discipline: "dominate"
             }
         ]
     },
@@ -825,6 +855,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 rouseChecks: 0,
                 amalgamPrerequisites: [],
                 summary: "add extra defense against mind-swaying",
+                dicePool: "",
+                level: 1,
+                discipline: "fortitude"
+            },
+            {
+                name: "Fluent Endurance",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "when you Blood Surge to augment a Stamina or Fortitude test, you may reroll the Rouse Check",
                 dicePool: "",
                 level: 1,
                 discipline: "fortitude"
@@ -1036,6 +1076,26 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 discipline: "obfuscate"
             },
             {
+                name: "Ensconce",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "conceal a number of small held or carried objects equal to your Obfuscate rating; mortals ignore or miss them in a search; Kindred with Sense the Unseen can still detect them; objects in plain view or animate creatures cannot be hidden",
+                dicePool: "",
+                level: 1,
+                discipline: "obfuscate"
+            },
+            {
+                name: "Cache",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "prerequisite: Ensconce. Objects need only be touched, not held or carried; you need not maintain contact. Lasts one scene; an additional Rouse Check extends the effect until dawn.",
+                dicePool: "",
+                level: 2,
+                discipline: "obfuscate"
+            },
+            {
                 name: "Unseen Passage",
                 description: "",
                 rouseChecks: 1,
@@ -1215,6 +1275,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 rouseChecks: 0,
                 amalgamPrerequisites: [],
                 summary: "jump over long distance",
+                dicePool: "",
+                level: 1,
+                discipline: "potence"
+            },
+            {
+                name: "Fluent Strength",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "when you Blood Surge to augment a Strength or Potence test, you may reroll the Rouse Check",
                 dicePool: "",
                 level: 1,
                 discipline: "potence"
@@ -1717,6 +1787,26 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 dicePool: "",
                 level: 5,
                 discipline: "protean"
+            },
+            {
+                name: "Bloodform",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [{ discipline: "blood sorcery", level: 2 }],
+                summary: "transform into an amorphous mass of blood; immune to most weapons (not fire or sunlight); can squeeze through cracks and flow up walls; can partially reform limbs or head with a Rouse Check; can use Disciplines not requiring eye contact or speech; severed portions raise Hunger",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
+            },
+            {
+                name: "Master of Forms",
+                description: "",
+                rouseChecks: 0,
+                amalgamPrerequisites: [],
+                summary: "prerequisite: Shapechange. No longer limited to one animal form — can take any creature within the limits of Shapechange or Metamorphosis, different each time. Each specific form is always the same recognizable individual animal. All other limitations of those powers still apply.",
+                dicePool: "",
+                level: 5,
+                discipline: "protean"
             }
         ]
     },
@@ -1772,6 +1862,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 amalgamPrerequisites: [],
                 summary: "locate particular information in text",
                 dicePool: "Intelligence + Blood Sorcery",
+                level: 2,
+                discipline: "blood sorcery"
+            },
+            {
+                name: "Blood's Curse",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "temporarily thicken a target's Blood; on a win add 2 (or 4 on critical) to the victim's Blood Potency for Bane severity and feeding penalty only; ghouls, Caitiff, and thin-bloods gain a Bane based on the clan they most recently fed from",
+                dicePool: "Intelligence + Blood Sorcery vs Stamina + Occult or Fortitude",
                 level: 2,
                 discipline: "blood sorcery"
             },
@@ -2196,6 +2296,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 discipline: "thin-blood alchemy"
             },
             {
+                name: "Whiff-Its",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "grants heightened olfactory sense for one night; detect the Kindred with the highest Blood Potency in the area; succeed on Resolve + Awareness (Difficulty 3) to distinguish between multiple Kindred of the same Blood Potency and follow their trail",
+                dicePool: "Stamina + Alchemy",
+                level: 2,
+                discipline: "thin-blood alchemy"
+            },
+            {
                 name: "Defractionate",
                 description: "",
                 rouseChecks: 0,
@@ -2323,6 +2433,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 discipline: "thin-blood alchemy"
             },
             {
+                name: "Juice Box",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "distill any thin-blood alchemy formula using methuselah vitae so that any Duskborn or Kindred can benefit from it; brew rests in a juice box for 24 hours; all activation costs, dice pools, and duration apply per the original formula",
+                dicePool: "Stamina + Alchemy",
+                level: 4,
+                discipline: "thin-blood alchemy"
+            },
+            {
                 name: "Discipline Channeling",
                 description: "",
                 rouseChecks: 0,
@@ -2374,6 +2494,16 @@ export const disciplines: Record<DisciplineName, Discipline> = {
                 summary:
                     "turn a mortal vessel into a delayed explosive burst of gore and aggravated damage",
                 dicePool: "",
+                level: 5,
+                discipline: "thin-blood alchemy"
+            },
+            {
+                name: "Beast Mode",
+                description: "",
+                rouseChecks: 1,
+                amalgamPrerequisites: [],
+                summary: "temporarily gain access to a single level 5 power from Celerity, Fortitude, or Potence, treating that Discipline as 5; requires vitae of Blood Potency 4+ from a Kindred who has the power; must succeed on Willpower test (Difficulty 2) or frenzy on consumption",
+                dicePool: "Stamina + Alchemy",
                 level: 5,
                 discipline: "thin-blood alchemy"
             }

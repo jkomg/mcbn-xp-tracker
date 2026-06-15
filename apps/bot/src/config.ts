@@ -196,6 +196,8 @@ export const config = {
   testGuildId: env.TEST_GUILD_ID,
   testRequesterDiscordId: env.TEST_REQUESTER_DISCORD_ID,
   testerDiscordIds: parseCsvIds(env.BOT_TESTER_IDS),
+  /** Snapshot of IDs from BOT_TESTER_IDS env var; used to recompute testerDiscordIds on each config sync. */
+  envTesterDiscordIds: parseCsvIds(env.BOT_TESTER_IDS),
   webAppBaseUrl: env.WEB_APP_BASE_URL,
   webAppApiToken: env.WEB_APP_API_TOKEN,
   webAppApiReadToken: env.WEB_APP_API_READ_TOKEN,

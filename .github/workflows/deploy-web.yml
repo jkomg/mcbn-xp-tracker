@@ -1,23 +1,21 @@
 name: Deploy Web to Cloud Run
 
 on:
-  # Manual trigger only — prod never deploys automatically.
-  # Dev auto-deploys on every CI pass (see deploy-web-dev.yml).
-  # Requires approval from the "production" GitHub Environment.
+  workflow_run:
+    workflows: ["Deploy Web to Cloud Run (Dev)"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for deploy'
-        required: false
-        default: 'manual trigger'
 
 jobs:
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
-    if: github.repository == 'jkomg/mcbn-xp-tracker'
+    if: |
+      github.repository == 'jkomg/mcbn-xp-tracker' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
 
     env:
       REGION: us-central1
@@ -27,7 +25,12 @@ jobs:
     steps:
       - name: Resolve deploy SHA
         id: sha
-        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -66,7 +69,7 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --memory 256Mi \
+            --memory 512Mi \
             --cpu 1 \
             --min-instances 0 \
             --max-instances 2 \

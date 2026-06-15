@@ -11,6 +11,7 @@ import {
     Stack,
     Tabs,
     Text,
+    TextInput,
     Tooltip,
     useMantineTheme
 } from "@mantine/core"
@@ -55,6 +56,7 @@ const flawIcon = () => {
 const meritIcon = () => {
     return <FontAwesomeIcon icon={faPlay} rotation={270} style={{ color: "rgb(47, 158, 68)" }} />
 }
+
 
 const SOURCE_LABELS: Record<string, string> = {
     core: "Core",
@@ -123,13 +125,19 @@ const MeritOrFlawCard = memo(
         const alreadyPickedItem = pickedByName.get(meritOrFlaw.name)
         const wasPickedLevel = alreadyPickedItem?.level ?? 0
         const excludingItems = exclusionMap.get(meritOrFlaw.name) ?? []
-        const isExcluded = excludingItems.length > 0
+        // PT-provided merits that this merit excludes can be "upgraded through" — pay the difference
+        const ptUpgradeItems = excludingItems.filter(name => predatorTypeMeritsByName.has(name))
+        const hardExcludingItems = excludingItems.filter(name => !predatorTypeMeritsByName.has(name))
+        const isExcluded = hardExcludingItems.length > 0
+        const ptUpgradeCredit = ptUpgradeItems.reduce(
+            (sum, name) => sum + (predatorTypeMeritsByName.get(name)?.level ?? 0), 0
+        )
 
         const meritInPredatorType = predatorTypeMeritsByName.get(meritOrFlaw.name)
         const meritInPredatorTypeLevel = meritInPredatorType?.level ?? 0
 
         const createButton = (level: number) => {
-            const cost = level - meritInPredatorTypeLevel
+            const cost = level - meritInPredatorTypeLevel - ptUpgradeCredit
             return (
                 <Button
                     key={meritOrFlaw.name + level}
@@ -186,7 +194,7 @@ const MeritOrFlawCard = memo(
         const summaryText = meritInPredatorType
             ? "Already picked in Predator Type"
             : isExcluded
-              ? `Excluded by: ${excludingItems.join(", ")}`
+              ? `Excluded by: ${hardExcludingItems.join(", ")}`
               : meritOrFlaw.summary
 
         const textContent = (
@@ -267,7 +275,7 @@ const MeritOrFlawCard = memo(
             return (
                 <Tooltip
                     key={lineKey}
-                    label={`This ${type} is excluded because you already have: ${excludingItems.join(", ")}`}
+                    label={`This ${type} is excluded because you already have: ${hardExcludingItems.join(", ")}`}
                     withArrow
                 >
                     {textContent}
@@ -288,6 +296,9 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
 
     const [activeTab, setActiveTab] = useState<string | null>("backgrounds")
     const [resetTarget, setResetTarget] = useState<ResetTarget>(null)
+    const [bgSearch, setBgSearch] = useState("")
+    const [mfSearch, setMfSearch] = useState("")
+    const [lsSearch, setLsSearch] = useState("")
 
     const [pickedMeritsAndFlaws, setPickedMeritsAndFlaws] = useState<MeritFlaw[]>([
         ...character.merits,
@@ -312,8 +323,35 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         .filter((f) => !isThinbloodFlaw(f.name) && !predatorTypeProvidedNames.has(f.name))
         .reduce((acc, { level }) => acc + level, 0)
 
-    const meritPoints = character.generation === 10 || character.generation === 11 ? 9 : 7
-    const flawPoints = character.generation === 10 || character.generation === 11 ? 4 : 2
+    const isImAncilla =
+        character.age_category === "ancilla" &&
+        !!character.in_memoriam &&
+        !character.in_memoriam.use_standard
+    const imGen = character.im_generation ?? ""
+    const imHumanitySacrifice = isImAncilla && (character.in_memoriam?.humanity_sacrifice ?? false)
+    const imBaseMeritPoints = isImAncilla ? (imGen === "9-8" ? 0 : 8) : character.age_category === "ancilla" ? 9 : 7
+
+    // Era-granted advantage/flaw dots (Freebies step now runs after Oceans of Time)
+    const eraAdvantageBonus = isImAncilla
+        ? (character.in_memoriam?.eras ?? []).reduce((sum, era) => {
+            if (era.type === "intrigue") return sum + 2 + (era.gambit_taken ? 2 : 0)
+            if (era.type === "excess") return sum + 3
+            return sum
+          }, 0)
+        : 0
+    const eraFlawBonus = isImAncilla
+        ? (character.in_memoriam?.eras ?? []).reduce((sum, era) => {
+            if (era.type === "adversity") return sum + 2
+            return sum
+          }, 0)
+        : 0
+
+    const meritPoints = imBaseMeritPoints + (imHumanitySacrifice ? 2 : 0) + eraAdvantageBonus
+    const flawPoints = isImAncilla
+        ? (imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3) + eraFlawBonus
+        : character.age_category === "ancilla" ? 4 : 2
+    // For IM ancilla, flaws are mandatory (must spend all flaw points)
+    const hasMandatoryFlaws = isImAncilla && flawPoints > 0
 
     const [remainingMerits, setRemainingMerits] = useState(meritPoints - usedMeritsLevel)
     const [remainingFlaws, setRemainingFlaws] = useState(flawPoints - usedFLawsLevel)
@@ -460,7 +498,9 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         />
     )
 
-    const isConfirmDisabled = isThinBlood && remainingThinbloodMeritPoints < 0
+    const isConfirmDisabled =
+        (isThinBlood && remainingThinbloodMeritPoints < 0) ||
+        (hasMandatoryFlaws && remainingFlaws > 0)
     const handleReset = () => {
         if (resetTarget === "merit") {
             const nextPickedMeritsAndFlaws = pickedMeritsAndFlaws.filter(
@@ -517,7 +557,11 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     <GeneratorStepHero
                         leadText="Shape your"
                         accentText="Advantages"
-                        description="Spend your points on Backgrounds, Merits & Flaws, and Loresheets."
+                        description={
+                            isImAncilla && eraAdvantageBonus > 0
+                                ? `Spend your points on Backgrounds and Merits. Includes ${eraAdvantageBonus} dot${eraAdvantageBonus !== 1 ? "s" : ""} from your eras — Intrigue grants Background Advantages, Excess grants Bonding/Feeding Merit dots.`
+                                : "Spend your points on Backgrounds, Merits & Flaws, and Loresheets."
+                        }
                         maxWidth={720}
                         marginBottom={8}
                     />
@@ -614,13 +658,148 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                             padding: "0 20px"
                         }}
                     >
+                        <TextInput
+                            placeholder="Search backgrounds…"
+                            value={bgSearch}
+                            onChange={e => setBgSearch(e.currentTarget.value)}
+                            size="xs"
+                            mb="xs"
+                            styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                        />
                         <ScrollArea {...columnScrollProps}>
                             <Stack gap="sm" pb="xl">
-                                {allBackgroundEntries.map((entry) =>
-                                    getMeritOrFlawLine(entry.item, entry.entryType)
-                                )}
+                                {allBackgroundEntries
+                                    .filter(e => !bgSearch || e.item.name.toLowerCase().includes(bgSearch.toLowerCase()))
+                                    .map((entry) =>
+                                        getMeritOrFlawLine(entry.item, entry.entryType)
+                                    )}
                             </Stack>
                         </ScrollArea>
+                    </div>
+                </Tabs.Panel>
+
+                {/* Merits & Flaws panel */}
+                <Tabs.Panel value="merits">
+                    <div
+                        style={{
+                            ...generatorScrollableContentStyle,
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            padding: "0 20px"
+                        }}
+                    >
+                        <TextInput
+                            placeholder="Search merits & flaws…"
+                            value={mfSearch}
+                            onChange={e => setMfSearch(e.currentTarget.value)}
+                            size="xs"
+                            mb="xs"
+                            styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                        />
+                        {mfSearch ? (
+                            <ScrollArea {...columnScrollProps}>
+                                <Stack gap="sm" pb="xl">
+                                    {[
+                                        ...essentialThinbloodMeritsAndFlaws.merits.map(m => ({ item: m, type: "merit" as const })),
+                                        ...essentialThinbloodMeritsAndFlaws.flaws.map(f => ({ item: f, type: "flaw" as const })),
+                                        ...allMFCategories.flatMap(cat => [
+                                            ...cat.merits.map(m => ({ item: m, type: "merit" as const })),
+                                            ...cat.flaws.map(f => ({ item: f, type: "flaw" as const }))
+                                        ])
+                                    ]
+                                        .filter(({ item }) => item.name.toLowerCase().includes(mfSearch.toLowerCase()))
+                                        .map(({ item, type }) => getMeritOrFlawLine(item, type))}
+                                </Stack>
+                            </ScrollArea>
+                        ) : isThinBlood && phoneScreen ? (
+                            <Text
+                                ta="center"
+                                style={{
+                                    flexShrink: 0,
+                                    fontFamily: "Crimson Text, Georgia, serif",
+                                    fontSize: "1.05rem",
+                                    color: theme.colors.grape[3],
+                                    padding: "4px 0 8px"
+                                }}
+                            >
+                                Pick Thin-blood flaws to gain Thin-blood merit points
+                            </Text>
+                        ) : null}
+                        {!mfSearch && phoneScreen ? (
+                            <ScrollArea {...columnScrollProps}>
+                                <Stack gap="sm" pb="xl">
+                                    {isThinBlood ? (
+                                        <>
+                                            <Stack gap="sm">
+                                                <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                            </Stack>
+                                            <Stack gap="sm">
+                                                <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                            </Stack>
+                                            <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
+                                        </>
+                                    ) : null}
+                                    {allMFCategories.map((cat) => (
+                                        <Stack gap="sm" key={cat.title}>
+                                            <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                            {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                        </Stack>
+                                    ))}
+                                </Stack>
+                            </ScrollArea>
+                        ) : (
+                            <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 16, overflow: "hidden", paddingTop: 4 }}>
+                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                    <ScrollArea {...columnScrollProps}>
+                                        <Stack gap="sm" pb="xl">
+                                            {isThinBlood ? (
+                                                <Stack gap="sm">
+                                                    <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                    {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                </Stack>
+                                            ) : null}
+                                            {allMFCategories
+                                                .filter((_, i) => i % 2 === 0)
+                                                .map((cat) => (
+                                                    <Stack gap="sm" key={cat.title}>
+                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                ))}
+                                        </Stack>
+                                    </ScrollArea>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                    <ScrollArea {...columnScrollProps}>
+                                        <Stack gap="sm" pb="xl">
+                                            {isThinBlood ? (
+                                                <>
+                                                    <Stack gap="sm">
+                                                        <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                    <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
+                                                </>
+                                            ) : null}
+                                            {allMFCategories
+                                                .filter((_, i) => i % 2 !== 0)
+                                                .map((cat) => (
+                                                    <Stack gap="sm" key={cat.title}>
+                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
+                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
+                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
+                                                    </Stack>
+                                                ))}
+                                        </Stack>
+                                    </ScrollArea>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Tabs.Panel>
 
@@ -628,10 +807,20 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 <Tabs.Panel value="loresheets">
                     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px" }}>
                         <div style={{ ...generatorScrollableContentStyle, height: "100%", display: "flex", flexDirection: "column" }}>
+                            <TextInput
+                                placeholder="Search loresheets…"
+                                value={lsSearch}
+                                onChange={e => setLsSearch(e.currentTarget.value)}
+                                size="xs"
+                                mb={8}
+                                styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                            />
                             <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 700, margin: "0 auto", paddingTop: 8, paddingBottom: 40 }}>
                                     {LORESHEETS
                                         .filter(ls => !ls.clanRestriction?.length || ls.clanRestriction.includes(character.clan))
+                                        .filter(ls => !lsSearch || ls.name.toLowerCase().includes(lsSearch.toLowerCase()))
+                                        .sort((a, b) => a.name.localeCompare(b.name))
                                         .map(ls => {
                                             const isExpanded = expandedLoresheetIds.has(ls.id)
                                             const purchasedCount = ls.dots.filter(d => isLoresheetDotSelected(ls.name, d.name)).length
@@ -835,115 +1024,18 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     </div>
                 </Tabs.Panel>
 
-                {/* Merits & Flaws panel */}
-                <Tabs.Panel value="merits">
-                    <div
-                        style={{
-                            ...generatorScrollableContentStyle,
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                            padding: "0 20px"
-                        }}
-                    >
-                        {isThinBlood && phoneScreen ? (
-                            <Text
-                                ta="center"
-                                style={{
-                                    flexShrink: 0,
-                                    fontFamily: "Crimson Text, Georgia, serif",
-                                    fontSize: "1.05rem",
-                                    color: theme.colors.grape[3],
-                                    padding: "4px 0 8px"
-                                }}
-                            >
-                                Pick Thin-blood flaws to gain Thin-blood merit points
-                            </Text>
-                        ) : null}
-                        {phoneScreen ? (
-                            <ScrollArea {...columnScrollProps}>
-                                <Stack gap="sm" pb="xl">
-                                    {isThinBlood ? (
-                                        <>
-                                            <Stack gap="sm">
-                                                <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                            </Stack>
-                                            <Stack gap="sm">
-                                                <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                            </Stack>
-                                            <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
-                                        </>
-                                    ) : null}
-                                    {allMFCategories.map((cat) => (
-                                        <Stack gap="sm" key={cat.title}>
-                                            <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                            {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                            {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                        </Stack>
-                                    ))}
-                                </Stack>
-                            </ScrollArea>
-                        ) : (
-                            <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 16, overflow: "hidden", paddingTop: 4 }}>
-                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                    <ScrollArea {...columnScrollProps}>
-                                        <Stack gap="sm" pb="xl">
-                                            {isThinBlood ? (
-                                                <Stack gap="sm">
-                                                    <GeneratorSectionDivider label="Thin-blood merits" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                    {essentialThinbloodMeritsAndFlaws.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                </Stack>
-                                            ) : null}
-                                            {allMFCategories
-                                                .filter((_, i) => i % 2 === 0)
-                                                .map((cat) => (
-                                                    <Stack gap="sm" key={cat.title}>
-                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                ))}
-                                        </Stack>
-                                    </ScrollArea>
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                    <ScrollArea {...columnScrollProps}>
-                                        <Stack gap="sm" pb="xl">
-                                            {isThinBlood ? (
-                                                <>
-                                                    <Stack gap="sm">
-                                                        <GeneratorSectionDivider label="Thin-blood flaws" accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {essentialThinbloodMeritsAndFlaws.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                    <Divider w="100%" my="sm" color="rgba(255, 255, 255, 0.1)" />
-                                                </>
-                                            ) : null}
-                                            {allMFCategories
-                                                .filter((_, i) => i % 2 !== 0)
-                                                .map((cat) => (
-                                                    <Stack gap="sm" key={cat.title}>
-                                                        <GeneratorSectionDivider label={cat.title} accentAlpha={0.32} titleSize="0.96rem" lineHeight={1} marginY="xs" />
-                                                        {cat.merits.map((m) => getMeritOrFlawLine(m, "merit"))}
-                                                        {cat.flaws.map((f) => getMeritOrFlawLine(f, "flaw"))}
-                                                    </Stack>
-                                                ))}
-                                        </Stack>
-                                    </ScrollArea>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </Tabs.Panel>
-
             </Tabs>
 
             {/* ── Confirm button ── */}
             <Stack gap="xs" align="center" py="xs">
-                {isConfirmDisabled ? (
+                {isThinBlood && remainingThinbloodMeritPoints < 0 ? (
                     <Text c={theme.colors.red[5]} ta="center">
                         Need to balance Thin-blood merit points
+                    </Text>
+                ) : null}
+                {hasMandatoryFlaws && remainingFlaws > 0 ? (
+                    <Text c={theme.colors.red[5]} ta="center">
+                        Must take {flawPoints} flaw dot{flawPoints !== 1 ? "s" : ""} ({remainingFlaws} remaining) — generation requirement
                     </Text>
                 ) : null}
                 <Button

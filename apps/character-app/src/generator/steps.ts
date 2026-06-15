@@ -1,6 +1,24 @@
-import { Character, containsBloodSorcery, containsOblivion } from "~/data/Character"
+import { Character, containsBloodSorcery, containsOblivion, InMemoriamEraType } from "~/data/Character"
 
 const XP_ONLY_AGE_CATEGORIES = new Set(["neonate", "ancilla"])
+
+const ERA_XP_BY_TYPE: Record<InMemoriamEraType, { base: number; gambit: number }> = {
+    adversity: { base: 12, gambit: 10 },
+    calm:      { base: 6,  gambit: 3  },
+    intrigue:  { base: 0,  gambit: 0  },
+    excess:    { base: 0,  gambit: 10 },
+    violence:  { base: 15, gambit: 0  },
+    sorcery:   { base: 15, gambit: 3  },
+    torpor:    { base: 0,  gambit: 0  },
+}
+
+const computeErasXpTotal = (character: Character): number => {
+    const eras = character.in_memoriam?.eras ?? []
+    return eras.reduce((sum, era) => {
+        const def = ERA_XP_BY_TYPE[era.type]
+        return sum + def.base + (era.gambit_taken ? def.gambit : 0)
+    }, 0)
+}
 
 type GeneratorProgressKey =
     | "clan"
@@ -29,6 +47,7 @@ export type GeneratorStepId =
     | "merits"
     | "loresheet"
     | "in-memoriam"
+    | "era-xp"
     | "final"
 
 export type GeneratorStep = {
@@ -50,9 +69,10 @@ const allGeneratorSteps: GeneratorStep[] = [
     { id: "rituals", label: "Rituals" },
     { id: "ceremonies", label: "Ceremonies" },
     { id: "touchstones", label: "Touchstones", progressKey: "touchstones" },
-    { id: "merits", label: "Advantages", progressKey: "merits" },
-    { id: "loresheet", label: "Loresheets" },
     { id: "in-memoriam", label: "Oceans of Time" },
+    { id: "era-xp", label: "Era XP" },
+    { id: "merits", label: "Freebies", progressKey: "merits" },
+    { id: "loresheet", label: "Starting XP" },
     { id: "final", label: "Review & Submit" },
 ]
 
@@ -81,6 +101,9 @@ const isStepAvailable = (character: Character, stepId: GeneratorStepId) => {
     }
     if (stepId === "in-memoriam") {
         return isImAncilla(character)
+    }
+    if (stepId === "era-xp") {
+        return isImAncilla(character) && computeErasXpTotal(character) > 0
     }
     return true
 }

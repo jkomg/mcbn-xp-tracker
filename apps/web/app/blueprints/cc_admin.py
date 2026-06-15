@@ -214,6 +214,31 @@ def draft_approve(draft_id):
     draft.approved_by = actor
     draft.approved_at = datetime.now(timezone.utc)
 
+    # Apply any ST-edited specialty overrides (IM ancilla archaic specialties)
+    char_data = {}
+    if draft.character_data:
+        try:
+            char_data = json.loads(draft.character_data)
+        except Exception:
+            pass
+    specialty_overrides = []
+    i = 0
+    while True:
+        skill = request.form.get(f'specialty_{i}_skill')
+        name = (request.form.get(f'specialty_{i}_name') or '').strip()
+        if skill is None:
+            break
+        if skill and not name:
+            flash(f'Specialty name for "{skill}" cannot be blank — approval aborted.', 'danger')
+            db.session.rollback()
+            return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+        if skill and name:
+            specialty_overrides.append({'skill': skill, 'name': name.lower()})
+        i += 1
+    if specialty_overrides:
+        char_data['skillSpecialties'] = specialty_overrides
+        draft.character_data = json.dumps(char_data)
+
     # Create or link roster entry (DbCharacter)
     char_name = draft.character_name or ''
     if char_name and not draft.roster_character_id:
@@ -274,6 +299,43 @@ def draft_request_revision(draft_id):
     draft.revision_notes = notes
     db.session.commit()
     flash(f'Revision requested for "{draft.character_name or draft.id}".', 'info')
+    return redirect(url_for('cc_admin.draft_list'))
+
+
+@bp.route('/cc-admin/drafts/<draft_id>/delete', methods=['POST'])
+@require_staff
+def draft_delete(draft_id):
+    """Permanently delete a character draft and optionally its roster entry."""
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None:
+        abort(404)
+
+    char_name = draft.character_name or str(draft_id)
+    also_delete_roster = request.form.get('delete_roster') == '1'
+
+    if also_delete_roster and draft.roster_character_id:
+        roster_row = db.session.get(DbCharacter, draft.roster_character_id)
+        if roster_row:
+            if roster_row.active:
+                flash('Deactivate the character on the roster before deleting.', 'danger')
+                return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+            confirm = request.form.get('confirm_name', '').strip()
+            if confirm.lower() != (roster_row.character_name or '').lower():
+                flash('Confirmation name did not match — roster entry was NOT deleted.', 'danger')
+                return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+            db.session.delete(roster_row)
+
+    db.session.delete(draft)
+    db.session.commit()
+
+    actor = session.get('discord_name') or 'staff'
+    db_service.log_action(
+        staff_user=actor,
+        action_type='draft_deleted',
+        target=char_name,
+        details=f'Draft {draft_id} deleted' + (' + roster entry' if also_delete_roster else ''),
+    )
+    flash(f'Draft for "{char_name}" deleted.', 'success')
     return redirect(url_for('cc_admin.draft_list'))
 
 

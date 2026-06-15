@@ -437,6 +437,11 @@ const SkillsPicker = ({ character, setCharacter, nextStep }: SkillsPickerProps) 
                 character={character}
                 pickedSkillNames={getAll(pickedSkills)}
                 skills={skills}
+                isImAncilla={
+                    character.age_category === "ancilla" &&
+                    !!character.in_memoriam &&
+                    !character.in_memoriam.use_standard
+                }
             />
         </div>
     )
