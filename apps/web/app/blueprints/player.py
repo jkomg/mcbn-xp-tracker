@@ -712,12 +712,13 @@ def _normalize_sheet_data(data: dict) -> dict:
     """
     if 'skill_specialties' not in data:
         cc_specs = list(data.get('skillSpecialties') or [])
-        predator_specs = (data.get('predatorType') or {}).get('pickedSpecialties') or []
-        cc_specs = cc_specs + list(predator_specs)
+        predator = data.get('predatorType')
+        if isinstance(predator, dict):
+            cc_specs = cc_specs + list(predator.get('pickedSpecialties') or [])
         merged: dict[str, list[str]] = {}
         for item in cc_specs:
             if isinstance(item, dict):
-                skill = item.get('skill', '')
+                skill = item.get('skill', '').replace(' ', '_')
                 name = item.get('name', '').strip()
                 if skill and name:
                     merged.setdefault(skill, []).append(name)
