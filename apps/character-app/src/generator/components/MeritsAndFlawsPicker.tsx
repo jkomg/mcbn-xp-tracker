@@ -11,6 +11,7 @@ import {
     Stack,
     Tabs,
     Text,
+    TextInput,
     Tooltip,
     useMantineTheme
 } from "@mantine/core"
@@ -124,13 +125,19 @@ const MeritOrFlawCard = memo(
         const alreadyPickedItem = pickedByName.get(meritOrFlaw.name)
         const wasPickedLevel = alreadyPickedItem?.level ?? 0
         const excludingItems = exclusionMap.get(meritOrFlaw.name) ?? []
-        const isExcluded = excludingItems.length > 0
+        // PT-provided merits that this merit excludes can be "upgraded through" — pay the difference
+        const ptUpgradeItems = excludingItems.filter(name => predatorTypeMeritsByName.has(name))
+        const hardExcludingItems = excludingItems.filter(name => !predatorTypeMeritsByName.has(name))
+        const isExcluded = hardExcludingItems.length > 0
+        const ptUpgradeCredit = ptUpgradeItems.reduce(
+            (sum, name) => sum + (predatorTypeMeritsByName.get(name)?.level ?? 0), 0
+        )
 
         const meritInPredatorType = predatorTypeMeritsByName.get(meritOrFlaw.name)
         const meritInPredatorTypeLevel = meritInPredatorType?.level ?? 0
 
         const createButton = (level: number) => {
-            const cost = level - meritInPredatorTypeLevel
+            const cost = level - meritInPredatorTypeLevel - ptUpgradeCredit
             return (
                 <Button
                     key={meritOrFlaw.name + level}
@@ -187,7 +194,7 @@ const MeritOrFlawCard = memo(
         const summaryText = meritInPredatorType
             ? "Already picked in Predator Type"
             : isExcluded
-              ? `Excluded by: ${excludingItems.join(", ")}`
+              ? `Excluded by: ${hardExcludingItems.join(", ")}`
               : meritOrFlaw.summary
 
         const textContent = (
@@ -268,7 +275,7 @@ const MeritOrFlawCard = memo(
             return (
                 <Tooltip
                     key={lineKey}
-                    label={`This ${type} is excluded because you already have: ${excludingItems.join(", ")}`}
+                    label={`This ${type} is excluded because you already have: ${hardExcludingItems.join(", ")}`}
                     withArrow
                 >
                     {textContent}
@@ -289,6 +296,9 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
 
     const [activeTab, setActiveTab] = useState<string | null>("backgrounds")
     const [resetTarget, setResetTarget] = useState<ResetTarget>(null)
+    const [bgSearch, setBgSearch] = useState("")
+    const [mfSearch, setMfSearch] = useState("")
+    const [lsSearch, setLsSearch] = useState("")
 
     const [pickedMeritsAndFlaws, setPickedMeritsAndFlaws] = useState<MeritFlaw[]>([
         ...character.merits,
@@ -648,11 +658,21 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                             padding: "0 20px"
                         }}
                     >
+                        <TextInput
+                            placeholder="Search backgrounds…"
+                            value={bgSearch}
+                            onChange={e => setBgSearch(e.currentTarget.value)}
+                            size="xs"
+                            mb="xs"
+                            styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                        />
                         <ScrollArea {...columnScrollProps}>
                             <Stack gap="sm" pb="xl">
-                                {allBackgroundEntries.map((entry) =>
-                                    getMeritOrFlawLine(entry.item, entry.entryType)
-                                )}
+                                {allBackgroundEntries
+                                    .filter(e => !bgSearch || e.item.name.toLowerCase().includes(bgSearch.toLowerCase()))
+                                    .map((entry) =>
+                                        getMeritOrFlawLine(entry.item, entry.entryType)
+                                    )}
                             </Stack>
                         </ScrollArea>
                     </div>
@@ -669,7 +689,30 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                             padding: "0 20px"
                         }}
                     >
-                        {isThinBlood && phoneScreen ? (
+                        <TextInput
+                            placeholder="Search merits & flaws…"
+                            value={mfSearch}
+                            onChange={e => setMfSearch(e.currentTarget.value)}
+                            size="xs"
+                            mb="xs"
+                            styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                        />
+                        {mfSearch ? (
+                            <ScrollArea {...columnScrollProps}>
+                                <Stack gap="sm" pb="xl">
+                                    {[
+                                        ...essentialThinbloodMeritsAndFlaws.merits.map(m => ({ item: m, type: "merit" as const })),
+                                        ...essentialThinbloodMeritsAndFlaws.flaws.map(f => ({ item: f, type: "flaw" as const })),
+                                        ...allMFCategories.flatMap(cat => [
+                                            ...cat.merits.map(m => ({ item: m, type: "merit" as const })),
+                                            ...cat.flaws.map(f => ({ item: f, type: "flaw" as const }))
+                                        ])
+                                    ]
+                                        .filter(({ item }) => item.name.toLowerCase().includes(mfSearch.toLowerCase()))
+                                        .map(({ item, type }) => getMeritOrFlawLine(item, type))}
+                                </Stack>
+                            </ScrollArea>
+                        ) : isThinBlood && phoneScreen ? (
                             <Text
                                 ta="center"
                                 style={{
@@ -683,7 +726,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                                 Pick Thin-blood flaws to gain Thin-blood merit points
                             </Text>
                         ) : null}
-                        {phoneScreen ? (
+                        {!mfSearch && phoneScreen ? (
                             <ScrollArea {...columnScrollProps}>
                                 <Stack gap="sm" pb="xl">
                                     {isThinBlood ? (
@@ -764,10 +807,20 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 <Tabs.Panel value="loresheets">
                     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "0 20px" }}>
                         <div style={{ ...generatorScrollableContentStyle, height: "100%", display: "flex", flexDirection: "column" }}>
+                            <TextInput
+                                placeholder="Search loresheets…"
+                                value={lsSearch}
+                                onChange={e => setLsSearch(e.currentTarget.value)}
+                                size="xs"
+                                mb={8}
+                                styles={{ input: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(244,236,232,0.9)" } }}
+                            />
                             <ScrollArea style={{ flex: 1, minHeight: 0 }} pb={8} type="always" scrollbarSize={nightfallScrollbarSize} styles={nightfallScrollAreaStyles}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 700, margin: "0 auto", paddingTop: 8, paddingBottom: 40 }}>
                                     {LORESHEETS
                                         .filter(ls => !ls.clanRestriction?.length || ls.clanRestriction.includes(character.clan))
+                                        .filter(ls => !lsSearch || ls.name.toLowerCase().includes(lsSearch.toLowerCase()))
+                                        .sort((a, b) => a.name.localeCompare(b.name))
                                         .map(ls => {
                                             const isExpanded = expandedLoresheetIds.has(ls.id)
                                             const purchasedCount = ls.dots.filter(d => isLoresheetDotSelected(ls.name, d.name)).length
