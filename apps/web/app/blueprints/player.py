@@ -711,11 +711,14 @@ def _normalize_sheet_data(data: dict) -> dict:
     templates have one format to handle.
     """
     if 'skill_specialties' not in data:
-        cc_specs = data.get('skillSpecialties') or []
+        cc_specs = list(data.get('skillSpecialties') or [])
+        predator = data.get('predatorType')
+        if isinstance(predator, dict):
+            cc_specs = cc_specs + list(predator.get('pickedSpecialties') or [])
         merged: dict[str, list[str]] = {}
         for item in cc_specs:
             if isinstance(item, dict):
-                skill = item.get('skill', '')
+                skill = item.get('skill', '').replace(' ', '_')
                 name = item.get('name', '').strip()
                 if skill and name:
                     merged.setdefault(skill, []).append(name)
