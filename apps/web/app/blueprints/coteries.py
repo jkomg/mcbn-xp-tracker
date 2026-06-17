@@ -90,11 +90,19 @@ def view(slug: str):
         player_char = _get_player_character(discord_id)
         if player_char:
             is_member = bool(_get_coterie_member(coterie, player_char))
-            # Backgrounds the player can donate (not already donated anywhere)
+            # Backgrounds the player can donate (not already donated or pending anywhere)
             my_backgrounds = DbCharacterBackground.query.filter_by(
                 character_name=player_char.character_name,
                 donated_coterie_id=None,
+                donation_pending_coterie_id=None,
             ).filter(DbCharacterBackground.dots_total > 0).all()
+            # Backgrounds this player has pending for this coterie
+            my_pending = DbCharacterBackground.query.filter_by(
+                character_name=player_char.character_name,
+                donation_pending_coterie_id=coterie.id,
+            ).all()
+        else:
+            my_pending = []
 
     pool_backgrounds = [a for a in coterie.advantages if a.advantage_type == 'background']
     pool_merits = [a for a in coterie.advantages if a.advantage_type == 'merit']
@@ -110,6 +118,7 @@ def view(slug: str):
         is_member=is_member,
         player_char=player_char,
         my_backgrounds=my_backgrounds,
+        my_pending=my_pending,
         is_staff_user=is_staff(),
     )
 
@@ -168,17 +177,21 @@ def new():
 @require_staff
 def manage(slug: str):
     coterie = _get_coterie_or_404(slug)
-    # All active characters not yet in this coterie
     existing_ids = [m.roster_character_id for m in coterie.members]
     available_chars = DbCharacter.query.filter(
         DbCharacter.active,
         ~DbCharacter.id.in_(existing_ids) if existing_ids else True,
     ).order_by(DbCharacter.character_name).all()
 
+    pending_donations = DbCharacterBackground.query.filter_by(
+        donation_pending_coterie_id=coterie.id,
+    ).order_by(DbCharacterBackground.character_name, DbCharacterBackground.background_name).all()
+
     return render_template(
         'coteries/manage.html',
         coterie=coterie,
         available_chars=available_chars,
+        pending_donations=pending_donations,
     )
 
 
@@ -222,6 +235,11 @@ def remove_member(slug: str, member_id: int):
         character_name=char_name,
         donated_coterie_id=coterie.id,
     ).update({'donated_coterie_id': None})
+    # Cancel any pending donation requests too
+    DbCharacterBackground.query.filter_by(
+        character_name=char_name,
+        donation_pending_coterie_id=coterie.id,
+    ).update({'donation_pending_coterie_id': None})
 
     db.session.delete(member)
     db.session.commit()
@@ -333,6 +351,7 @@ def remove_advantage(slug: str, adv_id: int):
 @bp.route('/<slug>/donate/<int:bg_id>', methods=['POST'])
 @require_login
 def donate_background(slug: str, bg_id: int):
+    """Player submits a background donation request — pending staff approval."""
     coterie = _get_coterie_or_404(slug)
     discord_id = get_player_discord_id()
     player_char = _get_player_character(discord_id)
@@ -349,25 +368,91 @@ def donate_background(slug: str, bg_id: int):
         flash(f'{bg.background_name} is already donated to a coterie.', 'warning')
         return redirect(url_for('coteries.view', slug=slug))
 
-    notes = request.form.get('flaw_notes', '').strip()
+    if bg.donation_pending_coterie_id:
+        flash(f'{bg.background_name} already has a pending donation request.', 'warning')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    bg.donation_pending_coterie_id = coterie.id
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(
+        f'Donation request for {bg.background_name} submitted — awaiting staff approval.',
+        'success',
+    )
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/donate/<int:bg_id>/cancel', methods=['POST'])
+@require_login
+def cancel_donation(slug: str, bg_id: int):
+    """Player cancels their own pending donation request."""
+    coterie = _get_coterie_or_404(slug)
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+
+    if not player_char or not _get_coterie_member(coterie, player_char):
+        abort(403)
+
+    bg = DbCharacterBackground.query.filter_by(
+        id=bg_id,
+        character_name=player_char.character_name,
+        donation_pending_coterie_id=coterie.id,
+    ).first_or_404()
+
+    bg.donation_pending_coterie_id = None
+    db.session.commit()
+    flash(f'Donation request for {bg.background_name} cancelled.', 'info')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/donate/<int:bg_id>/approve', methods=['POST'])
+@require_staff
+def approve_donation(slug: str, bg_id: int):
+    """Staff approves a pending background donation."""
+    coterie = _get_coterie_or_404(slug)
+
+    bg = DbCharacterBackground.query.filter_by(
+        id=bg_id,
+        donation_pending_coterie_id=coterie.id,
+    ).first_or_404()
+
     bg.donated_coterie_id = coterie.id
+    bg.donation_pending_coterie_id = None
+
+    notes = request.form.get('flaw_notes', '').strip()
     if notes:
-        # Append flaw note to any existing notes via advantage entry
         flaw_adv = CoterieAdvantage(
             coterie_id=coterie.id,
             name=f'{bg.background_name} flaw(s)',
             dots=0,
             advantage_type='flaw',
             notes=notes,
-            added_by=player_char.character_name,
+            added_by='staff',
             created_at=datetime.now(timezone.utc),
         )
         db.session.add(flaw_adv)
 
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
-    flash(f'{bg.background_name} donated to {coterie.name}.', 'success')
-    return redirect(url_for('coteries.view', slug=slug))
+    flash(f'{bg.background_name} ({bg.character_name}) approved and added to {coterie.name}.', 'success')
+    return redirect(url_for('coteries.manage', slug=slug))
+
+
+@bp.route('/<slug>/donate/<int:bg_id>/deny', methods=['POST'])
+@require_staff
+def deny_donation(slug: str, bg_id: int):
+    """Staff denies a pending background donation."""
+    coterie = _get_coterie_or_404(slug)
+
+    bg = DbCharacterBackground.query.filter_by(
+        id=bg_id,
+        donation_pending_coterie_id=coterie.id,
+    ).first_or_404()
+
+    bg.donation_pending_coterie_id = None
+    db.session.commit()
+    flash(f'Donation request for {bg.background_name} ({bg.character_name}) denied.', 'info')
+    return redirect(url_for('coteries.manage', slug=slug))
 
 
 @bp.route('/<slug>/undonate/<int:bg_id>', methods=['POST'])

@@ -280,6 +280,8 @@ class DbCharacterBackground(db.Model):
     # Set when this background has been donated to a coterie pool.
     # While donated, only coterie members may blank it (not the PC owner independently).
     donated_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
+    # Set when a player has requested donation pending staff approval.
+    donation_pending_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
 
     @property
     def dots_available(self) -> int:

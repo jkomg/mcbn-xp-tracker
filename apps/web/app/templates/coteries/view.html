@@ -184,14 +184,32 @@
                 <p class="text-muted small mb-3">No donated backgrounds yet.</p>
                 {% endif %}
 
-                <!-- Donate form (own backgrounds) -->
+                <!-- Pending donation requests (muted, visible to all members) -->
+                {% if my_pending %}
+                {% if donated_bgs %}<hr class="my-2">{% endif %}
+                {% for bg in my_pending %}
+                <div class="sheet-trait-row opacity-50">
+                    <span>
+                        <span class="sheet-trait-name">{{ bg.background_name }}</span>
+                        <br><small class="text-muted">{{ bg.character_name }} · pending approval</small>
+                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= bg.dots_total %}filled{% endif %}"></span>{% endfor %}</span>
+                        <span class="badge bg-secondary">Pending</span>
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('coteries.cancel_donation', slug=coterie.slug, bg_id=bg.id) }}"
+                      class="mb-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary">Cancel request</button>
+                </form>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Donate form (own backgrounds not yet donated or pending) -->
                 {% if is_member and player_char %}
-                {% set my_bgs = player_char | attr('character_name') %}
                 <hr class="my-3">
-                <p class="small text-muted mb-2">Donate one of your backgrounds:</p>
-                {% set available_bgs = [] %}
-                {% for bg in donated_bgs %}{% endfor %}{# loop used below #}
-                {# fetch player bgs via context — rendered from blueprint #}
+                <p class="small text-muted mb-2">Request to donate a background:</p>
                 {% if my_backgrounds %}
                 <form method="POST" action="{{ url_for('coteries.donate_background', slug=coterie.slug, bg_id=0) }}"
                       id="donate-form">
@@ -202,9 +220,7 @@
                         <option value="{{ bg.id }}">{{ bg.background_name }} ({{ bg.dots_total }}●{% if bg.dots_blanked %}, {{ bg.dots_blanked }} blanked{% endif %})</option>
                         {% endfor %}
                     </select>
-                    <input type="text" name="flaw_notes" class="form-control form-control-sm mb-2"
-                           placeholder="Flaw notes (e.g. Haven - Creepy, •)">
-                    <button class="btn btn-sm btn-outline-secondary w-100">Donate to Coterie</button>
+                    <button class="btn btn-sm btn-outline-secondary w-100">Submit Donation Request</button>
                 </form>
                 <script>
                 document.getElementById('donate-form').addEventListener('submit', function(e) {
@@ -215,7 +231,7 @@
                 });
                 </script>
                 {% else %}
-                <p class="text-muted small">No undated backgrounds to donate.</p>
+                <p class="text-muted small">No backgrounds available to donate.</p>
                 {% endif %}
                 {% endif %}
             </div>

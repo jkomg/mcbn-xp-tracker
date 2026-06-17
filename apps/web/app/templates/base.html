@@ -130,6 +130,12 @@
                             <i class="bi bi-slash-circle"></i> <span>Loresheet Restrictions</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link ps-4 {% if request.endpoint and request.endpoint.startswith('coteries.') %}active{% endif %}"
+                           href="{{ url_for('coteries.index') }}">
+                            <i class="bi bi-people"></i> <span>Coteries</span>
+                        </a>
+                    </li>
                     {% endif %}
                     {% if is_admin %}
                     <li class="nav-item">
@@ -161,6 +167,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('player.my_characters') }}">
                             <i class="bi bi-person-circle"></i> <span>Player Portal</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('coteries.') %}active{% endif %}"
+                           href="{{ url_for('coteries.index') }}">
+                            <i class="bi bi-people"></i> <span>Coteries</span>
                         </a>
                     </li>
                     <li class="nav-item">
