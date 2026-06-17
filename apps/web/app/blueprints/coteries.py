@@ -85,6 +85,7 @@ def view(slug: str):
     is_member = False
     player_char = None
     my_backgrounds = []
+    my_pending = []
     if _session.get('authenticated'):
         discord_id = get_player_discord_id()
         player_char = _get_player_character(discord_id)
