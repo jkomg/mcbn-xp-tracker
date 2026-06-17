@@ -456,6 +456,64 @@
     </div>
   </div>
 
+  {# Chronicle #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-chronicle" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Chronicle
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-chronicle">
+    <p class="text-muted small mb-2">
+      Chronicle-wide settings displayed on player sheets. One tenet per line.
+    </p>
+    <div class="card border-secondary bg-transparent">
+      <div class="card-body p-2">
+        <table class="table table-sm table-dark mb-0">
+          <thead>
+            <tr>
+              <th style="width:160px">Setting</th>
+              <th>Value</th>
+              <th class="text-muted small">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-semibold">
+                Chronicle Tenets
+                {% if chronicle_settings.tenets_overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
+              </td>
+              <td>
+                {% if can_edit %}
+                <form method="POST" action="{{ url_for('settings.update') }}">
+                  <input type="hidden" name="key" value="CHRONICLE_TENETS">
+                  <input type="hidden" name="action" value="set">
+                  <textarea name="value" rows="4"
+                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace mb-1"
+                    style="width:340px; resize:vertical;">{{ chronicle_settings.tenets or '' }}</textarea>
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+                {% if chronicle_settings.tenets_overridden %}
+                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+                  <input type="hidden" name="key" value="CHRONICLE_TENETS">
+                  <input type="hidden" name="action" value="reset">
+                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
+                </form>
+                {% endif %}
+                {% else %}
+                <pre class="small text-muted mb-0">{{ chronicle_settings.tenets or '(not set)' }}</pre>
+                {% endif %}
+              </td>
+              <td class="text-muted small">Displayed on player sheets and inline character view. One tenet per line.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   {# Bot — Channel IDs #}
   <h5 class="mb-2 mt-2">
     <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
