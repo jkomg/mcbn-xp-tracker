@@ -3,14 +3,40 @@
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a href="{{ url_for('coteries.view', slug=coterie.slug) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <h2 class="mb-0">{{ coterie.name }} <span class="badge {% if coterie.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} fs-6">{{ coterie.status }}</span></h2>
-    {% if coterie.status == 'pending' %}
+    <h2 class="mb-0">
+        {{ coterie.name }}
+        <span class="badge {% if coterie.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} fs-6">{{ coterie.status }}</span>
+        {% if coterie.creation_state == 'forming' %}
+        <span class="badge bg-secondary fs-6">forming</span>
+        {% elif coterie.creation_state == 'submitted' %}
+        <span class="badge bg-warning text-dark fs-6">awaiting sign-off</span>
+        {% endif %}
+    </h2>
+    {% if coterie.status == 'pending' and not coterie.creation_state %}
     <form method="POST" action="{{ url_for('coteries.activate', slug=coterie.slug) }}" class="ms-auto">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-sm btn-success">Activate Coterie</button>
     </form>
     {% endif %}
 </div>
+
+{% if coterie.creation_state == 'submitted' %}
+<div class="alert alert-warning mb-4">
+    <strong><i class="bi bi-hourglass-split"></i> Sign-off Pending</strong>
+    <p class="mb-3 mt-1">This coterie has been submitted by the players and is ready for your review.</p>
+    <div class="d-flex gap-2 flex-wrap">
+        <form method="POST" action="{{ url_for('coteries.approve_formation', slug=coterie.slug) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-success"><i class="bi bi-check-lg"></i> Approve Formation</button>
+        </form>
+        <form method="POST" action="{{ url_for('coteries.sendback_formation', slug=coterie.slug) }}" class="d-flex gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="notes" class="form-control form-control-sm" style="width:280px" placeholder="Notes for players (optional)">
+            <button class="btn btn-outline-secondary"><i class="bi bi-arrow-return-left"></i> Send Back</button>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% for cat, msg in messages %}<div class="alert alert-{{ cat }} py-2">{{ msg }}</div>{% endfor %}

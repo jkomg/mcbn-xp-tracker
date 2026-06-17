@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Propose a Coterie{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('coteries.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h2 class="mb-0">Propose a Coterie</h2>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}<div class="alert alert-{{ cat }} py-2">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+<div class="row justify-content-center">
+<div class="col-lg-6">
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Proposing as <strong>{{ player_char.character_name }}</strong>.
+            Your coterie will start in the <em>forming</em> phase — allocate creation dots,
+            then submit for staff sign-off.
+        </p>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Coterie Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" maxlength="200"
+                       placeholder="e.g. The Midnight Accord" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Description</label>
+                <textarea name="description" class="form-control" rows="3"
+                          placeholder="A brief description of the coterie's purpose or focus…"></textarea>
+            </div>
+
+            {% if invitable %}
+            <div class="mb-4">
+                <label class="form-label fw-bold">Invite Members</label>
+                <p class="text-muted small mb-2">
+                    Select characters to include in the formation. They must not already be in a coterie.
+                    You can add or remove members before sign-off.
+                </p>
+                <div class="border border-secondary rounded p-2" style="max-height:240px;overflow-y:auto;">
+                    {% for c in invitable %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="invite_ids"
+                               value="{{ c.id }}" id="inv_{{ c.id }}">
+                        <label class="form-check-label" for="inv_{{ c.id }}">
+                            {{ c.character_name }}
+                            <small class="text-muted">— {{ c.clan or 'Unknown clan' }}</small>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mb-4">
+                <p class="text-muted small">No other characters are available to invite right now.</p>
+            </div>
+            {% endif %}
+
+            <button class="btn btn-danger w-100">
+                <i class="bi bi-people-fill"></i> Propose Coterie
+            </button>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
