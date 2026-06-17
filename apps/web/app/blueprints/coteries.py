@@ -575,7 +575,7 @@ def propose():
     # Characters eligible to invite (active, approved, not already in a coterie)
     already_in = db.session.query(CoterieMember.roster_character_id).subquery()
     invitable = DbCharacter.query.filter(
-        DbCharacter.active == True,
+        DbCharacter.active,
         DbCharacter.id != player_char.id,
         ~DbCharacter.id.in_(already_in),
     ).order_by(DbCharacter.character_name).all()
@@ -625,7 +625,7 @@ def propose():
         # Add invited members
         invited_chars = DbCharacter.query.filter(
             DbCharacter.id.in_(invite_ids),
-            DbCharacter.active == True,
+            DbCharacter.active,
         ).all()
         for char in invited_chars:
             # Skip anyone already in a coterie
@@ -661,15 +661,7 @@ def _creation_flaw_dots(coterie: Coterie) -> int:
 def _creation_budget(coterie: Coterie) -> dict:
     base = len(coterie.members) * _CREATION_DOTS_PER_MEMBER
     bonus = _creation_flaw_dots(coterie)
-    total = base + bonus
-    used = sum(
-        a.dots for a in coterie.advantages
-        if a.notes == '__creation__' and a.advantage_type != 'flaw'
-    ) + coterie.chasse + coterie.lien + coterie.portillon
-    # domain is tracked separately; subtract only what was added during forming
-    # We track creation-phase domain via free_dots_remaining reduction
-    used_dots = base - sum(m.free_dots_remaining for m in coterie.members) + bonus
-    used_dots = max(0, used_dots)
+    used_dots = max(0, base - sum(m.free_dots_remaining for m in coterie.members) + bonus)
     return {
         'base': base,
         'bonus': bonus,
