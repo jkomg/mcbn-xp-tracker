@@ -544,6 +544,11 @@ def index():
                 'has_env_access': True,
             })
 
+    chronicle_settings = {
+        'tenets': get_app_setting('CHRONICLE_TENETS', ''),
+        'tenets_overridden': 'CHRONICLE_TENETS' in overrides,
+    }
+
     return render_template(
         'settings/index.html',
         web_flags=web_flags,
@@ -552,6 +557,7 @@ def index():
         bot_flags=bot_flags,
         bot_channels=bot_channels,
         bot_tuning=bot_tuning,
+        chronicle_settings=chronicle_settings,
         can_edit=can_edit,
         bot_heartbeat_age=bot_heartbeat_age,
         bot_heartbeat_ts=bot_heartbeat_ts,
@@ -676,6 +682,7 @@ def update():
     _STR_KEYS = {
         'BOT_ANNOUNCEMENTS_CHANNEL_ID',
         'BOT_CC_TICKET_CATEGORY_IDS',
+        'CHRONICLE_TENETS',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.

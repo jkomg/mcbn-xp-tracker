@@ -14,6 +14,14 @@ from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, Discord
 bp = Blueprint('reports', __name__)
 
 
+def _iso_date(d: str) -> str:
+    """Normalize YYYYMMDD or YYYY-MM-DD to YYYY-MM-DD."""
+    d = d.strip()
+    if len(d) == 8 and d.isdigit():
+        return f'{d[:4]}-{d[4:6]}-{d[6:]}'
+    return d
+
+
 @bp.route('/reports')
 @require_staff
 def index():
@@ -103,8 +111,8 @@ def index():
     discord_activity = []
     if recent_periods:
         end_dates = [p.end_date for p in recent_periods if p.end_date]
-        act_since = min(start_dates) if start_dates else ''
-        act_until = max(end_dates) if end_dates else ''
+        act_since = _iso_date(min(start_dates)) if start_dates else ''
+        act_until = _iso_date(max(end_dates)) if end_dates else ''
 
         act_q = DiscordPostCount.query
         if act_since:

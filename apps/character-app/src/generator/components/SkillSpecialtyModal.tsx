@@ -16,6 +16,7 @@ type SpecialtyModalProps = {
     skills: Skills
     setCharacter: (character: Character) => void
     nextStep: () => void
+    isImAncilla?: boolean
 }
 
 const BONUS_SPECIALTY_SKILLS = ["academics", "craft", "performance", "science"] as const
@@ -27,7 +28,8 @@ export const SpecialtyModal = ({
     nextStep,
     character,
     pickedSkillNames,
-    skills
+    skills,
+    isImAncilla = false,
 }: SpecialtyModalProps) => {
     const phoneScreen = globals.isPhoneScreen
 
@@ -130,16 +132,46 @@ export const SpecialtyModal = ({
                             lineHeight: 1.55
                         }}
                     >
-                        Specialties represent focused expertise within a skill —{" "}
-                        <span style={{ color: "rgba(244, 236, 232, 0.8)" }}>
-                            Performance: Dancing
-                        </span>{" "}
-                        or{" "}
-                        <span style={{ color: "rgba(244, 236, 232, 0.8)" }}>
-                            Academics: History
-                        </span>
-                        .
+                        {isImAncilla ? (
+                            <>
+                                Your specialties must reflect your character's era — choose
+                                period-appropriate skills, not modern ones.{" "}
+                                <span style={{ color: "rgba(244, 236, 232, 0.8)" }}>
+                                    Performance: Lute
+                                </span>{" "}
+                                rather than{" "}
+                                <span style={{ color: rgba(RAW_GREY, 0.4), textDecoration: "line-through" }}>
+                                    Performance: Guitar
+                                </span>
+                                . Your Storyteller will review and may adjust these before approval.
+                            </>
+                        ) : (
+                            <>
+                                Specialties represent focused expertise within a skill —{" "}
+                                <span style={{ color: "rgba(244, 236, 232, 0.8)" }}>
+                                    Performance: Dancing
+                                </span>{" "}
+                                or{" "}
+                                <span style={{ color: "rgba(244, 236, 232, 0.8)" }}>
+                                    Academics: History
+                                </span>
+                                .
+                            </>
+                        )}
                     </Text>
+                    {isImAncilla && (
+                        <Text
+                            mt={8}
+                            style={{
+                                fontFamily: "Inter, Segoe UI, sans-serif",
+                                fontSize: "0.78rem",
+                                color: rgba(RAW_GOLD, 0.7),
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            ⚠ ST review required — your proposed specialties will be confirmed or edited during character approval.
+                        </Text>
+                    )}
                 </div>
 
                 <div

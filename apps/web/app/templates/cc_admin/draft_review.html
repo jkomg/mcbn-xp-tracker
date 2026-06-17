@@ -134,6 +134,27 @@
   </div>
   {% endif %}
 
+  {# ── Skill Specialties ── #}
+  {% set specialties = char_data.get('skillSpecialties', []) %}
+  {% set is_im_ancilla = char_data.get('age_category') == 'ancilla' and char_data.get('in_memoriam') and not char_data.get('in_memoriam', {}).get('use_standard', True) %}
+  {% if specialties %}
+  <div class="card mb-3{% if is_im_ancilla %} border-warning{% endif %}">
+    <div class="card-header py-2 fw-semibold d-flex align-items-center gap-2">
+      Skill Specialties
+      {% if is_im_ancilla %}
+        <span class="badge bg-warning text-dark ms-auto">ST Review Required — must be archaic</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <ul class="mb-0 ps-3">
+        {% for s in specialties %}
+          <li class="text-capitalize">{{ s.get('skill', '?') }}: {{ s.get('name', '?') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
   {# ── Disciplines ── #}
   {% set disciplines = char_data.get('disciplines', []) %}
   {% if disciplines %}
@@ -338,6 +359,24 @@
       <form method="post" action="{{ url_for('cc_admin.draft_approve', draft_id=draft.id) }}"
             onsubmit="return confirm('Approve {{ draft.character_name or 'this character' }}?')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if is_im_ancilla and specialties %}
+        <div class="mb-3 p-3 border border-warning rounded">
+          <div class="fw-semibold small text-warning mb-2">
+            <i class="bi bi-pencil me-1"></i> Edit Archaic Specialties before approving
+          </div>
+          {% for s in specialties %}
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <input type="hidden" name="specialty_{{ loop.index0 }}_skill" value="{{ s.get('skill', '') }}">
+            <span class="text-capitalize text-muted small" style="min-width:100px;">{{ s.get('skill', '?') }}:</span>
+            <input type="text" name="specialty_{{ loop.index0 }}_name"
+                   value="{{ s.get('name', '') }}"
+                   class="form-control form-control-sm bg-dark text-light border-secondary"
+                   style="max-width:220px;"
+                   placeholder="archaic specialty">
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
         <button type="submit" class="btn btn-success">
           <i class="bi bi-check-circle me-1"></i> Approve Character
         </button>
