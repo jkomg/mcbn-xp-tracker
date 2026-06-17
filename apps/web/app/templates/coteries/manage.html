@@ -135,6 +135,33 @@
             </div>
         </div>
 
+        <!-- Domain -->
+        <div class="card mb-3">
+            <div class="card-header fw-bold"><i class="bi bi-map"></i> Domain</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('coteries.update_domain', slug=coterie.slug) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-2 mb-3">
+                        {% for label, field, val in [
+                            ('Chasse', 'chasse', coterie.chasse),
+                            ('Lien', 'lien', coterie.lien),
+                            ('Portillon', 'portillon', coterie.portillon),
+                        ] %}
+                        <div class="col-4">
+                            <label class="form-label fw-bold small mb-1">{{ label }}</label>
+                            <select name="{{ field }}" class="form-select form-select-sm">
+                                {% for n in range(6) %}
+                                <option value="{{ n }}" {% if val == n %}selected{% endif %}>{{ n }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary">Update Domain</button>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header fw-bold small text-muted">Pool Summary</div>
             <div class="card-body small text-muted">

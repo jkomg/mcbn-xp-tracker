@@ -2033,3 +2033,52 @@ def activate_coterie():
             'free_pool_total': sum(m.free_dots_remaining for m in coterie.members),
         },
     })
+
+
+@bp.route('/coteries/by-character/<discord_id>', methods=['GET'])
+@require_bot_scope('read')
+def get_coterie_for_character(discord_id: str):
+    """Return the coterie for the given player's active character.
+
+    Used by the bot's /coterie status command.
+    Response: { coterie, character_name, members } or 404.
+    """
+    from app.db import Coterie, CoterieMember, DbCharacter
+
+    char = DbCharacter.query.filter_by(
+        player_discord=discord_id, active=True
+    ).first()
+    if not char:
+        return jsonify({'error': 'No active character found for this Discord user'}), 404
+
+    membership = CoterieMember.query.filter_by(
+        roster_character_id=char.id
+    ).first()
+    if not membership:
+        return jsonify({'coterie': None, 'character_name': char.character_name}), 200
+
+    coterie = membership.coterie
+    members = []
+    for m in coterie.members:
+        c = m.character
+        members.append({
+            'character_name': c.character_name,
+            'clan': c.clan or '',
+            'player_discord_id': c.player_discord or '',
+            'player_name': c.player_discord_name or '',
+        })
+
+    return jsonify({
+        'character_name': char.character_name,
+        'coterie': {
+            'id': coterie.id,
+            'name': coterie.name,
+            'slug': coterie.slug,
+            'description': coterie.description or '',
+            'status': coterie.status,
+            'chasse': coterie.chasse,
+            'lien': coterie.lien,
+            'portillon': coterie.portillon,
+        },
+        'members': members,
+    })
