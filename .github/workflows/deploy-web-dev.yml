@@ -1,12 +1,12 @@
 name: Deploy Web to Cloud Run (Dev)
 
 on:
-  # Deploy to dev on every successful CI run on main — same image, isolated DB.
-  # This catches migration errors and startup crashes before prod gets the code.
+  # Deploy to dev on every successful CI run on any branch — isolated DB.
+  # On main: also gates prod (prod only fires when this succeeds on main).
+  # On feature branches: lets you test PRs on dev without merging first.
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       reason:
