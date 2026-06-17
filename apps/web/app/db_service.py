@@ -187,6 +187,8 @@ def _row_to_spend(row: DbSpendRequest) -> SpendRequest:
         review_date=row.review_date or '',
         st_notes=row.st_notes or '',
         depends_on=row.depends_on or 0,
+        coterie_id=row.coterie_id or 0,
+        coterie_name=row.coterie.name if row.coterie_id and row.coterie else '',
     )
 
 
@@ -768,7 +770,8 @@ class DBService:
                              trait_name: str, current_dots: int,
                              new_dots: int, is_in_clan: bool,
                              justification: str, depends_on: int = 0,
-                             power_name: str = '') -> int:
+                             power_name: str = '',
+                             coterie_id: int | None = None) -> int:
         """Submit a new spend request. Returns the calculated XP cost.
 
         Raises ValueError if the cost calculation fails.
@@ -793,6 +796,7 @@ class DBService:
             review_date='',
             st_notes='',
             depends_on=depends_on if depends_on else None,
+            coterie_id=coterie_id or None,
         )
         db.session.add(row)
         db.session.commit()
