@@ -235,6 +235,16 @@ def character(name):
                 except (json.JSONDecodeError, TypeError):
                     sheet_data = None
 
+    # Coterie membership
+    player_coterie = None
+    player_coterie_role = None
+    if char_row:
+        from app.db import CoterieMember
+        membership = CoterieMember.query.filter_by(roster_character_id=char_row.id).first()
+        if membership:
+            player_coterie = membership.coterie
+            player_coterie_role = membership.role
+
     return render_template(
         'player/character.html',
         char=char,
@@ -258,6 +268,8 @@ def character(name):
         has_approved_draft=has_approved_draft,
         sheet_data=sheet_data,
         chronicle_tenets=_get_chronicle_tenets(),
+        player_coterie=player_coterie,
+        player_coterie_role=player_coterie_role,
     )
 
 
