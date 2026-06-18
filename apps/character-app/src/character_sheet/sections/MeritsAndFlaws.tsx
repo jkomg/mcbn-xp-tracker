@@ -87,9 +87,12 @@ const MeritsAndFlaws = ({ options }: MeritsAndFlawsProps) => {
         return [...regularFlaws, ...autoFlaws]
     }, [character.flaws, predatorTypeFlaws])
 
+    const allBackgrounds = character.backgrounds ?? []
+
     if (
         character.merits.length === 0 &&
         character.flaws.length === 0 &&
+        allBackgrounds.length === 0 &&
         predatorTypeMerits.length === 0 &&
         predatorTypeFlaws.length === 0 &&
         !isEditable
@@ -127,11 +130,38 @@ const MeritsAndFlaws = ({ options }: MeritsAndFlawsProps) => {
         <>
             <Box>
                 <Title order={2} mb="md" c={primaryColor}>
-                    Merits & Flaws
+                    Advantages & Flaws
                 </Title>
                 <Grid>
+                    {allBackgrounds.length > 0 ? (
+                        <Grid.Col span={{ base: 12, md: 4 }}>
+                            <Title order={4} mb="sm">
+                                Backgrounds
+                            </Title>
+                            <Stack gap="xs">
+                                {allBackgrounds.map((bg, index) => (
+                                    <Paper
+                                        key={index}
+                                        p="sm"
+                                        withBorder
+                                        style={{ backgroundColor: paperBg }}
+                                    >
+                                        <Group justify="space-between">
+                                            <Text fw={700}>{bg.name}</Text>
+                                            <Badge color={primaryColor} circle>{bg.level}</Badge>
+                                        </Group>
+                                        {bg.summary ? (
+                                            <Text size="sm" c="dimmed" mt="xs">
+                                                {bg.summary.charAt(0).toUpperCase() + bg.summary.slice(1)}
+                                            </Text>
+                                        ) : null}
+                                    </Paper>
+                                ))}
+                            </Stack>
+                        </Grid.Col>
+                    ) : null}
                     {allMerits.length > 0 || isEditable ? (
-                        <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Grid.Col span={{ base: 12, md: allBackgrounds.length > 0 ? 4 : 6 }}>
                             <Title order={4} mb="sm">
                                 Merits
                             </Title>
@@ -251,7 +281,7 @@ const MeritsAndFlaws = ({ options }: MeritsAndFlawsProps) => {
                         </Grid.Col>
                     ) : null}
                     {allFlaws.length > 0 || isEditable ? (
-                        <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Grid.Col span={{ base: 12, md: allBackgrounds.length > 0 ? 4 : 6 }}>
                             <Title order={4} mb="sm">
                                 Flaws
                             </Title>

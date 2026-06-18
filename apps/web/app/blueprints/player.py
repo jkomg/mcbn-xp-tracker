@@ -832,11 +832,8 @@ def _map_rod_to_cc(rod: dict) -> dict:
             'type': 'merit',
         }
 
-    # Merits + Backgrounds (both map to CC merits list)
-    data['merits'] = (
-        [_map_adv(m) for m in (rod.get('merits') or [])]
-        + [_map_adv(b) for b in (rod.get('backgrounds') or [])]
-    )
+    data['merits'] = [_map_adv(m) for m in (rod.get('merits') or [])]
+    data['backgrounds'] = [_map_adv(b) for b in (rod.get('backgrounds') or [])]
     data['flaws'] = [_map_adv(f) for f in (rod.get('flaws') or [])]
 
     # Loresheets

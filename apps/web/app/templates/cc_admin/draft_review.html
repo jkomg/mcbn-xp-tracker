@@ -197,6 +197,21 @@
   </div>
   {% endif %}
 
+  {# ── Backgrounds ── #}
+  {% set backgrounds = char_data.get('backgrounds', []) %}
+  {% if backgrounds %}
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Backgrounds</div>
+    <div class="card-body">
+      <ul class="mb-0 ps-3">
+        {% for b in backgrounds %}
+          <li>{{ b.get('name', '?') }} (•{{ b.get('level', '') }})</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
   {# ── Merits & Flaws ── #}
   {% set merits = char_data.get('merits', []) %}
   {% set flaws = char_data.get('flaws', []) %}

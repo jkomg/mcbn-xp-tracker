@@ -3,11 +3,12 @@ import { MeritFlaw } from "../../data/Character"
 import Tally from "../../components/Tally"
 
 export type MeritsAndFlawsProps = {
+    backgrounds: MeritFlaw[]
     merits: MeritFlaw[]
     flaws: MeritFlaw[]
 }
 
-const MeritsAndFlawsDisplay = ({ merits, flaws }: MeritsAndFlawsProps) => {
+const MeritsAndFlawsDisplay = ({ backgrounds, merits, flaws }: MeritsAndFlawsProps) => {
     const textStyle: React.CSSProperties = {
         fontFamily: "Courier New"
     }
@@ -20,8 +21,25 @@ const MeritsAndFlawsDisplay = ({ merits, flaws }: MeritsAndFlawsProps) => {
 
     return (
         <Stack>
-            <Title order={2}>Merits & Flaws</Title>
+            <Title order={2}>Advantages & Flaws</Title>
             <Grid>
+                {backgrounds.length > 0 ? (
+                    <Grid.Col span={12}>
+                        <Title order={4} mb={4}>Backgrounds</Title>
+                        <List>
+                            {backgrounds.map((bg) => (
+                                <List.Item key={bg.name}>
+                                    <Group gap={0} wrap="nowrap" align="center">
+                                        <Text c="blue" style={nameStyle}>{bg.name.slice(0, 7)}:</Text>
+                                        <Box style={textStyle}>
+                                            <Tally n={bg.level} style={{ color: "var(--mantine-color-blue-6)" }} />
+                                        </Box>
+                                    </Group>
+                                </List.Item>
+                            ))}
+                        </List>
+                    </Grid.Col>
+                ) : null}
                 <Grid.Col span={6}>
                     <List>
                         {merits.map((merit) => {

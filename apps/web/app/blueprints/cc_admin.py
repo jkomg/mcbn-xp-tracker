@@ -21,7 +21,7 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 import logging
 
 from app.auth import require_staff
-from app.db import CharacterDraft, CcRestriction, DbCharacter, db
+from app.db import CharacterDraft, CcRestriction, DbCharacter, DbCharacterBackground, db
 from app import db_service, sheets_sync
 from app.models import Character
 
@@ -281,6 +281,36 @@ def draft_approve(draft_id):
                 logger.info('CC approval: created roster entry for %s', char_name)
             except Exception as exc:
                 logger.warning('CC approval: failed to create roster for %s: %s', char_name, exc)
+
+    # Sync backgrounds from char_data into DbCharacterBackground (upsert by key)
+    approval_actor = f'cc_approval:{actor}'
+    char_name_for_bg = draft.character_name or ''
+    raw_backgrounds = char_data.get('backgrounds') or []
+    if char_name_for_bg and raw_backgrounds:
+        for bg in raw_backgrounds:
+            name = (bg.get('name') or '').strip()
+            dots = int(bg.get('level') or 0)
+            if not name or dots <= 0:
+                continue
+            bg_key = db_service._background_key(name)
+            existing = DbCharacterBackground.query.filter_by(
+                character_name=char_name_for_bg,
+                background_key=bg_key,
+            ).first()
+            if existing:
+                existing.dots_total = dots
+                existing.updated_by = approval_actor
+                existing.updated_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+            else:
+                db.session.add(DbCharacterBackground(
+                    character_name=char_name_for_bg,
+                    background_key=bg_key,
+                    background_name=name,
+                    dots_total=dots,
+                    dots_blanked=0,
+                    updated_by=approval_actor,
+                    updated_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
+                ))
 
     db.session.commit()
     flash(f'Character "{draft.character_name or draft.id}" approved.', 'success')

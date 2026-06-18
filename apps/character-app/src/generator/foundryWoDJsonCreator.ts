@@ -476,6 +476,7 @@ export const createWoD5EVttJson = (
 
     // Merit items
     const allMerits = [
+        ...(character.backgrounds || []),
         ...(character.merits || []),
         ...(character.predatorType?.pickedMeritsAndFlaws?.filter((m) => m.type === "merit") || [])
     ]

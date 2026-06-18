@@ -57,7 +57,8 @@ const CharacterSheet = ({ character, setCharacter }: CharacterSheetProps) => {
             character.sire === emptyChar.sire &&
             character.disciplines.length === 0 &&
             character.merits.length === 0 &&
-            character.flaws.length === 0
+            character.flaws.length === 0 &&
+            (character.backgrounds ?? []).length === 0
         )
     }, [character])
 
@@ -230,7 +231,7 @@ const CharacterSheet = ({ character, setCharacter }: CharacterSheetProps) => {
 
                                 <Touchstones options={sheetOptions} />
 
-                                {character.merits.length > 0 || character.flaws.length > 0 ? (
+                                {character.merits.length > 0 || character.flaws.length > 0 || (character.backgrounds ?? []).length > 0 ? (
                                     <Divider />
                                 ) : null}
 

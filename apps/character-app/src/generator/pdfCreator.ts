@@ -387,7 +387,7 @@ export const createPdf_nerdbert = async (character: Character): Promise<Uint8Arr
     }
 
     // Merits & flaws
-    const characterMeritsFlaws = [...character.merits, ...character.flaws]
+    const characterMeritsFlaws = [...(character.backgrounds ?? []), ...character.merits, ...character.flaws]
     const predatorTypeMeritsFlaws = PredatorTypes[
         character.predatorType.name
     ].meritsAndFlaws.filter((m) => !characterMeritsFlaws.map((cm) => cm.name).includes(m.name))

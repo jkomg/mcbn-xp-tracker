@@ -120,6 +120,7 @@ export const getBasicTestCharacter = (): Character => {
         willpower: 4,
         experience: 15,
         humanity: 7,
+        backgrounds: [],
         merits: [
             {
                 name: "Direct Merit",
