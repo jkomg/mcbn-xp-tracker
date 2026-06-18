@@ -244,7 +244,7 @@ def remove_member(slug: str, member_id: int):
     DbCharacterBackground.query.filter_by(
         character_name=char_name,
         donated_coterie_id=coterie.id,
-    ).update({'donated_coterie_id': None})
+    ).update({'donated_coterie_id': None, 'dots_blanked': 0})
     # Cancel any pending donation requests too
     DbCharacterBackground.query.filter_by(
         character_name=char_name,
@@ -442,6 +442,7 @@ def approve_donation(slug: str, bg_id: int):
 
     bg.donated_coterie_id = coterie.id
     bg.donation_pending_coterie_id = None
+    bg.dots_blanked = bg.dots_total
 
     notes = request.form.get('flaw_notes', '').strip()
     if notes:
@@ -496,6 +497,7 @@ def undonate_background(slug: str, bg_id: int):
     ).first_or_404()
 
     bg.donated_coterie_id = None
+    bg.dots_blanked = 0
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     flash(f'{bg.background_name} removed from coterie pool.', 'success')
