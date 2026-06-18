@@ -22,7 +22,10 @@
                 <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
                     <div>
                         <div class="text-muted small mb-1" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">Trait</div>
-                        <h4 class="mb-0">{{ spend.trait_name }}</h4>
+                        <h4 class="mb-0">
+                            {{ spend.trait_name }}
+                            {% if spend.coterie_id %}<span class="badge bg-info ms-2" title="Coterie donation"><i class="bi bi-people"></i> {{ spend.coterie_name }}</span>{% endif %}
+                        </h4>
                         {% if spend.power_name %}
                         <div class="text-muted small mt-1"><i class="bi bi-lightning"></i> {{ spend.power_name }}</div>
                         {% endif %}

@@ -110,6 +110,8 @@ class DbSpendRequest(db.Model):
     st_notes = db.Column(Text, default='')
     power_name = db.Column(String(100), default='')   # specific power/ritual name for discipline spends
     depends_on = db.Column(Integer, nullable=True)  # FK to another spend request id
+    coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
+    coterie = db.relationship('Coterie', foreign_keys=[coterie_id], lazy='joined')
 
 
 class DbLedgerEntry(db.Model):

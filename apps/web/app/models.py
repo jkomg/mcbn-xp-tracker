@@ -130,6 +130,8 @@ class SpendRequest:
     review_date: str = ''
     st_notes: str = ''
     depends_on: int = 0        # ID of spend that must be approved first (0 = none)
+    coterie_id: int = 0        # Coterie this spend is donated toward (0 = none)
+    coterie_name: str = ''     # Name of the coterie (denormalized for display)
 
 
 @dataclass

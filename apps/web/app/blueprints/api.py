@@ -1082,6 +1082,14 @@ def submit_spend():
 
     is_in_clan = bool(payload.get('isInClan', False))
 
+    coterie_id: int | None = None
+    raw_cid = payload.get('coterieId')
+    if raw_cid is not None:
+        try:
+            coterie_id = int(raw_cid)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'coterieId must be an integer'}), 400
+
     char = db_service.get_character(character_name)
     if not char:
         return jsonify({'error': 'Character not found'}), 404
@@ -1098,6 +1106,7 @@ def submit_spend():
             new_dots=new_dots,
             is_in_clan=is_in_clan,
             justification=justification,
+            coterie_id=coterie_id,
         )
         if sheets_sync:
             sheets_sync.sync_add_spend(
