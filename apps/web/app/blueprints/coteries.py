@@ -110,9 +110,13 @@ def view(slug: str):
         else:
             my_pending = []
 
-    # Pool items: exclude creation-tagged entries from the public pool display
-    # (they show separately in the formation panel)
-    public_advantages = [a for a in coterie.advantages if a.notes != '__creation__']
+    # Pool items: hide creation-tagged entries from the pool only while forming
+    # (they appear in the formation panel instead); once submitted/active they join the pool
+    forming = _is_forming(coterie)
+    public_advantages = [
+        a for a in coterie.advantages
+        if not (forming and a.notes == '__creation__')
+    ]
     pool_backgrounds = [a for a in public_advantages if a.advantage_type == 'background']
     pool_merits = [a for a in public_advantages if a.advantage_type == 'merit']
     pool_flaws = [a for a in public_advantages if a.advantage_type == 'flaw']
@@ -129,7 +133,7 @@ def view(slug: str):
         my_backgrounds=my_backgrounds,
         my_pending=my_pending,
         is_staff_user=is_staff(),
-        is_forming=_is_forming(coterie),
+        is_forming=forming,
     )
 
 
@@ -824,13 +828,22 @@ def creation_remove(slug: str, adv_id: int):
     dots = adv.dots
     is_flaw = adv.advantage_type == 'flaw'
 
-    db.session.delete(adv)
-
-    # Refund dots to the current member
     member = _get_coterie_member(coterie, player_char)
     if is_flaw:
-        # Removing a flaw reduces the bonus pool — take dots back
-        member.free_dots_remaining = max(0, member.free_dots_remaining - dots)
+        # Removing a flaw claws back the bonus dots it granted.
+        # If the pool has already spent those dots, block the removal.
+        if member.free_dots_remaining < dots:
+            flash(
+                f'Cannot remove "{adv.name}" — its bonus dot(s) have already been spent. '
+                'Remove an allocation first.',
+                'danger',
+            )
+            return redirect(url_for('coteries.view', slug=slug))
+
+    db.session.delete(adv)
+
+    if is_flaw:
+        member.free_dots_remaining -= dots
     else:
         member.free_dots_remaining += dots
 
