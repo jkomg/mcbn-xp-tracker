@@ -508,6 +508,23 @@ def submit_spend(name):
         except (ValueError, TypeError):
             coterie_id = None
 
+    if coterie_id is not None:
+        _spend_char_row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike(name)
+        ).first()
+        valid_membership = (
+            CoterieMember.query
+            .filter_by(
+                roster_character_id=_spend_char_row.id if _spend_char_row else -1,
+                coterie_id=coterie_id,
+            )
+            .join(Coterie, CoterieMember.coterie_id == Coterie.id)
+            .filter(Coterie.status == 'active')
+            .first()
+        ) if _spend_char_row else None
+        if not valid_membership:
+            coterie_id = None
+
     if not justification:
         flash('Please provide a justification for your spend request.', 'danger')
         return redirect(url_for('player.character', name=name))
