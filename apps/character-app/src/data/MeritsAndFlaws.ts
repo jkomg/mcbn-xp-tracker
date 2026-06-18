@@ -98,6 +98,25 @@ export const essentialLoresheets = filterLoresheetsByComplexity(loresheets, "ess
 
 export const advancedLoresheets = filterLoresheetsByComplexity(loresheets, "advanced")
 
+// Category titles that are treated as Backgrounds (must match MeritsAndFlawsPicker)
+const ESSENTIAL_BG_TITLES = new Set(["🏠 Haven", "💰 Resources", "🧛 Kindred", "👱 Mortals"])
+const ADVANCED_BG_TITLES = new Set(["Haven", "Resources", "Fame", "Influence"])
+
+export const getKnownBackgroundNames = (): Set<string> => {
+    const names = new Set<string>()
+    for (const cat of essentialMeritsAndFlaws) {
+        if (!ESSENTIAL_BG_TITLES.has(cat.title)) continue
+        cat.merits.forEach((m) => names.add(m.name))
+        cat.flaws.forEach((f) => names.add(f.name))
+    }
+    for (const cat of advancedMeritsAndFlaws) {
+        if (!ADVANCED_BG_TITLES.has(cat.title)) continue
+        cat.merits.forEach((m) => names.add(m.name))
+        cat.flaws.forEach((f) => names.add(f.name))
+    }
+    return names
+}
+
 export const getAllKnownMeritsAndFlaws = (): Map<string, MeritOrFlaw> => {
     const map = new Map<string, MeritOrFlaw>()
 

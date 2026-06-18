@@ -404,6 +404,36 @@
     </div><!-- /#background-blanking -->
 </div>
 
+{% if player_coterie %}
+<div class="card mb-4">
+    <div class="card-header fw-bold"><i class="bi bi-people-fill text-danger"></i> Coterie</div>
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div>
+                <a href="{{ url_for('coteries.view', slug=player_coterie.slug) }}" class="fw-bold text-decoration-none">
+                    {{ player_coterie.name }}
+                </a>
+                <small class="text-muted ms-2">{{ player_coterie.members | length }} member{{ 's' if player_coterie.members | length != 1 }}</small>
+                {% if player_coterie_role == 'leader' %}
+                <span class="badge bg-danger ms-1">leader</span>
+                {% endif %}
+                {% if player_coterie.creation_state == 'forming' %}
+                <span class="badge bg-secondary ms-1">forming</span>
+                {% elif player_coterie.creation_state == 'submitted' %}
+                <span class="badge bg-warning text-dark ms-1">awaiting sign-off</span>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('coteries.view', slug=player_coterie.slug) }}" class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="bi bi-arrow-right"></i> View Coterie
+            </a>
+        </div>
+        {% if player_coterie.description %}
+        <p class="text-muted small mt-2 mb-0">{{ player_coterie.description }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- ═══ Submission Forms ═══ -->
 <div class="row mb-4">
 

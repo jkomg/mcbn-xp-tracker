@@ -15,6 +15,11 @@ from app.db import (
 )
 from app.db_service import DBService
 
+# Creation-phase limits (V5 house rules)
+_CREATION_DOMAIN_MAX = 3   # max dots in any single domain rating at creation
+_CREATION_FLAW_MAX = 4     # max flaw dots (each grants +1 Advantage/Background dot)
+_CREATION_DOTS_PER_MEMBER = 2  # free dots each member contributes at formation
+
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('coteries', __name__)
@@ -105,9 +110,16 @@ def view(slug: str):
         else:
             my_pending = []
 
-    pool_backgrounds = [a for a in coterie.advantages if a.advantage_type == 'background']
-    pool_merits = [a for a in coterie.advantages if a.advantage_type == 'merit']
-    pool_flaws = [a for a in coterie.advantages if a.advantage_type == 'flaw']
+    # Pool items: hide creation-tagged entries from the pool only while forming
+    # (they appear in the formation panel instead); once submitted/active they join the pool
+    forming = _is_forming(coterie)
+    public_advantages = [
+        a for a in coterie.advantages
+        if not (forming and a.notes == '__creation__')
+    ]
+    pool_backgrounds = [a for a in public_advantages if a.advantage_type == 'background']
+    pool_merits = [a for a in public_advantages if a.advantage_type == 'merit']
+    pool_flaws = [a for a in public_advantages if a.advantage_type == 'flaw']
 
     # XP donations: approved spends flagged for this coterie
     from sqlalchemy import func as _func
@@ -135,6 +147,7 @@ def view(slug: str):
         my_backgrounds=my_backgrounds,
         my_pending=my_pending,
         is_staff_user=is_staff(),
+        is_forming=forming,
         xp_donations=xp_donations,
         xp_donations_total=xp_donations_total,
         pending_xp_donations=pending_xp_donations,
@@ -252,7 +265,7 @@ def remove_member(slug: str, member_id: int):
     DbCharacterBackground.query.filter_by(
         character_name=char_name,
         donated_coterie_id=coterie.id,
-    ).update({'donated_coterie_id': None})
+    ).update({'donated_coterie_id': None, 'dots_blanked': 0})
     # Cancel any pending donation requests too
     DbCharacterBackground.query.filter_by(
         character_name=char_name,
@@ -287,6 +300,20 @@ def edit(slug: str):
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     flash('Coterie updated.', 'success')
+    return redirect(url_for('coteries.manage', slug=slug))
+
+
+@bp.route('/<slug>/domain', methods=['POST'])
+@require_staff
+def update_domain(slug: str):
+    """Staff: set Chasse / Lien / Portillon ratings."""
+    coterie = _get_coterie_or_404(slug)
+    coterie.chasse = max(0, min(5, request.form.get('chasse', 0, type=int)))
+    coterie.lien = max(0, min(5, request.form.get('lien', 0, type=int)))
+    coterie.portillon = max(0, min(5, request.form.get('portillon', 0, type=int)))
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash('Domain ratings updated.', 'success')
     return redirect(url_for('coteries.manage', slug=slug))
 
 
@@ -436,6 +463,7 @@ def approve_donation(slug: str, bg_id: int):
 
     bg.donated_coterie_id = coterie.id
     bg.donation_pending_coterie_id = None
+    bg.dots_blanked = bg.dots_total
 
     notes = request.form.get('flaw_notes', '').strip()
     if notes:
@@ -490,6 +518,7 @@ def undonate_background(slug: str, bg_id: int):
     ).first_or_404()
 
     bg.donated_coterie_id = None
+    bg.dots_blanked = 0
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     flash(f'{bg.background_name} removed from coterie pool.', 'success')
@@ -545,3 +574,383 @@ def blank_donated_background(slug: str, bg_id: int):
         flash(str(exc), 'danger')
 
     return redirect(url_for('coteries.view', slug=slug))
+
+# ---------------------------------------------------------------------------
+# Player: propose a new coterie
+# ---------------------------------------------------------------------------
+
+@bp.route('/propose', methods=['GET', 'POST'])
+@require_login
+def propose():
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+
+    if not player_char:
+        flash('You need an active character to propose a coterie.', 'danger')
+        return redirect(url_for('coteries.index'))
+
+    # A character can only be in one coterie at a time
+    existing = CoterieMember.query.filter_by(roster_character_id=player_char.id).first()
+    if existing:
+        flash('Your character is already in a coterie.', 'warning')
+        return redirect(url_for('coteries.view', slug=existing.coterie.slug))
+
+    # Characters eligible to invite (active, approved, not already in a coterie)
+    already_in = db.session.query(CoterieMember.roster_character_id).subquery()
+    invitable = DbCharacter.query.filter(
+        DbCharacter.active,
+        DbCharacter.id != player_char.id,
+        ~DbCharacter.id.in_(already_in),
+    ).order_by(DbCharacter.character_name).all()
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        invite_ids = request.form.getlist('invite_ids', type=int)
+
+        if not name:
+            flash('Coterie name is required.', 'danger')
+            return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+
+        if Coterie.query.filter_by(name=name).first():
+            flash(f'A coterie named "{name}" already exists.', 'danger')
+            return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+
+        slug = _slugify(name)
+        base_slug = slug
+        counter = 1
+        while Coterie.query.filter_by(slug=slug).first():
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+
+        now = datetime.now(timezone.utc)
+        coterie = Coterie(
+            name=name,
+            slug=slug,
+            description=description,
+            status='pending',
+            creation_state='forming',
+            created_at=now,
+            updated_at=now,
+        )
+        db.session.add(coterie)
+        db.session.flush()  # get coterie.id
+
+        # Add proposer as leader
+        db.session.add(CoterieMember(
+            coterie_id=coterie.id,
+            roster_character_id=player_char.id,
+            free_dots_remaining=_CREATION_DOTS_PER_MEMBER,
+            role='leader',
+            joined_at=now,
+        ))
+
+        # Add invited members
+        invited_chars = DbCharacter.query.filter(
+            DbCharacter.id.in_(invite_ids),
+            DbCharacter.active,
+        ).all()
+        for char in invited_chars:
+            # Skip anyone already in a coterie
+            if CoterieMember.query.filter_by(roster_character_id=char.id).first():
+                continue
+            db.session.add(CoterieMember(
+                coterie_id=coterie.id,
+                roster_character_id=char.id,
+                free_dots_remaining=_CREATION_DOTS_PER_MEMBER,
+                role='member',
+                joined_at=now,
+            ))
+
+        db.session.commit()
+        flash(f'Coterie "{name}" proposed! Allocate your creation dots below.', 'success')
+        return redirect(url_for('coteries.view', slug=coterie.slug))
+
+    return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+
+
+# ---------------------------------------------------------------------------
+# Member: allocate creation dots (forming phase only)
+# ---------------------------------------------------------------------------
+
+def _is_forming(coterie: Coterie) -> bool:
+    return coterie.creation_state == 'forming'
+
+
+def _creation_flaw_dots(coterie: Coterie) -> int:
+    return sum(a.dots for a in coterie.advantages if a.advantage_type == 'flaw' and a.notes == '__creation__')
+
+
+def _creation_budget(coterie: Coterie) -> dict:
+    base = len(coterie.members) * _CREATION_DOTS_PER_MEMBER
+    bonus = _creation_flaw_dots(coterie)
+    used_dots = max(0, base - sum(m.free_dots_remaining for m in coterie.members) + bonus)
+    return {
+        'base': base,
+        'bonus': bonus,
+        'total': base + bonus,
+        'used': used_dots,
+        'left': max(0, base + bonus - used_dots),
+    }
+
+
+@bp.route('/<slug>/creation/allocate', methods=['POST'])
+@require_login
+def creation_allocate(slug: str):
+    """Member allocates a free creation dot toward domain or a named trait."""
+    coterie = _get_coterie_or_404(slug)
+
+    if not _is_forming(coterie):
+        flash('This coterie is not in the formation phase.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+    if not player_char or not _get_coterie_member(coterie, player_char):
+        abort(403)
+
+    target_kind = request.form.get('target_kind', '')
+    target_name = request.form.get('target_name', '').strip()
+    dots = request.form.get('dots', 1, type=int)
+
+    if dots < 1:
+        flash('Must allocate at least 1 dot.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    # Check pool budget
+    budget = _creation_budget(coterie)
+    if dots > budget['left']:
+        flash(f'Only {budget["left"]} creation dot(s) remaining.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    if target_kind in ('chasse', 'lien', 'portillon'):
+        current = getattr(coterie, target_kind)
+        if current + dots > _CREATION_DOMAIN_MAX:
+            flash(f'{target_kind.title()} cannot exceed {_CREATION_DOMAIN_MAX} at creation.', 'danger')
+            return redirect(url_for('coteries.view', slug=slug))
+        setattr(coterie, target_kind, current + dots)
+
+    elif target_kind in ('background', 'merit'):
+        if not target_name:
+            flash('Trait name is required.', 'danger')
+            return redirect(url_for('coteries.view', slug=slug))
+        adv = CoterieAdvantage(
+            coterie_id=coterie.id,
+            name=target_name,
+            dots=dots,
+            advantage_type=target_kind,
+            notes='__creation__',
+            added_by=player_char.character_name,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.session.add(adv)
+
+    else:
+        flash('Invalid target type.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    # Deduct from member's free dot pool (distribute proportionally — simplest: deduct from current user)
+    member = _get_coterie_member(coterie, player_char)
+    if member.free_dots_remaining >= dots:
+        member.free_dots_remaining -= dots
+    else:
+        # Deduct from pool collectively (other members' remaining dots)
+        remaining = dots - member.free_dots_remaining
+        member.free_dots_remaining = 0
+        for m in coterie.members:
+            if m.id == member.id:
+                continue
+            take = min(m.free_dots_remaining, remaining)
+            m.free_dots_remaining -= take
+            remaining -= take
+            if remaining <= 0:
+                break
+
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    label = target_kind.title() if target_kind in ('chasse', 'lien', 'portillon') else target_name
+    flash(f'Allocated {dots} dot(s) to {label}.', 'success')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/creation/flaw', methods=['POST'])
+@require_login
+def creation_flaw(slug: str):
+    """Member takes a coterie flaw during formation, granting bonus creation dots."""
+    coterie = _get_coterie_or_404(slug)
+
+    if not _is_forming(coterie):
+        flash('This coterie is not in the formation phase.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+    if not player_char or not _get_coterie_member(coterie, player_char):
+        abort(403)
+
+    flaw_name = request.form.get('flaw_name', '').strip()
+    dots = request.form.get('dots', 1, type=int)
+
+    if not flaw_name:
+        flash('Flaw name is required.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    current_flaw_dots = _creation_flaw_dots(coterie)
+    if current_flaw_dots + dots > _CREATION_FLAW_MAX:
+        flash(f'Maximum {_CREATION_FLAW_MAX} flaw dots allowed at creation.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    # Create flaw entry (tagged __creation__ so we know it's from formation)
+    flaw = CoterieAdvantage(
+        coterie_id=coterie.id,
+        name=flaw_name,
+        dots=dots,
+        advantage_type='flaw',
+        notes='__creation__',
+        added_by=player_char.character_name,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.session.add(flaw)
+
+    # Grant bonus dots back to pool — add to the proposer/current member
+    member = _get_coterie_member(coterie, player_char)
+    member.free_dots_remaining += dots
+
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Took flaw "{flaw_name}" ({dots} dot(s)) — gained {dots} bonus creation dot(s).', 'success')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/creation/remove/<int:adv_id>', methods=['POST'])
+@require_login
+def creation_remove(slug: str, adv_id: int):
+    """Remove a creation-phase allocation (undo before sign-off)."""
+    coterie = _get_coterie_or_404(slug)
+
+    if not _is_forming(coterie):
+        flash('Cannot edit allocations after sign-off.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+    if not player_char or not _get_coterie_member(coterie, player_char):
+        abort(403)
+
+    adv = CoterieAdvantage.query.filter_by(
+        id=adv_id, coterie_id=coterie.id, notes='__creation__'
+    ).first_or_404()
+
+    dots = adv.dots
+    is_flaw = adv.advantage_type == 'flaw'
+
+    member = _get_coterie_member(coterie, player_char)
+    if is_flaw:
+        # Removing a flaw claws back the bonus dots it granted.
+        # If the pool has already spent those dots, block the removal.
+        if member.free_dots_remaining < dots:
+            flash(
+                f'Cannot remove "{adv.name}" — its bonus dot(s) have already been spent. '
+                'Remove an allocation first.',
+                'danger',
+            )
+            return redirect(url_for('coteries.view', slug=slug))
+
+    db.session.delete(adv)
+
+    if is_flaw:
+        member.free_dots_remaining -= dots
+    else:
+        member.free_dots_remaining += dots
+
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Removed "{adv.name}" — {dots} creation dot(s) {"returned" if not is_flaw else "forfeited"}.', 'info')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+# ---------------------------------------------------------------------------
+# Member: submit coterie for staff sign-off
+# ---------------------------------------------------------------------------
+
+@bp.route('/<slug>/submit-for-review', methods=['POST'])
+@require_login
+def submit_for_review(slug: str):
+    coterie = _get_coterie_or_404(slug)
+
+    if not _is_forming(coterie):
+        flash('This coterie is not in the formation phase.', 'warning')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    discord_id = get_player_discord_id()
+    player_char = _get_player_character(discord_id)
+    if not player_char or not _get_coterie_member(coterie, player_char):
+        abort(403)
+
+    coterie.creation_state = 'submitted'
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash('Coterie submitted for staff sign-off. You\'ll hear back soon.', 'success')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+# ---------------------------------------------------------------------------
+# Staff: approve or send back a submitted coterie
+# ---------------------------------------------------------------------------
+
+@bp.route('/<slug>/approve-formation', methods=['POST'])
+@require_staff
+def approve_formation(slug: str):
+    coterie = _get_coterie_or_404(slug)
+
+    coterie.creation_state = 'active'
+    coterie.status = 'active'
+    coterie.creation_notes = None
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'{coterie.name} formation approved — coterie is now active.', 'success')
+    return redirect(url_for('coteries.manage', slug=slug))
+
+
+@bp.route('/<slug>/sendback-formation', methods=['POST'])
+@require_staff
+def sendback_formation(slug: str):
+    coterie = _get_coterie_or_404(slug)
+
+    notes = request.form.get('notes', '').strip()
+    coterie.creation_state = 'forming'
+    coterie.creation_notes = notes or None
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'{coterie.name} sent back to formation with notes.', 'info')
+    return redirect(url_for('coteries.manage', slug=slug))
+
+
+# ---------------------------------------------------------------------------
+# Staff: delete a draft/pending coterie
+# ---------------------------------------------------------------------------
+
+@bp.route('/<slug>/delete', methods=['POST'])
+@require_staff
+def delete(slug: str):
+    coterie = _get_coterie_or_404(slug)
+
+    if coterie.status == 'active':
+        flash('Active coteries cannot be deleted.', 'danger')
+        return redirect(url_for('coteries.manage', slug=slug))
+
+    name = coterie.name
+
+    # Clear background donation references before deleting
+    DbCharacterBackground.query.filter_by(donated_coterie_id=coterie.id).update(
+        {'donated_coterie_id': None}
+    )
+    DbCharacterBackground.query.filter_by(donation_pending_coterie_id=coterie.id).update(
+        {'donation_pending_coterie_id': None}
+    )
+
+    db.session.delete(coterie)  # cascades members + advantages
+    db.session.commit()
+    flash(f'Coterie "{name}" deleted.', 'success')
+    return redirect(url_for('coteries.index'))

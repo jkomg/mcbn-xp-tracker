@@ -347,6 +347,7 @@ export const createInconnuJson = (character: Character): InconnuCreationBody => 
     }
 
     for (const meritFlaw of [
+        ...asArray<{ name?: unknown; level?: unknown }>(character.backgrounds ?? []),
         ...asArray<{ name?: unknown; level?: unknown }>(character.merits),
         ...asArray<{ name?: unknown; level?: unknown }>(character.flaws),
         ...asArray<{ name?: unknown; level?: unknown }>(

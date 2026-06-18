@@ -12,7 +12,19 @@
     {% endif %}
 </div>
 
-{% if coterie.status == 'pending' %}
+{% if coterie.creation_state == 'forming' %}
+<div class="alert alert-secondary py-2 mb-3">
+    <strong>Formation phase.</strong> Allocate your creation dots below, then submit for staff sign-off.
+    {% if coterie.creation_notes %}
+    <hr class="my-2">
+    <strong>Staff notes:</strong> {{ coterie.creation_notes }}
+    {% endif %}
+</div>
+{% elif coterie.creation_state == 'submitted' %}
+<div class="alert alert-warning py-2 mb-3">
+    <strong>Awaiting staff sign-off.</strong> Your coterie sheet has been submitted. Sit tight!
+</div>
+{% elif coterie.status == 'pending' %}
 <div class="alert alert-secondary py-2 mb-3">This coterie is pending setup.</div>
 {% endif %}
 
@@ -26,6 +38,26 @@
 
 <div class="row g-4">
 
+    <!-- Domain -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header fw-bold"><i class="bi bi-map"></i> Domain</div>
+            <div class="card-body">
+                <div class="row g-3 text-center">
+                    {% for label, val in [('Chasse', coterie.chasse), ('Lien', coterie.lien), ('Portillon', coterie.portillon)] %}
+                    <div class="col-4">
+                        <div class="small text-muted text-uppercase mb-1" style="letter-spacing:.05em;font-size:.7rem;">{{ label }}</div>
+                        <div class="dot-pips justify-content-center d-flex gap-1 mb-1">
+                            {% for i in range(1,6) %}<span class="dot-pip {% if i <= val %}filled{% endif %}"></span>{% endfor %}
+                        </div>
+                        <small class="text-muted">{{ val }}/5</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Members -->
     <div class="col-md-4">
         <div class="card">
@@ -38,9 +70,12 @@
                            class="text-decoration-none">{{ m.character.character_name }}</a>
                         <br><small class="text-muted">{{ m.character.clan or '—' }}</small>
                     </div>
-                    {% if is_member and player_char and player_char.id == m.roster_character_id %}
-                    <span class="badge bg-secondary">you</span>
-                    {% endif %}
+                    <div class="d-flex gap-1 align-items-center">
+                        {% if m.role == 'leader' %}<span class="badge bg-danger">leader</span>{% endif %}
+                        {% if is_member and player_char and player_char.id == m.roster_character_id %}
+                        <span class="badge bg-secondary">you</span>
+                        {% endif %}
+                    </div>
                 </li>
                 {% else %}
                 <li class="list-group-item text-muted">No members yet.</li>
@@ -48,6 +83,116 @@
             </ul>
         </div>
     </div>
+
+    <!-- Formation controls (forming phase only, for members) -->
+    {% if coterie.creation_state == 'forming' and is_member %}
+    {% set creation_flaws = coterie.advantages | selectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
+    {% set creation_items = coterie.advantages | rejectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
+    {% set flaw_dots_taken = creation_flaws | sum(attribute='dots') %}
+    {% set base_dots = coterie.members | length * 2 %}
+    {% set bonus_dots = flaw_dots_taken %}
+    {% set dots_spent = base_dots - (coterie.members | sum(attribute='free_dots_remaining')) + bonus_dots %}
+    {% set dots_left = base_dots + bonus_dots - dots_spent %}
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header fw-bold text-warning-emphasis bg-warning bg-opacity-10">
+                <i class="bi bi-hammer"></i> Coterie Formation
+                <small class="text-muted ms-2">Creation pool: <strong>{{ dots_spent }}</strong>/{{ base_dots + bonus_dots }} dots used ({{ dots_left }} remaining)</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+
+                    <!-- Allocate a dot -->
+                    <div class="col-md-6">
+                        <p class="small fw-bold mb-2">Allocate creation dot</p>
+                        <form method="POST" action="{{ url_for('coteries.creation_allocate', slug=coterie.slug) }}" class="d-flex flex-column gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="target_kind" class="form-select form-select-sm" id="targetKind" onchange="toggleTraitName(this.value)">
+                                <option value="chasse">Chasse (Domain) — max 3 at creation</option>
+                                <option value="lien">Lien (Domain) — max 3 at creation</option>
+                                <option value="portillon">Portillon (Domain) — max 3 at creation</option>
+                                <option value="background">Background (named)</option>
+                                <option value="merit">Merit (named)</option>
+                            </select>
+                            <input type="text" name="target_name" class="form-control form-control-sm d-none" id="traitName" placeholder="Trait name (e.g. Haven)">
+                            <div class="d-flex gap-2">
+                                <input type="number" name="dots" class="form-control form-control-sm" style="width:80px" value="1" min="1" max="{{ dots_left }}">
+                                <button class="btn btn-sm btn-outline-warning" {% if dots_left == 0 %}disabled{% endif %}>Allocate</button>
+                            </div>
+                        </form>
+                        <script>
+                        function toggleTraitName(val) {
+                            const named = ['background', 'merit'];
+                            const el = document.getElementById('traitName');
+                            if (named.includes(val)) { el.classList.remove('d-none'); el.required = true; }
+                            else { el.classList.add('d-none'); el.required = false; }
+                        }
+                        </script>
+                    </div>
+
+                    <!-- Take a flaw -->
+                    <div class="col-md-6">
+                        <p class="small fw-bold mb-2">Take a coterie flaw <small class="text-muted">(+1 creation dot each, max 4)</small></p>
+                        {% if flaw_dots_taken < 4 %}
+                        <form method="POST" action="{{ url_for('coteries.creation_flaw', slug=coterie.slug) }}" class="d-flex gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="flaw_name" class="form-control form-control-sm" placeholder="Flaw name (e.g. Adversary)" required>
+                            <select name="dots" class="form-select form-select-sm" style="width:80px">
+                                {% for n in range(1, 4 - flaw_dots_taken + 1) %}
+                                <option value="{{ n }}">{{ n }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-sm btn-outline-secondary">Take</button>
+                        </form>
+                        {% else %}
+                        <p class="text-muted small">Maximum flaw dots taken ({{ flaw_dots_taken }}/4).</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Current allocations -->
+                    {% if creation_items or creation_flaws %}
+                    <div class="col-12">
+                        <p class="small fw-bold mb-2">Current allocations</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for a in creation_items %}
+                            <div class="d-flex align-items-center gap-1 border border-secondary rounded px-2 py-1 small">
+                                <span>{{ a.name }} ({{ a.advantage_type }}, {{ a.dots }}●)</span>
+                                <form method="POST" action="{{ url_for('coteries.creation_remove', slug=coterie.slug, adv_id=a.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-link btn-sm p-0 text-danger ms-1" title="Remove">×</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                            {% for a in creation_flaws %}
+                            <div class="d-flex align-items-center gap-1 border border-danger rounded px-2 py-1 small text-danger">
+                                <span>Flaw: {{ a.name }} ({{ a.dots }}●)</span>
+                                <form method="POST" action="{{ url_for('coteries.creation_remove', slug=coterie.slug, adv_id=a.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-link btn-sm p-0 text-danger ms-1" title="Remove">×</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Submit for sign-off -->
+                    <div class="col-12 border-top pt-3">
+                        <form method="POST" action="{{ url_for('coteries.submit_for_review', slug=coterie.slug) }}"
+                              onsubmit="return confirm('Submit this coterie for staff sign-off? You can still make changes if staff send it back.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-warning">
+                                <i class="bi bi-send"></i> Submit for Staff Sign-off
+                            </button>
+                            <small class="text-muted ms-2">Do this once the group has agreed in your cubby.</small>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Pool advantages -->
     <div class="col-md-4">
@@ -109,8 +254,8 @@
                 <p class="text-muted small mb-0">No pool items yet.</p>
                 {% endif %}
 
-                <!-- Add advantage (members + staff) -->
-                {% if is_member or is_staff_user %}
+                <!-- Add advantage (members + staff) — hidden during formation phase -->
+                {% if (is_member or is_staff_user) and not is_forming %}
                 {% set my_member = coterie.members | selectattr('roster_character_id', 'equalto', player_char.id if player_char else -1) | list %}
                 {% set dots_left = (my_member[0].free_dots_remaining if my_member else 0) if not is_staff_user else 99 %}
                 <hr class="my-3">

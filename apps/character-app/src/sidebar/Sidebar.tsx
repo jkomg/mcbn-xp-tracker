@@ -440,8 +440,8 @@ const Sidebar = ({
                     {notDefault(character, "touchstones") ? (
                         <TouchstoneDisplay touchstones={character.touchstones} />
                     ) : null}
-                    {notDefault(character, "merits") || notDefault(character, "flaws") ? (
-                        <MeritsAndFlawsDisplay merits={character.merits} flaws={character.flaws} />
+                    {notDefault(character, "merits") || notDefault(character, "flaws") || (character.backgrounds ?? []).length > 0 ? (
+                        <MeritsAndFlawsDisplay backgrounds={character.backgrounds ?? []} merits={character.merits} flaws={character.flaws} />
                     ) : null}
                 </Stack>
             </ScrollArea>

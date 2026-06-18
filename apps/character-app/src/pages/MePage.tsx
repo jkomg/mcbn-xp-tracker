@@ -2649,7 +2649,25 @@ const CharacterSummaryContent = ({
                 </Accordion.Control>
                 <Accordion.Panel>
                     <Grid>
-                        <Grid.Col span={{ base: 12, md: 6 }}>
+                        {(character.backgrounds ?? []).length > 0 ? (
+                            <Grid.Col span={{ base: 12, md: 4 }}>
+                                <Text fw={500} size="sm" c="dimmed" mb="sm">
+                                    BACKGROUNDS
+                                </Text>
+                                <Stack gap="xs">
+                                    {(character.backgrounds ?? []).map((bg, idx) => (
+                                        <Paper key={idx} p="xs" withBorder radius="sm">
+                                            <Group justify="space-between" mb={2}>
+                                                <Text fw={500} size="sm">{bg.name}</Text>
+                                                <Badge size="xs" color="blue" variant="light">{bg.level}</Badge>
+                                            </Group>
+                                            <Text size="xs" c="dimmed">{bg.summary}</Text>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            </Grid.Col>
+                        ) : null}
+                        <Grid.Col span={{ base: 12, md: (character.backgrounds ?? []).length > 0 ? 4 : 6 }}>
                             <Text fw={500} size="sm" c="dimmed" mb="sm">
                                 MERITS
                             </Text>
@@ -2677,7 +2695,7 @@ const CharacterSummaryContent = ({
                                 )}
                             </Stack>
                         </Grid.Col>
-                        <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Grid.Col span={{ base: 12, md: (character.backgrounds ?? []).length > 0 ? 4 : 6 }}>
                             <Text fw={500} size="sm" c="dimmed" mb="sm">
                                 FLAWS
                             </Text>

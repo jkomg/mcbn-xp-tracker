@@ -308,6 +308,15 @@ class Coterie(db.Model):
                            default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
+    # Domain ratings (0–5 each). Advanced via coterie XP spends, set by staff.
+    chasse = db.Column(Integer, nullable=False, default=0)
+    lien = db.Column(Integer, nullable=False, default=0)
+    portillon = db.Column(Integer, nullable=False, default=0)
+    # Creation lifecycle: forming → submitted → active (null = legacy/staff-created, treat as active)
+    creation_state = db.Column(String(20), nullable=True, default=None)
+    # Staff notes sent back during sign-off review
+    creation_notes = db.Column(Text, nullable=True, default=None)
+
     members = db.relationship('CoterieMember', back_populates='coterie',
                               cascade='all, delete-orphan')
     advantages = db.relationship('CoterieAdvantage', back_populates='coterie',
@@ -327,6 +336,7 @@ class CoterieMember(db.Model):
     roster_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False)
     free_dots_remaining = db.Column(Integer, nullable=False, default=2)
     setup_complete = db.Column(Boolean, nullable=False, default=False)
+    role = db.Column(String(20), nullable=False, default='member')  # member | leader
     joined_at = db.Column(DateTime, nullable=False,
                           default=lambda: datetime.now(timezone.utc))
 

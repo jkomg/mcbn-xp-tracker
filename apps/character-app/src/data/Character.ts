@@ -14,7 +14,7 @@ import {
 import { skillsSchema } from "./Skills.js";
 import { specialtySchema } from "./Specialties.js";
 import { clans } from "./Clans";
-import { getAllKnownMeritsAndFlaws } from "./MeritsAndFlaws";
+import { getAllKnownMeritsAndFlaws, getKnownBackgroundNames } from "./MeritsAndFlaws";
 import type { Power } from "./Disciplines.js";
 
 export const inMemoriamEraSchema = z.object({
@@ -77,7 +77,7 @@ export const touchstoneSchema = z.object({
 
 export type Touchstone = z.infer<typeof touchstoneSchema>;
 
-export const schemaVersion = 6;
+export const schemaVersion = 7;
 
 export const characterSchema = z.object({
   id: z.string().optional().default(""),
@@ -121,6 +121,7 @@ export const characterSchema = z.object({
 
   merits: meritFlawSchema.array(),
   flaws: meritFlawSchema.array(),
+  backgrounds: meritFlawSchema.array().optional().default([]),
 
   notes: z.string().optional().default(""),
 
@@ -234,6 +235,7 @@ export const getEmptyCharacter = (): Character => {
     experience: 0,
     humanity: 0,
 
+    backgrounds: [],
     merits: [],
     flaws: [],
 
@@ -329,6 +331,7 @@ export const applyCharacterCompatibilityPatches = (
   patchV2ToV3Compatibility(parsed);
   patchV3ToV4Compatibility(parsed);
   patchV5ToV6Compatibility(parsed);
+  patchV6ToV7Compatibility(parsed);
 
   parsed["version"] = schemaVersion;
 };
@@ -390,5 +393,18 @@ export const patchV5ToV6Compatibility = (
 ): void => {
   if (!Array.isArray(parsed["ceremonies"])) {
     parsed["ceremonies"] = [];
+  }
+};
+
+export const patchV6ToV7Compatibility = (
+  parsed: Record<string, unknown>,
+): void => {
+  // Separate backgrounds out of merits into their own top-level array.
+  // Pre-v7 characters stored backgrounds mixed into merits[]; we move them here.
+  if (!Array.isArray(parsed["backgrounds"])) {
+    const knownBgNames = getKnownBackgroundNames()
+    const merits = Array.isArray(parsed["merits"]) ? (parsed["merits"] as Record<string, unknown>[]) : []
+    parsed["backgrounds"] = merits.filter((m) => typeof m["name"] === "string" && knownBgNames.has(m["name"] as string))
+    parsed["merits"] = merits.filter((m) => typeof m["name"] === "string" && !knownBgNames.has(m["name"] as string))
   }
 };

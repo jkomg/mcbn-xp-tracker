@@ -24,6 +24,7 @@ import {
     advancedMeritsAndFlaws,
     essentialMeritsAndFlaws,
     essentialThinbloodMeritsAndFlaws,
+    getKnownBackgroundNames,
     isThinbloodFlaw,
     isThinbloodMerit,
     MeritOrFlaw
@@ -301,6 +302,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const [lsSearch, setLsSearch] = useState("")
 
     const [pickedMeritsAndFlaws, setPickedMeritsAndFlaws] = useState<MeritFlaw[]>([
+        ...(character.backgrounds ?? []),
         ...character.merits,
         ...character.flaws
     ])
@@ -316,7 +318,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         return new Set([...autoPredatorTypeNames, ...pickedPredatorTypeNames])
     }, [character.predatorType.name, character.predatorType.pickedMeritsAndFlaws])
 
-    const usedMeritsLevel = character.merits
+    const usedMeritsLevel = [...(character.backgrounds ?? []), ...character.merits]
         .filter((m) => !isThinbloodMerit(m.name) && !predatorTypeProvidedNames.has(m.name))
         .reduce((acc, { level }) => acc + level, 0)
     const usedFLawsLevel = character.flaws
@@ -502,6 +504,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
         (isThinBlood && remainingThinbloodMeritPoints < 0) ||
         (hasMandatoryFlaws && remainingFlaws > 0)
     const handleReset = () => {
+        const bgNames = getKnownBackgroundNames()
         if (resetTarget === "merit") {
             const nextPickedMeritsAndFlaws = pickedMeritsAndFlaws.filter(
                 (item) => item.type !== "merit"
@@ -511,6 +514,7 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
             setRemainingThinbloodMeritPoints(tbFlawCount)
             setCharacter({
                 ...character,
+                backgrounds: [],
                 merits: [],
                 flaws: nextPickedMeritsAndFlaws.filter((item) => item.type === "flaw")
             })
@@ -525,7 +529,8 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
             setRemainingThinbloodMeritPoints(-tbMeritCount)
             setCharacter({
                 ...character,
-                merits: nextPickedMeritsAndFlaws.filter((item) => item.type === "merit"),
+                backgrounds: nextPickedMeritsAndFlaws.filter((item) => item.type === "merit" && bgNames.has(item.name)),
+                merits: nextPickedMeritsAndFlaws.filter((item) => item.type === "merit" && !bgNames.has(item.name)),
                 flaws: []
             })
         }
@@ -1043,10 +1048,12 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                     color="grape"
                     disabled={isConfirmDisabled}
                     onClick={() => {
+                        const bgNames = getKnownBackgroundNames()
                         updateHealthAndWillpowerAndBloodPotencyAndHumanity(character)
                         setCharacter({
                             ...character,
-                            merits: pickedMeritsAndFlaws.filter((l) => l.type === "merit"),
+                            backgrounds: pickedMeritsAndFlaws.filter((l) => l.type === "merit" && bgNames.has(l.name)),
+                            merits: pickedMeritsAndFlaws.filter((l) => l.type === "merit" && !bgNames.has(l.name)),
                             flaws: pickedMeritsAndFlaws.filter((l) => l.type === "flaw")
                         })
                         trackEvent({

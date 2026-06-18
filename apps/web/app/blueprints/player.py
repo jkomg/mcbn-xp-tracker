@@ -235,8 +235,9 @@ def character(name):
                 except (json.JSONDecodeError, TypeError):
                     sheet_data = None
 
-    # Coterie membership for donate-to-coterie spend option
+    # Coterie membership for donate-to-coterie spend option and role display
     player_coterie = None
+    player_coterie_role = None
     if char_row:
         membership = (
             CoterieMember.query
@@ -247,6 +248,7 @@ def character(name):
         )
         if membership:
             player_coterie = membership.coterie
+            player_coterie_role = membership.role
 
     return render_template(
         'player/character.html',
@@ -272,6 +274,7 @@ def character(name):
         sheet_data=sheet_data,
         chronicle_tenets=_get_chronicle_tenets(),
         player_coterie=player_coterie,
+        player_coterie_role=player_coterie_role,
     )
 
 
@@ -860,11 +863,8 @@ def _map_rod_to_cc(rod: dict) -> dict:
             'type': 'merit',
         }
 
-    # Merits + Backgrounds (both map to CC merits list)
-    data['merits'] = (
-        [_map_adv(m) for m in (rod.get('merits') or [])]
-        + [_map_adv(b) for b in (rod.get('backgrounds') or [])]
-    )
+    data['merits'] = [_map_adv(m) for m in (rod.get('merits') or [])]
+    data['backgrounds'] = [_map_adv(b) for b in (rod.get('backgrounds') or [])]
     data['flaws'] = [_map_adv(f) for f in (rod.get('flaws') or [])]
 
     # Loresheets

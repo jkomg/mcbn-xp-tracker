@@ -3,11 +3,21 @@
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <h2 class="mb-0"><i class="bi bi-people-fill text-danger"></i> Coteries</h2>
-    {% if session.get('is_staff') %}
-    <a href="{{ url_for('coteries.new') }}" class="btn btn-sm btn-outline-danger ms-auto">
-        <i class="bi bi-plus-lg"></i> New Coterie
-    </a>
-    {% endif %}
+    <div class="ms-auto d-flex gap-2">
+        {% if session.get('authenticated') and not session.get('is_staff') %}
+        <a href="{{ url_for('coteries.propose') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-plus-lg"></i> Propose a Coterie
+        </a>
+        {% endif %}
+        {% if session.get('is_staff') %}
+        <a href="{{ url_for('coteries.propose') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-plus-lg"></i> Propose (as player)
+        </a>
+        <a href="{{ url_for('coteries.new') }}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-shield-plus"></i> Create (staff)
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 {% if coteries %}
@@ -20,7 +30,11 @@
                     <h5 class="card-title mb-0">
                         <a href="{{ url_for('coteries.view', slug=c.slug) }}" class="text-decoration-none">{{ c.name }}</a>
                     </h5>
-                    {% if c.status == 'pending' %}
+                    {% if c.creation_state == 'forming' %}
+                    <span class="badge bg-secondary ms-2">forming</span>
+                    {% elif c.creation_state == 'submitted' %}
+                    <span class="badge bg-warning text-dark ms-2">awaiting sign-off</span>
+                    {% elif c.status == 'pending' %}
                     <span class="badge bg-secondary ms-2">pending</span>
                     {% endif %}
                 </div>
