@@ -1004,3 +1004,112 @@ Called by the bot during `/lasombra delete` (staff-only, no-history characters o
 
 **Response 404:** Character not found.
 **Response 409:** Character has existing history — retire or mark deceased instead.
+
+---
+
+## GET /api/coteries
+
+**Scope:** read | **Rate limit:** 60/min
+
+Returns all active coteries with their members. Used by wiki sync and the bot.
+
+**Response 200:**
+```json
+{
+  "coteries": [
+    {
+      "id": 1,
+      "name": "The Dusk Compact",
+      "slug": "the-dusk-compact",
+      "description": "...",
+      "chasse": 2,
+      "lien": 1,
+      "portillon": 3,
+      "discord_channel_id": "123456789012345678",
+      "members": [
+        { "character_name": "Alice", "clan": "Brujah", "player_discord_id": "111111111111111111" }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## POST /api/coteries/activate
+
+**Scope:** write | **Rate limit:** 30/min
+
+Finds a pending coterie by name, sets its Discord channel ID, and activates it. Called by the bot after provisioning a coterie channel.
+
+**Body:**
+```json
+{
+  "name": "The Dusk Compact",
+  "discord_channel_id": "123456789012345678"
+}
+```
+
+**Response 200:**
+```json
+{
+  "ok": true,
+  "coterie": {
+    "id": 1,
+    "name": "The Dusk Compact",
+    "slug": "the-dusk-compact",
+    "status": "active"
+  },
+  "members": [
+    { "character_name": "Alice", "player_discord_id": "111111111111111111" }
+  ]
+}
+```
+
+**Response 404:** No coterie found with that name.
+**Response 409:** Coterie is already active.
+
+---
+
+## GET /api/coteries/by-character/{discord_id}
+
+**Scope:** read | **Rate limit:** 60/min
+
+Returns the active coterie for a player's character. Used by the bot's `/coterie status` command.
+
+**Path params:** `discord_id` — Discord snowflake
+
+**Query params:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `character_name` | No | Character name filter — required for players with multiple active characters |
+
+**Response 200:**
+```json
+{
+  "character_name": "Alice",
+  "coterie": {
+    "id": 1,
+    "name": "The Dusk Compact",
+    "slug": "the-dusk-compact",
+    "description": "...",
+    "status": "active",
+    "chasse": 2,
+    "lien": 1,
+    "portillon": 3
+  },
+  "members": [
+    {
+      "character_name": "Alice",
+      "clan": "Brujah",
+      "player_discord_id": "111111111111111111",
+      "player_name": "playerhandle"
+    }
+  ]
+}
+```
+
+`coterie` is `null` if the character is not in a coterie (still returns 200).
+
+**Response 404:** No active character found for this Discord user (with optional `character_name` filter).
