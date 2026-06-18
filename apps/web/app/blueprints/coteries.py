@@ -11,7 +11,7 @@ from flask import (
 from app.auth import require_staff, require_login, get_player_discord_id, is_staff
 from app.db import (
     db, Coterie, CoterieMember, CoterieAdvantage,
-    DbCharacter, DbCharacterBackground,
+    DbCharacter, DbCharacterBackground, DbSpendRequest,
 )
 from app.db_service import DBService
 
@@ -121,6 +121,20 @@ def view(slug: str):
     pool_merits = [a for a in public_advantages if a.advantage_type == 'merit']
     pool_flaws = [a for a in public_advantages if a.advantage_type == 'flaw']
 
+    # XP donations: approved spends flagged for this coterie
+    from sqlalchemy import func as _func
+    xp_donations = DbSpendRequest.query.filter(
+        DbSpendRequest.coterie_id == coterie.id,
+        _func.lower(DbSpendRequest.status) == 'approved',
+    ).order_by(DbSpendRequest.review_date.desc()).all()
+    xp_donations_total = sum(s.verified_cost or 0 for s in xp_donations)
+
+    # Pending XP donations (submitted but not yet approved)
+    pending_xp_donations = DbSpendRequest.query.filter(
+        DbSpendRequest.coterie_id == coterie.id,
+        _func.lower(DbSpendRequest.status) == 'pending',
+    ).order_by(DbSpendRequest.timestamp.desc()).all()
+
     return render_template(
         'coteries/view.html',
         coterie=coterie,
@@ -134,6 +148,9 @@ def view(slug: str):
         my_pending=my_pending,
         is_staff_user=is_staff(),
         is_forming=forming,
+        xp_donations=xp_donations,
+        xp_donations_total=xp_donations_total,
+        pending_xp_donations=pending_xp_donations,
     )
 
 

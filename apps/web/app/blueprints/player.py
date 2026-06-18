@@ -14,7 +14,7 @@ from app.auth import (
     require_login, require_character_owner, is_staff as check_is_staff,
     get_player_discord_id,
 )
-from app.db import AppSetting, CharacterDraft, DbCharacter, db
+from app.db import AppSetting, CharacterDraft, Coterie, CoterieMember, DbCharacter, db
 from app.models import SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
@@ -235,12 +235,17 @@ def character(name):
                 except (json.JSONDecodeError, TypeError):
                     sheet_data = None
 
-    # Coterie membership
+    # Coterie membership for donate-to-coterie spend option and role display
     player_coterie = None
     player_coterie_role = None
     if char_row:
-        from app.db import CoterieMember
-        membership = CoterieMember.query.filter_by(roster_character_id=char_row.id).first()
+        membership = (
+            CoterieMember.query
+            .filter_by(roster_character_id=char_row.id)
+            .join(Coterie, CoterieMember.coterie_id == Coterie.id)
+            .filter(Coterie.status == 'active')
+            .first()
+        )
         if membership:
             player_coterie = membership.coterie
             player_coterie_role = membership.role
@@ -498,6 +503,31 @@ def submit_spend(name):
     except (ValueError, TypeError):
         depends_on = 0
 
+    coterie_id: int | None = None
+    raw_coterie_id = request.form.get('coterie_id', '').strip()
+    if raw_coterie_id:
+        try:
+            coterie_id = int(raw_coterie_id)
+        except (ValueError, TypeError):
+            coterie_id = None
+
+    if coterie_id is not None:
+        _spend_char_row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike(name)
+        ).first()
+        valid_membership = (
+            CoterieMember.query
+            .filter_by(
+                roster_character_id=_spend_char_row.id if _spend_char_row else -1,
+                coterie_id=coterie_id,
+            )
+            .join(Coterie, CoterieMember.coterie_id == Coterie.id)
+            .filter(Coterie.status == 'active')
+            .first()
+        ) if _spend_char_row else None
+        if not valid_membership:
+            coterie_id = None
+
     if not justification:
         flash('Please provide a justification for your spend request.', 'danger')
         return redirect(url_for('player.character', name=name))
@@ -517,6 +547,7 @@ def submit_spend(name):
             is_in_clan=is_in_clan,
             justification=justification,
             depends_on=depends_on,
+            coterie_id=coterie_id,
         )
         if sheets_sync:
             sheets_sync.sync_add_spend(

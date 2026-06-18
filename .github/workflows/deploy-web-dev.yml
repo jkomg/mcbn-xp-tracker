@@ -1,12 +1,12 @@
 name: Deploy Web to Cloud Run (Dev)
 
 on:
-  # Deploy to dev on every successful CI run on main — same image, isolated DB.
-  # This catches migration errors and startup crashes before prod gets the code.
+  # Deploy to dev on every successful CI run on any branch — isolated DB.
+  # On main: also gates prod (prod only fires when this succeeds on main).
+  # On feature branches: lets you test PRs on dev without merging first.
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       reason:
@@ -137,23 +137,32 @@ jobs:
           STATUS: ${{ job.status }}
           SHA: ${{ steps.sha.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           [ -z "$WEBHOOK" ] && exit 0
 
           SHORT_SHA="${SHA:0:7}"
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
           COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
+          DEV_URL="https://dev.mcbn.jkomg.us"
+
+          if [ -n "$PR_NUMBER" ]; then
+            PR_LINK=" • [PR #${PR_NUMBER}](${{ github.server_url }}/${{ github.repository }}/pull/${PR_NUMBER})"
+          else
+            PR_LINK=""
+          fi
 
           if [ "$STATUS" = "success" ]; then
             COLOR=3066993
             ICON="🔧"
-            TITLE="Dev deployed"
-            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) is live on dev.\n${COMMIT_MSG}"
+            TITLE="Dev deployed — please test"
+            BODY="<@101109440702353408> **[\`${BRANCH}\`](${COMMIT_URL})** is ready to test${PR_LINK}\n\n🔗 **[Open dev site](${DEV_URL})**\n\n\`${COMMIT_MSG}\`\n\nMerge the PR when it looks good."
           else
             COLOR=15158332
             ICON="❌"
             TITLE="Dev deploy failed"
-            BODY="[\`${SHORT_SHA}\`](${COMMIT_URL}) failed on dev — **prod deploy may be unsafe**. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
+            BODY="<@101109440702353408> [\`${SHORT_SHA}\`](${COMMIT_URL}) failed on dev — **do not merge**. [View logs](${RUN_URL}).\n\`${COMMIT_MSG}\`"
           fi
 
           curl -s -X POST "$WEBHOOK" \
@@ -163,6 +172,6 @@ jobs:
                 \"title\": \"${ICON} ${TITLE}\",
                 \"description\": \"${BODY}\",
                 \"color\": ${COLOR},
-                \"footer\": { \"text\": \"dev smoke test\" }
+                \"footer\": { \"text\": \"branch: ${BRANCH}\" }
               }]
             }"

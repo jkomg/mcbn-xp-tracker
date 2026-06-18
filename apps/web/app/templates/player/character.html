@@ -661,6 +661,20 @@
                         </div>
                         {% endif %}
 
+                        {% if player_coterie %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="donate_to_coterie"
+                                       onchange="document.getElementById('coterie_id_field').value = this.checked ? '{{ player_coterie.id }}' : ''">
+                                <label class="form-check-label" for="donate_to_coterie">
+                                    <i class="bi bi-people"></i> Donate to <strong>{{ player_coterie.name }}</strong>
+                                </label>
+                            </div>
+                            <div class="form-text">Check this to flag the spend as a coterie contribution. The ST will add it to the coterie pool on approval.</div>
+                            <input type="hidden" name="coterie_id" id="coterie_id_field" value="">
+                        </div>
+                        {% endif %}
+
                         <div class="text-end">
                             <button type="submit" class="btn btn-danger">
                                 <i class="bi bi-send"></i> Submit Spend Request
@@ -759,7 +773,10 @@
                     <tbody>
                         {% for s in pending_spends_list %}
                         <tr>
-                            <td>{{ s.trait_name }}</td>
+                            <td>
+                                {{ s.trait_name }}
+                                {% if s.coterie_id %}<span class="badge bg-info ms-1" title="Coterie donation"><i class="bi bi-people"></i> {{ s.coterie_name }}</span>{% endif %}
+                            </td>
                             <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
                             <td><span class="text-muted">{{ s.current_dots }}→{{ s.new_dots }}</span></td>
                             <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
@@ -786,7 +803,10 @@
         <div class="spend-category-heading">{{ category }}</div>
         {% for spend in spends %}
         <div class="spend-entry">
-            <div class="spend-trait-name">{{ spend.trait_name }}</div>
+            <div class="spend-trait-name">
+                {{ spend.trait_name }}
+                {% if spend.coterie_id %}<span class="badge bg-info ms-1" title="Coterie donation"><i class="bi bi-people"></i> {{ spend.coterie_name }}</span>{% endif %}
+            </div>
             {% if spend.new_dots %}
             <div class="dot-pips" title="{{ spend.current_dots or 0 }} → {{ spend.new_dots }}">
                 {% for i in range(1, 6) %}
