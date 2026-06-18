@@ -893,3 +893,32 @@ def sendback_formation(slug: str):
     db.session.commit()
     flash(f'{coterie.name} sent back to formation with notes.', 'info')
     return redirect(url_for('coteries.manage', slug=slug))
+
+
+# ---------------------------------------------------------------------------
+# Staff: delete a draft/pending coterie
+# ---------------------------------------------------------------------------
+
+@bp.route('/<slug>/delete', methods=['POST'])
+@require_staff
+def delete(slug: str):
+    coterie = _get_coterie_or_404(slug)
+
+    if coterie.status == 'active':
+        flash('Active coteries cannot be deleted.', 'danger')
+        return redirect(url_for('coteries.manage', slug=slug))
+
+    name = coterie.name
+
+    # Clear background donation references before deleting
+    DbCharacterBackground.query.filter_by(donated_coterie_id=coterie.id).update(
+        {'donated_coterie_id': None}
+    )
+    DbCharacterBackground.query.filter_by(donation_pending_coterie_id=coterie.id).update(
+        {'donation_pending_coterie_id': None}
+    )
+
+    db.session.delete(coterie)  # cascades members + advantages
+    db.session.commit()
+    flash(f'Coterie "{name}" deleted.', 'success')
+    return redirect(url_for('coteries.index'))
