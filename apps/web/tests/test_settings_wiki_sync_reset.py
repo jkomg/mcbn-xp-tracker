@@ -37,7 +37,8 @@ def _app():
     app.register_blueprint(_stub_bp('audit', '/audit', {'/': 'log', '/errors': 'errors'}))
     app.register_blueprint(_stub_bp('player', '/player', {'/': 'my_characters'}))
     app.register_blueprint(_stub_bp('wiki', '/wiki', {'/': 'index'}))
-    app.register_blueprint(_stub_bp('cc_admin', '/cc-admin', {'/loresheets': 'loresheet_list'}))
+    app.register_blueprint(_stub_bp('cc_admin', '/cc-admin', {'/loresheets': 'loresheet_list', '/drafts': 'draft_list', '/drafts/<int:draft_id>': 'draft_review'}))
+    app.register_blueprint(_stub_bp('coteries', '/coteries', {'/': 'index'}))
     app.register_blueprint(settings_bp, url_prefix='/settings')
     with app.app_context():
         db.create_all()

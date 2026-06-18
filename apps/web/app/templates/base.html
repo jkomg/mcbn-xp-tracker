@@ -164,6 +164,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('coteries.') %}active{% endif %}"
+                           href="{{ url_for('coteries.index') }}">
+                            <i class="bi bi-people"></i> <span>Coteries</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('wiki.') %}active{% endif %}"
                            href="{{ url_for('wiki.index') }}">
                             <i class="bi bi-journal-richtext"></i> <span>Chronicle Wiki</span>
