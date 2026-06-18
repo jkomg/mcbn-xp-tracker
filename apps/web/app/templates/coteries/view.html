@@ -222,5 +222,57 @@
         </div>
     </div>
 
+    <!-- XP Donations -->
+    {% if xp_donations or pending_xp_donations %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-stars"></i> XP Donations</span>
+                {% if xp_donations_total > 0 %}
+                <span class="badge bg-success">{{ xp_donations_total }} XP total</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Character</th>
+                                <th>Trait</th>
+                                <th class="d-none d-sm-table-cell">Category</th>
+                                <th>XP</th>
+                                <th>Status</th>
+                                <th class="d-none d-md-table-cell">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in pending_xp_donations %}
+                            <tr>
+                                <td>{{ s.character_name }}</td>
+                                <td>{{ s.trait_name }}</td>
+                                <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
+                                <td><span class="badge bg-secondary">{{ s.xp_cost }} XP</span></td>
+                                <td><span class="badge bg-warning text-dark">Pending</span></td>
+                                <td class="d-none d-md-table-cell"><small class="text-muted">{{ s.timestamp }}</small></td>
+                            </tr>
+                            {% endfor %}
+                            {% for s in xp_donations %}
+                            <tr>
+                                <td>{{ s.character_name }}</td>
+                                <td>{{ s.trait_name }}</td>
+                                <td class="d-none d-sm-table-cell"><small class="text-muted">{{ s.spend_category }}</small></td>
+                                <td><span class="badge bg-success">{{ s.verified_cost }} XP</span></td>
+                                <td><span class="badge bg-success">Approved</span></td>
+                                <td class="d-none d-md-table-cell"><small class="text-muted">{{ s.review_date }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

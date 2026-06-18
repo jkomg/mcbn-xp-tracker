@@ -66,7 +66,10 @@
                 </td>
                 <td><strong>{{ spend.character_name }}</strong></td>
                 <td class="d-none d-md-table-cell">{{ spend.spend_category }}</td>
-                <td>{{ spend.trait_name }}</td>
+                <td>
+                    {{ spend.trait_name }}
+                    {% if spend.coterie_id %}<span class="badge bg-info ms-1" title="Coterie donation"><i class="bi bi-people"></i> {{ spend.coterie_name }}</span>{% endif %}
+                </td>
                 <td class="d-none d-sm-table-cell"><span class="text-muted">{{ spend.current_dots }} → {{ spend.new_dots }}</span></td>
                 <td><span class="badge bg-danger">{{ spend.xp_cost }} XP</span></td>
                 <td class="d-none d-sm-table-cell">
