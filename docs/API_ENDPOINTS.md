@@ -1022,9 +1022,6 @@ Returns all active coteries with their members. Used by wiki sync and the bot.
       "name": "The Dusk Compact",
       "slug": "the-dusk-compact",
       "description": "...",
-      "chasse": 2,
-      "lien": 1,
-      "portillon": 3,
       "discord_channel_id": "123456789012345678",
       "members": [
         { "character_name": "Alice", "clan": "Brujah", "player_discord_id": "111111111111111111" }
@@ -1058,11 +1055,11 @@ Finds a pending coterie by name, sets its Discord channel ID, and activates it. 
     "id": 1,
     "name": "The Dusk Compact",
     "slug": "the-dusk-compact",
-    "status": "active"
-  },
-  "members": [
-    { "character_name": "Alice", "player_discord_id": "111111111111111111" }
-  ]
+    "members": [
+      { "character_name": "Alice", "player_discord_id": "111111111111111111", "free_dots": 3 }
+    ],
+    "free_pool_total": 3
+  }
 }
 ```
 
