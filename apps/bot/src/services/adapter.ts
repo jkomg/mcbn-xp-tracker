@@ -149,6 +149,20 @@ export interface TrackerAdapter {
     discord_channel_id: string | null;
     members: Array<{ character_name: string; clan: string; player_discord_id: string }>;
   }>>;
+  getCoterieForCharacter(discordId: string, characterName?: string): Promise<{
+    character_name: string;
+    coterie: {
+      id: number;
+      name: string;
+      slug: string;
+      description: string;
+      status: string;
+      chasse: number;
+      lien: number;
+      portillon: number;
+    } | null;
+    members: Array<{ character_name: string; clan: string; player_discord_id: string; player_name: string }>;
+  } | null>;
 }
 
 export type CharacterDetails = {
@@ -1331,6 +1345,17 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!res.ok) throw new Error(`coteries GET failed: ${res.status}`);
     const data = await res.json() as { coteries: ReturnType<TrackerAdapter['listCoteries']> extends Promise<infer T> ? T : never };
     return data.coteries;
+  }
+
+  async getCoterieForCharacter(discordId: string, characterName?: string) {
+    const qs = characterName ? `?character_name=${encodeURIComponent(characterName)}` : '';
+    const res = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/coteries/by-character/${encodeURIComponent(discordId)}${qs}`,
+      { method: 'GET', headers: this.readAuthHeaders() },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`coteries/by-character GET failed: ${res.status}`);
+    return res.json() as Promise<ReturnType<TrackerAdapter['getCoterieForCharacter']> extends Promise<infer T> ? T : never>;
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

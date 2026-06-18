@@ -308,6 +308,11 @@ class Coterie(db.Model):
                            default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
+    # Domain ratings (0–5 each). Advanced via coterie XP spends, set by staff.
+    chasse = db.Column(Integer, nullable=False, default=0)
+    lien = db.Column(Integer, nullable=False, default=0)
+    portillon = db.Column(Integer, nullable=False, default=0)
+
     members = db.relationship('CoterieMember', back_populates='coterie',
                               cascade='all, delete-orphan')
     advantages = db.relationship('CoterieAdvantage', back_populates='coterie',

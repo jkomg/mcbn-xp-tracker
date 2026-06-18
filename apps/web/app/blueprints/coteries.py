@@ -290,6 +290,20 @@ def edit(slug: str):
     return redirect(url_for('coteries.manage', slug=slug))
 
 
+@bp.route('/<slug>/domain', methods=['POST'])
+@require_staff
+def update_domain(slug: str):
+    """Staff: set Chasse / Lien / Portillon ratings."""
+    coterie = _get_coterie_or_404(slug)
+    coterie.chasse = max(0, min(5, request.form.get('chasse', 0, type=int)))
+    coterie.lien = max(0, min(5, request.form.get('lien', 0, type=int)))
+    coterie.portillon = max(0, min(5, request.form.get('portillon', 0, type=int)))
+    coterie.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash('Domain ratings updated.', 'success')
+    return redirect(url_for('coteries.manage', slug=slug))
+
+
 # ---------------------------------------------------------------------------
 # Staff/member: add pool advantage
 # ---------------------------------------------------------------------------
