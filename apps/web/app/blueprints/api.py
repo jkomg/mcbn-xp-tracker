@@ -2044,10 +2044,13 @@ def get_coterie_for_character(discord_id: str):
     Response: { coterie, character_name, members } or 404.
     """
     from app.db import Coterie, CoterieMember, DbCharacter
+    from sqlalchemy import func as _func
 
-    char = DbCharacter.query.filter_by(
-        player_discord=discord_id, active=True
-    ).first()
+    character_name = request.args.get('character_name', '').strip()
+    q = DbCharacter.query.filter_by(player_discord=discord_id, active=True)
+    if character_name:
+        q = q.filter(_func.lower(DbCharacter.character_name) == character_name.lower())
+    char = q.first()
     if not char:
         return jsonify({'error': 'No active character found for this Discord user'}), 404
 
