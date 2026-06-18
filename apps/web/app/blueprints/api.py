@@ -2043,7 +2043,7 @@ def get_coterie_for_character(discord_id: str):
     Used by the bot's /coterie status command.
     Response: { coterie, character_name, members } or 404.
     """
-    from app.db import Coterie, CoterieMember, DbCharacter
+    from app.db import CoterieMember, DbCharacter
     from sqlalchemy import func as _func
 
     character_name = request.args.get('character_name', '').strip()
