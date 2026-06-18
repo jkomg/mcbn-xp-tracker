@@ -149,7 +149,7 @@ export interface TrackerAdapter {
     discord_channel_id: string | null;
     members: Array<{ character_name: string; clan: string; player_discord_id: string }>;
   }>>;
-  getCoterieForCharacter(discordId: string): Promise<{
+  getCoterieForCharacter(discordId: string, characterName?: string): Promise<{
     character_name: string;
     coterie: {
       id: number;
@@ -1347,9 +1347,10 @@ export class WebAppAdapter implements TrackerAdapter {
     return data.coteries;
   }
 
-  async getCoterieForCharacter(discordId: string) {
+  async getCoterieForCharacter(discordId: string, characterName?: string) {
+    const qs = characterName ? `?character_name=${encodeURIComponent(characterName)}` : '';
     const res = await this.fetchWithTimeout(
-      `${this.baseUrl}/api/coteries/by-character/${encodeURIComponent(discordId)}`,
+      `${this.baseUrl}/api/coteries/by-character/${encodeURIComponent(discordId)}${qs}`,
       { method: 'GET', headers: this.readAuthHeaders() },
     );
     if (res.status === 404) return null;
