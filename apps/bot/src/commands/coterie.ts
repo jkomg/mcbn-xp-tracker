@@ -53,10 +53,11 @@ async function handleStatus(
   await interaction.deferReply({ ephemeral: true });
 
   const discordId = interaction.user.id;
+  const requestedName = interaction.options.getString('character') ?? undefined;
 
   let data: Awaited<ReturnType<typeof adapter.getCoterieForCharacter>>;
   try {
-    data = await adapter.getCoterieForCharacter(discordId);
+    data = await adapter.getCoterieForCharacter(discordId, requestedName);
   } catch (err) {
     await interaction.editReply(
       `❌ Could not reach the tracker right now. Try again in a moment.\n\`${errorToMessage(err)}\``,
@@ -65,17 +66,9 @@ async function handleStatus(
   }
 
   if (!data) {
+    const suffix = requestedName ? ` named **${requestedName}**` : '';
     await interaction.editReply(
-      'You have no active character registered in the tracker.',
-    );
-    return;
-  }
-
-  const requestedName = interaction.options.getString('character');
-  if (requestedName && data.character_name.toLowerCase() !== requestedName.toLowerCase()) {
-    await interaction.editReply(
-      `No active character named **${requestedName}** found for your account. ` +
-      `Your registered character is **${data.character_name}**.`,
+      `You have no active character${suffix} registered in the tracker.`,
     );
     return;
   }
