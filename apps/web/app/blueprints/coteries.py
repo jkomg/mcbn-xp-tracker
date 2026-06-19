@@ -935,10 +935,6 @@ def sendback_formation(slug: str):
 def delete(slug: str):
     coterie = _get_coterie_or_404(slug)
 
-    if coterie.status == 'active':
-        flash('Active coteries cannot be deleted.', 'danger')
-        return redirect(url_for('coteries.manage', slug=slug))
-
     name = coterie.name
 
     # Clear background donation references before deleting
