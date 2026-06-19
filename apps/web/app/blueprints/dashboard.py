@@ -21,11 +21,24 @@ DISCORD_USER_URL = 'https://discord.com/api/v10/users/@me'
 @require_staff
 def index():
     """Main dashboard showing XP summary for all characters."""
-    from app.db import CharacterDraft
+    from app.db import CharacterDraft, DbCharacter
+    from app.auth import is_settings_admin
     dashboard_data = db_service.get_dashboard_data()
     pending_claims = len(db_service.get_pending_claims())
     pending_spends = len(db_service.get_pending_spends())
     pending_drafts = CharacterDraft.query.filter_by(status='submitted').count()
+
+    # Build distinct player list for admin preview-as picker
+    preview_players = []
+    if is_settings_admin():
+        seen = set()
+        for char in DbCharacter.query.filter_by(active=True).order_by(DbCharacter.player_discord_name).all():
+            if char.player_discord and char.player_discord not in seen:
+                seen.add(char.player_discord)
+                preview_players.append({
+                    'discord_id': char.player_discord,
+                    'display_name': char.player_discord_name or char.player_discord,
+                })
 
     return render_template(
         'dashboard.html',
@@ -33,6 +46,7 @@ def index():
         pending_claims=pending_claims,
         pending_spends=pending_spends,
         pending_drafts=pending_drafts,
+        preview_players=preview_players,
     )
 
 
@@ -164,6 +178,50 @@ def discord_callback():
         # Player user — redirect to player portal
         flash(f'Welcome, {discord_name}.', 'success')
         return redirect(next_url)
+
+
+@bp.route('/staff/view-as', methods=['POST'])
+def set_view_as():
+    """Staff-only: begin previewing the app as a specific player.
+
+    Requires raw staff auth (session['authenticated']). Gated further to
+    settings admins so only privileged staff can use this.
+    """
+    from app.auth import is_settings_admin
+    if not session.get('authenticated'):
+        flash('Staff authentication required.', 'danger')
+        return redirect(url_for('dashboard.login'))
+    if not is_settings_admin():
+        flash('Administrator access required to use player preview.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    discord_id = (request.form.get('discord_id') or '').strip()
+    display_name = (request.form.get('display_name') or discord_id).strip()
+
+    if not discord_id:
+        flash('No player selected.', 'warning')
+        return redirect(url_for('dashboard.index'))
+
+    # Validate the discord_id belongs to an actual player in the roster
+    from app.db import DbCharacter
+    char = DbCharacter.query.filter_by(player_discord=discord_id, active=True).first()
+    if not char:
+        flash(f'No active character found for Discord ID {discord_id}.', 'warning')
+        return redirect(url_for('dashboard.index'))
+
+    session['view_as'] = {'discord_id': discord_id, 'display_name': display_name}
+    flash(f'Previewing as {display_name}. Use the banner to exit.', 'info')
+    return redirect(url_for('player.my_characters'))
+
+
+@bp.route('/staff/view-as/clear', methods=['POST'])
+def clear_view_as():
+    """Exit player preview and return to staff dashboard."""
+    if not session.get('authenticated'):
+        flash('Staff authentication required.', 'danger')
+        return redirect(url_for('dashboard.login'))
+    session.pop('view_as', None)
+    return redirect(url_for('dashboard.index'))
 
 
 @bp.route('/logout')

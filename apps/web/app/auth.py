@@ -125,7 +125,13 @@ def is_settings_admin() -> bool:
 
 
 def is_staff() -> bool:
-    """Check if the current session user is staff."""
+    """Check if the current session user is staff.
+
+    Returns False during player preview so player-scoped UI renders correctly.
+    Use session.get('authenticated') directly to check raw staff auth.
+    """
+    if session.get('view_as'):
+        return False
     if session.get('authenticated'):
         return True
     discord_id = session.get('discord_id', '')
@@ -137,8 +143,20 @@ def is_logged_in() -> bool:
     return bool(session.get('discord_id') or session.get('authenticated'))
 
 
+def get_view_as() -> dict | None:
+    """Return the active view-as target { discord_id, display_name }, or None."""
+    return session.get('view_as')
+
+
 def get_player_discord_id() -> str:
-    """Return the current user's numeric Discord ID from session."""
+    """Return the effective player Discord ID.
+
+    Returns the view-as target's ID when staff is previewing as a player,
+    otherwise the session's own discord_id.
+    """
+    va = session.get('view_as')
+    if va:
+        return va['discord_id']
     return session.get('discord_id', '')
 
 
