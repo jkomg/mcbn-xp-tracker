@@ -89,7 +89,7 @@ def require_character_owner(f):
         if name:
             from app import db_service
             char = db_service.get_character(name)
-            if not char or char.player_discord != session['discord_id']:
+            if not char or char.player_discord != get_player_discord_id():
                 abort(404)
 
         return f(*args, **kwargs)
