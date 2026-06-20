@@ -17,7 +17,7 @@ jobs:
       docker_docs: ${{ steps.filter.outputs.docker_docs }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect changed paths
         id: filter
@@ -54,7 +54,7 @@ jobs:
     if: needs.detect-changes.outputs.web == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python (web)
         uses: actions/setup-python@v6
@@ -88,7 +88,7 @@ jobs:
     if: needs.detect-changes.outputs.bot == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node (bot)
         uses: actions/setup-node@v6
@@ -110,7 +110,7 @@ jobs:
     if: needs.detect-changes.outputs.contract == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Validate shared JSON files
         run: |
@@ -150,7 +150,7 @@ jobs:
     if: needs.detect-changes.outputs.docker_docs == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Prepare local env files for compose checks
         run: |
