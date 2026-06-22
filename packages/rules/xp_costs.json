@@ -64,5 +64,11 @@
     "description": "10 XP (0 → 1, requires resonance + kindred blood)",
     "min_dots": 0,
     "max_dots": 1
+  },
+  "Humanity": {
+    "multiplier": 2,
+    "description": "New rating × 2",
+    "min_dots": 1,
+    "max_dots": 10
   }
 }
