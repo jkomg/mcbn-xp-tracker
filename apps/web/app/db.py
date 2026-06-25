@@ -38,6 +38,7 @@ class DbCharacter(db.Model):
     enemy = db.Column(String(200), default='')
     date_added = db.Column(String(20), default='')
     notes = db.Column(Text, default='')
+    ticket_channel_id = db.Column(String(32), nullable=True)
 
 
 class DbPlayPeriod(db.Model):
@@ -154,6 +155,30 @@ class WikiSyncEvent(db.Model):
     status = db.Column(String(16), nullable=False)  # running | success | error
     error = db.Column(Text, default='')
     created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class RetirementAutomationJob(db.Model):
+    """Queued retirement automation work shared between the web app and bot."""
+    __tablename__ = 'retirement_automation_jobs'
+    __table_args__ = (
+        db.Index('ix_retirement_jobs_discord_pending', 'discord_completed_at'),
+        db.Index('ix_retirement_jobs_wiki_pending', 'wiki_synced_at'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    character_name = db.Column(String(200), nullable=False, index=True)
+    requested_by = db.Column(String(100), nullable=False, default='')
+    cubby_channel_id = db.Column(String(32), nullable=True)
+    requested_at = db.Column(DateTime, nullable=False,
+                             default=lambda: datetime.now(timezone.utc), index=True)
+    last_attempt_at = db.Column(DateTime, nullable=True)
+    attempt_count = db.Column(Integer, nullable=False, default=0)
+    last_error = db.Column(Text, default='')
+    children_source_thread_id = db.Column(String(32), nullable=True)
+    children_retired_thread_id = db.Column(String(32), nullable=True)
+    cubby_moved_at = db.Column(DateTime, nullable=True)
+    children_moved_at = db.Column(DateTime, nullable=True)
+    discord_completed_at = db.Column(DateTime, nullable=True)
+    wiki_synced_at = db.Column(DateTime, nullable=True)
 
 
 class DbSheetsSyncError(db.Model):
