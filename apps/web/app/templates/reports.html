@@ -255,6 +255,7 @@
                 <th>Attempts</th>
                 <th>Next Retry</th>
                 <th>Error</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -291,6 +292,18 @@
                     <span class="text-danger small">{{ row.last_error[:140] }}{% if row.last_error|length > 140 %}...{% endif %}</span>
                   {% else %}
                     <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if not row.wiki_synced_at %}
+                  <form method="POST" action="{{ url_for('reports.resolve_retirement_job', job_id=row.id) }}" class="mb-0">
+                    <button type="submit" class="btn btn-sm btn-outline-success"
+                      onclick="return confirm('Mark {{ row.character_name }} as manually resolved? Use this only after staff have finished the Discord and wiki moves manually.')">
+                      Mark Resolved
+                    </button>
+                  </form>
+                  {% else %}
+                    <span class="text-muted small">—</span>
                   {% endif %}
                 </td>
               </tr>

@@ -40,6 +40,7 @@ Scope: bot + web integration surfaces relevant to bot operations, retirement aut
   - `POST /api/retirement-automation/{id}/discord-failed`
   - `POST /api/retirement-automation/wiki-batch-request`
 - Retirement queue retries failed Discord work on capped exponential backoff (5 minutes up to 6 hours); pending endpoint returns only jobs currently due.
+- Staff can manually resolve retirement jobs from the Reports page after handling Discord/wiki cleanup outside automation.
 - Web now stores sync lifecycle history in `notion_sync_events` (append-only, bounded), including `run_id` correlation.
 
 ## Bot Runtime (Current)

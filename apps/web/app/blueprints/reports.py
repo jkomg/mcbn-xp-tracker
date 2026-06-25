@@ -5,8 +5,9 @@ from __future__ import annotations
 import csv
 import io
 from collections import defaultdict
+from datetime import datetime, timezone
 
-from flask import Blueprint, Response, render_template, request
+from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 
 from app.auth import require_staff
 from app.db import (
@@ -17,6 +18,7 @@ from app.db import (
     DiscordDisplayName,
     DiscordPostCount,
     RetirementAutomationJob,
+    db,
 )
 from app.retirement_automation import retirement_next_retry_at
 
@@ -186,6 +188,32 @@ def index():
         retirement_summary=retirement_summary,
         retirement_next_retry_at=retirement_next_retry_at,
     )
+
+
+@bp.route('/reports/retirement-jobs/<int:job_id>/resolve', methods=['POST'])
+@require_staff
+def resolve_retirement_job(job_id: int):
+    row = db.session.get(RetirementAutomationJob, job_id)
+    if not row:
+        flash('Retirement automation job not found.', 'warning')
+        return redirect(url_for('reports.index'))
+
+    now = datetime.now(timezone.utc)
+    row.last_attempt_at = now
+    row.discord_completed_at = row.discord_completed_at or now
+    row.cubby_moved_at = row.cubby_moved_at or now
+    row.children_moved_at = row.children_moved_at or now
+    row.wiki_synced_at = row.wiki_synced_at or now
+    row.last_error = ''
+    db.session.commit()
+
+    resolved_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+    flash(f'Retirement job for {row.character_name} marked manually resolved by {resolved_by}.', 'success')
+    return redirect(url_for('reports.index'))
 
 
 @bp.route('/reports/activity.csv')

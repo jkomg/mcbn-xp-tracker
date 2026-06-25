@@ -140,6 +140,8 @@ Current behavior:
 
 Wiki updates are deferred. The web app keeps the retirement job pending for wiki until the next successful wiki sync batch. When the normal wiki scheduler is disabled, the worker can request one daily wiki batch through `POST /api/retirement-automation/wiki-batch-request`.
 
+If staff complete the Discord and wiki cleanup manually, they can mark a retirement job resolved from the Reports page to stop further retries.
+
 Important constraint: Discord does not support moving a thread from one forum to another by changing parent ID, so the forum post is cloned rather than literally moved.
 
 ### Wiki/Notion sync lock semantics
