@@ -338,8 +338,8 @@ export class RetirementAutomationWorker {
       // Unconditionally unarchive before locking — thread.archived is boolean | null in
       // Discord.js so a conditional check silently skips when null, leaving setLocked to throw.
       await sourceThread.setArchived(false, `Preparing to lock: ${characterName}`).catch(() => null);
-      await sourceThread.setLocked(true, `Character retired: ${characterName}`);
-      await sourceThread.setArchived(true, `Character retired: ${characterName}`);
+      // Register rollback before the lock/archive sequence so any failure in that sequence
+      // is covered (otherwise the thread would be left unarchived with no rollback).
       rollbackActions.push({
         label: 'restore_source_thread_open_state',
         run: async () => {
@@ -347,6 +347,8 @@ export class RetirementAutomationWorker {
           await sourceThread.setArchived(false, `Undo retirement automation for ${characterName}`);
         },
       });
+      await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+      await sourceThread.setArchived(true, `Character retired: ${characterName}`);
       return { sourceThreadId: sourceThread.id, retiredThreadId: existingRetired.id };
     }
 
@@ -389,8 +391,8 @@ export class RetirementAutomationWorker {
     }
 
     await sourceThread.setArchived(false, `Preparing to lock: ${characterName}`).catch(() => null);
-    await sourceThread.setLocked(true, `Character retired: ${characterName}`);
-    await sourceThread.setArchived(true, `Character retired: ${characterName}`);
+    // Register rollback before the lock/archive sequence so any failure in that sequence
+    // is covered (otherwise the thread would be left unarchived with no rollback).
     rollbackActions.push({
       label: 'restore_source_thread_open_state',
       run: async () => {
@@ -398,6 +400,8 @@ export class RetirementAutomationWorker {
         await sourceThread.setArchived(false, `Undo retirement automation for ${characterName}`);
       },
     });
+    await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+    await sourceThread.setArchived(true, `Character retired: ${characterName}`);
     return { sourceThreadId: sourceThread.id, retiredThreadId: newThread.id };
   }
 
