@@ -181,7 +181,7 @@ def create_app():
     app.jinja_env.filters['to_eastern'] = _to_eastern
 
     # Inject auth helpers into all templates
-    from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in, is_settings_admin as _is_settings_admin
+    from .auth import is_staff as _is_staff, is_logged_in as _is_logged_in, is_settings_admin as _is_settings_admin, get_view_as as _get_view_as
 
     @app.context_processor
     def inject_auth():
@@ -191,6 +191,7 @@ def create_app():
             'is_logged_in': _is_logged_in(),
             'current_discord_name': session.get('discord_name', ''),
             'current_discord_id': session.get('discord_id', ''),
+            'view_as': _get_view_as(),
         }
 
     # JSON error log file — only active when WEB_LOG_DIR is set (local Docker dev)
