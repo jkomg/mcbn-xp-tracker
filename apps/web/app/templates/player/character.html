@@ -927,6 +927,7 @@
                         <tr><td>Thin-Blood Alchemy</td><td>Level × 3</td><td>Level 2 = 6 XP</td></tr>
                         <tr><td>Advantage</td><td>3 XP per dot purchased</td><td>0→2 = 6 XP</td></tr>
                         <tr><td>Loresheet</td><td>Purchased dot × 3</td><td>Buy dot 3 = 9 XP</td></tr>
+                        <tr><td>Humanity</td><td>New rating × 2</td><td>5→6 = 12 XP</td></tr>
                     </tbody>
                 </table>
                 <small class="text-muted mt-2 d-block">For multi-dot purchases, add each step. Example: In-Clan Discipline 1→3 = (2×5) + (3×5) = 25 XP.</small>
@@ -1080,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Advantage (Merit/Background)':{ per_dot: 3, min: 0, max: 5 },
         'Loresheet':                   { level_mult: 3, min: 0, max: 5 },
         'Ghoul Discipline':            { flat: 10, min: 0, max: 1 },
+        'Humanity':                    { multiplier: 2, min: 1, max: 10 },
     };
 
     function calcCost() {
@@ -1188,6 +1190,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+
+        // Auto-fill trait name for fixed-trait categories
+        if (traitNameInput) {
+            if (cat === 'Humanity') {
+                traitNameInput.value = 'Humanity';
+                traitNameInput.readOnly = true;
+            } else {
+                if (traitNameInput.readOnly) traitNameInput.value = '';
+                traitNameInput.readOnly = false;
+            }
+        }
     }
 
     // ═══ Living Sheet — pre-fill current dots from imported sheet data ═══
@@ -1262,6 +1275,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Advantage (Merit/Background)':{ per_dot: 3 },
         'Loresheet':                   { level_mult: 3 },
         'Ghoul Discipline':            { flat: 10 },
+        'Humanity':                    { multiplier: 2 },
     };
 
     function wlCost(cat, from, to) {
@@ -1399,6 +1413,25 @@ document.addEventListener('DOMContentLoaded', function() {
     [wlCat, wlTrait, wlFrom, wlTo].forEach(function(el) {
         el?.addEventListener('input', updatePreview);
         el?.addEventListener('change', updatePreview);
+    });
+
+    wlCat?.addEventListener('change', function() {
+        if (wlCat.value === 'Humanity') {
+            wlTrait.value = 'Humanity';
+            wlTrait.readOnly = true;
+            wlFrom.min = 1; wlFrom.max = 9;
+            wlTo.min = 2;   wlTo.max = 10;
+            if (parseInt(wlFrom.value) < 1) wlFrom.value = 1;
+            if (parseInt(wlTo.value) < 2)   wlTo.value = 2;
+        } else {
+            if (wlTrait.readOnly) wlTrait.value = '';
+            wlTrait.readOnly = false;
+            wlFrom.min = 0; wlFrom.max = 4;
+            wlTo.min = 1;   wlTo.max = 5;
+            if (parseInt(wlFrom.value) > 4) wlFrom.value = 0;
+            if (parseInt(wlTo.value) > 5)   wlTo.value = 1;
+        }
+        updatePreview();
     });
 
     wlAddBtn?.addEventListener('click', function() {
