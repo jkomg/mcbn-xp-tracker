@@ -18,14 +18,12 @@
         <button class="btn btn-sm btn-success">Activate Coterie</button>
     </form>
     {% endif %}
-    {% if coterie.status != 'active' %}
     <form method="POST" action="{{ url_for('coteries.delete', slug=coterie.slug) }}"
-          class="{% if coterie.status == 'pending' and not coterie.creation_state %}{% else %}ms-auto{% endif %}"
+          class="ms-auto"
           onsubmit="return confirm('Permanently delete {{ coterie.name }}? This cannot be undone.')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete Coterie</button>
     </form>
-    {% endif %}
 </div>
 
 {% if coterie.creation_state == 'submitted' %}
