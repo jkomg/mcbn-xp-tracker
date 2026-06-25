@@ -248,6 +248,7 @@ void applyStartupConfigOverrides().then(() => {
     wikiBatchHourLocal: config.retirementWikiBatchHourLocal,
     wikiBatchMinuteLocal: config.retirementWikiBatchMinuteLocal,
     wikiBatchTimezone: config.retirementWikiBatchTimezone,
+    notifyChannelId: config.retirementNotifyChannelId,
   });
 
   const discordActivityGuildId = config.discordGuildId ?? config.reviewNotifierGuildId ?? '';
