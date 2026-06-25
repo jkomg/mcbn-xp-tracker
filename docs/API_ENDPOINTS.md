@@ -868,6 +868,26 @@ Marks the Discord-side retirement work complete after the bot moves the cubby ch
 
 ---
 
+## POST /api/retirement-automation/{id}/discord-failed
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Records a failed Discord-side retirement attempt after the bot has tried to roll back any partial channel or thread changes. The job stays pending for retry, and the error is visible in staff reports/settings.
+
+**Body:**
+```json
+{
+  "error": "completion endpoint failed"
+}
+```
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
 ## POST /api/retirement-automation/wiki-batch-request
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** exempt

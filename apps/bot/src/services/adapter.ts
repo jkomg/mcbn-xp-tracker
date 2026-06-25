@@ -47,6 +47,7 @@ export interface TrackerAdapter {
     jobId: number,
     payload: { cubbyChannelId: string | null; childrenSourceThreadId: string | null; childrenRetiredThreadId: string | null },
   ): Promise<void>;
+  failRetirementJobDiscordWork(jobId: number, payload: { error: string }): Promise<void>;
   requestRetirementWikiBatch(): Promise<{ ok: boolean; requested: boolean; pendingCount: number; reason?: string }>;
   setCharacterStatus(name: string, status: string, requesterName: string): Promise<{ ok: boolean; message: string }>;
   updateCharacterChannelId(name: string, ticketChannelId: string | null, requesterName: string): Promise<{ ok: boolean; message: string }>;
@@ -294,6 +295,10 @@ const retirementWikiBatchRequestSchema = z.object({
   requested: z.boolean(),
   pendingCount: z.number(),
   reason: z.string().optional(),
+});
+
+const retirementJobFailureSchema = z.object({
+  ok: z.boolean(),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -572,6 +577,20 @@ export class WebAppAdapter implements TrackerAdapter {
     ).catch(() => null);
     if (!resp) throw new Error('Unable to reach retirement completion API.');
     if (!resp.ok) throw new Error(`Retirement completion API failed (${resp.status})`);
+  }
+
+  async failRetirementJobDiscordWork(jobId: number, payload: { error: string }): Promise<void> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/retirement-automation/${jobId}/discord-failed`,
+      {
+        method: 'POST',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ).catch(() => null);
+    if (!resp) throw new Error('Unable to reach retirement failure API.');
+    if (!resp.ok) throw new Error(`Retirement failure API failed (${resp.status})`);
+    retirementJobFailureSchema.parse(await resp.json());
   }
 
   async requestRetirementWikiBatch(): Promise<{ ok: boolean; requested: boolean; pendingCount: number; reason?: string }> {

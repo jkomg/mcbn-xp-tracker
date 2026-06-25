@@ -1445,6 +1445,33 @@ def mark_retirement_job_discord_complete(job_id: int):
     return jsonify({'ok': True})
 
 
+@bp.route('/retirement-automation/<int:job_id>/discord-failed', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def mark_retirement_job_discord_failed(job_id: int):
+    from app.db import RetirementAutomationJob, db
+    data = request.get_json(silent=True) or {}
+    row = db.session.get(RetirementAutomationJob, job_id)
+    if not row:
+        return jsonify({'error': 'retirement job not found'}), 404
+
+    error = str(data.get('error') or '').strip()
+    if not error:
+        return jsonify({'error': 'error is required'}), 400
+
+    now = datetime.now(timezone.utc)
+    row.last_attempt_at = now
+    row.attempt_count = int(row.attempt_count or 0) + 1
+    row.cubby_moved_at = None
+    row.children_moved_at = None
+    row.discord_completed_at = None
+    row.children_source_thread_id = None
+    row.children_retired_thread_id = None
+    row.last_error = error[:4000]
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @bp.route('/retirement-automation/wiki-batch-request', methods=['POST'])
 @require_bot_scope('write')
 @_limit('30 per minute')

@@ -26,6 +26,11 @@ export type RetirementAutomationConfig = {
   wikiBatchTimezone: string;
 };
 
+type RollbackAction = {
+  label: string;
+  run: () => Promise<void>;
+};
+
 function localParts(now: Date, timezone: string): { dateKey: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -150,23 +155,78 @@ export class RetirementAutomationWorker {
     guild: Guild,
     job: { id: number; characterName: string; cubbyChannelId: string | null },
   ): Promise<void> {
-    const cubbyChannelId = await this.moveCubbyChannel(guild, job.characterName, job.cubbyChannelId);
-    const threads = await this.cloneChildrenThreadToRetiredForum(guild, job.characterName);
-    await this.adapter.completeRetirementJobDiscordWork(job.id, {
-      cubbyChannelId,
-      childrenSourceThreadId: threads.sourceThreadId,
-      childrenRetiredThreadId: threads.retiredThreadId,
-    });
-    logEvent('info', 'retirement_automation_job_completed', {
-      jobId: job.id,
-      characterName: job.characterName,
-      cubbyChannelId,
-      sourceThreadId: threads.sourceThreadId,
-      retiredThreadId: threads.retiredThreadId,
-    });
+    const rollbackActions: RollbackAction[] = [];
+    try {
+      const cubbyChannelId = await this.moveCubbyChannel(guild, job.characterName, job.cubbyChannelId, rollbackActions);
+      const threads = await this.cloneChildrenThreadToRetiredForum(guild, job.characterName, rollbackActions);
+      await this.adapter.completeRetirementJobDiscordWork(job.id, {
+        cubbyChannelId,
+        childrenSourceThreadId: threads.sourceThreadId,
+        childrenRetiredThreadId: threads.retiredThreadId,
+      });
+      logEvent('info', 'retirement_automation_job_completed', {
+        jobId: job.id,
+        characterName: job.characterName,
+        cubbyChannelId,
+        sourceThreadId: threads.sourceThreadId,
+        retiredThreadId: threads.retiredThreadId,
+      });
+    } catch (err) {
+      const rollbackFailures = await this.rollback(rollbackActions, job);
+      const error = errorToMessage(err);
+      const details = rollbackFailures.length
+        ? `${error} | rollback failed: ${rollbackFailures.join('; ')}`
+        : error;
+      try {
+        await this.adapter.failRetirementJobDiscordWork(job.id, { error: details });
+      } catch (reportErr) {
+        logEvent('error', 'retirement_automation_failure_report_failed', {
+          jobId: job.id,
+          characterName: job.characterName,
+          error: errorToMessage(reportErr),
+          originalError: details,
+        });
+      }
+      throw new Error(details);
+    }
   }
 
-  private async moveCubbyChannel(guild: Guild, characterName: string, knownChannelId: string | null): Promise<string | null> {
+  private async rollback(
+    actions: RollbackAction[],
+    job: { id: number; characterName: string },
+  ): Promise<string[]> {
+    const failures: string[] = [];
+    while (actions.length > 0) {
+      const action = actions.pop();
+      if (!action) continue;
+      try {
+        await action.run();
+      } catch (err) {
+        const failure = `${action.label}: ${errorToMessage(err)}`;
+        failures.push(failure);
+        logEvent('error', 'retirement_automation_rollback_failed', {
+          jobId: job.id,
+          characterName: job.characterName,
+          rollbackAction: action.label,
+          error: errorToMessage(err),
+        });
+      }
+    }
+    if (failures.length === 0) {
+      logEvent('info', 'retirement_automation_rollback_succeeded', {
+        jobId: job.id,
+        characterName: job.characterName,
+      });
+    }
+    return failures;
+  }
+
+  private async moveCubbyChannel(
+    guild: Guild,
+    characterName: string,
+    knownChannelId: string | null,
+    rollbackActions: RollbackAction[],
+  ): Promise<string | null> {
     const allChannels = await guild.channels.fetch();
     let channel = knownChannelId ? await guild.channels.fetch(knownChannelId).catch(() => null) : null;
 
@@ -202,9 +262,20 @@ export class RetirementAutomationWorker {
       'parentId' in channel &&
       channel.parentId !== this.cfg.retiredCubbyCategoryId
     ) {
+      const previousParentId = channel.parentId;
       await channel.setParent(this.cfg.retiredCubbyCategoryId, {
         lockPermissions: false,
         reason: `Character retired: ${characterName}`,
+      });
+      rollbackActions.push({
+        label: 'restore_cubby_parent',
+        run: async () => {
+          if (!previousParentId) return;
+          await channel.setParent(previousParentId, {
+            lockPermissions: false,
+            reason: `Undo retirement automation for ${characterName}`,
+          });
+        },
       });
     }
     return channel.id;
@@ -213,6 +284,7 @@ export class RetirementAutomationWorker {
   private async cloneChildrenThreadToRetiredForum(
     guild: Guild,
     characterName: string,
+    rollbackActions: RollbackAction[],
   ): Promise<{ sourceThreadId: string | null; retiredThreadId: string | null }> {
     const sourceChannel = await guild.channels.fetch(this.cfg.childrenForumId).catch(() => null);
     const retiredChannel = await guild.channels.fetch(this.cfg.retiredForumId).catch(() => null);
@@ -234,6 +306,13 @@ export class RetirementAutomationWorker {
     if (existingRetired) {
       await sourceThread.setArchived(true, `Character retired: ${characterName}`);
       await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+      rollbackActions.push({
+        label: 'restore_source_thread_open_state',
+        run: async () => {
+          await sourceThread.setLocked(false, `Undo retirement automation for ${characterName}`);
+          await sourceThread.setArchived(false, `Undo retirement automation for ${characterName}`);
+        },
+      });
       return { sourceThreadId: sourceThread.id, retiredThreadId: existingRetired.id };
     }
 
@@ -265,12 +344,25 @@ export class RetirementAutomationWorker {
       message: { content: chunks[0] ?? `Imported from ${sourceUrl}` },
       reason: `Character retired: ${characterName}`,
     });
+    rollbackActions.push({
+      label: 'delete_retired_forum_clone',
+      run: async () => {
+        await newThread.delete(`Undo retirement automation for ${characterName}`);
+      },
+    });
     for (const chunk of chunks.slice(1)) {
       await newThread.send({ content: chunk });
     }
 
     await sourceThread.setArchived(true, `Character retired: ${characterName}`);
     await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+    rollbackActions.push({
+      label: 'restore_source_thread_open_state',
+      run: async () => {
+        await sourceThread.setLocked(false, `Undo retirement automation for ${characterName}`);
+        await sourceThread.setArchived(false, `Undo retirement automation for ${characterName}`);
+      },
+    });
     return { sourceThreadId: sourceThread.id, retiredThreadId: newThread.id };
   }
 

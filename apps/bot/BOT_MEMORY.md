@@ -37,6 +37,7 @@ Scope: bot + web integration surfaces relevant to bot operations, retirement aut
 - Retirement automation queue endpoints:
   - `GET /api/retirement-automation/pending`
   - `POST /api/retirement-automation/{id}/discord-complete`
+  - `POST /api/retirement-automation/{id}/discord-failed`
   - `POST /api/retirement-automation/wiki-batch-request`
 - Web now stores sync lifecycle history in `notion_sync_events` (append-only, bounded), including `run_id` correlation.
 

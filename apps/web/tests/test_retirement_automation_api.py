@@ -83,6 +83,35 @@ def test_pending_and_complete_endpoints_round_trip():
         assert row.children_retired_thread_id == 'thread-dst'
 
 
+def test_failure_endpoint_records_error_and_keeps_job_pending():
+    app = _app()
+    with app.app_context():
+        enqueue_retirement_job('Alice Voss', 'staff-1')
+        db.session.commit()
+
+    with app.test_client() as client:
+        pending = client.get(
+            '/api/retirement-automation/pending',
+            headers={'Authorization': 'Bearer read-token'},
+        )
+        job_id = pending.get_json()['jobs'][0]['id']
+
+        failed = client.post(
+            f'/api/retirement-automation/{job_id}/discord-failed',
+            headers={'Authorization': 'Bearer write-token'},
+            json={'error': 'completion endpoint failed'},
+        )
+        assert failed.status_code == 200
+
+    with app.app_context():
+        row = db.session.get(RetirementAutomationJob, job_id)
+        assert row is not None
+        assert row.discord_completed_at is None
+        assert row.last_attempt_at is not None
+        assert row.attempt_count == 1
+        assert row.last_error == 'completion endpoint failed'
+
+
 def test_wiki_batch_request_and_success_ack_clear_pending_jobs():
     app = _app()
     with app.app_context():
