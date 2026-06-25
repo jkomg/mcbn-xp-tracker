@@ -24,6 +24,7 @@ export type RetirementAutomationConfig = {
   wikiBatchHourLocal: number;
   wikiBatchMinuteLocal: number;
   wikiBatchTimezone: string;
+  notifyChannelId: string;
 };
 
 type RollbackAction = {
@@ -171,6 +172,10 @@ export class RetirementAutomationWorker {
         sourceThreadId: threads.sourceThreadId,
         retiredThreadId: threads.retiredThreadId,
       });
+      await this.notifyCompletion(guild, job.characterName, {
+        cubbyChannelId,
+        retiredThreadId: threads.retiredThreadId,
+      });
     } catch (err) {
       const rollbackFailures = await this.rollback(rollbackActions, job);
       const error = errorToMessage(err);
@@ -219,6 +224,32 @@ export class RetirementAutomationWorker {
       });
     }
     return failures;
+  }
+
+  private async notifyCompletion(
+    guild: Guild,
+    characterName: string,
+    result: { cubbyChannelId: string | null; retiredThreadId: string | null },
+  ): Promise<void> {
+    if (!this.cfg.notifyChannelId) return;
+    const channel = await guild.channels.fetch(this.cfg.notifyChannelId).catch(() => null);
+    if (!channel || !('send' in channel)) return;
+
+    const parts: string[] = [`⚰️ **${characterName}** retired — Discord automation complete.`];
+    if (result.cubbyChannelId) {
+      parts.push(`• Cubby moved → <#${result.cubbyChannelId}>`);
+    } else {
+      parts.push(`• Cubby: no channel on file, skipped.`);
+    }
+    if (result.retiredThreadId) {
+      parts.push(`• Children of the Night thread cloned → <#${result.retiredThreadId}>`);
+    } else {
+      parts.push(`• Children of the Night: no active thread found, skipped.`);
+    }
+
+    await (channel as { send: (opts: { content: string }) => Promise<unknown> }).send({
+      content: parts.join('\n'),
+    });
   }
 
   private async moveCubbyChannel(
