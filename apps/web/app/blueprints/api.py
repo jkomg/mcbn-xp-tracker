@@ -1226,17 +1226,24 @@ def wiki_sync_ack():
             delete_key('BOT_WIKI_SYNC_RUN_ID')
         upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
         delete_key('BOT_WIKI_SYNC_ERROR')
-        # Only mark jobs whose Discord work completed before the sync started;
-        # jobs that complete mid-sync will be caught by the next wiki run.
-        sync_started_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_STARTED_AT')
+        # Only mark jobs whose Discord work completed before this sync started.
+        # Guard: only use BOT_WIKI_SYNC_STARTED_AT if its run id matches this
+        # request's runId — if the running ack failed, the stored timestamp may
+        # belong to a previous run and would incorrectly exclude jobs processed
+        # by the current sync.
         sync_started_dt: datetime | None = None
-        if sync_started_rec and sync_started_rec.value:
-            try:
-                sync_started_dt = datetime.fromisoformat(sync_started_rec.value)
-                if sync_started_dt.tzinfo is None:
-                    sync_started_dt = sync_started_dt.replace(tzinfo=timezone.utc)
-            except ValueError:
-                sync_started_dt = None
+        if run_id:
+            run_id_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_RUN_ID')
+            stored_run_id = (run_id_rec.value if run_id_rec else '') or ''
+            if stored_run_id == run_id:
+                sync_started_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_STARTED_AT')
+                if sync_started_rec and sync_started_rec.value:
+                    try:
+                        sync_started_dt = datetime.fromisoformat(sync_started_rec.value)
+                        if sync_started_dt.tzinfo is None:
+                            sync_started_dt = sync_started_dt.replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        pass
         retirement_jobs_synced = mark_retirement_jobs_wiki_synced(synced_before=sync_started_dt)
     else:
         upsert('BOT_WIKI_SYNC_STATUS', 'error')
