@@ -42,7 +42,7 @@ export interface TrackerAdapter {
   getActiveRoster(): Promise<{ characters: string[] }>;
   getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }>;
   getActiveRosterWithChannelIds(): Promise<{ characters: Array<{ name: string; ticketChannelId: string | null }> }>;
-  getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null }> }>;
+  getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null; nextRetryAt: string | null }> }>;
   completeRetirementJobDiscordWork(
     jobId: number,
     payload: { cubbyChannelId: string | null; childrenSourceThreadId: string | null; childrenRetiredThreadId: string | null },
@@ -287,6 +287,7 @@ const pendingRetirementJobsSchema = z.object({
     characterName: z.string(),
     cubbyChannelId: z.string().nullable(),
     requestedAt: z.string().nullable(),
+    nextRetryAt: z.string().nullable(),
   })),
 });
 
@@ -553,7 +554,7 @@ export class WebAppAdapter implements TrackerAdapter {
     return activeRosterWithChannelIdsSchema.parse(raw);
   }
 
-  async getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null }> }> {
+  async getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null; nextRetryAt: string | null }> }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/retirement-automation/pending`, {
       headers: this.readAuthHeaders(),
     }).catch(() => null);

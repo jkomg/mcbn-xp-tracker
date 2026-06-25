@@ -830,6 +830,8 @@ When the status transitions into `retired`, the web app also enqueues a retireme
 
 Returns retirement automation jobs whose Discord-side work has not yet completed.
 
+Failed jobs are retried with capped exponential backoff. This endpoint returns only jobs that are currently eligible to run again.
+
 **Response 200:**
 ```json
 {
@@ -838,7 +840,8 @@ Returns retirement automation jobs whose Discord-side work has not yet completed
       "id": 14,
       "characterName": "Alice Voss",
       "cubbyChannelId": "123456789012345678",
-      "requestedAt": "2026-06-25T14:00:00+00:00"
+      "requestedAt": "2026-06-25T14:00:00+00:00",
+      "nextRetryAt": null
     }
   ]
 }
@@ -873,6 +876,8 @@ Marks the Discord-side retirement work complete after the bot moves the cubby ch
 **Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
 
 Records a failed Discord-side retirement attempt after the bot has tried to roll back any partial channel or thread changes. The job stays pending for retry, and the error is visible in staff reports/settings.
+
+Retry cadence is currently capped exponential backoff: 5 minutes, 10 minutes, 20 minutes, 40 minutes, and so on up to 6 hours.
 
 **Body:**
 ```json

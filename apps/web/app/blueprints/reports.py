@@ -18,6 +18,7 @@ from app.db import (
     DiscordPostCount,
     RetirementAutomationJob,
 )
+from app.retirement_automation import retirement_next_retry_at
 
 bp = Blueprint('reports', __name__)
 
@@ -166,6 +167,7 @@ def index():
         'pending_discord': sum(1 for row in retirement_jobs if row.discord_completed_at is None),
         'pending_wiki': sum(1 for row in retirement_jobs if row.discord_completed_at is not None and row.wiki_synced_at is None),
         'errored': sum(1 for row in retirement_jobs if (row.last_error or '').strip()),
+        'backoff': sum(1 for row in retirement_jobs if retirement_next_retry_at(row) is not None),
     }
 
     return render_template(
@@ -182,6 +184,7 @@ def index():
         discord_activity=discord_activity,
         retirement_jobs=retirement_jobs,
         retirement_summary=retirement_summary,
+        retirement_next_retry_at=retirement_next_retry_at,
     )
 
 

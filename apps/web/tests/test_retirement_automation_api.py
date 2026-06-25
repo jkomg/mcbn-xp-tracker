@@ -1,5 +1,7 @@
 """Tests for retirement automation queue endpoints and sync completion."""
 
+from datetime import datetime, timedelta, timezone
+
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
@@ -110,6 +112,41 @@ def test_failure_endpoint_records_error_and_keeps_job_pending():
         assert row.last_attempt_at is not None
         assert row.attempt_count == 1
         assert row.last_error == 'completion endpoint failed'
+
+
+def test_pending_endpoint_honors_retry_backoff():
+    app = _app()
+    with app.app_context():
+        job = enqueue_retirement_job('Alice Voss', 'staff-1')
+        db.session.commit()
+        assert job is not None
+        job.last_error = 'temporary discord error'
+        job.attempt_count = 1
+        job.last_attempt_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    with app.test_client() as client:
+        pending = client.get(
+            '/api/retirement-automation/pending',
+            headers={'Authorization': 'Bearer read-token'},
+        )
+        assert pending.status_code == 200
+        assert pending.get_json()['jobs'] == []
+
+    with app.app_context():
+        row = RetirementAutomationJob.query.one()
+        row.last_attempt_at = datetime.now(timezone.utc) - timedelta(minutes=6)
+        db.session.commit()
+
+    with app.test_client() as client:
+        pending = client.get(
+            '/api/retirement-automation/pending',
+            headers={'Authorization': 'Bearer read-token'},
+        )
+        assert pending.status_code == 200
+        jobs = pending.get_json()['jobs']
+        assert len(jobs) == 1
+        assert jobs[0]['characterName'] == 'Alice Voss'
 
 
 def test_wiki_batch_request_and_success_ack_clear_pending_jobs():

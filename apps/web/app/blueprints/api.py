@@ -18,7 +18,12 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app import db_service, sheets_sync, limiter
 from app.auth import is_allowed_discord_user
-from app.retirement_automation import enqueue_retirement_job, mark_retirement_jobs_wiki_synced
+from app.retirement_automation import (
+    enqueue_retirement_job,
+    is_retirement_job_ready,
+    mark_retirement_jobs_wiki_synced,
+    retirement_next_retry_at,
+)
 
 bp = Blueprint('api', __name__)
 _seen_nonces: dict[str, int] = {}
@@ -1408,6 +1413,7 @@ def get_pending_retirement_jobs():
         .order_by(RetirementAutomationJob.requested_at.asc(), RetirementAutomationJob.id.asc())
         .all()
     )
+    ready_rows = [row for row in rows if is_retirement_job_ready(row)]
     return jsonify({
         'jobs': [
             {
@@ -1415,8 +1421,9 @@ def get_pending_retirement_jobs():
                 'characterName': row.character_name,
                 'cubbyChannelId': row.cubby_channel_id,
                 'requestedAt': row.requested_at.isoformat() if row.requested_at else None,
+                'nextRetryAt': retirement_next_retry_at(row).isoformat() if retirement_next_retry_at(row) else None,
             }
-            for row in rows
+            for row in ready_rows
         ]
     })
 

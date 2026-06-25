@@ -136,6 +136,7 @@ Current behavior:
 - clones that thread into the Retired forum, then archives/locks the original
 - reports completion through `POST /api/retirement-automation/{id}/discord-complete`
 - if any later step fails, attempts rollback in reverse order and records the failure through `POST /api/retirement-automation/{id}/discord-failed`
+- failed jobs are retried via the queue endpoint on capped exponential backoff rather than every poll cycle
 
 Wiki updates are deferred. The web app keeps the retirement job pending for wiki until the next successful wiki sync batch. When the normal wiki scheduler is disabled, the worker can request one daily wiki batch through `POST /api/retirement-automation/wiki-batch-request`.
 

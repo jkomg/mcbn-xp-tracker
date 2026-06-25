@@ -18,6 +18,7 @@ from app.app_settings import (
     set_app_setting,
 )
 from app.db import RetirementAutomationJob
+from app.retirement_automation import retirement_next_retry_at
 
 bp = Blueprint('settings', __name__)
 
@@ -518,6 +519,7 @@ def index():
         'errored': RetirementAutomationJob.query.filter(
             RetirementAutomationJob.last_error.is_not(None),
         ).count(),
+        'backoff': sum(1 for row in retirement_jobs if retirement_next_retry_at(row) is not None),
     }
 
     # ── Staff members (DB-managed + env baseline) ─────────────────────────
@@ -586,6 +588,7 @@ def index():
         wiki_sync_runs=wiki_sync_runs,
         retirement_jobs=retirement_jobs,
         retirement_summary=retirement_summary,
+        retirement_next_retry_at=retirement_next_retry_at,
         staff_members=staff_members,
     )
 

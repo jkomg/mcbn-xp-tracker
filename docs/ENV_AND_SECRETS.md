@@ -186,6 +186,7 @@ cp apps/bot/.env.example apps/bot/.env
 Behavior notes:
 - Cubby moves happen immediately after a character is marked `retired`.
 - Discord does not support moving a forum thread between forums by changing parent ID. The bot clones the matching "Children of the Night" post into the Retired forum, then archives and locks the source thread.
+- Failed Discord-side retirement jobs retry on capped exponential backoff, starting at 5 minutes and capping at 6 hours.
 - Wiki updates remain deferred until the next successful wiki sync batch.
 
 ### Claim Reminder Service

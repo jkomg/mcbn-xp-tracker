@@ -236,6 +236,7 @@
       <span class="d-flex gap-2 small">
         <span class="badge bg-warning text-dark">Discord pending {{ retirement_summary.pending_discord }}</span>
         <span class="badge bg-info text-dark">Wiki pending {{ retirement_summary.pending_wiki }}</span>
+        <span class="badge bg-secondary">Backoff {{ retirement_summary.backoff }}</span>
         <span class="badge bg-danger">Errors {{ retirement_summary.errored }}</span>
       </span>
     </div>
@@ -252,11 +253,13 @@
                 <th>Discord</th>
                 <th>Wiki</th>
                 <th>Attempts</th>
+                <th>Next Retry</th>
                 <th>Error</th>
               </tr>
             </thead>
             <tbody>
               {% for row in retirement_jobs %}
+              {% set next_retry_at = retirement_next_retry_at(row) %}
               <tr>
                 <td class="fw-semibold">{{ row.character_name }}</td>
                 <td>
@@ -266,6 +269,8 @@
                 <td>
                   {% if row.discord_completed_at %}
                     <span class="badge bg-success">Complete</span>
+                  {% elif next_retry_at %}
+                    <span class="badge bg-secondary">Backoff</span>
                   {% else %}
                     <span class="badge bg-warning text-dark">Pending</span>
                   {% endif %}
@@ -280,6 +285,7 @@
                   {% endif %}
                 </td>
                 <td class="text-end">{{ row.attempt_count or 0 }}</td>
+                <td class="small text-muted">{{ next_retry_at|to_eastern if next_retry_at else '—' }}</td>
                 <td>
                   {% if row.last_error %}
                     <span class="text-danger small">{{ row.last_error[:140] }}{% if row.last_error|length > 140 %}...{% endif %}</span>
