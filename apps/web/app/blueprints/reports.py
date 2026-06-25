@@ -5,11 +5,22 @@ from __future__ import annotations
 import csv
 import io
 from collections import defaultdict
+from datetime import datetime, timezone
 
-from flask import Blueprint, Response, render_template, request
+from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 
 from app.auth import require_staff
-from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordDisplayName, DiscordPostCount
+from app.db import (
+    DbCharacter,
+    DbPlayPeriod,
+    DbSpendRequest,
+    DbXPClaim,
+    DiscordDisplayName,
+    DiscordPostCount,
+    RetirementAutomationJob,
+    db,
+)
+from app.retirement_automation import retirement_next_retry_at
 
 bp = Blueprint('reports', __name__)
 
@@ -148,6 +159,19 @@ def index():
             key=lambda r: -r['total'],
         )
 
+    retirement_jobs = (
+        RetirementAutomationJob.query
+        .order_by(RetirementAutomationJob.requested_at.desc(), RetirementAutomationJob.id.desc())
+        .limit(25)
+        .all()
+    )
+    retirement_summary = {
+        'pending_discord': sum(1 for row in retirement_jobs if row.discord_completed_at is None),
+        'pending_wiki': sum(1 for row in retirement_jobs if row.discord_completed_at is not None and row.wiki_synced_at is None),
+        'errored': sum(1 for row in retirement_jobs if (row.last_error or '').strip()),
+        'backoff': sum(1 for row in retirement_jobs if retirement_next_retry_at(row) is not None),
+    }
+
     return render_template(
         'reports.html',
         recent_periods=recent_periods,
@@ -160,7 +184,36 @@ def index():
         total_all=len(all_roster),
         roster_list=roster_list,
         discord_activity=discord_activity,
+        retirement_jobs=retirement_jobs,
+        retirement_summary=retirement_summary,
+        retirement_next_retry_at=retirement_next_retry_at,
     )
+
+
+@bp.route('/reports/retirement-jobs/<int:job_id>/resolve', methods=['POST'])
+@require_staff
+def resolve_retirement_job(job_id: int):
+    row = db.session.get(RetirementAutomationJob, job_id)
+    if not row:
+        flash('Retirement automation job not found.', 'warning')
+        return redirect(url_for('reports.index'))
+
+    now = datetime.now(timezone.utc)
+    row.last_attempt_at = now
+    row.discord_completed_at = row.discord_completed_at or now
+    row.cubby_moved_at = row.cubby_moved_at or now
+    row.children_moved_at = row.children_moved_at or now
+    row.wiki_synced_at = row.wiki_synced_at or now
+    row.last_error = ''
+    db.session.commit()
+
+    resolved_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+    flash(f'Retirement job for {row.character_name} marked manually resolved by {resolved_by}.', 'success')
+    return redirect(url_for('reports.index'))
 
 
 @bp.route('/reports/activity.csv')

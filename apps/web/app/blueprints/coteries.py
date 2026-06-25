@@ -8,7 +8,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
 )
 
-from app.auth import require_staff, require_login, get_player_discord_id, is_staff
+from app.auth import require_staff, require_login, get_player_discord_id, is_staff, is_logged_in
 from app.db import (
     db, Coterie, CoterieMember, CoterieAdvantage,
     DbCharacter, DbCharacterBackground, DbSpendRequest,
@@ -86,12 +86,11 @@ def view(slug: str):
     ).all()
 
     # Determine if the current player is a member (for blanking controls)
-    from flask import session as _session
     is_member = False
     player_char = None
     my_backgrounds = []
     my_pending = []
-    if _session.get('authenticated'):
+    if is_logged_in():
         discord_id = get_player_discord_id()
         player_char = _get_player_character(discord_id)
         if player_char:
@@ -935,10 +934,6 @@ def sendback_formation(slug: str):
 @require_staff
 def delete(slug: str):
     coterie = _get_coterie_or_404(slug)
-
-    if coterie.status == 'active':
-        flash('Active coteries cannot be deleted.', 'danger')
-        return redirect(url_for('coteries.manage', slug=slug))
 
     name = coterie.name
 

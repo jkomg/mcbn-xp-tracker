@@ -242,8 +242,6 @@ def character(name):
         membership = (
             CoterieMember.query
             .filter_by(roster_character_id=char_row.id)
-            .join(Coterie, CoterieMember.coterie_id == Coterie.id)
-            .filter(Coterie.status == 'active')
             .first()
         )
         if membership:

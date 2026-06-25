@@ -12,6 +12,15 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
+    {% if view_as %}
+    <div class="d-flex align-items-center justify-content-center gap-3 px-3 py-2 bg-warning text-dark sticky-top" style="z-index:1060; font-size:0.9rem;">
+        <i class="bi bi-eye-fill"></i>
+        <strong>Previewing as {{ view_as.display_name }}</strong>
+        <form method="post" action="{{ url_for('dashboard.clear_view_as') }}" class="d-inline m-0">
+            <button type="submit" class="btn btn-sm btn-dark">Exit Preview</button>
+        </form>
+    </div>
+    {% endif %}
     <nav class="navbar navbar-dark player-navbar border-bottom border-secondary">
         <div class="container">
             <a class="navbar-brand text-danger d-flex align-items-center gap-2" href="{{ url_for('player.my_characters') }}">

@@ -67,7 +67,8 @@ Container names: `mcbn-xp-tracker-web`, `lasombra-bot`.
 
 - **Never commit `.env` files or service-account JSON.**
 - In full-stack Docker, bot must use `WEB_APP_BASE_URL=http://web:5001` (not `127.0.0.1`). The bootstrap script patches this automatically.
-- Bot control-loop cadence can be tuned via `CONFIG_SYNC_INTERVAL_MS` and `BOT_HEARTBEAT_INTERVAL_MS` (defaults: 60000 ms each).
+- Bot control-loop cadence can be tuned via `CONFIG_SYNC_INTERVAL_MS` and `BOT_HEARTBEAT_INTERVAL_MS` (defaults: 120000 ms each).
+- Retirement automation now queues web-side jobs when a character becomes `retired`; the bot moves cubby/forum Discord content immediately and leaves wiki updates to the next successful batch sync.
 - Notion sync manual run button in Settings is capability-gated by bot heartbeat state (`BOT_LIVE_NOTION_SYNC_CAPABLE`) and is disabled when bot reports missing `NOTION_TOKEN`/`DISCORD_GUILD_ID`.
 - Details: `docs/ENV_AND_SECRETS.md`
 

@@ -12,7 +12,16 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body{% block body_class %}{% endblock %}>
-    {% if session.get('authenticated') %}
+    {% if view_as %}
+    <div class="d-flex align-items-center justify-content-center gap-3 px-3 py-2 bg-warning text-dark sticky-top" style="z-index:1060; font-size:0.9rem;">
+        <i class="bi bi-eye-fill"></i>
+        <strong>Previewing as {{ view_as.display_name }}</strong>
+        <form method="post" action="{{ url_for('dashboard.clear_view_as') }}" class="d-inline m-0">
+            <button type="submit" class="btn btn-sm btn-dark">Exit Preview</button>
+        </form>
+    </div>
+    {% endif %}
+    {% if session.get('authenticated') and not session.get('view_as') %}
     <!-- Mobile top navbar (hidden on md+) -->
     <nav class="navbar navbar-dark bg-dark border-bottom border-secondary d-md-none sticky-top">
         <div class="container-fluid">
@@ -202,7 +211,7 @@
             {% block content %}{% endblock %}
         </main>
     </div>
-    {% else %}
+    {% else %}{# player layout — also used during staff view-as preview #}
     <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -215,6 +224,7 @@
         {% endif %}
         {% endwith %}
 
+        {{ self.content() }}
         {% block public_content %}{% endblock %}
     </div>
     {% endif %}
