@@ -67,6 +67,12 @@
                     <input type="text" class="form-control" id="enemy" name="enemy"
                            value="{{ char.enemy }}">
                 </div>
+                <div class="col-md-4">
+                    <label for="ticket_channel_id" class="form-label">Cubby Channel ID</label>
+                    <input type="text" class="form-control font-monospace" id="ticket_channel_id" name="ticket_channel_id"
+                           value="{{ char.ticket_channel_id or '' }}" placeholder="Discord channel ID">
+                    <small class="text-muted">Right-click channel &rarr; Copy Channel ID</small>
+                </div>
                 <div class="col-12">
                     <label for="notes" class="form-label">Notes</label>
                     <textarea class="form-control" id="notes" name="notes" rows="3">{{ char.notes }}</textarea>
