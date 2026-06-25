@@ -62,7 +62,7 @@ No authentication required. Liveness check.
 
 **Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
 
-Called by the bot on startup and then on its heartbeat loop interval (default every 60 seconds, configurable with bot env `BOT_HEARTBEAT_INTERVAL_MS`) to record a liveness timestamp.
+Called by the bot on startup and then on its heartbeat loop interval (default every 120 seconds, configurable with bot env `BOT_HEARTBEAT_INTERVAL_MS`) to record a liveness timestamp.
 The web app stores the timestamp in `AppSetting` under key `BOT_LAST_HEARTBEAT`.
 Optional live-state fields in the POST body are also persisted for Settings UI status cards (for example, `notionSyncCapable` stores to `BOT_LIVE_NOTION_SYNC_CAPABLE`).
 
@@ -95,7 +95,7 @@ Returns the time of the last bot heartbeat and its age in seconds.
 
 **Scope:** read | **Rate limit:** 10/min
 
-Returns the current value of each bot feature flag as stored in the web app's settings database. The bot's `configSyncWorker` polls this endpoint to pick up runtime flag changes without restarting (default every 60 seconds, configurable with bot env `CONFIG_SYNC_INTERVAL_MS`).
+Returns the current value of each bot feature flag as stored in the web app's settings database. The bot's `configSyncWorker` polls this endpoint to pick up runtime flag changes without restarting (default every 120 seconds, configurable with bot env `CONFIG_SYNC_INTERVAL_MS`).
 
 **Response 200:**
 ```json
@@ -134,11 +134,11 @@ Bot shutdown handshake endpoint. Called just before bot process exit when
 
 ---
 
-## POST /api/notion-sync-ack
+## POST /api/wiki-sync-ack
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** exempt
 
-Bot status callback for wiki/Notion sync runs.
+Bot status callback for wiki sync runs.
 
 **Body:**
 ```json
@@ -157,14 +157,14 @@ Bot status callback for wiki/Notion sync runs.
 | `error` | When `status=error` | string | Human-readable error summary |
 
 Behavior notes:
-- `status=running` with `source=manual` clears `BOT_NOTION_SYNC_REQUESTED`.
-- `status=running` with `source=scheduled` **does not** clear `BOT_NOTION_SYNC_REQUESTED` (prevents scheduled runs from consuming staff-queued manual runs).
-- Web stores `BOT_NOTION_SYNC_SOURCE` for UI/operator context.
+- `status=running` with `source=manual` clears `BOT_WIKI_SYNC_REQUESTED`.
+- `status=running` with `source=scheduled` **does not** clear `BOT_WIKI_SYNC_REQUESTED` (prevents scheduled runs from consuming staff-queued manual runs).
+- Web stores `BOT_WIKI_SYNC_SOURCE` for UI/operator context.
 - Each ack appends a row to `notion_sync_events` (bounded history) including `runId` when provided.
 
 **Response 200:**
 ```json
-{ "ok": true }
+{ "ok": true, "retirementJobsSynced": 2 }
 ```
 
 ---
@@ -806,6 +806,7 @@ Deletes a wiki page by slug.
 
 Updates a character lifecycle status during sync (`active`, `deceased`, `retired`).
 Also keeps `active` boolean aligned with status.
+When the status transitions into `retired`, the web app also enqueues a retirement automation job for the bot.
 
 **Body:**
 ```json
@@ -818,6 +819,92 @@ Also keeps `active` boolean aligned with status.
   "status": "updated",
   "character": "Alice",
   "new_status": "retired"
+}
+```
+
+---
+
+## GET /api/retirement-automation/pending
+
+**Scope:** read | **Rate limit:** 120/min
+
+Returns retirement automation jobs whose Discord-side work has not yet completed.
+
+Failed jobs are retried with capped exponential backoff. This endpoint returns only jobs that are currently eligible to run again.
+
+**Response 200:**
+```json
+{
+  "jobs": [
+    {
+      "id": 14,
+      "characterName": "Alice Voss",
+      "cubbyChannelId": "123456789012345678",
+      "requestedAt": "2026-06-25T14:00:00+00:00",
+      "nextRetryAt": null
+    }
+  ]
+}
+```
+
+---
+
+## POST /api/retirement-automation/{id}/discord-complete
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Marks the Discord-side retirement work complete after the bot moves the cubby channel and handles the associated forum post.
+
+**Body:**
+```json
+{
+  "cubbyChannelId": "123456789012345678",
+  "childrenSourceThreadId": "1168655581486252999",
+  "childrenRetiredThreadId": "1168669113871257999"
+}
+```
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
+## POST /api/retirement-automation/{id}/discord-failed
+
+**Scope:** write | **Rate limit:** 120/min | **Replay protection:** exempt
+
+Records a failed Discord-side retirement attempt after the bot has tried to roll back any partial channel or thread changes. The job stays pending for retry, and the error is visible in staff reports/settings.
+
+Retry cadence is currently capped exponential backoff: 5 minutes, 10 minutes, 20 minutes, 40 minutes, and so on up to 6 hours.
+
+**Body:**
+```json
+{
+  "error": "completion endpoint failed"
+}
+```
+
+**Response 200:**
+```json
+{ "ok": true }
+```
+
+---
+
+## POST /api/retirement-automation/wiki-batch-request
+
+**Scope:** write | **Rate limit:** 30/min | **Replay protection:** exempt
+
+Requests a daily wiki sync batch if retirement jobs are waiting for wiki propagation and no wiki sync is already queued.
+
+**Response 200:**
+```json
+{
+  "ok": true,
+  "requested": true,
+  "pendingCount": 3
 }
 ```
 

@@ -42,6 +42,13 @@ export interface TrackerAdapter {
   getActiveRoster(): Promise<{ characters: string[] }>;
   getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }>;
   getActiveRosterWithChannelIds(): Promise<{ characters: Array<{ name: string; ticketChannelId: string | null }> }>;
+  getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null; nextRetryAt: string | null }> }>;
+  completeRetirementJobDiscordWork(
+    jobId: number,
+    payload: { cubbyChannelId: string | null; childrenSourceThreadId: string | null; childrenRetiredThreadId: string | null },
+  ): Promise<void>;
+  failRetirementJobDiscordWork(jobId: number, payload: { error: string }): Promise<void>;
+  requestRetirementWikiBatch(): Promise<{ ok: boolean; requested: boolean; pendingCount: number; reason?: string }>;
   setCharacterStatus(name: string, status: string, requesterName: string): Promise<{ ok: boolean; message: string }>;
   updateCharacterChannelId(name: string, ticketChannelId: string | null, requesterName: string): Promise<{ ok: boolean; message: string }>;
   getBackgroundStatus(characterName: string, requester: RequesterContext): Promise<BackgroundStatusResponse | null>;
@@ -272,6 +279,27 @@ const activeRosterWithIdsSchema = z.object({
 
 const activeRosterWithChannelIdsSchema = z.object({
   characters: z.array(z.object({ name: z.string(), ticketChannelId: z.string().nullable() })),
+});
+
+const pendingRetirementJobsSchema = z.object({
+  jobs: z.array(z.object({
+    id: z.number(),
+    characterName: z.string(),
+    cubbyChannelId: z.string().nullable(),
+    requestedAt: z.string().nullable(),
+    nextRetryAt: z.string().nullable(),
+  })),
+});
+
+const retirementWikiBatchRequestSchema = z.object({
+  ok: z.boolean(),
+  requested: z.boolean(),
+  pendingCount: z.number(),
+  reason: z.string().optional(),
+});
+
+const retirementJobFailureSchema = z.object({
+  ok: z.boolean(),
 });
 
 const claimReminderTargetsSchema = z.object({
@@ -524,6 +552,61 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!resp.ok) throw new Error(`Web app active-roster API failed (${resp.status})`);
     const raw = await resp.json();
     return activeRosterWithChannelIdsSchema.parse(raw);
+  }
+
+  async getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null; nextRetryAt: string | null }> }> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/retirement-automation/pending`, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp) throw new Error('Unable to reach retirement automation API.');
+    if (!resp.ok) throw new Error(`Retirement automation API failed (${resp.status})`);
+    const raw = await resp.json();
+    return pendingRetirementJobsSchema.parse(raw);
+  }
+
+  async completeRetirementJobDiscordWork(
+    jobId: number,
+    payload: { cubbyChannelId: string | null; childrenSourceThreadId: string | null; childrenRetiredThreadId: string | null },
+  ): Promise<void> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/retirement-automation/${jobId}/discord-complete`,
+      {
+        method: 'POST',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ).catch(() => null);
+    if (!resp) throw new Error('Unable to reach retirement completion API.');
+    if (!resp.ok) throw new Error(`Retirement completion API failed (${resp.status})`);
+  }
+
+  async failRetirementJobDiscordWork(jobId: number, payload: { error: string }): Promise<void> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/retirement-automation/${jobId}/discord-failed`,
+      {
+        method: 'POST',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ).catch(() => null);
+    if (!resp) throw new Error('Unable to reach retirement failure API.');
+    if (!resp.ok) throw new Error(`Retirement failure API failed (${resp.status})`);
+    retirementJobFailureSchema.parse(await resp.json());
+  }
+
+  async requestRetirementWikiBatch(): Promise<{ ok: boolean; requested: boolean; pendingCount: number; reason?: string }> {
+    const resp = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/retirement-automation/wiki-batch-request`,
+      {
+        method: 'POST',
+        headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+        body: '{}',
+      },
+    ).catch(() => null);
+    if (!resp) throw new Error('Unable to reach retirement wiki batch API.');
+    if (!resp.ok) throw new Error(`Retirement wiki batch API failed (${resp.status})`);
+    const raw = await resp.json();
+    return retirementWikiBatchRequestSchema.parse(raw);
   }
 
   async setCharacterStatus(name: string, status: string, requesterName: string): Promise<{ ok: boolean; message: string }> {
