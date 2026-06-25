@@ -45,13 +45,22 @@ def enqueue_retirement_job(character_name: str, requested_by: str) -> Retirement
     return job
 
 
-def mark_retirement_jobs_wiki_synced() -> int:
-    """Mark all discord-complete retirement jobs as synced by the latest wiki run."""
+def mark_retirement_jobs_wiki_synced(synced_before: datetime | None = None) -> int:
+    """Mark discord-complete retirement jobs as synced by the latest wiki run.
+
+    Only jobs whose Discord work completed before *synced_before* are marked,
+    so jobs that finish Discord work mid-sync (after the wiki batch was gathered
+    but before the success ack arrives) are not falsely marked as wiki-synced.
+    If *synced_before* is None, all discord-complete unsynced jobs are marked.
+    """
     now = datetime.now(timezone.utc)
-    rows = RetirementAutomationJob.query.filter(
+    q = RetirementAutomationJob.query.filter(
         RetirementAutomationJob.discord_completed_at.is_not(None),
         RetirementAutomationJob.wiki_synced_at.is_(None),
-    ).all()
+    )
+    if synced_before is not None:
+        q = q.filter(RetirementAutomationJob.discord_completed_at <= synced_before)
+    rows = q.all()
     for row in rows:
         row.wiki_synced_at = now
         row.last_error = ''

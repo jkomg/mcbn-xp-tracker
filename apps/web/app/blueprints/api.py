@@ -1226,7 +1226,18 @@ def wiki_sync_ack():
             delete_key('BOT_WIKI_SYNC_RUN_ID')
         upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
         delete_key('BOT_WIKI_SYNC_ERROR')
-        retirement_jobs_synced = mark_retirement_jobs_wiki_synced()
+        # Only mark jobs whose Discord work completed before the sync started;
+        # jobs that complete mid-sync will be caught by the next wiki run.
+        sync_started_rec = db.session.get(AppSetting, 'BOT_WIKI_SYNC_STARTED_AT')
+        sync_started_dt: datetime | None = None
+        if sync_started_rec and sync_started_rec.value:
+            try:
+                sync_started_dt = datetime.fromisoformat(sync_started_rec.value)
+                if sync_started_dt.tzinfo is None:
+                    sync_started_dt = sync_started_dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                sync_started_dt = None
+        retirement_jobs_synced = mark_retirement_jobs_wiki_synced(synced_before=sync_started_dt)
     else:
         upsert('BOT_WIKI_SYNC_STATUS', 'error')
         upsert('BOT_WIKI_SYNC_SOURCE', source)
