@@ -58,6 +58,7 @@ import { liveConfig } from './liveConfig';
 import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
 import { DiscordActivityTracker } from './services/discordActivityTracker';
 import { StaffRoleSyncService } from './services/staffRoleSyncService';
+import { RetirementAutomationWorker } from './services/retirementAutomationWorker';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
 liveConfig.reviewNotifierEnabled = config.reviewNotifierEnabled;
@@ -236,6 +237,18 @@ void applyStartupConfigOverrides().then(() => {
     staffChannelId: config.cubbySyncStaffChannelId,
     retiredCategoryId: config.cubbyRetiredCategoryId,
   });
+  const retirementAutomationWorker = new RetirementAutomationWorker(adapter, client, {
+    enabled: config.retirementAutomationEnabled,
+    intervalMs: config.retirementAutomationIntervalMs,
+    guildId: config.retirementAutomationGuildId,
+    retiredCubbyCategoryId: config.cubbyRetiredCategoryId,
+    childrenForumId: config.retirementChildrenForumId,
+    retiredForumId: config.retirementRetiredForumId,
+    wikiBatchEnabled: config.retirementWikiBatchEnabled,
+    wikiBatchHourLocal: config.retirementWikiBatchHourLocal,
+    wikiBatchMinuteLocal: config.retirementWikiBatchMinuteLocal,
+    wikiBatchTimezone: config.retirementWikiBatchTimezone,
+  });
 
   const discordActivityGuildId = config.discordGuildId ?? config.reviewNotifierGuildId ?? '';
   const discordActivityTracker = discordActivityGuildId
@@ -300,6 +313,7 @@ void applyStartupConfigOverrides().then(() => {
     sheetsReconcileService.start();
     wikiSyncScheduler.start();
     cubbySyncWorker.start();
+    retirementAutomationWorker.start();
     discordActivityTracker?.start();
 
     reviewNotifier.start();

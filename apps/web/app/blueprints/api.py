@@ -18,6 +18,12 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app import db_service, sheets_sync, limiter
 from app.auth import is_allowed_discord_user
+from app.retirement_automation import (
+    enqueue_retirement_job,
+    is_retirement_job_ready,
+    mark_retirement_jobs_wiki_synced,
+    retirement_next_retry_at,
+)
 
 bp = Blueprint('api', __name__)
 _seen_nonces: dict[str, int] = {}
@@ -1210,6 +1216,7 @@ def wiki_sync_ack():
         upsert('BOT_WIKI_SYNC_STARTED_AT', now)
         delete_key('BOT_WIKI_SYNC_FINISHED_AT')
         delete_key('BOT_WIKI_SYNC_ERROR')
+        retirement_jobs_synced = 0
     elif status == 'success':
         upsert('BOT_WIKI_SYNC_STATUS', 'success')
         upsert('BOT_WIKI_SYNC_SOURCE', source)
@@ -1219,6 +1226,7 @@ def wiki_sync_ack():
             delete_key('BOT_WIKI_SYNC_RUN_ID')
         upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
         delete_key('BOT_WIKI_SYNC_ERROR')
+        retirement_jobs_synced = mark_retirement_jobs_wiki_synced()
     else:
         upsert('BOT_WIKI_SYNC_STATUS', 'error')
         upsert('BOT_WIKI_SYNC_SOURCE', source)
@@ -1228,6 +1236,7 @@ def wiki_sync_ack():
             delete_key('BOT_WIKI_SYNC_RUN_ID')
         upsert('BOT_WIKI_SYNC_FINISHED_AT', now)
         upsert('BOT_WIKI_SYNC_ERROR', data.get('error', 'unknown error'))
+        retirement_jobs_synced = 0
 
     db.session.add(
         WikiSyncEvent(
@@ -1253,7 +1262,7 @@ def wiki_sync_ack():
         db.session.query(WikiSyncEvent).filter(WikiSyncEvent.id <= cutoff_query).delete()
         db.session.commit()
 
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, 'retirementJobsSynced': retirement_jobs_synced})
 
 
 @bp.route('/bot-log', methods=['POST'])
@@ -1381,10 +1390,119 @@ def set_character_status(name):
     ).first()
     if not row:
         return jsonify({'error': 'character not found'}), 404
+    previous_status = row.status or ('active' if row.active else 'retired')
     row.status = new_status
     row.active = (new_status == 'active')
+    if previous_status != 'retired' and new_status == 'retired':
+        enqueue_retirement_job(
+            row.character_name,
+            (data.get('requesterDiscordName') or 'bot').strip() or 'bot',
+        )
     db.session.commit()
     return jsonify({'status': 'updated', 'character': row.character_name, 'new_status': new_status})
+
+
+@bp.route('/retirement-automation/pending', methods=['GET'])
+@require_bot_scope('read')
+@_limit('120 per minute')
+def get_pending_retirement_jobs():
+    from app.db import RetirementAutomationJob
+    rows = (
+        RetirementAutomationJob.query
+        .filter(RetirementAutomationJob.discord_completed_at.is_(None))
+        .order_by(RetirementAutomationJob.requested_at.asc(), RetirementAutomationJob.id.asc())
+        .all()
+    )
+    ready_rows = [row for row in rows if is_retirement_job_ready(row)]
+    return jsonify({
+        'jobs': [
+            {
+                'id': row.id,
+                'characterName': row.character_name,
+                'cubbyChannelId': row.cubby_channel_id,
+                'requestedAt': row.requested_at.isoformat() if row.requested_at else None,
+                'nextRetryAt': retirement_next_retry_at(row).isoformat() if retirement_next_retry_at(row) else None,
+            }
+            for row in ready_rows
+        ]
+    })
+
+
+@bp.route('/retirement-automation/<int:job_id>/discord-complete', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def mark_retirement_job_discord_complete(job_id: int):
+    from app.db import RetirementAutomationJob, db
+    data = request.get_json(silent=True) or {}
+    row = db.session.get(RetirementAutomationJob, job_id)
+    if not row:
+        return jsonify({'error': 'retirement job not found'}), 404
+
+    now = datetime.now(timezone.utc)
+    row.last_attempt_at = now
+    row.attempt_count = int(row.attempt_count or 0) + 1
+    row.cubby_channel_id = (data.get('cubbyChannelId') or row.cubby_channel_id or None)
+    row.children_source_thread_id = (data.get('childrenSourceThreadId') or row.children_source_thread_id or None)
+    row.children_retired_thread_id = (data.get('childrenRetiredThreadId') or row.children_retired_thread_id or None)
+    row.cubby_moved_at = now
+    row.children_moved_at = now
+    row.discord_completed_at = now
+    row.last_error = ''
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/retirement-automation/<int:job_id>/discord-failed', methods=['POST'])
+@require_bot_scope('write')
+@_limit('120 per minute')
+def mark_retirement_job_discord_failed(job_id: int):
+    from app.db import RetirementAutomationJob, db
+    data = request.get_json(silent=True) or {}
+    row = db.session.get(RetirementAutomationJob, job_id)
+    if not row:
+        return jsonify({'error': 'retirement job not found'}), 404
+
+    error = str(data.get('error') or '').strip()
+    if not error:
+        return jsonify({'error': 'error is required'}), 400
+
+    now = datetime.now(timezone.utc)
+    row.last_attempt_at = now
+    row.attempt_count = int(row.attempt_count or 0) + 1
+    row.cubby_moved_at = None
+    row.children_moved_at = None
+    row.discord_completed_at = None
+    row.children_source_thread_id = None
+    row.children_retired_thread_id = None
+    row.last_error = error[:4000]
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/retirement-automation/wiki-batch-request', methods=['POST'])
+@require_bot_scope('write')
+@_limit('30 per minute')
+def request_retirement_wiki_batch():
+    from app.db import AppSetting, RetirementAutomationJob, db
+
+    pending_count = RetirementAutomationJob.query.filter(
+        RetirementAutomationJob.discord_completed_at.is_not(None),
+        RetirementAutomationJob.wiki_synced_at.is_(None),
+    ).count()
+    if pending_count == 0:
+        return jsonify({'ok': True, 'requested': False, 'pendingCount': 0, 'reason': 'no_pending_jobs'})
+
+    record = db.session.get(AppSetting, 'BOT_WIKI_SYNC_REQUESTED')
+    if record:
+        return jsonify({'ok': True, 'requested': False, 'pendingCount': pending_count, 'reason': 'already_requested'})
+
+    db.session.add(AppSetting(
+        key='BOT_WIKI_SYNC_REQUESTED',
+        value='true',
+        updated_by='retirement-automation',
+    ))
+    db.session.commit()
+    return jsonify({'ok': True, 'requested': True, 'pendingCount': pending_count})
 
 
 @bp.route('/wiki/page/<slug>', methods=['DELETE'])
