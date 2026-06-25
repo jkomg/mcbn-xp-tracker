@@ -9,7 +9,15 @@ from collections import defaultdict
 from flask import Blueprint, Response, render_template, request
 
 from app.auth import require_staff
-from app.db import DbCharacter, DbPlayPeriod, DbSpendRequest, DbXPClaim, DiscordDisplayName, DiscordPostCount
+from app.db import (
+    DbCharacter,
+    DbPlayPeriod,
+    DbSpendRequest,
+    DbXPClaim,
+    DiscordDisplayName,
+    DiscordPostCount,
+    RetirementAutomationJob,
+)
 
 bp = Blueprint('reports', __name__)
 
@@ -148,6 +156,18 @@ def index():
             key=lambda r: -r['total'],
         )
 
+    retirement_jobs = (
+        RetirementAutomationJob.query
+        .order_by(RetirementAutomationJob.requested_at.desc(), RetirementAutomationJob.id.desc())
+        .limit(25)
+        .all()
+    )
+    retirement_summary = {
+        'pending_discord': sum(1 for row in retirement_jobs if row.discord_completed_at is None),
+        'pending_wiki': sum(1 for row in retirement_jobs if row.discord_completed_at is not None and row.wiki_synced_at is None),
+        'errored': sum(1 for row in retirement_jobs if (row.last_error or '').strip()),
+    }
+
     return render_template(
         'reports.html',
         recent_periods=recent_periods,
@@ -160,6 +180,8 @@ def index():
         total_all=len(all_roster),
         roster_list=roster_list,
         discord_activity=discord_activity,
+        retirement_jobs=retirement_jobs,
+        retirement_summary=retirement_summary,
     )
 
 

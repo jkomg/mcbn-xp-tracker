@@ -169,6 +169,25 @@ cp apps/bot/.env.example apps/bot/.env
 | `NOTION_TOKEN` | Conditional | — | Required for manual runs that include Notion import/archive sync. |
 | `NOTION_SYNC_MSG_LIMIT` | No | `200` | Max Discord messages fetched per source channel during sync. |
 
+### Retirement Automation
+
+| Var | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `RETIREMENT_AUTOMATION_ENABLED` | No | `true` | Enable queue-driven retirement automation worker. |
+| `RETIREMENT_AUTOMATION_INTERVAL_MS` | No | `60000` | Poll interval for pending retirement jobs (ms). |
+| `RETIREMENT_AUTOMATION_GUILD_ID` | No | falls back to `DISCORD_GUILD_ID` / `TEST_GUILD_ID` | Guild used for retirement Discord actions. |
+| `RETIREMENT_CHILDREN_FORUM_ID` | No | `1168655581486252042` | Source forum for active profile posts ("Children of the Night"). |
+| `RETIREMENT_RETIRED_FORUM_ID` | No | `1168669113871257682` | Target forum for retired profile posts. |
+| `RETIREMENT_WIKI_BATCH_ENABLED` | No | `true` | When `WIKI_SYNC_ENABLED=false`, allow retirement automation to request one daily wiki batch if retirement jobs are waiting for wiki propagation. |
+| `RETIREMENT_WIKI_BATCH_HOUR_LOCAL` | No | falls back to `WIKI_SYNC_HOUR_LOCAL` or `4` | Local hour for the daily wiki batch request check. |
+| `RETIREMENT_WIKI_BATCH_MINUTE_LOCAL` | No | falls back to `WIKI_SYNC_MINUTE_LOCAL` or `0` | Local minute for the daily wiki batch request check. |
+| `RETIREMENT_WIKI_BATCH_TIMEZONE` | No | falls back to `WIKI_SYNC_TIMEZONE` or `America/Chicago` | IANA timezone for the daily wiki batch request check. |
+
+Behavior notes:
+- Cubby moves happen immediately after a character is marked `retired`.
+- Discord does not support moving a forum thread between forums by changing parent ID. The bot clones the matching "Children of the Night" post into the Retired forum, then archives and locks the source thread.
+- Wiki updates remain deferred until the next successful wiki sync batch.
+
 ### Claim Reminder Service
 
 | Var | Required | Default | Description |

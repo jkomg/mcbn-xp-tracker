@@ -117,14 +117,28 @@ Requires: `HUNT_CONSEQUENCE_ENABLED=true`, `HUNT_CONSEQUENCE_CHANNEL_IDS`, `HUNT
 
 ### configSyncWorker
 
-Polls `GET /api/bot-config` periodically (default every 60 seconds, configurable via `CONFIG_SYNC_INTERVAL_MS`) to pick up feature flag changes made on the web app Settings page. This allows toggling bot services at runtime without restarting the bot process.
+Polls `GET /api/bot-config` periodically (default every 120 seconds, configurable via `CONFIG_SYNC_INTERVAL_MS`) to pick up feature flag changes made on the web app Settings page. This allows toggling bot services at runtime without restarting the bot process.
 
-Also handles **manual Notion/Wiki sync requests** from Settings (`BOT_NOTION_SYNC_REQUESTED=true`) and reports lifecycle updates to `POST /api/notion-sync-ack`.
+Also handles **manual Wiki sync requests** from Settings (`BOT_WIKI_SYNC_REQUESTED=true`) and reports lifecycle updates to `POST /api/wiki-sync-ack`.
 
 ### wikiSyncScheduler
 
 Runs a nightly scheduled wiki sync at configured local time (`WIKI_SYNC_*` env vars).
-Scheduled runs default to **wiki-only refresh** (no Notion archival import) and report status through `POST /api/notion-sync-ack` with `source=scheduled`.
+Scheduled runs default to **wiki-only refresh** (no Notion archival import) and report status through `POST /api/wiki-sync-ack` with `source=scheduled`.
+
+### retirementAutomationWorker
+
+Polls the web app retirement queue (`GET /api/retirement-automation/pending`) on a short interval and completes Discord-side retirement work immediately after a character is marked `retired`.
+
+Current behavior:
+- moves the character's cubby channel into the `Retired Characters` category
+- finds the matching profile thread in `Children of the Night`
+- clones that thread into the Retired forum, then archives/locks the original
+- reports completion through `POST /api/retirement-automation/{id}/discord-complete`
+
+Wiki updates are deferred. The web app keeps the retirement job pending for wiki until the next successful wiki sync batch. When the normal wiki scheduler is disabled, the worker can request one daily wiki batch through `POST /api/retirement-automation/wiki-batch-request`.
+
+Important constraint: Discord does not support moving a thread from one forum to another by changing parent ID, so the forum post is cloned rather than literally moved.
 
 ### Wiki/Notion sync lock semantics
 
@@ -137,7 +151,7 @@ Only one owner can run at a time. If a run is active, the other trigger logs a
 
 ### botHeartbeatService
 
-POSTs to `POST /api/bot-heartbeat` on a configurable interval (default 60 seconds, `BOT_HEARTBEAT_INTERVAL_MS`). The web app records the timestamp, which is displayed on the Settings page so staff can verify the bot is alive.
+POSTs to `POST /api/bot-heartbeat` on a configurable interval (default 120 seconds, `BOT_HEARTBEAT_INTERVAL_MS`). The web app records the timestamp, which is displayed on the Settings page so staff can verify the bot is alive.
 
 ### cubbyChannelMonitor
 

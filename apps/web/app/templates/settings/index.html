@@ -218,6 +218,73 @@
     </div>
   </div>
 
+  {# ═══ Bot — Retirement Automation ═══ #}
+  <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
+      <h6 class="mb-0 text-light"><i class="bi bi-person-workspace"></i> Retirement Automation</h6>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge bg-secondary">Pending Discord: {{ retirement_summary.pending_discord }}</span>
+        <span class="badge bg-info text-dark">Pending Wiki: {{ retirement_summary.pending_wiki }}</span>
+        {% if retirement_summary.errored %}
+          <span class="badge bg-danger">Errors: {{ retirement_summary.errored }}</span>
+        {% else %}
+          <span class="badge bg-success">Errors: 0</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Moving cubby channels happens immediately after a character is marked retired. Wiki updates are deferred until the next successful Wiki sync batch.
+      </p>
+      {% if retirement_jobs %}
+      <div class="table-responsive">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Character</th>
+              <th>Requested (UTC)</th>
+              <th>Discord</th>
+              <th>Wiki</th>
+              <th>Attempts</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in retirement_jobs %}
+            <tr>
+              <td class="small">{{ job.character_name }}</td>
+              <td class="small text-muted">{{ job.requested_at.strftime('%Y-%m-%d %H:%M') if job.requested_at else '—' }}</td>
+              <td>
+                {% if job.discord_completed_at %}
+                  <span class="badge bg-success">Complete</span>
+                {% else %}
+                  <span class="badge bg-secondary">Pending</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if job.wiki_synced_at %}
+                  <span class="badge bg-success">Synced</span>
+                {% elif job.discord_completed_at %}
+                  <span class="badge bg-info text-dark">Queued</span>
+                {% else %}
+                  <span class="badge bg-dark border border-secondary">Waiting</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">{{ job.attempt_count }}</td>
+              <td class="small {% if job.last_error %}text-danger{% else %}text-muted{% endif %}">
+                {{ job.last_error if job.last_error else '—' }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <span class="badge bg-secondary">No retirement jobs yet</span>
+      {% endif %}
+    </div>
+  </div>
+
   {# ═══ Staff Management ═══ #}
   <h5 class="text-muted text-uppercase small mb-2 mt-4">Staff Management</h5>
   <div class="card bg-dark border-secondary mb-4">

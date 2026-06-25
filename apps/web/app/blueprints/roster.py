@@ -13,6 +13,7 @@ from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.models import Character, CLANS, AGE_CATEGORIES, SECTS
 from app.db import CharacterDraft, DbCharacter, db
+from app.retirement_automation import enqueue_retirement_job
 
 logger = logging.getLogger(__name__)
 
@@ -623,6 +624,7 @@ def set_status(name):
     char = db_service.get_character(name)
     if not char:
         abort(404)
+    previous_status = char.status or ('active' if char.active else 'retired')
     new_status = request.form.get('status', '').strip()
     if new_status not in ('active', 'deceased', 'retired'):
         flash('Invalid status.', 'danger')
@@ -637,6 +639,8 @@ def set_status(name):
         target=name,
         details=f'Set status to {new_status}',
     )
+    if previous_status != 'retired' and new_status == 'retired':
+        enqueue_retirement_job(name, staff)
 
     labels = {'active': 'reactivated', 'deceased': 'marked as deceased', 'retired': 'marked as retired'}
     flash(f'{name} has been {labels[new_status]}.', 'warning' if new_status != 'active' else 'success')
