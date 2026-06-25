@@ -26,6 +26,7 @@ function makeWorker(adapter: TrackerAdapter, client: unknown) {
     wikiBatchHourLocal: 4,
     wikiBatchMinuteLocal: 0,
     wikiBatchTimezone: 'UTC',
+    notifyChannelId: '',
   });
 }
 
