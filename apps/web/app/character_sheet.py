@@ -179,6 +179,10 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         purchases.append({'loresheet_id': trait_name, 'dot': new_dots})
         return True
 
+    if category == 'Humanity':
+        data['humanity'] = new_dots
+        return True
+
     return False
 
 

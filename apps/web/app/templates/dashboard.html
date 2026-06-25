@@ -136,6 +136,30 @@
     </tbody>
   </table>
 </div>
+
+{% if preview_players %}
+<div class="card border-secondary mt-5">
+    <div class="card-header d-flex align-items-center gap-2 text-muted">
+        <i class="bi bi-eye"></i> <span>Preview as Player</span>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">Renders the player portal as the selected player — useful for testing UI changes without a separate Discord account.</p>
+        <form method="post" action="{{ url_for('dashboard.set_view_as') }}" class="d-flex align-items-center gap-2 flex-wrap">
+            <select name="discord_id" class="form-select form-select-sm" style="max-width:280px;" required
+                    onchange="this.form.querySelector('[name=display_name]').value = this.options[this.selectedIndex].dataset.name">
+                <option value="">— select a player —</option>
+                {% for p in preview_players %}
+                <option value="{{ p.discord_id }}" data-name="{{ p.display_name }}">{{ p.display_name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="display_name" value="">
+            <button type="submit" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-eye"></i> Preview
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

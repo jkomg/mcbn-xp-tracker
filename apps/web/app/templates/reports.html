@@ -228,6 +228,93 @@
     </div>
   </div>
 
+  <div class="card mt-4 mb-4">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between">
+      <span class="fw-semibold">
+        <i class="bi bi-person-x me-1"></i> Retirement Automation
+      </span>
+      <span class="d-flex gap-2 small">
+        <span class="badge bg-warning text-dark">Discord pending {{ retirement_summary.pending_discord }}</span>
+        <span class="badge bg-info text-dark">Wiki pending {{ retirement_summary.pending_wiki }}</span>
+        <span class="badge bg-secondary">Backoff {{ retirement_summary.backoff }}</span>
+        <span class="badge bg-danger">Errors {{ retirement_summary.errored }}</span>
+      </span>
+    </div>
+    <div class="card-body p-0">
+      {% if not retirement_jobs %}
+        <p class="text-muted p-3 mb-0">No retirement automation jobs recorded yet.</p>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Character</th>
+                <th>Requested</th>
+                <th>Discord</th>
+                <th>Wiki</th>
+                <th>Attempts</th>
+                <th>Next Retry</th>
+                <th>Error</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in retirement_jobs %}
+              {% set next_retry_at = retirement_next_retry_at(row) %}
+              <tr>
+                <td class="fw-semibold">{{ row.character_name }}</td>
+                <td>
+                  <div>{{ row.requested_at|to_eastern if row.requested_at else '—' }}</div>
+                  <div class="small text-muted">{{ row.requested_by or '—' }}</div>
+                </td>
+                <td>
+                  {% if row.discord_completed_at %}
+                    <span class="badge bg-success">Complete</span>
+                  {% elif next_retry_at %}
+                    <span class="badge bg-secondary">Backoff</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.wiki_synced_at %}
+                    <span class="badge bg-success">Synced</span>
+                  {% elif row.discord_completed_at %}
+                    <span class="badge bg-info text-dark">Queued</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Waiting</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">{{ row.attempt_count or 0 }}</td>
+                <td class="small text-muted">{{ next_retry_at|to_eastern if next_retry_at else '—' }}</td>
+                <td>
+                  {% if row.last_error %}
+                    <span class="text-danger small">{{ row.last_error[:140] }}{% if row.last_error|length > 140 %}...{% endif %}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if not row.wiki_synced_at %}
+                  <form method="POST" action="{{ url_for('reports.resolve_retirement_job', job_id=row.id) }}" class="mb-0">
+                    <button type="submit" class="btn btn-sm btn-outline-success"
+                      onclick="return confirm('Mark {{ row.character_name }} as manually resolved? Use this only after staff have finished the Discord and wiki moves manually.')">
+                      Mark Resolved
+                    </button>
+                  </form>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 {# ── Drill-down modal ── #}

@@ -1,7 +1,7 @@
 # Bot/Integration Memory (Audit Snapshot)
 
-Last updated: 2026-04-20 (phase 10)
-Scope: bot + web integration surfaces relevant to bot operations and wiki sync
+Last updated: 2026-06-25
+Scope: bot + web integration surfaces relevant to bot operations, retirement automation, and wiki sync
 
 ## Current System Picture
 - `apps/web` is still the single authority for XP data and staff controls.
@@ -19,20 +19,28 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
 - Bot control-plane polling baseline is now 120s:
   - `CONFIG_SYNC_INTERVAL_MS=120000`
   - `BOT_HEARTBEAT_INTERVAL_MS=120000`
+- Retirement automation now has its own short poll loop (default `RETIREMENT_AUTOMATION_INTERVAL_MS=60000`) so Discord-side retirement moves happen promptly.
 - Production Turso schema drift caused wiki outage after sync-lock merge; manual reconciliation was applied and `alembic_version` was advanced to `c9b4e1d8f2a0`.
 
 ## Important Cross-App Control Plane
 - Web settings can signal the bot through DB-backed `AppSetting` keys:
   - `BOT_RESTART_REQUESTED`
-  - `BOT_NOTION_SYNC_REQUESTED`
-  - `BOT_NOTION_SYNC_STALE_AFTER_SECONDS` (web UI stale threshold)
+  - `BOT_WIKI_SYNC_REQUESTED`
+  - `BOT_WIKI_SYNC_STALE_AFTER_SECONDS` (web UI stale threshold)
   - bot feature toggles and selected interval/channel overrides
 - Bot polls `/api/bot-config` (120s default) via `ConfigSyncWorker` and updates `liveConfig`.
 - Bot reports status back via:
   - `/api/bot-heartbeat`
   - `/api/bot-restart-ack`
-  - `/api/notion-sync-ack`
+  - `/api/wiki-sync-ack`
   - `/api/bot-log`
+- Retirement automation queue endpoints:
+  - `GET /api/retirement-automation/pending`
+  - `POST /api/retirement-automation/{id}/discord-complete`
+  - `POST /api/retirement-automation/{id}/discord-failed`
+  - `POST /api/retirement-automation/wiki-batch-request`
+- Retirement queue retries failed Discord work on capped exponential backoff (5 minutes up to 6 hours); pending endpoint returns only jobs currently due.
+- Staff can manually resolve retirement jobs from the Reports page after handling Discord/wiki cleanup outside automation.
 - Web now stores sync lifecycle history in `notion_sync_events` (append-only, bounded), including `run_id` correlation.
 
 ## Bot Runtime (Current)
@@ -43,12 +51,13 @@ Scope: bot + web integration surfaces relevant to bot operations and wiki sync
   - `passageOfTimeService`, `huntConsequenceMonitor`
   - `configSyncWorker`, `botHeartbeatService`, `botLogForwarder`
   - `wikiSyncScheduler` (nightly scheduled sync trigger)
+  - `retirementAutomationWorker` (immediate Discord retirement moves + daily wiki-batch request path)
 - Adapter: `apps/bot/src/services/adapter.ts` (scoped read/write token support)
 
 ## Wiki/Notion Integration Paths
 - Manual run from web UI:
   - staff clicks Settings -> Run Notion Sync (`/settings/request-notion-sync`)
-  - web sets `BOT_NOTION_SYNC_REQUESTED=true`
+  - web sets `BOT_WIKI_SYNC_REQUESTED=true`
   - bot picks it up and runs `runNotionSync(...)`
 - Scheduled run:
   - `WikiSyncScheduler` runs `runNotionSync(...)` at configured local time.
