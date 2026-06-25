@@ -224,7 +224,7 @@
         {% endif %}
         {% endwith %}
 
-        {% block content %}{% endblock %}
+        {{ self.content() }}
         {% block public_content %}{% endblock %}
     </div>
     {% endif %}
