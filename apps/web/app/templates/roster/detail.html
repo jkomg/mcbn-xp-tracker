@@ -122,6 +122,14 @@
             <dt class="col-sm-4 text-muted small">Notes</dt>
             <dd class="col-sm-8">{{ char.notes }}</dd>
             {% endif %}
+            <dt class="col-sm-4 text-muted small">Cubby Channel ID</dt>
+            <dd class="col-sm-8">
+              {% if char.ticket_channel_id %}
+              <code>{{ char.ticket_channel_id }}</code>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </dd>
           </dl>
         </div>
       </div>

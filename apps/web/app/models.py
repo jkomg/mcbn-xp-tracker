@@ -18,6 +18,7 @@ class Character:
     enemy: str = ''
     date_added: str = ''
     notes: str = ''
+    ticket_channel_id: str | None = None
 
     # Computed fields (not stored in Roster sheet)
     earned_xp: int = 0

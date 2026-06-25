@@ -122,6 +122,7 @@ def _row_to_character(row: DbCharacter) -> Character:
         enemy=row.enemy or '',
         date_added=row.date_added or '',
         notes=row.notes or '',
+        ticket_channel_id=row.ticket_channel_id or None,
     )
 
 
