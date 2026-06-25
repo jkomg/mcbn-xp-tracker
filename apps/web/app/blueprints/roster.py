@@ -641,6 +641,7 @@ def set_status(name):
     )
     if previous_status != 'retired' and new_status == 'retired':
         enqueue_retirement_job(name, staff)
+        db.session.commit()
 
     labels = {'active': 'reactivated', 'deceased': 'marked as deceased', 'retired': 'marked as retired'}
     flash(f'{name} has been {labels[new_status]}.', 'warning' if new_status != 'active' else 'success')
