@@ -335,8 +335,11 @@ export class RetirementAutomationWorker {
       return { sourceThreadId: null, retiredThreadId: existingRetired?.id ?? null };
     }
     if (existingRetired) {
-      await sourceThread.setArchived(true, `Character retired: ${characterName}`);
+      // Unconditionally unarchive before locking — thread.archived is boolean | null in
+      // Discord.js so a conditional check silently skips when null, leaving setLocked to throw.
+      await sourceThread.setArchived(false, `Preparing to lock: ${characterName}`).catch(() => null);
       await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+      await sourceThread.setArchived(true, `Character retired: ${characterName}`);
       rollbackActions.push({
         label: 'restore_source_thread_open_state',
         run: async () => {
@@ -385,8 +388,9 @@ export class RetirementAutomationWorker {
       await newThread.send({ content: chunk });
     }
 
-    await sourceThread.setArchived(true, `Character retired: ${characterName}`);
+    await sourceThread.setArchived(false, `Preparing to lock: ${characterName}`).catch(() => null);
     await sourceThread.setLocked(true, `Character retired: ${characterName}`);
+    await sourceThread.setArchived(true, `Character retired: ${characterName}`);
     rollbackActions.push({
       label: 'restore_source_thread_open_state',
       run: async () => {

@@ -189,8 +189,9 @@ describe('RetirementAutomationWorker', () => {
     expect(deleteClone).toHaveBeenCalledWith('Undo retirement automation for Alice Voss');
     expect(sourceSetLocked).toHaveBeenNthCalledWith(1, true, 'Character retired: Alice Voss');
     expect(sourceSetLocked).toHaveBeenNthCalledWith(2, false, 'Undo retirement automation for Alice Voss');
-    expect(sourceSetArchived).toHaveBeenNthCalledWith(1, true, 'Character retired: Alice Voss');
-    expect(sourceSetArchived).toHaveBeenNthCalledWith(2, false, 'Undo retirement automation for Alice Voss');
+    expect(sourceSetArchived).toHaveBeenNthCalledWith(1, false, 'Preparing to lock: Alice Voss');
+    expect(sourceSetArchived).toHaveBeenNthCalledWith(2, true, 'Character retired: Alice Voss');
+    expect(sourceSetArchived).toHaveBeenNthCalledWith(3, false, 'Undo retirement automation for Alice Voss');
     expect(adapter.failRetirementJobDiscordWork).toHaveBeenCalledWith(7, {
       error: 'Error: completion endpoint failed',
     });
