@@ -389,9 +389,15 @@ def edit(name):
 
     updates = {}
     for field in ['player_discord', 'player_discord_name', 'clan',
-                  'age_category', 'sect', 'enemy', 'notes']:
+                  'age_category', 'sect', 'enemy', 'notes', 'ticket_channel_id']:
         val = request.form.get(field, '').strip()
-        if val != getattr(char, field, ''):
+        # Nullable fields: compare and store as None rather than empty string
+        if field == 'ticket_channel_id':
+            val = val or None
+            current = getattr(char, field, None) or None
+        else:
+            current = getattr(char, field, '') or ''
+        if val != current:
             updates[field] = val
 
     try:
