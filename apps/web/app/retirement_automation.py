@@ -60,11 +60,11 @@ def mark_retirement_jobs_wiki_synced(synced_before: datetime | None = None) -> i
     )
     if synced_before is not None:
         q = q.filter(RetirementAutomationJob.discord_completed_at <= synced_before)
-    rows = q.all()
-    for row in rows:
-        row.wiki_synced_at = now
-        row.last_error = ''
-    return len(rows)
+    # Use a single bulk UPDATE instead of ORM-style per-row modifications.
+    # The libsql/Turso driver reports combined rowcount as 1 across multiple
+    # UPDATE statements, causing SQLAlchemy's StaleDataError. synchronize_session=False
+    # skips the rowcount check; the caller commits immediately after.
+    return q.update({'wiki_synced_at': now, 'last_error': ''}, synchronize_session=False)
 
 
 def retirement_retry_delay_seconds(job: RetirementAutomationJob) -> int:
