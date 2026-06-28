@@ -1,1943 +1,1678 @@
-/* MCbN XP Tracker — Dark theme styling */
+/* =============================================
+   MCbN XP Tracker — Nocturne design system
+   MCBN crimson accent · Cinzel display · Space Grotesk UI
+   ============================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ── Nocturne tokens (MCBN edition) ── */
 :root {
-    --vtm-red: #8b0000;
-    --vtm-red-light: #b22222;
-    --vtm-gold: #c5a55a;
-    --sidebar-width: 220px;
+  --bg:            #0b0d10;
+  --bg-sidebar:    #0d0f13;
+  --surface:       #13161b;
+  --surface-2:     #0f1216;
+  --footer-bg:     #0a0c0f;
+  --border:        rgba(255,255,255,.07);
+  --border-strong: rgba(255,255,255,.12);
+  --text:          #e4e7ec;
+  --text-body:     #c4ccd6;
+  --text-muted:    #8b94a3;
+  --text-faint:    #6e7683;
+  --text-faintest: #5e6675;
+
+  /* MCBN crimson — fixed accent */
+  --accent:      #d83a4a;
+  --accent-soft: #ff8a96;
+
+  /* VtM legacy vars — kept for any old references */
+  --vtm-red:       #d83a4a;
+  --vtm-red-light: #ff8a96;
+  --vtm-gold:      #d4b352;
+
+  /* typography */
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-body:    'Spectral', Georgia, serif;
+  --font-ui:      'Space Grotesk', system-ui, -apple-system, sans-serif;
+
+  /* radii */
+  --r-card:    14px;
+  --r-card-lg: 16px;
+  --r-input:   9px;
+  --r-pill:    999px;
+
+  --sidebar-width: 220px;
 }
+
+/* ── Reset / base ── */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-    background-color: #1a1a2e;
-    color: #e0e0e0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Typography ─────────────────────────────────────────────────── */
+a { text-decoration: none; color: inherit; }
+
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Cinzel', 'Segoe UI', serif;
-    letter-spacing: 0.02em;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
 }
 
-.navbar-brand {
-    font-family: 'Cinzel', serif;
-    letter-spacing: 0.05em;
+/* ══════════════════════════════════════════════
+   SHARED COMPONENTS
+   ══════════════════════════════════════════════ */
+
+/* Buttons */
+.btn-accent {
+  background: var(--accent);
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-accent:hover { opacity: .88; transform: translateY(-1px); color: #fff !important; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
+
+/* Cards */
+.n-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+.n-card-header {
+  padding: 12px 18px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
+}
+.n-card-body { padding: 18px; }
+
+/* Tables */
+.n-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.n-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  font-weight: 600;
+  font-family: var(--font-ui);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+.n-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-body);
+}
+.n-table tr:last-child td { border-bottom: none; }
+.n-table tr:hover td { background: rgba(255,255,255,.02); }
+
+/* Form overrides (Bootstrap compat) */
+.form-control, .form-select, textarea.form-control {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--r-input) !important;
+  color: var(--text) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 13px !important;
+}
+.form-control:focus, .form-select:focus {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+.form-control::placeholder { color: var(--text-faintest) !important; }
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+  font-family: var(--font-ui);
+}
+.form-text { color: var(--text-faintest) !important; font-size: 11px; }
+.form-check-input {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border-strong) !important;
+}
+.form-check-input:checked {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.form-check-label { color: var(--text-muted); font-size: 13px; }
+
+/* Bootstrap alert overrides */
+.alert {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--r-card) !important;
+  color: var(--text) !important;
+  font-size: 13px;
+}
+.alert-success { border-left: 3px solid #4ade80 !important; }
+.alert-danger   { border-left: 3px solid var(--accent) !important; }
+.alert-warning  { border-left: 3px solid var(--vtm-gold) !important; }
+.alert-info     { border-left: 3px solid #60a5fa !important; }
+
+/* Bootstrap badge overrides */
+.badge {
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  letter-spacing: .04em !important;
+}
+.bg-danger  { background: color-mix(in srgb, var(--accent) 80%, #000) !important; }
+.bg-success { background: rgba(74,222,128,.2) !important; color: #4ade80 !important; border: 1px solid rgba(74,222,128,.3) !important; }
+.bg-warning { background: rgba(212,179,82,.2) !important; color: var(--vtm-gold) !important; border: 1px solid rgba(212,179,82,.3) !important; }
+.bg-secondary { background: rgba(255,255,255,.08) !important; color: var(--text-muted) !important; }
+.bg-info    { background: rgba(96,165,250,.15) !important; color: #60a5fa !important; border: 1px solid rgba(96,165,250,.25) !important; }
+
+/* Section label */
+.section-label {
+  font-size: 10px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--text-muted);
 }
 
-/* ── Login page ─────────────────────────────────────────────────── */
-body.login-page {
-    background-image:
-        linear-gradient(rgba(10, 10, 20, 0.70), rgba(10, 10, 20, 0.88)),
-        url('/static/images/music.png');
-    background-size: cover;
-    background-position: center 40%;
-    background-attachment: fixed;
-    min-height: 100vh;
-}
+/* ══════════════════════════════════════════════
+   SIDEBAR SHELL (staff dashboard)
+   ══════════════════════════════════════════════ */
 
-.login-card {
-    max-width: 420px;
-    margin: 80px auto;
-    background-color: rgba(22, 33, 62, 0.92);
-    border: 1px solid var(--vtm-red);
-    backdrop-filter: blur(8px);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 0, 0, 0.25);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.login-card .card-header {
-    background: linear-gradient(135deg, var(--vtm-red) 0%, #4a0000 100%);
-    padding: 2rem 1.5rem 1.5rem;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-
-.login-title {
-    font-family: 'Cinzel', serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: #fff;
-    margin-bottom: 0.25rem;
-}
-
-.login-subtitle {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.78rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin: 0;
-}
-
-.login-logo {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    object-position: center 55%;
-    display: block;
-    opacity: 0.85;
-}
-
-/* ── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
-    width: var(--sidebar-width);
-    flex-shrink: 0;
-    background-color: #16213e !important;
-}
-
-@media (min-width: 768px) {
-    .sidebar {
-        height: 100vh;
-        overflow-y: auto;
-    }
+  width: var(--sidebar-width);
+  background: var(--bg-sidebar) !important;
+  border-right: 1px solid var(--border) !important;
+  flex-shrink: 0;
 }
 
 .sidebar-logo-img {
-    width: 100%;
-    height: 90px;
-    object-fit: cover;
-    object-position: center 50%;
-    display: block;
-    border-bottom: 1px solid rgba(139, 0, 0, 0.4);
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  object-position: center 30%;
+  display: block;
+  opacity: .85;
 }
 
+/* Sidebar brand */
+.sidebar .text-danger { color: var(--accent) !important; }
+
+/* Sidebar nav links */
 .sidebar .nav-link {
-    color: #a0a0b0;
-    border-radius: 6px;
-    margin: 2px 0;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+  color: var(--text-muted) !important;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background .12s, color .12s;
 }
-
 .sidebar .nav-link:hover {
-    color: #fff;
-    background-color: rgba(139, 0, 0, 0.2);
+  background: rgba(255,255,255,.04) !important;
+  color: var(--text) !important;
 }
-
 .sidebar .nav-link.active {
-    color: #fff;
-    background-color: var(--vtm-red);
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent-soft) !important;
+}
+.sidebar .nav-link .badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+.sidebar hr { border-color: var(--border) !important; }
+.sidebar small.text-muted { color: var(--text-faint) !important; }
+
+/* Sidebar section label */
+.sidebar .nav-link.text-muted.small {
+  color: var(--text-faintest) !important;
+  font-size: 10px !important;
+  letter-spacing: .1em !important;
+  cursor: default;
+  padding: 6px 12px;
 }
 
-.sidebar .nav-link i {
-    width: 20px;
-    margin-right: 8px;
+/* Mobile top bar for sidebar layout */
+.navbar.d-md-none {
+  background: var(--bg-sidebar) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.navbar .navbar-brand.text-danger { color: var(--accent) !important; }
+
+/* Main content area (beside sidebar) */
+main.flex-grow-1 {
+  background: var(--bg);
+  overflow-y: auto;
 }
 
-/* ── Player navbar ──────────────────────────────────────────────── */
-.player-navbar {
-    background-image:
-        linear-gradient(rgba(22, 33, 62, 0.88), rgba(22, 33, 62, 0.95)),
-        url('/static/images/music.png');
-    background-size: cover;
-    background-position: center 45%;
-    border-bottom: 1px solid rgba(139, 0, 0, 0.5) !important;
+/* ── Sidebar content cards ── */
+.card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-card) !important;
+}
+.card-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+  padding: 12px 16px;
+}
+.card-body { padding: 16px; }
+.card-footer {
+  background: transparent !important;
+  border-top: 1px solid var(--border) !important;
+  padding: 12px 16px;
 }
 
-.player-navbar .navbar-brand img {
-    height: 28px;
-    width: auto;
-    margin-right: 8px;
-    filter: brightness(0.9);
-}
-
-/* ── Stat cards (dashboard) ─────────────────────────────────────── */
-.stat-card {
-    border-top: 3px solid transparent;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    background-color: #16213e;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-}
-
-.stat-card .stat-icon {
-    font-size: 2.2rem;
-    opacity: 0.65;
-    line-height: 1;
-}
-
-.stat-card-characters { border-top-color: #4a9eff; }
-.stat-card-claims      { border-top-color: #ff9800; }
-.stat-card-spends      { border-top-color: var(--vtm-red-light); }
-
-/* ── Tables ─────────────────────────────────────────────────────── */
+/* Bootstrap table overrides */
 .table {
-    font-size: 0.9rem;
-}
-
-.table th {
-    color: var(--vtm-gold);
-    border-color: #333;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.table td {
-    border-color: #2a2a3e;
-    vertical-align: middle;
-}
-
-/* Clickable rows */
-tr[data-href] {
-    cursor: pointer;
-}
-
-tr[data-href]:hover td {
-    background-color: rgba(139, 0, 0, 0.12);
-}
-
-/* ── XP colors ──────────────────────────────────────────────────── */
-.xp-positive { color: #4caf50; }
-.xp-negative { color: #f44336; font-weight: bold; }
-.xp-zero { color: #999; }
-
-/* ── Status badges ──────────────────────────────────────────────── */
-.badge-pending   { background-color: #ff9800; color: #000; }
-.badge-approved  { background-color: #4caf50; }
-.badge-denied    { background-color: #f44336; }
-.badge-duplicate { background-color: #9e9e9e; }
-
-/* ── Claim category cards ───────────────────────────────────────── */
-.claim-category {
-    border-left: 3px solid #333;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    background-color: #1e1e30;
-    border-radius: 0 4px 4px 0;
-}
-
-.claim-category.claimed {
-    border-left-color: #4caf50;
-}
-
-.claim-category.not-claimed {
-    border-left-color: #555;
-    opacity: 0.6;
-}
-
-/* ── Cost validation ────────────────────────────────────────────── */
-.cost-match    { color: #4caf50; font-weight: bold; }
-.cost-mismatch { color: #f44336; font-weight: bold; }
-
-/* ── Empty states ───────────────────────────────────────────────── */
-.empty-state {
-    padding: 3.5rem 1rem;
-    text-align: center;
-}
-
-.empty-state i {
-    font-size: 3rem;
-    opacity: 0.3;
-    display: block;
-    margin-bottom: 1rem;
-}
-
-.empty-state p {
-    color: #666;
-    margin-bottom: 0;
-    font-size: 0.95rem;
-}
-
-/* ── Clan identity ──────────────────────────────────────────────── */
-.clan-brujah      { --clan-color: #e53935; }
-.clan-gangrel     { --clan-color: #8d6e63; }
-.clan-hecata      { --clan-color: #ab47bc; }
-.clan-lasombra    { --clan-color: #5c6bc0; }
-.clan-malkavian   { --clan-color: #00acc1; }
-.clan-nosferatu   { --clan-color: #66bb6a; }
-.clan-ravnos      { --clan-color: #ef6c00; }
-.clan-salubri     { --clan-color: #1e88e5; }
-.clan-toreador    { --clan-color: #e91e8c; }
-.clan-tremere     { --clan-color: #c62828; }
-.clan-tzimisce    { --clan-color: #795548; }
-.clan-ventrue     { --clan-color: #3949ab; }
-.clan-banu-haqim  { --clan-color: #f9a825; }
-.clan-the-ministry { --clan-color: #8e24aa; }
-.clan-thin-blood  { --clan-color: #78909c; }
-.clan-caitiff     { --clan-color: #757575; }
-.clan-mortal      { --clan-color: #a1887f; }
-.clan-ghoul       { --clan-color: #ad1457; }
-
-/* Clan left-border accent — roster rows */
-tr.has-clan-color {
-    border-left: 3px solid var(--clan-color, #444);
-}
-
-/* Clan left-border accent — list group items (my characters) */
-.has-clan-color.list-group-item {
-    border-left: 3px solid var(--clan-color, #444) !important;
-    padding-left: calc(1rem - 3px);
-}
-
-/* Clan badge — outlined, colored text */
-.clan-badge {
-    display: inline-block;
-    padding: 0.15em 0.6em;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border: 1px solid var(--clan-color, #555);
-    color: var(--clan-color, #888);
-    background: transparent;
-    white-space: nowrap;
-}
-
-/* Hero top border */
-.char-hero.has-clan-color {
-    border-top: 3px solid var(--clan-color, var(--vtm-red));
-    border-left: 3px solid var(--clan-color, var(--vtm-red));
-}
-
-/* ── Dashboard action strip ──────────────────────────────────────── */
-.action-strip {
-    background: rgba(255, 152, 0, 0.08);
-    border: 1px solid rgba(255, 152, 0, 0.25);
-    border-radius: 8px;
-}
-
-/* ── Character hero ─────────────────────────────────────────────── */
-.char-hero {
-    background: linear-gradient(135deg, #16213e 0%, #1a1a2e 65%, rgba(139,0,0,0.25) 100%);
-    border: 1px solid rgba(139, 0, 0, 0.35);
-    border-radius: 8px;
-    padding: 1.75rem 2rem;
-    margin-bottom: 1.5rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.char-hero::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 180px; height: 100%;
-    background: linear-gradient(to left, rgba(139,0,0,0.12), transparent);
-    pointer-events: none;
-}
-
-.char-hero-name {
-    font-family: 'Cinzel', serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 0.2rem;
-    line-height: 1.15;
-}
-
-.char-hero-meta {
-    color: #8888a8;
-    font-size: 0.85rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 1.25rem;
-}
-
-.char-stat-val {
-    font-size: 1.4rem;
-    font-weight: 700;
-    line-height: 1.1;
-    color: #e0e0e0;
-}
-
-.char-stat-lbl {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #666;
-    margin-top: 1px;
-}
-
-.char-hero-xp-num {
-    font-family: 'Cinzel', serif;
-    font-size: 3.5rem;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.char-hero-xp-lbl {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #666;
-    margin-top: 4px;
-}
-
-.xp-progress-bar {
-    height: 5px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 0.6rem;
-    max-width: 320px;
-}
-
-.xp-progress-bar .fill {
-    height: 100%;
-    background: linear-gradient(90deg, #2e7d32, #4caf50);
-    border-radius: 3px;
-    transition: width 0.6s ease;
-}
-
-/* ── Clan / Sect symbols ─────────────────────────────────────────── */
-
-/* Large ghost watermark in the character hero */
-.char-hero {
-    position: relative;
-    overflow: hidden;
-}
-
-.char-hero-clan-symbol {
-    position: absolute;
-    right: -1rem;
-    top: -1rem;
-    width: 160px;
-    height: 160px;
-    object-fit: contain;
-    opacity: 0.06;
-    filter: invert(1);
-    pointer-events: none;
-    user-select: none;
-}
-
-/* Age category symbol in the hero right column */
-.char-hero-age-symbol {
-    width: 72px;
-    height: 72px;
-    object-fit: contain;
-    opacity: 0.5;
-    filter: invert(1);
-    display: block;
-}
-
-/* Sect symbol inline in the meta line */
-.hero-sect-symbol {
-    width: 16px;
-    height: 16px;
-    object-fit: contain;
-    filter: invert(1);
-    opacity: 0.7;
-    vertical-align: middle;
-    margin-right: 2px;
-}
-
-/* Small clan icon in the character list */
-.char-list-clan-symbol {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-    filter: invert(1);
-    opacity: 0.55;
-    flex-shrink: 0;
-}
-
-/* ── Wish List ───────────────────────────────────────────────────── */
-.wl-add-form {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 8px;
-}
-
-.wl-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.25rem;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.wl-item:last-child { border-bottom: none; }
-
-.wl-item-body {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    min-width: 0;
-}
-
-.wl-item-main {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.wl-item-trait {
-    font-weight: 600;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.wl-item-cat {
-    font-size: 0.7rem;
-    color: #666;
-    white-space: nowrap;
-}
-
-.wl-item-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-left: auto;
-    flex-shrink: 0;
-}
-
-.wl-item-dots {
-    font-size: 0.78rem;
-    color: #888;
-    white-space: nowrap;
-}
-
-.wl-item-cost {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #f87171;
-    white-space: nowrap;
-}
-
-.wl-item-actions {
-    display: flex;
-    gap: 0.25rem;
-    flex-shrink: 0;
-}
-
-.wl-summary-bar {
-    background: rgba(255,255,255,0.03);
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid rgba(255,255,255,0.06);
-}
-
-/* ── Chronicle Calendar widget ──────────────────────────────────── */
-.cal-widget {
-    border: 1px solid rgba(197, 165, 90, 0.2);
-    border-radius: 10px;
-    overflow: hidden;
-    background: rgba(255,255,255,0.02);
-}
-
-.cal-widget-header {
-    padding: 0.6rem 1rem;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #c5a55a;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.15);
-    background: rgba(197, 165, 90, 0.05);
-    font-family: 'Cinzel', serif;
-}
-
-.cal-hero {
-    padding: 0.9rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.cal-hero-current {
-    background: rgba(139, 0, 0, 0.12);
-    border-left: 3px solid #8b0000;
-}
-
-.cal-hero-upcoming {
-    background: rgba(197, 165, 90, 0.07);
-    border-left: 3px solid rgba(197, 165, 90, 0.5);
-}
-
-.cal-hero-eyebrow {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.6;
-    margin-bottom: 0.15rem;
-}
-
-.cal-hero-label {
-    font-family: 'Cinzel', serif;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #e0e0e0;
-    line-height: 1.2;
-}
-
-.cal-hero-note {
-    font-size: 0.75rem;
-    color: #c5a55a;
-    margin-top: 0.1rem;
-}
-
-.cal-hero-dates {
-    font-size: 0.8rem;
-    color: #888;
-    margin-top: 0.25rem;
-}
-
-.cal-hero-days {
-    text-align: right;
-    flex-shrink: 0;
-    padding-left: 0.75rem;
-}
-
-.cal-days-num {
-    display: block;
-    font-size: 1.6rem;
-    font-weight: 700;
-    line-height: 1;
-    color: #c5a55a;
-}
-
-.cal-days-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #666;
-}
-
-.cal-timeline {
-    padding: 0.25rem 0;
-}
-
-.cal-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 1rem;
-    font-size: 0.82rem;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    flex-wrap: wrap;
-}
-
-.cal-row:last-child { border-bottom: none; }
-
-.cal-row-past {
-    opacity: 0.38;
-}
-
-.cal-row-current {
-    background: rgba(139, 0, 0, 0.08);
-    color: #e88;
-    font-weight: 600;
-}
-
-.cal-row-upcoming {
-    color: #bbb;
-}
-
-.cal-row-now-icon {
-    font-size: 0.65rem;
-    color: #dc3545;
-    flex-shrink: 0;
-}
-
-.cal-row-label {
-    font-weight: 500;
-    min-width: 6rem;
-}
-
-.cal-row-dates {
-    color: #666;
-    font-size: 0.75rem;
-}
-
-.cal-row-note {
-    font-size: 0.68rem;
-    color: #c5a55a;
-    padding: 0.1em 0.4em;
-    border-radius: 4px;
-    background: rgba(197, 165, 90, 0.1);
-}
-
-.cal-show-more {
-    width: 100%;
-    background: none;
-    border: none;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    color: #666;
-    font-size: 0.75rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    text-align: center;
-}
-
-.cal-show-more:hover { color: #c5a55a; }
-
-/* ── Open period banner (player landing) ────────────────────────── */
-.open-period-banner {
-    background: rgba(76, 175, 80, 0.08);
-    border: 1px solid rgba(76, 175, 80, 0.35);
-    border-left: 3px solid #4caf50;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    color: #a5d6a7;
-}
-
-.open-period-pulse {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #4caf50;
-    flex-shrink: 0;
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6);
-    animation: pulse-green 2s infinite;
-}
-
-@keyframes pulse-green {
-    0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6); }
-    70%  { box-shadow: 0 0 0 7px rgba(76, 175, 80, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-}
-
-.open-period-pill {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.15em 0.6em;
-    border-radius: 20px;
-    background: rgba(76, 175, 80, 0.2);
-    border: 1px solid rgba(76, 175, 80, 0.5);
-    color: #81c784;
-}
-
-/* ── Period status pills ─────────────────────────────────────────── */
-.period-pill {
-    font-size: 0.7rem;
-    padding: 0.25em 0.6em;
-    border-radius: 20px;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3em;
-    border: 1px solid transparent;
-}
-
-.period-pill.claimed {
-    background: rgba(76, 175, 80, 0.15);
-    border-color: rgba(76, 175, 80, 0.4);
-    color: #81c784;
-}
-
-.period-pill.unclaimed {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.12);
-    color: #666;
-}
-
-.period-pill.pending {
-    background: rgba(255, 152, 0, 0.1);
-    border-color: rgba(255, 152, 0, 0.3);
-    color: #ffb74d;
-}
-
-/* ── Player bottom nav (mobile only) ────────────────────────────── */
+  color: var(--text-body) !important;
+  border-color: var(--border) !important;
+}
+.table thead th {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint) !important;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-strong) !important;
+  background: transparent !important;
+  padding: 10px 12px;
+}
+.table td { border-color: var(--border) !important; padding: 10px 12px; }
+.table-hover > tbody > tr:hover > * { background: rgba(255,255,255,.025) !important; }
+.table-dark { background: transparent !important; }
+
+/* Bootstrap button overrides */
+.btn-primary {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}
+.btn-primary:hover { opacity: .88 !important; }
+.btn-outline-primary {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent) !important;
+  color: var(--accent-soft) !important;
+  font-family: var(--font-ui) !important;
+}
+.btn-outline-primary:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent-soft) !important;
+}
+.btn-outline-secondary {
+  border-color: var(--border-strong) !important;
+  color: var(--text-muted) !important;
+  font-family: var(--font-ui) !important;
+  border-radius: 8px !important;
+}
+.btn-outline-secondary:hover {
+  background: rgba(255,255,255,.05) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,.2) !important;
+}
+.btn-outline-danger {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+  color: var(--accent-soft) !important;
+  font-family: var(--font-ui) !important;
+  border-radius: 8px !important;
+}
+.btn-outline-danger:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent-soft) !important;
+}
+.btn-sm { font-size: 12px !important; padding: 5px 10px !important; }
+
+/* ══════════════════════════════════════════════
+   VIEW-AS BANNER
+   ══════════════════════════════════════════════ */
+.bg-warning.text-dark {
+  background: color-mix(in srgb, var(--vtm-gold) 20%, #0b0d10) !important;
+  color: var(--vtm-gold) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--vtm-gold) 30%, transparent);
+}
+
+/* ══════════════════════════════════════════════
+   PLAYER SHELL
+   ══════════════════════════════════════════════ */
+
+.player-navbar {
+  background: rgba(11,13,16,.88) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border) !important;
+  padding: 12px 0;
+}
+.player-navbar .navbar-brand {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text) !important;
+  letter-spacing: .04em;
+}
+.player-navbar .navbar-brand img {
+  height: 32px;
+  border-radius: 4px;
+  opacity: .9;
+}
+.player-navbar .navbar-text { color: var(--text-muted) !important; font-size: 13px; }
+
+/* Player footer */
+footer.container { color: var(--text-faintest); }
+footer.container .text-muted { color: var(--text-faintest) !important; }
+footer.container a.text-muted { transition: color .15s; }
+footer.container a.text-muted:hover { color: var(--text-muted) !important; }
+
+/* Player page cards */
+.player-char-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.player-char-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+.player-char-card-img {
+  height: 160px;
+  background: repeating-linear-gradient(45deg, #1a1d23 0 10px, #141519 10px 20px);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+.player-char-card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.player-char-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+.player-char-clan {
+  font-size: 12px;
+  color: var(--accent-soft);
+  letter-spacing: .04em;
+}
+.player-char-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* XP pill */
+.xp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-soft);
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+}
+.xp-pill-green {
+  background: rgba(74,222,128,.12);
+  border-color: rgba(74,222,128,.25);
+  color: #4ade80;
+}
+
+/* Bottom sticky nav (player mobile) */
+.has-bottom-nav { padding-bottom: 80px; }
 .player-bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(16, 24, 48, 0.97);
-    border-top: 1px solid rgba(139, 0, 0, 0.4);
-    display: flex;
-    z-index: 1050;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding-bottom: env(safe-area-inset-bottom);
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 1000;
+  padding: 0;
+}
+.player-bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-faint);
+  transition: color .12s;
+  text-decoration: none;
+}
+.player-bottom-nav a.active,
+.player-bottom-nav a:hover { color: var(--accent-soft); }
+.player-bottom-nav i { font-size: 20px; }
+
+/* Character sheet sections */
+.sheet-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.sheet-section-header {
+  padding: 10px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--accent-soft);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sheet-section-body { padding: 14px 16px; }
+
+/* Trait rows (dots/pips) */
+.trait-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.trait-row:last-child { border-bottom: none; }
+.trait-name { color: var(--text-body); flex: 1; }
+.trait-dots { display: flex; gap: 4px; align-items: center; }
+.trait-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.2);
+  background: var(--surface-2);
+  transition: background .1s;
+}
+.trait-dot.filled { background: var(--accent); border-color: var(--accent); }
+.trait-dot.hunger { background: #1a0a0a; border-color: var(--accent); }
+.trait-dot.hunger.filled { background: var(--accent); }
+
+/* ══════════════════════════════════════════════
+   LOGIN PAGE
+   ══════════════════════════════════════════════ */
+
+body.login-page {
+  background-image:
+    linear-gradient(rgba(8,9,11,.72), rgba(8,9,11,.92)),
+    url('/static/images/music.png');
+  background-size: cover;
+  background-position: center 40%;
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.player-bottom-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0.6rem 0.25rem;
-    color: #666;
-    text-decoration: none;
-    font-size: 0.68rem;
-    letter-spacing: 0.04em;
-    gap: 0.2rem;
-    border: none;
-    background: none;
-    cursor: pointer;
-    transition: color 0.15s;
-    -webkit-tap-highlight-color: transparent;
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-card-lg);
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,.7);
 }
-
-.player-bottom-nav-item i {
-    font-size: 1.35rem;
-    line-height: 1;
+.login-card .card-header {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    transparent) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 28px 28px 20px !important;
+  text-align: center;
 }
-
-.player-bottom-nav-item:hover,
-.player-bottom-nav-item.active {
-    color: #fff;
-    text-decoration: none;
+.login-logo {
+  height: 80px;
+  width: auto;
+  border-radius: 6px;
+  opacity: .9;
+  display: block;
+  margin: 0 auto 14px;
 }
-
-.player-bottom-nav-item.active {
-    color: var(--vtm-red-light);
+.login-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--text);
+  margin: 0;
 }
-
-/* ── Form submit spinner ────────────────────────────────────────── */
-.btn-loading {
-    position: relative;
-    pointer-events: none;
-    opacity: 0.8;
+.login-subtitle {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-muted);
 }
-
-/* ── Dot pips (character sheet) ─────────────────────────────────── */
-.dot-pips {
-    display: inline-flex;
-    gap: 3px;
-    align-items: center;
+.login-card .card-body { padding: 24px 28px !important; }
+.btn-discord {
+  background: #5865f2 !important;
+  border-color: #5865f2 !important;
+  color: #fff !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  transition: opacity .15s !important;
 }
+.btn-discord:hover { opacity: .88 !important; }
 
-.dot-pip {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 1px solid var(--vtm-gold);
-    display: inline-block;
-    flex-shrink: 0;
-}
-
-.dot-pip.filled {
-    background-color: var(--vtm-gold);
-}
-
-/* Spend history grouped by category */
-.spend-category-heading {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--vtm-gold);
-    border-bottom: 1px solid rgba(197, 165, 90, 0.2);
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.6rem;
-    margin-top: 1.25rem;
-}
-
-.spend-entry {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    flex-wrap: wrap;
-}
-
-.spend-entry:last-child {
-    border-bottom: none;
-}
-
-.spend-trait-name {
-    font-weight: 500;
-    flex: 1;
-    min-width: 120px;
-}
-
-.spend-cost-badge {
-    font-size: 0.72rem;
-    color: #f44336;
-    white-space: nowrap;
-}
-
-.spend-date {
-    font-size: 0.72rem;
-    color: #555;
-    white-space: nowrap;
-}
-
-/* ── Review page ─────────────────────────────────────────────────── */
-.review-sticky {
-    position: sticky;
-    top: 1rem;
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-}
-
-.evidence-card {
-    border-left: 3px solid #2a2a3e;
-    border-radius: 0 6px 6px 0;
-    padding: 0.65rem 0.9rem;
-    margin-bottom: 0.4rem;
-    background: #1a1a2e;
-    transition: border-color 0.15s;
-}
-
-.evidence-card.claimed {
-    border-left-color: #4caf50;
-    background: rgba(76, 175, 80, 0.06);
-}
-
-.evidence-card.not-claimed {
-    opacity: 0.45;
-}
-
-.evidence-card .evidence-label {
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.evidence-link {
-    display: inline-block;
-    font-size: 0.75rem;
-    color: #5b9cf6;
-    word-break: break-all;
-    margin-top: 0.2rem;
-}
-
-.evidence-link:hover {
-    color: #89b4fa;
-}
-
-/* ── Wiki ────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════
+   WIKI SHELL
+   ══════════════════════════════════════════════ */
 
 .wiki-body {
-    background-color: #12121f;
+  background: var(--bg);
+  color: var(--text);
 }
 
-/* Navbar */
+/* Wiki nav */
 .wiki-navbar {
-    background:
-        linear-gradient(rgba(10, 10, 20, 0.94), rgba(16, 21, 40, 0.97)),
-        url('/static/images/music.png');
-    background-size: cover;
-    background-position: center 42%;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.2) !important;
-    padding: 0.6rem 0;
+  background: rgba(11,13,16,.82) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0 !important;
 }
-
+.wiki-navbar .container-xl { padding: 0 32px; }
 .wiki-brand {
-    font-family: 'Cinzel', serif;
-    font-size: 1rem;
-    letter-spacing: 0.06em;
-    color: #e0e0e0 !important;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text) !important;
+  letter-spacing: .06em;
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.wiki-brand i { color: var(--accent) !important; font-size: 14px; }
 
 .wiki-nav-link {
-    color: #9898b0 !important;
-    font-size: 0.88rem;
-    padding: 0.35rem 0.75rem !important;
-    border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
+  color: #aeb6c2 !important;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--r-pill);
+  padding: 5px 11px !important;
+  transition: color .15s, background .15s;
+  white-space: nowrap;
 }
-
 .wiki-nav-link:hover {
-    color: #e0e0e0 !important;
-    background: rgba(255, 255, 255, 0.06);
+  color: var(--text) !important;
+  background: rgba(255,255,255,.05);
 }
-
-.campaigns-link {
-    font-size: 0.8rem !important;
-    opacity: 0.6;
-}
-
-.campaigns-link:hover {
-    opacity: 1 !important;
-}
-
 .wiki-nav-active {
-    color: var(--vtm-gold) !important;
-    background: rgba(197, 165, 90, 0.1) !important;
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: #fff !important;
+}
+.wiki-nav-active:hover { background: color-mix(in srgb, var(--accent) 18%, transparent) !important; }
+
+/* Wiki search bar in nav */
+.wiki-nav-search .wiki-nav-search-input {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-right: none !important;
+  border-radius: var(--r-pill) 0 0 var(--r-pill) !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  width: 200px;
+}
+.wiki-nav-search-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-left: none !important;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0 !important;
+  color: var(--text-muted) !important;
 }
 
 .wiki-btn-new {
-    background: rgba(139, 0, 0, 0.5);
-    border: 1px solid rgba(139, 0, 0, 0.8);
-    color: #e8a0a0 !important;
-    font-size: 0.82rem;
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--r-pill) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  font-family: var(--font-ui) !important;
+  padding: 6px 14px !important;
+  transition: opacity .15s !important;
 }
-
-.wiki-btn-new:hover {
-    background: var(--vtm-red);
-    color: #fff !important;
-}
+.wiki-btn-new:hover { opacity: .88 !important; }
 
 .wiki-btn-login {
-    background: rgba(88, 101, 242, 0.25);
-    border: 1px solid rgba(88, 101, 242, 0.55);
-    color: #b9bcf8 !important;
-    font-size: 0.82rem;
+  background: transparent !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text-muted) !important;
+  border-radius: var(--r-pill) !important;
+  font-size: 12px !important;
+  font-family: var(--font-ui) !important;
+  padding: 5px 12px !important;
+  transition: color .15s, border-color .15s !important;
 }
+.wiki-btn-login:hover { color: var(--text) !important; border-color: rgba(255,255,255,.2) !important; }
 
-.wiki-btn-login:hover {
-    background: #5865f2;
-    color: #fff !important;
+.campaigns-link {
+  font-size: 12px;
+  color: var(--text-muted) !important;
+  transition: color .15s;
 }
+.campaigns-link:hover { color: var(--text) !important; }
 
-.wiki-btn-edit {
-    background: rgba(197, 165, 90, 0.15);
-    border: 1px solid rgba(197, 165, 90, 0.4);
-    color: var(--vtm-gold);
-    width: 100%;
-    padding: 0.4rem;
-}
-
-.wiki-btn-edit:hover {
-    background: rgba(197, 165, 90, 0.25);
-    color: #e8d585;
-}
-
-.wiki-btn-save {
-    background: var(--vtm-red);
-    border: 1px solid #a00000;
-    color: #fff;
-    padding: 0.5rem 1.5rem;
-}
-
-.wiki-btn-save:hover {
-    background: var(--vtm-red-light);
-    color: #fff;
-}
-
-/* Hero sections */
-.wiki-index-hero {
-    background:
-        linear-gradient(rgba(10, 10, 20, 0.55), rgba(18, 18, 31, 1)),
-        url('/static/images/music.png');
-    background-size: cover;
-    background-position: center 40%;
-    padding: 4.5rem 0 3rem;
-    margin-bottom: 0;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.15);
-}
-
-.wiki-index-title {
-    font-family: 'Cinzel', serif;
-    font-size: 2.8rem;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.4rem;
-}
-
-.wiki-index-subtitle {
-    color: var(--vtm-gold);
-    font-size: 0.9rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    opacity: 0.85;
-    margin: 0;
-}
-
-.wiki-cat-hero {
-    background:
-        linear-gradient(rgba(10, 10, 20, 0.6), rgba(18, 18, 31, 1)),
-        url('/static/images/music.png');
-    background-size: cover;
-    background-position: center 40%;
-    padding: 2.5rem 0 1.75rem;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.12);
-    margin-bottom: 0;
-}
-
-.wiki-cat-hero-icon {
-    font-size: 2.2rem;
-    color: var(--vtm-gold);
-    opacity: 0.8;
-}
-
-.wiki-cat-hero-title {
-    font-family: 'Cinzel', serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
-}
-
-.wiki-cat-hero-count {
-    font-size: 0.85rem;
-    margin: 0;
-}
-
-.wiki-page-hero {
-    position: relative;
-    background:
-        linear-gradient(rgba(10, 10, 20, 0.55), rgba(18, 18, 31, 1)),
-        var(--cover-url, url('/static/images/music.png'));
-    background-size: cover;
-    background-position: center 40%;
-    padding: 3rem 0 2rem;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.12);
-    margin-bottom: 0;
-}
-
-.wiki-page-hero--plain {
-    background:
-        linear-gradient(rgba(10, 10, 20, 0.7), rgba(18, 18, 31, 1)),
-        url('/static/images/music.png');
-    padding: 2rem 0 1.5rem;
-}
-
-.wiki-page-title {
-    font-family: 'Cinzel', serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #fff;
-    margin: 0;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-}
-
-/* Breadcrumbs */
+/* Wiki breadcrumb */
 .wiki-breadcrumb {
-    font-size: 0.8rem;
-    margin-bottom: 0.75rem;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
+.wiki-breadcrumb li + li::before { content: '/'; opacity: .4; margin-right: 6px; }
+.wiki-breadcrumb a { color: var(--text-muted); transition: color .15s; }
+.wiki-breadcrumb a:hover { color: var(--text); }
+.wiki-breadcrumb .active { color: var(--text-faint); }
 
-.wiki-breadcrumb .breadcrumb-item a {
-    color: var(--vtm-gold);
-    opacity: 0.8;
-    text-decoration: none;
+/* Wiki footer */
+.wiki-footer {
+  background: var(--footer-bg);
+  border-top: 1px solid var(--border);
 }
+.wiki-footer .text-muted { color: var(--text-muted) !important; }
+.wiki-footer a.text-muted { transition: color .15s; }
+.wiki-footer a.text-muted:hover { color: var(--text) !important; }
+.wiki-footer .text-danger { color: var(--accent) !important; }
 
-.wiki-breadcrumb .breadcrumb-item a:hover { opacity: 1; }
+/* Wiki sticky bottom nav (mobile) */
+.wiki-sticky-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+@media (max-width: 767px) { .wiki-sticky-nav { display: flex; } }
+.wiki-sticky-nav-link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-faint);
+  transition: color .12s;
+  text-decoration: none;
+}
+.wiki-sticky-nav-link:hover,
+.wiki-sticky-nav-link.active { color: var(--accent-soft); }
+.wiki-sticky-nav-link i { font-size: 20px; }
+@media (max-width: 767px) { body.wiki-body { padding-bottom: 68px; } }
 
-.wiki-breadcrumb .breadcrumb-item.active { color: #888; }
+/* Wiki index hero */
+.wiki-index-hero {
+  position: relative;
+  height: 260px;
+  overflow: hidden;
+  background: var(--surface);
+  background-image: var(--cover-url);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+}
+.wiki-index-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11,13,16,.1) 0%, rgba(11,13,16,.88) 100%);
+}
+.wiki-index-hero .container-xl { position: relative; z-index: 1; padding-bottom: 28px; }
+.wiki-index-title {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: .04em;
+}
+.wiki-index-subtitle { color: #c4ccd6; font-size: 14px; margin: 4px 0 0; }
 
-.wiki-breadcrumb .breadcrumb-item + .breadcrumb-item::before { color: #555; }
+/* Category hero */
+.wiki-cat-hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 0 20px;
+}
+.wiki-cat-hero-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 8px 0 0;
+  letter-spacing: .04em;
+}
+.wiki-cat-hero-count { font-size: 13px; color: var(--text-muted); }
 
-/* Section heading */
+/* Wiki section heading */
 .wiki-section-heading {
-    font-family: 'Cinzel', serif;
-    font-size: 1.1rem;
-    color: var(--vtm-gold);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid rgba(197, 165, 90, 0.2);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: .04em;
 }
 
-/* Category cards (index) */
+/* Wiki category cards (browse) */
 .wiki-category-card {
-    background: #16213e;
-    border: 1px solid rgba(197, 165, 90, 0.12);
-    border-top: 3px solid var(--vtm-red);
-    border-radius: 8px;
-    padding: 1.25rem 1rem;
-    transition: border-top-color 0.15s, transform 0.15s, box-shadow 0.15s;
-    display: block;
-    color: inherit;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--text);
+  transition: transform .15s, border-color .15s, box-shadow .15s;
 }
-
 .wiki-category-card:hover {
-    border-top-color: var(--vtm-gold);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-    color: inherit;
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
 }
-
 .wiki-category-card .cat-icon {
-    font-size: 1.75rem;
-    color: var(--vtm-gold);
-    opacity: 0.75;
-    margin-bottom: 0.6rem;
-    display: block;
+  font-size: 24px;
+  color: var(--accent-soft);
 }
-
 .wiki-category-card h3 {
-    font-size: 0.95rem;
-    color: #ddd;
-    margin: 0 0 0.2rem;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: .04em;
 }
-
 .wiki-category-card .count {
-    font-size: 0.75rem;
-    color: #666;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-/* Page cards (grid) */
+/* Wiki page cards */
 .wiki-page-card {
-    background: #16213e;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 8px;
-    overflow: hidden;
-    display: block;
-    color: inherit;
-    height: 100%;
-    transition: border-color 0.15s, transform 0.12s;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  color: var(--text);
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  height: 100%;
+  text-decoration: none;
 }
-
 .wiki-page-card:hover {
-    border-color: rgba(197, 165, 90, 0.35);
-    transform: translateY(-2px);
-    color: inherit;
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
 }
-
 .wiki-card-cover {
-    height: 100px;
-    background-size: cover;
-    background-position: center 40%;
-    filter: brightness(0.75);
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(45deg, #1a1d23 0 10px, #141519 10px 20px);
 }
-
 .wiki-card-body {
-    padding: 0.875rem 1rem;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
-
 .wiki-card-body h5 {
-    font-family: 'Cinzel', serif;
-    font-size: 0.9rem;
-    color: #e0e0e0;
-    margin: 0 0 0.3rem;
-    line-height: 1.3;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+  color: var(--text);
+  letter-spacing: .02em;
+}
+.wiki-card-summary { font-size: 13px; color: var(--text-muted); line-height: 1.5; flex: 1; }
+.wiki-card-meta { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.wiki-page-card--inactive { opacity: .6; }
+
+/* Wiki page hero */
+.wiki-page-hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 0 20px;
+}
+.wiki-page-hero--cover {
+  position: relative;
+  min-height: 260px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-image: var(--cover-url);
+  background-size: cover;
+  background-position: center;
+}
+.wiki-page-hero--cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11,13,16,.2) 0%, rgba(11,13,16,.88) 100%);
+}
+.wiki-page-hero--cover .container-xl { position: relative; z-index: 1; padding-bottom: 28px; }
+.wiki-page-hero-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: .04em;
+  line-height: 1.2;
+}
+.wiki-page-hero-summary { color: #c4ccd6; font-size: 15px; font-family: var(--font-body); font-style: italic; }
+
+/* Wiki body content */
+.wiki-body-content {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-body);
+}
+.wiki-body-content h1,
+.wiki-body-content h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 32px 0 12px;
+  letter-spacing: .04em;
+  scroll-margin-top: 80px;
+}
+.wiki-body-content h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 24px 0 10px;
+  letter-spacing: .03em;
+  scroll-margin-top: 80px;
+}
+.wiki-body-content p { margin: 0 0 1em; }
+.wiki-body-content strong { color: var(--text); }
+.wiki-body-content em { color: var(--accent-soft); }
+.wiki-body-content a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.wiki-body-content a:hover { color: var(--accent-soft); }
+.wiki-body-content blockquote {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  padding: 14px 18px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-style: italic;
+  color: var(--text);
+}
+.wiki-body-content pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 16px 0;
+}
+.wiki-body-content code {
+  background: rgba(255,255,255,.06);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: .88em;
+  color: var(--accent-soft);
+  font-family: monospace;
+}
+.wiki-body-content pre code { background: none; padding: 0; color: var(--text-body); }
+.wiki-body-content ul, .wiki-body-content ol { padding-left: 1.4em; margin: 0 0 1em; }
+.wiki-body-content li { margin-bottom: .3em; }
+.wiki-body-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+.wiki-body-content img { max-width: 100%; border-radius: 10px; }
+.wiki-body-content table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; font-family: var(--font-ui); }
+.wiki-body-content th {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-strong);
+}
+.wiki-body-content td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-body); }
+.wiki-body-content tr:last-child td { border-bottom: none; }
+
+/* Wiki search */
+.wiki-search-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 16px;
+  color: var(--text);
+  transition: border-color .15s;
+}
+.wiki-search-result:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text);
+}
+.wiki-search-result h5 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: var(--text);
+  margin: 0;
+}
+.wiki-search-excerpt { font-size: 13px; color: var(--text-muted); }
+.wiki-search-meta { font-size: 11px; color: var(--text-faint); }
+
+/* Wiki editor */
+.wiki-staff-sidebar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+.wiki-staff-sidebar-header {
+  padding: 10px 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+}
+.wiki-staff-sidebar-section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.wiki-staff-sidebar-section:last-child { border-bottom: none; }
+.wiki-staff-sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--text-faint); margin-bottom: 6px; font-family: var(--font-ui); }
+.wiki-staff-sidebar-meta { display: flex; flex-direction: column; gap: 5px; color: var(--text-muted); font-size: 12px; }
+.wiki-staff-meta-label { color: var(--text-faint); margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+
+/* EasyMDE overrides */
+.EasyMDEContainer .CodeMirror {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 0 0 8px 8px !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+}
+.EasyMDEContainer .editor-toolbar {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-bottom: none !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+.EasyMDEContainer .editor-toolbar button { color: var(--text-muted) !important; }
+.EasyMDEContainer .editor-toolbar button:hover,
+.EasyMDEContainer .editor-toolbar button.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--text) !important;
+}
+.EasyMDEContainer .editor-toolbar i.separator { border-color: var(--border-strong) !important; }
+
+/* ══════════════════════════════════════════════
+   XP TRACKER — SPECIFIC COMPONENTS
+   ══════════════════════════════════════════════ */
+
+/* Pending count badge in sidebar */
+.pending-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 5px;
+  margin-left: auto;
 }
 
-.wiki-card-body .meta {
-    font-size: 0.75rem;
-    color: #666;
+/* XP claim/spend status pills */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-family: var(--font-ui);
+}
+.status-pending  { background: color-mix(in srgb, var(--vtm-gold) 15%, transparent); color: var(--vtm-gold); border: 1px solid color-mix(in srgb, var(--vtm-gold) 30%, transparent); }
+.status-approved { background: rgba(74,222,128,.12); color: #4ade80; border: 1px solid rgba(74,222,128,.25); }
+.status-denied   { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.status-draft    { background: rgba(255,255,255,.06); color: var(--text-muted); border: 1px solid var(--border-strong); }
+
+/* Dashboard stat cards */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+  font-family: var(--font-ui);
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.stat-sub { font-size: 12px; color: var(--text-muted); }
+.stat-card--accent { border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.stat-card--accent .stat-value { color: var(--accent-soft); }
+
+/* Period badge */
+.period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-soft);
+  font-family: var(--font-ui);
+}
+.period-badge.open  { background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.25); color: #4ade80; }
+.period-badge.closed { background: rgba(255,255,255,.05); border-color: var(--border-strong); color: var(--text-faint); }
+
+/* Roster character row */
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+.roster-row:last-child { border-bottom: none; }
+.roster-row:hover { background: rgba(255,255,255,.02); }
+.roster-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: repeating-linear-gradient(45deg, #1a1d23 0 5px, #141519 5px 10px);
+  background-size: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+}
+.roster-name { font-weight: 600; font-size: 14px; color: var(--text); }
+.roster-meta { font-size: 12px; color: var(--text-muted); }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .sidebar { width: 100%; }
+  .wiki-navbar .container-xl { padding: 0 16px; }
+  .stat-value { font-size: 24px; }
 }
 
-.wiki-card-summary {
-    font-size: 0.78rem;
-    color: #9ca3af;
-    margin-bottom: 0.35rem;
-    line-height: 1.4;
-}
+/* ══════════════════════════════════════════════
+   WIKI — MCBN-SPECIFIC COMPONENTS
+   ══════════════════════════════════════════════ */
 
-/* Bulk delete — card checkbox overlay */
-.wiki-card-col {
-    position: relative;
+/* Article body wrapper */
+.wiki-article {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-body);
 }
-
-.wiki-card-select-label {
-    position: absolute;
-    top: 0.45rem;
-    left: 0.85rem;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
+.wiki-article h1, .wiki-article h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 32px 0 12px;
+  letter-spacing: .04em;
+  scroll-margin-top: 80px;
 }
-
-.wiki-card-checkbox {
-    width: 1.1rem;
-    height: 1.1rem;
-    accent-color: #c5a55a;
-    cursor: pointer;
-    background: rgba(13,17,23,0.75);
-    border-radius: 3px;
+.wiki-article h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 24px 0 10px;
+  letter-spacing: .03em;
 }
-
-.wiki-card-col--selected .wiki-page-card {
-    outline: 2px solid #e05252;
-    outline-offset: 2px;
+.wiki-article p { margin: 0 0 1em; }
+.wiki-article strong { color: var(--text); }
+.wiki-article em { color: var(--accent-soft); }
+.wiki-article a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.wiki-article a:hover { color: var(--accent-soft); }
+.wiki-article blockquote {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  padding: 14px 18px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  font-size: 17px;
 }
-
-/* Bulk delete action bar */
-.wiki-bulk-delete-bar {
-    padding: 0.65rem 0;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    display: flex;
-    align-items: center;
-}
-
-/* Category badge */
-.wiki-cat-badge {
-    display: inline-block;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--vtm-gold);
-    background: rgba(197, 165, 90, 0.1);
-    border: 1px solid rgba(197, 165, 90, 0.25);
-    border-radius: 3px;
-    padding: 0.1em 0.5em;
-    margin-bottom: 0.4rem;
-    text-decoration: none;
-}
-
-a.wiki-cat-badge:hover {
-    background: rgba(197, 165, 90, 0.2);
-}
+.wiki-article ul, .wiki-article ol { padding-left: 1.4em; margin: 0 0 1em; }
+.wiki-article li { margin-bottom: .3em; }
+.wiki-article hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+.wiki-article img { max-width: 100%; border-radius: 10px; }
+.wiki-article table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; font-family: var(--font-ui); }
+.wiki-article th { background: var(--surface); color: var(--text); font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-strong); }
+.wiki-article td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.wiki-article tr:last-child td { border-bottom: none; }
+.wiki-article pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; }
+.wiki-article code { background: rgba(255,255,255,.06); border-radius: 4px; padding: 2px 5px; font-size: .88em; color: var(--accent-soft); }
+.wiki-article pre code { background: none; padding: 0; color: var(--text-body); }
 
 /* Separator */
-.wiki-sep {
-    border: none;
-    height: 1px;
-    background: linear-gradient(to right, transparent, rgba(197, 165, 90, 0.3), transparent);
-    margin: 2.5rem 0;
-}
+.wiki-sep { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
 
-/* State of the Domain — styled as an IC notice */
+/* Domain notice */
 .wiki-domain-notice {
-    border-left: 3px solid rgba(197, 165, 90, 0.5);
-    padding: 1.25rem 1.5rem;
-    background: rgba(197, 165, 90, 0.04);
-    border-radius: 0 6px 6px 0;
-    max-width: 820px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-card) var(--r-card) 0;
+  padding: 20px 24px;
 }
 
-.wiki-domain-notice .wiki-article {
-    font-size: 0.96rem;
+/* Page hero — with cover image */
+.wiki-page-hero {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  background: var(--surface);
+  background-image: var(--cover-url);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+}
+.wiki-page-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11,13,16,.15) 0%, rgba(11,13,16,.88) 100%);
+}
+.wiki-page-hero .container-xl { padding-bottom: 28px; }
+.wiki-page-hero--plain {
+  min-height: auto;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 0 20px;
+}
+.wiki-page-hero--plain .wiki-page-hero-overlay { display: none; }
+.wiki-page-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  color: #fff;
+  margin: 8px 0 0;
+  letter-spacing: .04em;
+  line-height: 1.2;
+}
+.wiki-page-hero--plain .wiki-page-title { color: var(--text); }
+
+/* Portrait card */
+.wiki-portrait-card {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.wiki-portrait-card--faded { opacity: .65; filter: grayscale(40%); }
+.wiki-portrait-img { width: 100%; display: block; }
+.wiki-status-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(216,58,74,.85);
+  color: #fff;
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+}
+.wiki-status-overlay--retired {
+  background: rgba(255,255,255,.15);
+  backdrop-filter: blur(4px);
+  color: var(--text-muted);
+}
+.wiki-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-family: var(--font-ui);
+}
+.wiki-status-badge--deceased {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.wiki-status-badge--retired {
+  background: rgba(255,255,255,.06);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
 }
 
-.wiki-domain-notice .wiki-article p:last-child {
-    margin-bottom: 0;
+/* Card status badge (on cards) */
+.wiki-card-status-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  vertical-align: middle;
+  font-family: var(--font-ui);
 }
-
-/* Domains & Coteries featured link card */
-a.wiki-featured-card {
-    display: flex;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(197, 165, 90, 0.25);
-    border-radius: 8px;
-    color: inherit;
-    transition: background 0.15s, border-color 0.15s;
+.wiki-card-status-badge--deceased {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
-
-a.wiki-featured-card:hover {
-    background: rgba(197, 165, 90, 0.06);
-    border-color: rgba(197, 165, 90, 0.5);
-    color: inherit;
-}
-
-a.wiki-featured-card h4 {
-    color: var(--vtm-gold);
-}
-
-.wiki-featured-card-cover {
-    width: 80px;
-    height: 80px;
-    border-radius: 6px;
-    background-size: cover;
-    background-position: center;
-}
-
-.wiki-featured-card-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 6px;
-    background: rgba(197, 165, 90, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: rgba(197, 165, 90, 0.5);
-}
-
-/* Article body */
-.wiki-article {
-    font-size: 0.97rem;
-    line-height: 1.8;
-    color: #c8c8d8;
-}
-
-.wiki-article h1 {
-    font-size: 1.9rem;
-    color: #fff;
-    margin-bottom: 0.5rem;
-    margin-top: 2rem;
-}
-
-.wiki-article h2 {
-    font-size: 1.3rem;
-    color: var(--vtm-gold);
-    border-bottom: 1px solid rgba(197, 165, 90, 0.25);
-    padding-bottom: 0.35rem;
-    margin-top: 2.25rem;
-    margin-bottom: 0.9rem;
-}
-
-.wiki-article h3 {
-    font-size: 1.05rem;
-    color: #d4c5a0;
-    margin-top: 1.75rem;
-    margin-bottom: 0.6rem;
-}
-
-.wiki-article h4, .wiki-article h5, .wiki-article h6 {
-    color: #bbb;
-    margin-top: 1.25rem;
-}
-
-.wiki-article p { margin-bottom: 1rem; }
-
-.wiki-article a {
-    color: var(--vtm-gold);
-    text-decoration: underline;
-    text-decoration-color: rgba(197, 165, 90, 0.4);
-}
-
-.wiki-article a:hover {
-    color: #e8d585;
-    text-decoration-color: rgba(197, 165, 90, 0.8);
-}
-
-.wiki-article blockquote {
-    border-left: 3px solid var(--vtm-red);
-    padding: 0.75rem 1.25rem;
-    background: rgba(139, 0, 0, 0.08);
-    margin: 1.25rem 0;
-    font-style: italic;
-    color: #aaa;
-    border-radius: 0 4px 4px 0;
-}
-
-.wiki-article ul, .wiki-article ol {
-    color: #c0c0d0;
-    padding-left: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.wiki-article li { margin-bottom: 0.35rem; }
-
-.wiki-article hr {
-    border: none;
-    border-top: 1px solid rgba(197, 165, 90, 0.2);
-    margin: 2rem 0;
-}
-
-.wiki-article table {
-    width: 100%;
-    margin: 1.25rem 0;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-}
-
-.wiki-article table th {
-    color: var(--vtm-gold);
-    border-bottom: 2px solid rgba(197, 165, 90, 0.3);
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    background: rgba(197, 165, 90, 0.05);
-}
-
-.wiki-article table td {
-    padding: 0.45rem 0.75rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: #c0c0d0;
-}
-
-.wiki-article code {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-    padding: 0.15em 0.4em;
-    font-size: 0.85em;
-    color: #a8d8a8;
-}
-
-.wiki-article pre code {
-    display: block;
-    padding: 1rem;
-    overflow-x: auto;
-    line-height: 1.6;
-}
-
-.wiki-article img {
-    max-width: 100%;
-    border-radius: 6px;
-    margin: 0.75rem 0;
-}
-
-.wiki-article iframe {
-    max-width: 100%;
-    border-radius: 6px;
-    border: 1px solid rgba(197, 165, 90, 0.2);
-    margin: 1rem 0;
-    display: block;
+.wiki-card-status-badge--retired {
+  background: rgba(255,255,255,.07);
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
 }
 
 /* Sidebar panel */
 .wiki-sidebar-panel {
-    position: sticky;
-    top: 1rem;
+  position: sticky;
+  top: 80px;
 }
-
-.wiki-portrait-card {
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid rgba(197, 165, 90, 0.2);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-}
-
-.wiki-portrait-img {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: cover;
-}
-
-.wiki-portrait-card--faded .wiki-portrait-img {
-    filter: grayscale(60%) opacity(0.75);
-}
-
-.wiki-portrait-card { position: relative; }
-
-.wiki-status-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(20, 10, 10, 0.82);
-    color: #c0a0a0;
-    font-family: 'Cinzel', serif;
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-align: center;
-    padding: 0.35rem 0.5rem;
-}
-
-.wiki-status-overlay--retired {
-    color: #999;
-    background: rgba(20, 20, 30, 0.82);
-}
-
-.wiki-status-badge {
-    display: inline-block;
-    padding: 0.25rem 0.65rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: 'Cinzel', serif;
-    letter-spacing: 0.08em;
-}
-
-.wiki-status-badge--deceased {
-    background: rgba(80, 20, 20, 0.5);
-    color: #c0a0a0;
-    border: 1px solid rgba(150, 50, 50, 0.4);
-}
-
-.wiki-status-badge--retired {
-    background: rgba(40, 40, 50, 0.5);
-    color: #999;
-    border: 1px solid rgba(80, 80, 100, 0.4);
-}
-
-.wiki-page-card--inactive { opacity: 0.75; }
-
-.wiki-card-status-badge {
-    font-size: 0.65rem;
-    vertical-align: middle;
-    margin-left: 0.4rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    font-family: 'Cinzel', serif;
-    letter-spacing: 0.06em;
-}
-
-.wiki-card-status-badge--deceased {
-    background: rgba(80, 20, 20, 0.5);
-    color: #c0a0a0;
-}
-
-.wiki-card-status-badge--retired {
-    background: rgba(40, 40, 50, 0.5);
-    color: #888;
-}
-
 .wiki-meta-card {
-    background: #16213e;
-    border: 1px solid rgba(197, 165, 90, 0.15);
-    border-radius: 8px;
-    padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  margin-bottom: 12px;
 }
-
-.wiki-meta-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    padding: 0.35rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    font-size: 0.82rem;
-}
-
-.wiki-meta-row:last-child { border-bottom: none; }
-
-.wiki-meta-label {
-    color: #666;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    min-width: 60px;
-    flex-shrink: 0;
-}
-
-.wiki-meta-value { color: #c0c0d0; }
-
 .wiki-sidebar-heading {
-    font-family: 'Cinzel', serif;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--vtm-gold);
-    margin-bottom: 0.75rem;
-    opacity: 0.85;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--text-faint);
+  padding: 10px 14px;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
 }
-
+.wiki-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  gap: 8px;
+}
+.wiki-meta-row:last-child { border-bottom: none; }
+.wiki-meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  font-family: var(--font-ui);
+  flex-shrink: 0;
+}
+.wiki-meta-value { color: var(--text-muted); font-size: 12px; }
 .wiki-sidebar-link {
-    display: block;
-    padding: 0.35rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    color: #8888a8;
-    text-decoration: none;
-    transition: color 0.12s, background 0.12s;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-radius: 6px;
+  transition: background .12s, color .12s;
+  text-decoration: none;
+}
+.wiki-sidebar-link:hover { background: rgba(255,255,255,.04); color: var(--text); }
+.wiki-sidebar-link--active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-soft);
+}
+.wiki-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent-soft);
+  border-radius: var(--r-pill);
+  padding: 2px 9px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-decoration: none;
+  font-family: var(--font-ui);
+}
+.wiki-cat-hero-icon {
+  font-size: 28px;
+  color: var(--accent-soft);
 }
 
-.wiki-sidebar-link:hover { color: #e0e0e0; background: rgba(255, 255, 255, 0.05); }
-.wiki-sidebar-link--active { color: var(--vtm-gold) !important; background: rgba(197, 165, 90, 0.08) !important; }
-
-/* Edit form */
-.wiki-form-label {
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #888;
-    margin-bottom: 0.35rem;
-}
-
-.wiki-form-input {
-    background: #0d1117 !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #e0e0e0 !important;
-    border-radius: 6px;
-}
-
-.wiki-form-input:focus {
-    border-color: rgba(197, 165, 90, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(197, 165, 90, 0.1) !important;
-    color: #e0e0e0 !important;
-    background: #0d1117 !important;
-}
-
-.wiki-cover-preview {
-    max-height: 160px;
-    border-radius: 6px;
-    opacity: 0.85;
-}
-
-/* Footer */
-.wiki-footer {
-    border-top: 1px solid rgba(197, 165, 90, 0.12);
-    background: rgba(0, 0, 0, 0.25);
-    padding-bottom: 56px; /* clear sticky nav */
-}
-
-/* Sticky bottom nav */
-.wiki-sticky-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1030;
-    display: flex;
-    justify-content: center;
-    gap: 0;
-    background: rgba(10, 8, 10, 0.96);
-    border-top: 1px solid rgba(197, 165, 90, 0.18);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-
-.wiki-sticky-nav-link {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.6rem 2rem;
-    color: rgba(200, 185, 170, 0.7);
-    text-decoration: none;
-    font-size: 0.82rem;
-    letter-spacing: 0.04em;
-    transition: color 0.15s ease, background 0.15s ease;
-    border-right: 1px solid rgba(197, 165, 90, 0.1);
-}
-
-.wiki-sticky-nav-link:last-child {
-    border-right: none;
-}
-
-.wiki-sticky-nav-link:hover {
-    color: rgba(230, 210, 185, 0.95);
-    background: rgba(197, 165, 90, 0.07);
-    text-decoration: none;
-}
-
-/* ── Responsive — mobile (<768px) ───────────────────────────────── */
-@media (max-width: 767.98px) {
-    /* Player: compact XP summary cards */
-    .xp-summary .card-body {
-        padding: 0.5rem;
-    }
-    .xp-summary .card-title {
-        font-size: 1.4rem;
-    }
-    .xp-summary .card-subtitle {
-        font-size: 0.75rem;
-    }
-
-    /* Staff: tighter main content padding */
-    main.flex-grow-1 {
-        padding: 1rem !important;
-    }
-
-    /* Tables: more compact on mobile */
-    .table {
-        font-size: 0.82rem;
-    }
-    .table th, .table td {
-        padding: 0.4rem 0.5rem;
-    }
-
-    /* Staff sidebar: offcanvas overlay */
-    .sidebar.offcanvas-md {
-        width: var(--sidebar-width);
-    }
-
-    .login-card {
-        margin: 40px auto;
-    }
-
-    /* Bottom nav padding so content isn't hidden behind it */
-    .has-bottom-nav {
-        padding-bottom: 72px;
-    }
-
-    .char-hero {
-        padding: 1.25rem;
-    }
-
-    .char-hero-name {
-        font-size: 1.5rem;
-    }
-
-    .char-hero-xp-num {
-        font-size: 2.5rem;
-    }
-}
-
-/* ── Wiki Search ──────────────────────────────────────────────────────────── */
-
-/* Navbar search box */
-/* ── Wiki XP snapshot ───────────────────────────────────────────────────── */
-
+/* XP stats panel */
 .wiki-xp-stats {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
 }
-
 .wiki-xp-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  background: var(--surface);
 }
-
 .wiki-xp-val {
-    font-family: 'Cinzel', serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    line-height: 1.2;
-    color: #d4c5a9;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
 }
-
+.wiki-xp-val.text-danger { color: var(--accent) !important; }
+.wiki-xp-val.text-success { color: #4ade80 !important; }
 .wiki-xp-lbl {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #666;
-    margin-top: 0.1rem;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  font-family: var(--font-ui);
 }
-
 .wiki-xp-toggle {
-    background: none;
-    border: none;
-    padding: 0.25rem 0;
-    font-size: 0.78rem;
-    color: #8888a8;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    text-align: left;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: color .12s;
 }
-
-.wiki-xp-toggle:hover { color: var(--vtm-gold); }
-
+.wiki-xp-toggle:hover { color: var(--text); }
 .wiki-xp-chevron {
-    font-size: 0.65rem;
-    transition: transform 0.2s;
+  display: inline-block;
+  transition: transform .2s;
 }
-
-.wiki-xp-toggle:not(.collapsed) .wiki-xp-chevron {
-    transform: rotate(90deg);
-}
-
-.wiki-xp-list {
-    list-style: none;
-    padding: 0.4rem 0 0;
-    margin: 0;
-}
-
+.wiki-xp-toggle:not(.collapsed) .wiki-xp-chevron { transform: rotate(90deg); }
+.wiki-xp-list { list-style: none; padding: 4px 0; margin: 0; }
 .wiki-xp-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 0.2rem 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
 }
-
 .wiki-xp-item:last-child { border-bottom: none; }
+.wiki-xp-trait { color: var(--text-muted); flex: 1; }
+.wiki-xp-cost { color: var(--accent-soft); font-weight: 600; flex-shrink: 0; }
 
-.wiki-xp-trait { color: #b0a898; }
-
-.wiki-xp-cost {
-    color: #888;
-    white-space: nowrap;
-    margin-left: 0.5rem;
-    font-size: 0.75rem;
+/* Staff edit/save buttons */
+.wiki-btn-edit {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent-soft) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  transition: background .15s !important;
+}
+.wiki-btn-edit:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
+  color: #fff !important;
+}
+.wiki-btn-save {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+.wiki-form-input {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 8px !important;
+  color: var(--text) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 13px !important;
 }
 
-/* ── Wiki search ────────────────────────────────────────────────────────── */
-
-.wiki-nav-search { width: 200px; }
-
-.wiki-nav-search-input {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #e0e0e0;
-    font-size: 0.82rem;
+/* Bulk selection UI */
+.wiki-card-col { position: relative; }
+.wiki-card-col--selected .wiki-page-card {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.wiki-card-select-label {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+.wiki-card-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.wiki-bulk-delete-bar {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-card);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.wiki-nav-search-input:focus {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(197, 165, 90, 0.4);
-    color: #e0e0e0;
-    box-shadow: 0 0 0 2px rgba(197, 165, 90, 0.15);
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+.empty-state i { font-size: 48px; opacity: .2; display: block; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; margin: 0; }
+.empty-state a { color: var(--accent); text-decoration: underline; }
+
+/* Cover preview (edit page) */
+.wiki-cover-preview {
+  max-height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+  width: 100%;
 }
 
-.wiki-nav-search-input::placeholder { color: #666; }
-
-.wiki-nav-search-btn {
-    background: rgba(197, 165, 90, 0.15);
-    border: 1px solid rgba(197, 165, 90, 0.25);
-    color: var(--vtm-gold);
-    font-size: 0.82rem;
+/* Search bar (search page) */
+.wiki-search-bar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-card);
+  padding: 4px 6px 4px 18px;
+  gap: 8px;
+  margin-bottom: 20px;
+  transition: border-color .15s;
 }
-
-.wiki-nav-search-btn:hover {
-    background: rgba(197, 165, 90, 0.25);
-    color: var(--vtm-gold);
+.wiki-search-bar:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
-
-/* Search page form */
-.wiki-search-bar .wiki-search-input {
-    background: #16213e;
-    border: 1px solid rgba(197, 165, 90, 0.2);
-    color: #e0e0e0;
-    font-size: 1rem;
-    padding: 0.6rem 1rem;
+.wiki-search-input {
+  flex: 1;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 16px !important;
+  color: var(--text) !important;
+  font-family: var(--font-ui) !important;
+  padding: 10px 0 !important;
+  box-shadow: none !important;
 }
-
-.wiki-search-bar .wiki-search-input:focus {
-    background: #16213e;
-    border-color: rgba(197, 165, 90, 0.5);
-    color: #e0e0e0;
-    box-shadow: 0 0 0 3px rgba(197, 165, 90, 0.12);
+.wiki-search-btn {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 9px !important;
+  padding: 9px 20px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: opacity .15s !important;
+  font-family: var(--font-ui) !important;
 }
-
-.wiki-btn-search {
-    background: rgba(197, 165, 90, 0.15);
-    border: 1px solid rgba(197, 165, 90, 0.3);
-    color: var(--vtm-gold);
-    font-size: 0.9rem;
-    padding: 0.6rem 1.2rem;
-}
-
-.wiki-btn-search:hover {
-    background: rgba(197, 165, 90, 0.25);
-    color: var(--vtm-gold);
-}
-
-/* Search results */
-.wiki-search-results { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.wiki-search-result {
-    display: block;
-    padding: 1rem 1.1rem;
-    background: #16213e;
-    border: 1px solid rgba(197, 165, 90, 0.12);
-    border-radius: 8px;
-    transition: border-color 0.12s, background 0.12s;
-}
-
-.wiki-search-result:hover {
-    background: #1a2a52;
-    border-color: rgba(197, 165, 90, 0.35);
-}
-
+.wiki-search-btn:hover { opacity: .88 !important; }
+.wiki-search-results { display: flex; flex-direction: column; gap: 10px; }
 .wiki-search-result-title {
-    font-family: 'Cinzel', serif;
-    font-size: 1rem;
-    color: #e8dfc0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: var(--text);
 }
-
-.wiki-search-result-excerpt {
-    font-size: 0.83rem;
-    color: #8888a8;
-    margin-top: 0.3rem;
-    line-height: 1.5;
-}
-
-/* ── Character sheet layout (inline + full sheet view) ────────────────────── */
-.sheet-section-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--vtm-gold);
-    border-bottom: 1px solid rgba(197, 165, 90, 0.25);
-    padding-bottom: 0.3rem;
-    margin-bottom: 0.6rem;
-}
-
-.sheet-group-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #8888a8;
-    margin-bottom: 0.35rem;
-}
-
-.sheet-trait-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.1rem 0.5rem 0.1rem 0;
-    min-height: 1.5rem;
-}
-
-.sheet-trait-name {
-    font-size: 0.82rem;
-    color: #ccc;
-}
-
-.sheet-specialty-row {
-    font-size: 0.72rem;
-    color: #888;
-    font-style: italic;
-    padding: 0 0.5rem 0.25rem 0;
-    margin-top: -0.1rem;
-}
-
-.sheet-disc-name {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #aaa;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 0.2rem;
-}
-
-.dot-pip.square {
-    border-radius: 2px;
-}
-
-.dot-pips-lg .dot-pip {
-    width: 13px;
-    height: 13px;
-}
+.wiki-search-result-excerpt { font-size: 13px; color: var(--text-muted); }

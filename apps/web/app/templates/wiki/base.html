@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Chronicle Wiki — Music City by Night{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -18,8 +18,9 @@
     <nav class="navbar navbar-expand-md navbar-dark wiki-navbar sticky-top">
         <div class="container-xl">
             <a class="navbar-brand wiki-brand d-flex align-items-center gap-2" href="{{ url_for('wiki.index') }}">
-                <i class="bi bi-droplet-fill text-danger"></i>
-                <span>Chronicle Wiki</span>
+                <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 70%,transparent);flex-shrink:0;"></span>
+                <span style="font-family:var(--font-display);font-weight:700;font-size:14px;letter-spacing:.05em;">MCBN</span>
+                <span style="color:var(--text-muted);font-size:13px;font-weight:400;font-family:var(--font-ui);">/ Chronicle Wiki</span>
             </a>
             <button class="navbar-toggler border-0" type="button"
                     data-bs-toggle="collapse" data-bs-target="#wikiNav" aria-label="Toggle navigation">
@@ -101,31 +102,48 @@
         {% block content %}{% endblock %}
     </div>
 
-    <footer class="wiki-footer mt-5">
-        <div class="container-xl py-3 px-3 px-md-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div>
-                    <a href="https://discord.gg/WuU2xkHdmp" class="text-muted text-decoration-none small" target="_blank" rel="noopener">
-                        <i class="bi bi-droplet-fill text-danger me-1"></i>
-                        Music City by Night — Vampire: The Masquerade V5
+    <footer class="wiki-footer mt-5" style="padding:40px 0 0;">
+        <div class="container-xl px-3 px-md-4" style="max-width:1180px;margin:0 auto;">
+            <div class="row g-4 pb-4">
+                <div class="col-md-4">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px color-mix(in srgb,var(--accent) 60%,transparent);"></span>
+                        <span style="font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--text);letter-spacing:.04em;">Music City by Night</span>
+                    </div>
+                    <p style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">Vampire: The Masquerade V5 — Nashville, TN</p>
+                    <a href="https://discord.gg/WuU2xkHdmp" target="_blank" rel="noopener"
+                       style="display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent-soft);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s;">
+                        <i class="bi bi-discord"></i> Join the Discord
                     </a>
-                    <span class="text-muted ms-2" style="opacity: 0.4; font-size: 0.75rem;">created by jkomg</span>
                 </div>
-                <div class="d-flex gap-3">
-                    <a href="{{ url_for('wiki.index') }}" class="text-muted text-decoration-none small">
-                        <i class="bi bi-journal-richtext me-1"></i>Wiki Home
-                    </a>
-                    <a href="{{ url_for('player.my_characters') }}" class="text-muted text-decoration-none small">
-                        <i class="bi bi-person-circle me-1"></i>Player Portal
-                    </a>
+                <div class="col-md-4">
+                    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text-faint);margin-bottom:12px;">Browse</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <a href="{{ url_for('wiki.index') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">Wiki Home</a>
+                        {% for cat_slug, cat_name, cat_icon in wiki_categories %}
+                        <a href="{{ url_for('wiki.category', category=cat_slug) }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">{{ cat_name }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text-faint);margin-bottom:12px;">This site</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <a href="{{ url_for('wiki.index') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">Wiki Home</a>
+                        <a href="{{ url_for('wiki.search') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">Search</a>
+                        <a href="{{ url_for('player.my_characters') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">Player Portal</a>
+                        <a href="https://gaming.jkomg.us" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">← All Campaigns</a>
+                        <a href="https://www.worldofdarkness.com/dark-pack" target="_blank" rel="noopener" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s;">The Dark Pack</a>
+                    </div>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.06);">
-                <img src="{{ url_for('static', filename='images/darkpack_logo.png') }}" alt="Dark Pack" style="height: 28px; width: auto; flex-shrink: 0;">
-                <p class="text-muted mb-0" style="font-size: 0.7rem; line-height: 1.4;">
+            <div style="border-top:1px solid var(--border);padding:20px 0 28px;display:flex;align-items:flex-start;gap:20px;">
+                <a href="https://www.worldofdarkness.com/dark-pack" target="_blank" rel="noopener">
+                    <img src="{{ url_for('static', filename='images/darkpack_logo.png') }}" alt="Dark Pack" style="height:60px;width:auto;opacity:.85;">
+                </a>
+                <p style="font-size:11px;color:var(--text-faintest);line-height:1.6;margin:0;">
                     Portions of the materials are the copyrights and trademarks of Paradox Interactive AB, and are used with permission. All rights reserved.
-                    For more information please visit <a href="https://worldofdarkness.com" target="_blank" rel="noopener" class="text-muted">worldofdarkness.com</a>.
-                    MCBN is not official World of Darkness material and is not endorsed by Paradox Interactive AB.
+                    For more information please visit <a href="https://worldofdarkness.com" target="_blank" rel="noopener" style="color:var(--text-faint);text-decoration:underline;text-decoration-color:var(--border-strong);">worldofdarkness.com</a>.<br>
+                    Music City by Night is not official World of Darkness material and is not endorsed by Paradox Interactive AB.
                 </p>
             </div>
         </div>
