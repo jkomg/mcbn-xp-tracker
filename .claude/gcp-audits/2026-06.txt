@@ -1,0 +1,358 @@
+## GCP Cost Audit — June 2026
+**Project**: mcbn-xp-tracker
+**Period**: June 2026 (first audit baseline — no prior data for month-over-month comparison)
+**Audit Date**: 2026-06-24
+**Estimated Monthly GCP Spend**: $3–$8/month
+**Identified Savings Opportunity**: $1–$3/month (from quick wins alone)
+
+---
+
+## COST AUDIT SUMMARY
+
+This is a very lean deployment. The project runs a Flask/gunicorn app on Cloud Run
+(scale-to-zero), uses Turso (external SaaS) as the primary database, and keeps the
+Discord bot running locally (no cloud cost for that runtime). GCP spend is dominated
+by Cloud Run CPU/memory usage and Artifact Registry storage. Secret Manager, GCS, and
+Sheets API usage are all within free tiers at this usage scale.
+
+**Estimated Monthly Spend by Service:**
+
+| Service                 | Estimated Cost |
+|-------------------------|---------------|
+| Cloud Run (prod)        | $1.50 – $4.00 |
+| Cloud Run (dev)         | $0.50 – $1.50 |
+| Artifact Registry       | $0.30 – $1.00 |
+| Secret Manager          | ~$0.00 (free tier) |
+| Cloud Storage (GCS)     | ~$0.00 (<1 GB wiki images) |
+| CI/CD (GitHub Actions)  | $0.00 (on GitHub-hosted runners, external cost) |
+| **Total GCP estimate**  | **$2.30 – $6.50/month** |
+
+Note: Turso, GitHub Actions compute, and Discord API costs are external to GCP and
+not included. Turso hobby/starter plan is likely free or ~$5/month separately.
+
+---
+
+## CRITICAL ISSUES
+
+None. The architecture is fundamentally sound for this scale. No runaway cost vectors
+identified. No always-on VMs, no over-provisioned resources with zero traffic.
+
+---
+
+## MEDIUM PRIORITY — OPTIMIZATION OPPORTUNITIES
+
+### 1. Memory Mismatch: deploy.sh vs deploy-web.yml (prod workflow)
+
+**Waste**: `deploy.sh` (manual local deploy script) sets `--memory 256Mi` for prod.
+`deploy-web.yml` (the actual production GitHub Actions deploy) sets `--memory 512Mi`.
+These are inconsistent. The live production service was last deployed via CI (GitHub
+Actions), so it is almost certainly running at 512Mi. The 256Mi in `deploy.sh` is a
+misleading dead-letter that would cause a production regression if someone runs the
+script manually.
+
+**Cost**: 512Mi vs 256Mi doubles the memory billing component. At Cloud Run pricing
+(~$0.0000025/GB-second), the delta between 256Mi and 512Mi at modest traffic (e.g.
+2,000 request-seconds/day) is approximately $0.05–$0.20/month — not large, but the
+inconsistency is a correctness risk.
+
+**Actual memory need**: gunicorn is configured with `--workers 2 --threads 4`. A
+Flask app at this scale (community game tracker, ~30–100 concurrent users at peak)
+with SQLAlchemy + gspread + google-cloud-storage in requirements.txt will realistically
+need 250–350 MB. 512Mi is comfortable headroom. 256Mi risks OOM kills under moderate
+load. The correct action is to align `deploy.sh` to 512Mi and treat 512Mi as the
+canonical configuration, not reduce it.
+
+**Fix**: Update `deploy.sh` line 85 to `--memory 512Mi` to match `deploy-web.yml`.
+**Tradeoff**: Slightly higher memory billing (~$0.10/month), but eliminates OOM risk
+and configuration drift.
+**Worth it**: Yes — alignment is more important than the trivial cost delta here.
+
+---
+
+### 2. Dev Service Deploys on Every CI Run (All Branches)
+
+**Waste**: `deploy-web-dev.yml` triggers on every successful CI run on **any branch**
+(`workflow_run: workflows: ["CI"] types: [completed]` with no branch filter). This
+means every feature-branch PR that passes CI triggers a full Docker build + push +
+Cloud Run deployment. The comment in the workflow says "lets you test PRs on dev
+without merging first" — this is intentional, but it has a real cost.
+
+**Cost breakdown per deployment cycle**:
+- GitHub Actions compute: ~4–8 minutes of ubuntu-latest (external, billed to GitHub)
+- Artifact Registry push: ~200–400 MB image push (egress + storage)
+- Each tagged SHA image persists and counts toward the 10-image retention limit
+- Cloud Run revision churn: each deploy creates a new revision; old revisions linger
+  until GC
+
+If there are 10–20 PRs merged per month (each with 3–5 CI runs), this is 30–100 dev
+deploys/month. At negligible per-deploy cost, the marginal GCP cost is low (~$0.50–$1
+in registry storage churn), but the CI/CD complexity is worth flagging.
+
+**Fix** (optional): Add a branch filter to `deploy-web-dev.yml` to only trigger on
+`main`, and encourage developers to use `workflow_dispatch` for branch testing. This
+reduces noise without losing any capability.
+**Tradeoff**: Slightly more friction for feature branch testing. Saves ~$0.50/month
+and reduces registry image accumulation.
+**Worth it**: Low priority. Acceptable as-is given team size.
+
+---
+
+### 3. Docker Image — No Layer Caching in CI
+
+**Waste**: Both `deploy-web.yml` and `deploy-web-dev.yml` run a plain `docker build`
+with no `--cache-from` or BuildKit layer caching. Every deployment rebuilds from
+scratch: `npm ci` for the SPA, `pip install` for Python dependencies, and full image
+layer assembly. On `ubuntu-latest` GitHub runners, this means:
+- Full `npm ci` (~300 packages for the React SPA) every run
+- Full `pip install -r requirements.txt` (~15 packages + transitive) every run
+
+**Cost**: This adds approximately 2–4 minutes per build, consuming GitHub Actions
+minutes (external cost). For GCP, the re-push of identical layers is wasted registry
+write bandwidth, though Artifact Registry deduplicates by content hash, so storage
+cost is unaffected.
+
+**Fix**: Add `--cache-from type=registry,ref=REGISTRY:cache` or use GitHub Actions
+cache for Docker BuildKit (`docker/build-push-action` with `cache-to`/`cache-from`).
+The SPA builder stage (`FROM node:20-slim`) is the highest-value cache target since
+`npm ci` is the slowest step.
+**Tradeoff**: Minor workflow complexity increase, ~2–3 day effort to implement
+correctly with BuildKit inline cache.
+**Worth it**: Medium. Saves 2–4 minutes per deploy (GitHub compute, not GCP), and
+reduces deploy round-trip time for the team.
+
+---
+
+### 4. N-Sequential Turso HTTP Calls on Coterie View Page
+
+**Waste**: The `view()` route in `blueprints/coteries.py` executes 8 sequential
+database queries per page load:
+  1. `Coterie.query.filter_by(slug=slug).first()` — load coterie
+  2. `DbCharacterBackground.query.filter_by(donated_coterie_id=coterie.id).all()` — donated bgs
+  3. `_get_player_character(discord_id)` — character lookup
+  4. `_get_coterie_member(coterie, player_char)` — membership check
+  5. `DbCharacterBackground.query.filter_by(character_name=...)...` — my_backgrounds
+  6. `DbCharacterBackground.query.filter_by(...)` — my_pending
+  7. `DbSpendRequest.query.filter(...)` — approved xp_donations
+  8. `DbSpendRequest.query.filter(...)` — pending_xp_donations
+
+Each query = one HTTP POST to Turso's pipeline API (due to NullPool). At 20–30ms/call
+that is 160–240ms in pure DB wait time before template rendering. This is not an N+1
+(each call returns multiple rows efficiently), but the sequential HTTP overhead is real.
+
+**Cost**: No direct GCP dollar cost. Turso HTTP egress is not billed at this scale.
+However, each ms of Turso wait time extends Cloud Run CPU-billable wall time.
+Estimated impact: +$0.01–$0.05/month at current traffic. Not worth optimizing today.
+
+**Fix** (if traffic grows): Combine queries using JOINs or a single raw SQL query.
+Or use SQLAlchemy `with_entities()` to batch the background queries into one.
+**Worth it**: Not yet. Re-evaluate if coterie page views exceed 200/day.
+
+---
+
+### 5. `lazy='joined'` on DbSpendRequest.coterie relationship
+
+**Waste**: `DbSpendRequest.coterie` is defined with `lazy='joined'` in `app/db.py`
+(line 114). This means every SQLAlchemy query that returns `DbSpendRequest` objects
+automatically JOINs to the `coteries` table, even when coterie data is not needed
+(claims queue, spends queue, audit log, dashboard).
+
+Before the coterie system (pre-2026-06-18), all `coterie_id` values were NULL, so
+this JOIN was a harmless no-op. Now that active coteries exist, the JOIN still returns
+NULL for ~95% of spend requests (non-coterie spends), but it runs on every query.
+
+**Cost**: Tiny at this scale — one extra JOIN per spend query. Not measurable in
+dollars at current data volumes.
+
+**Fix**: Change `lazy='joined'` to `lazy='select'` (SQLAlchemy default). Callers that
+need coterie data can use `options(joinedload(DbSpendRequest.coterie))` explicitly.
+**Tradeoff**: Requires auditing callers of `DbSpendRequest` queries to add explicit
+eager loading where needed (likely only the coterie view and coterie API endpoints).
+**Worth it**: Medium — worth fixing in the next db.py cleanup pass, not urgent.
+
+---
+
+## QUICK WINS
+
+### QW-1: Align deploy.sh memory to 512Mi
+
+**Effort**: < 5 minutes
+**Fix**: Change line 85 of `apps/web/deploy.sh` from `--memory 256Mi` to `--memory 512Mi`.
+**Impact**: Eliminates configuration drift. Prevents accidental OOM if someone
+manually re-deploys prod using the script.
+**Savings**: $0 (cost-neutral; prod is already at 512Mi via CI).
+
+---
+
+### QW-2: Confirm Artifact Registry cleanup policy is active
+
+**Status**: Policy applied 2026-06-04 (per RELEASE_2026-06-04_SECURITY_HARDENING.md).
+Keep the 10 most recent versions per image name.
+**Action**: Verify policy is still configured in GCP Console:
+  Artifact Registry > mcbn-repo > Edit Repository > Cleanup Policies
+Before the policy, 424 images (~12.5 GB) had accumulated. Now bounded at ~4 GB.
+**Ongoing savings**: ~$1.25/month (already realized).
+
+---
+
+### QW-3: Secret Manager — startup injection confirmed (no per-request cost)
+
+All secrets in `deploy-web.yml` are injected via `--update-secrets KEY=name:latest`.
+Cloud Run mounts these at container startup as environment variables. No Secret Manager
+API calls occur at request time. This is the optimal pattern. No action needed.
+
+---
+
+### QW-4: Sheets sync is non-blocking (confirmed)
+
+`sheets_sync.py` uses `ThreadPoolExecutor(max_workers=1)` with `_executor.submit()`.
+All real-time Sheets writes are fire-and-forget background tasks. The HTTP response
+returns immediately. Sheets failures are logged to DB but never block users. No action needed.
+
+---
+
+### QW-5: Rate limiter correctly uses in-memory storage
+
+`flask-limiter` initialized with `storage_uri="memory://"` in `app/__init__.py`.
+On Cloud Run scale-to-zero, limits reset on cold start — acceptable for this use case.
+Using Redis/Memorystore would add $15–$30/month with no meaningful benefit. No action needed.
+
+---
+
+## SPEND BREAKDOWN
+
+### Cloud Run — Production (mcbn-xp-tracker)
+
+Source of truth: `.github/workflows/deploy-web.yml`
+
+| Parameter | Value |
+|-----------|-------|
+| Memory | 512Mi |
+| CPU | 1 vCPU, --cpu-throttling |
+| Min instances | 0 (scale-to-zero) |
+| Max instances | 2 |
+| Concurrency | 80 req/instance |
+| Request timeout | 120s |
+| Gunicorn workers | 2 workers, 4 threads |
+| Region | us-central1 |
+
+Estimated monthly cost: $1.00–$3.00
+
+### Cloud Run — Dev (mcbn-xp-tracker-dev)
+
+Source of truth: `.github/workflows/deploy-web-dev.yml`
+
+| Parameter | Value |
+|-----------|-------|
+| Memory | 256Mi |
+| CPU | 1 vCPU, --cpu-throttling |
+| Min instances | 0 (scale-to-zero) |
+| Max instances | 1 |
+| Concurrency | 80 req/instance |
+| Region | us-central1 |
+
+Estimated monthly cost: $0.25–$1.00
+
+### Artifact Registry
+
+- Repo: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo
+- Cleanup policy: keep 10 most recent per image name (applied 2026-06-04)
+- Estimated images stored: ~10–15 SHA tags + :latest + :dev
+- Estimated stored size: ~4–5 GB
+- Estimated cost: $0.40–$0.50/month
+
+### Secret Manager
+
+- 10 secrets referenced in prod deploy, 10 in dev deploy (some shared)
+- All secrets injected as env vars at container startup (not per-request)
+- Free tier: first 6 secret versions free; first 10,000 access ops/month free
+- Estimated monthly cost: $0.00 (within free tier)
+
+### Google Cloud Storage (mcbn-wiki-images)
+
+- Wiki cover image mirroring from Discord CDN
+- Infrequent writes, ~20–50 images total
+- Estimated stored data: < 50 MB
+- Estimated cost: $0.00 (within free tier)
+
+---
+
+## COTERIE SYSTEM COST IMPLICATIONS (Schema v7, 2026-06-18)
+
+5 new tables, 25+ new web routes, 3 new API endpoints added 2026-06-18.
+
+Assessment:
+- No new background workers or schedulers introduced
+- All coterie mutations are synchronous, request-scoped DB writes
+- Coterie view page has 8 sequential Turso HTTP calls (see MEDIUM-4 above)
+- `lazy='joined'` on DbSpendRequest.coterie adds one JOIN to all spend queries (see MEDIUM-5)
+- Overall verdict: no meaningful cost impact at current scale
+- Re-evaluate if coterie page traffic grows 10x or if spend query volumes increase significantly
+
+---
+
+## SUMMARY RECOMMENDATIONS (Prioritized)
+
+### Quick Wins (< 1 hour each)
+
+1. Fix `deploy.sh` line 85: `--memory 256Mi` -> `--memory 512Mi` (correctness fix)
+2. Verify Artifact Registry cleanup policy still active in GCP Console (5 min check)
+
+### Medium Effort (1 day each)
+
+3. Add Docker BuildKit layer caching to CI deploy workflows (saves ~3 min/deploy)
+4. Change `DbSpendRequest.coterie` from `lazy='joined'` to `lazy='select'` in `app/db.py`
+5. Add branch filter to `deploy-web-dev.yml` to limit dev deploys to main branch only
+
+### Strategic (Multi-day)
+
+6. Extend bot API replay protection to all write endpoints (security, not cost)
+7. Evaluate 180s bot polling interval (would reduce Cloud Run wakeups ~33%)
+8. Add Turso query batching for coterie view page if traffic grows 10x
+
+---
+
+## JUNE 2026 BASELINE (for month-over-month comparison)
+
+| Metric | Baseline Value |
+|--------|----------------|
+| Cloud Run prod memory | 512Mi |
+| Cloud Run prod CPU | 1 vCPU, throttled |
+| Cloud Run prod min/max | 0/2 instances |
+| Cloud Run dev memory | 256Mi |
+| Cloud Run dev min/max | 0/1 instances |
+| Gunicorn config | 2 workers, 4 threads |
+| Request timeout | 120s |
+| Bot polling interval | 120s |
+| Artifact Registry retained images | ~10–15 |
+| Artifact Registry storage | ~4–5 GB |
+| Secret Manager secrets | ~10 |
+| GCS bucket size | <50 MB |
+| DB schema version | v7 (coterie system) |
+| Total estimated GCP spend | $2.30 – $6.50/month |
+
+---
+
+## FILES AUDITED
+
+infra/cloudrun/.gitkeep (empty — no Terraform/service YAML in repo)
+.github/workflows/ci.yml
+.github/workflows/deploy-web.yml
+.github/workflows/deploy-web-dev.yml
+apps/web/Dockerfile
+apps/web/entrypoint.sh
+apps/web/config.py
+apps/web/app/db.py
+apps/web/app/__init__.py
+apps/web/deploy.sh
+apps/web/app/sheets.py (fire-and-forget pattern confirmed)
+apps/web/app/sheets_sync.py
+apps/web/app/gcs.py
+apps/web/app/turso_http.py
+apps/web/app/blueprints/coteries.py
+apps/web/app/blueprints/dashboard.py
+apps/web/app/blueprints/api.py (partial — auth pattern)
+apps/web/requirements.txt
+docs/RELEASE_2026-06-04_SECURITY_HARDENING.md
+docs/RELEASE_2026-06-18_COTERIE_SYSTEM.md
+docs/CODEBASE_AUDIT_2026-06-22.md
+CLAUDE.md

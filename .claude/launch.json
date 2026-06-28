@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mcbn-xp-tracker",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "compose.web.yml", "up"],
+      "port": 5001
+    }
+  ]
+}
