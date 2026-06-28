@@ -391,10 +391,14 @@ main.flex-grow-1 {
    ══════════════════════════════════════════════ */
 
 .player-navbar {
-  background: rgba(11,13,16,.88) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border) !important;
+  background-image:
+    linear-gradient(rgba(8,9,11,.82), rgba(8,9,11,.92)),
+    url('/static/images/music.png');
+  background-size: cover;
+  background-position: center 45%;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent) !important;
   padding: 12px 0;
 }
 .player-navbar .navbar-brand {
@@ -1761,28 +1765,34 @@ body.login-page {
   text-transform: uppercase;
   letter-spacing: .06em;
   font-family: var(--font-ui);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  background: transparent;
+  color: var(--clan-color, var(--accent-soft));
+  border: 1px solid var(--clan-color, var(--accent-soft));
+  opacity: .85;
 }
 
-/* Clan color overrides — subtle left border tint */
-.has-clan-color.clan-ventrue    { border-left: 3px solid #4a7fa5 !important; }
-.has-clan-color.clan-toreador   { border-left: 3px solid #c47c8a !important; }
-.has-clan-color.clan-tremere    { border-left: 3px solid #8b2be2 !important; }
-.has-clan-color.clan-nosferatu  { border-left: 3px solid #4a7a4a !important; }
-.has-clan-color.clan-gangrel    { border-left: 3px solid #8a6a3a !important; }
-.has-clan-color.clan-brujah     { border-left: 3px solid #d83a4a !important; }
-.has-clan-color.clan-malkavian  { border-left: 3px solid #7a4a8a !important; }
-.has-clan-color.clan-lasombra   { border-left: 3px solid #3a3a5a !important; }
-.has-clan-color.clan-tzimisce   { border-left: 3px solid #3a6a4a !important; }
-.has-clan-color.clan-hecata     { border-left: 3px solid #5a5a6a !important; }
-.has-clan-color.clan-ravnos     { border-left: 3px solid #8a7a2a !important; }
-.has-clan-color.clan-salubri    { border-left: 3px solid #7a3a3a !important; }
-.has-clan-color.clan-banu-haqim { border-left: 3px solid #5a7a3a !important; }
-.has-clan-color.clan-ministry   { border-left: 3px solid #7a6a2a !important; }
-.has-clan-color.clan-caitiff    { border-left: 3px solid #5a5a5a !important; }
-.has-clan-color.clan-thin-blood { border-left: 3px solid #4a4a6a !important; }
+/* Per-clan colour variable — drives badge, hero border, list accent */
+.clan-ventrue     { --clan-color: #3949ab; }
+.clan-toreador    { --clan-color: #e91e8c; }
+.clan-tremere     { --clan-color: #c62828; }
+.clan-nosferatu   { --clan-color: #66bb6a; }
+.clan-gangrel     { --clan-color: #8d6e63; }
+.clan-brujah      { --clan-color: #e53935; }
+.clan-malkavian   { --clan-color: #00acc1; }
+.clan-lasombra    { --clan-color: #5c6bc0; }
+.clan-tzimisce    { --clan-color: #795548; }
+.clan-hecata      { --clan-color: #ab47bc; }
+.clan-ravnos      { --clan-color: #ef6c00; }
+.clan-salubri     { --clan-color: #1e88e5; }
+.clan-banu-haqim  { --clan-color: #f9a825; }
+.clan-the-ministry { --clan-color: #8e24aa; }
+.clan-thin-blood  { --clan-color: #78909c; }
+.clan-caitiff     { --clan-color: #757575; }
+.clan-mortal      { --clan-color: #a1887f; }
+.clan-ghoul       { --clan-color: #ad1457; }
+
+/* Apply clan colour to list items and table rows */
+.has-clan-color { border-left: 3px solid var(--clan-color, var(--accent)) !important; }
 
 /* ── Chronicle Calendar Widget ── */
 .cal-widget {
@@ -1912,11 +1922,27 @@ body.login-page {
 /* Character hero */
 .char-hero {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(135deg, #0e1220 0%, var(--bg) 60%, color-mix(in srgb, var(--accent) 18%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: var(--r-card-lg);
   padding: 24px;
   overflow: hidden;
+}
+.char-hero::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 200px; height: 100%;
+  background: linear-gradient(to left, color-mix(in srgb, var(--accent) 10%, transparent), transparent);
+  pointer-events: none;
+}
+/* Clan-specific hero border */
+.char-hero.has-clan-color {
+  border-color: color-mix(in srgb, var(--clan-color, var(--accent)) 40%, transparent);
+  background: linear-gradient(135deg, #0e1220 0%, var(--bg) 60%, color-mix(in srgb, var(--clan-color, var(--accent)) 14%, transparent) 100%);
+}
+.char-hero.has-clan-color::after {
+  background: linear-gradient(to left, color-mix(in srgb, var(--clan-color, var(--accent)) 8%, transparent), transparent);
 }
 .char-hero-clan-symbol {
   position: absolute;
