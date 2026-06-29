@@ -59,11 +59,18 @@
                             <label class="form-check-label" for="{{ key }}">{{ label }}</label>
                         </div>
                         <div class="mt-2 {% if not was_checked %}d-none{% endif %}" id="{{ key }}_link_group">
-                            <input type="url" class="form-control form-control-sm claim-link-input"
-                                   name="{{ key }}_link"
-                                   value="{{ old_link or '' }}"
-                                   placeholder="Discord post link (required)"
-                                   pattern="https?://.*">
+                            <div class="input-group input-group-sm">
+                                <input type="url" class="form-control claim-link-input"
+                                       name="{{ key }}_link"
+                                       value="{{ old_link or '' }}"
+                                       placeholder="Discord post link (required)"
+                                       pattern="https?://.*">
+                                <a class="btn btn-outline-secondary evidence-open-btn {% if not old_link %}disabled{% endif %}"
+                                   href="{{ old_link or '#' }}" target="_blank" rel="noopener" title="Open link in new tab">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </div>
+                            <div class="evidence-preview small mt-1" style="min-height:1.2em;"></div>
                         </div>
                     </div>
                 </div>
@@ -80,11 +87,18 @@
                             <label class="form-check-label" for="wildcard">Wildcard / Special XP</label>
                         </div>
                         <div class="mt-2 {% if not claim.wildcard %}d-none{% endif %}" id="wildcard_link_group">
-                            <input type="url" class="form-control form-control-sm mb-2"
-                                   name="wildcard_link"
-                                   value="{{ claim.wildcard_link or '' }}"
-                                   placeholder="Discord post link (required)"
-                                   pattern="https?://.*">
+                            <div class="input-group input-group-sm mb-1">
+                                <input type="url" class="form-control claim-link-input"
+                                       name="wildcard_link"
+                                       value="{{ claim.wildcard_link or '' }}"
+                                       placeholder="Discord post link (required)"
+                                       pattern="https?://.*">
+                                <a class="btn btn-outline-secondary evidence-open-btn {% if not claim.wildcard_link %}disabled{% endif %}"
+                                   href="{{ claim.wildcard_link or '#' }}" target="_blank" rel="noopener" title="Open link in new tab">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </div>
+                            <div class="evidence-preview small mt-1 mb-2" style="min-height:1.2em;"></div>
                             <input type="text" class="form-control form-control-sm mb-2"
                                    name="wildcard_reason"
                                    value="{{ claim.wildcard_reason or '' }}"
@@ -111,11 +125,49 @@
 </div>
 
 <script>
-document.querySelectorAll('.claim-cat-check').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-        var target = document.getElementById(this.dataset.linkTarget);
-        if (target) target.classList.toggle('d-none', !this.checked);
-    });
+document.querySelectorAll('.claim-cat-check').forEach(function (cb) {
+  cb.addEventListener('change', function () {
+    var target = document.getElementById(this.dataset.linkTarget);
+    if (target) target.classList.toggle('d-none', !this.checked);
+  });
 });
+
+(function () {
+  var DISCORD_RE = /^https?:\/\/(?:\w+\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)\/?$/;
+  function render(inp) {
+    var group   = inp.closest('[id$="_link_group"]');
+    if (!group) return;
+    var btn     = group.querySelector('.evidence-open-btn');
+    var preview = group.querySelector('.evidence-preview');
+    var val     = inp.value.trim();
+    var ok      = /^https?:\/\/.+/.test(val);
+    if (btn) {
+      btn.classList.toggle('disabled', !ok);
+      btn.href = ok ? val : '#';
+    }
+    if (!preview) return;
+    if (!val) { preview.innerHTML = ''; return; }
+    var m = val.match(DISCORD_RE);
+    if (m) {
+      preview.innerHTML =
+        '<i class="bi bi-discord" style="color:#5865f2;"></i> ' +
+        '<span class="text-secondary">Discord</span> ' +
+        '<span class="font-monospace text-secondary">· channel …' + m[2].slice(-6) +
+        ' · msg #' + m[3].slice(-6) + '</span> ' +
+        '<i class="bi bi-check-circle-fill text-success ms-1" style="font-size:0.75rem;"></i>';
+    } else if (ok) {
+      preview.innerHTML =
+        '<i class="bi bi-exclamation-triangle text-warning"></i> ' +
+        '<span class="text-warning">Link doesn\'t look like a Discord message URL</span>';
+    } else {
+      preview.innerHTML = '<span class="text-danger">Must start with https://</span>';
+    }
+  }
+  document.querySelectorAll('.claim-link-input').forEach(function (inp) {
+    inp.addEventListener('input', function () { render(inp); });
+    inp.addEventListener('blur',  function () { render(inp); });
+    render(inp);
+  });
+})();
 </script>
 {% endblock %}

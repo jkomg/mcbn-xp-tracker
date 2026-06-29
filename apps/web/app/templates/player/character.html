@@ -506,9 +506,16 @@
                                         <label class="form-check-label" for="{{ key }}">{{ label }}</label>
                                     </div>
                                     <div class="mt-2 d-none" id="{{ key }}_link_group">
-                                        <input type="url" class="form-control form-control-sm claim-link-input"
-                                               name="{{ key }}_link" placeholder="Discord post link (required)"
-                                               pattern="https?://.*">
+                                        <div class="input-group input-group-sm">
+                                            <input type="url" class="form-control claim-link-input"
+                                                   name="{{ key }}_link" placeholder="Discord post link (required)"
+                                                   pattern="https?://.*">
+                                            <a class="btn btn-outline-secondary evidence-open-btn disabled"
+                                               href="#" target="_blank" rel="noopener" title="Open link in new tab">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </div>
+                                        <div class="evidence-preview small mt-1" style="min-height:1.2em;"></div>
                                     </div>
                                 </div>
                             </div>
@@ -537,9 +544,16 @@
                                                    placeholder="XP" title="Number of XP">
                                           </div>
                                         </div>
-                                        <input type="url" class="form-control form-control-sm claim-link-input"
-                                               name="wildcard_link" placeholder="Discord post link (required)"
-                                               pattern="https?://.*">
+                                        <div class="input-group input-group-sm">
+                                            <input type="url" class="form-control claim-link-input"
+                                                   name="wildcard_link" placeholder="Discord post link (required)"
+                                                   pattern="https?://.*">
+                                            <a class="btn btn-outline-secondary evidence-open-btn disabled"
+                                               href="#" target="_blank" rel="noopener" title="Open link in new tab">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </div>
+                                        <div class="evidence-preview small mt-1" style="min-height:1.2em;"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1457,6 +1471,43 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     render();
+})();
+
+(function () {
+  var DISCORD_RE = /^https?:\/\/(?:\w+\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)\/?$/;
+  function renderPreview(inp) {
+    var group   = inp.closest('[id$="_link_group"]');
+    if (!group) return;
+    var btn     = group.querySelector('.evidence-open-btn');
+    var preview = group.querySelector('.evidence-preview');
+    var val     = inp.value.trim();
+    var ok      = /^https?:\/\/.+/.test(val);
+    if (btn) {
+      btn.classList.toggle('disabled', !ok);
+      btn.href = ok ? val : '#';
+    }
+    if (!preview) return;
+    if (!val) { preview.innerHTML = ''; return; }
+    var m = val.match(DISCORD_RE);
+    if (m) {
+      preview.innerHTML =
+        '<i class="bi bi-discord" style="color:#5865f2;"></i> ' +
+        '<span class="text-secondary">Discord</span> ' +
+        '<span class="font-monospace text-secondary">· channel …' + m[2].slice(-6) +
+        ' · msg #' + m[3].slice(-6) + '</span> ' +
+        '<i class="bi bi-check-circle-fill text-success ms-1" style="font-size:0.75rem;"></i>';
+    } else if (ok) {
+      preview.innerHTML =
+        '<i class="bi bi-exclamation-triangle text-warning"></i> ' +
+        '<span class="text-warning">Link doesn\'t look like a Discord message URL</span>';
+    } else {
+      preview.innerHTML = '<span class="text-danger">Must start with https://</span>';
+    }
+  }
+  document.querySelectorAll('.claim-link-input').forEach(function (inp) {
+    inp.addEventListener('input', function () { renderPreview(inp); });
+    inp.addEventListener('blur',  function () { renderPreview(inp); });
+  });
 })();
 </script>
 {% endblock %}

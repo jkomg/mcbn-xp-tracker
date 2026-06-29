@@ -28,31 +28,36 @@
         <h6 class="text-muted mb-3" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;">
             Evidence Review
         </h6>
+        <style>.evidence-pill:hover { background:#2d3346 !important; color:#fff !important; }</style>
         {% for category in claim.categories %}
-        <div class="evidence-card {% if category.claimed %}claimed{% else %}not-claimed{% endif %}">
-            <div class="d-flex align-items-start gap-2">
-                <span class="mt-1">
-                    {% if category.claimed %}
-                    <i class="bi bi-check-circle-fill text-success"></i>
-                    {% else %}
-                    <i class="bi bi-x-circle text-secondary"></i>
-                    {% endif %}
-                </span>
-                <div class="flex-grow-1">
-                    <div class="evidence-label">{{ category.name }}</div>
-                    {% if category.link %}
-                    <a href="{{ category.link }}" target="_blank" rel="noopener" class="evidence-link">
-                        <i class="bi bi-box-arrow-up-right me-1" style="font-size:0.7rem;"></i>{{ category.link }}
-                    </a>
-                    {% endif %}
-                    {% if category.reason %}
-                    <div class="text-muted small mt-1">{{ category.reason }}</div>
-                    {% endif %}
+        <div class="evidence-row d-flex align-items-center gap-3 py-2" style="border-bottom:1px solid #1a1e2a;">
+            {% if category.claimed %}
+                <i class="bi bi-check-circle-fill text-success" style="font-size:1rem;flex-shrink:0;"></i>
+            {% else %}
+                <i class="bi bi-x-circle text-secondary" style="font-size:1rem;flex-shrink:0;"></i>
+            {% endif %}
+            <div class="flex-grow-1">
+                <div class="evidence-label {% if not category.claimed %}text-muted{% endif %}" style="font-weight:500;">
+                    {{ category.name }}
                     {% if category.amount and category.amount != '1' %}
-                    <span class="badge bg-secondary ms-1">{{ category.amount }} XP</span>
+                        <span class="badge bg-secondary ms-1">{{ category.amount }} XP</span>
                     {% endif %}
                 </div>
+                {% if category.reason %}<div class="text-muted small">{{ category.reason }}</div>{% endif %}
             </div>
+            {% if category.link %}
+                {% set msg_id = category.link.rsplit('/', 1)[-1] %}
+                <a href="{{ category.link }}" target="_blank" rel="noopener"
+                   class="evidence-pill d-inline-flex align-items-center gap-2 text-decoration-none flex-shrink-0"
+                   style="padding:5px 10px; background:#252a3a; border:1px solid #323849; border-radius:999px; font-size:0.8rem; color:#c4cbdb;">
+                    <i class="bi bi-discord" style="color:#5865f2;"></i>
+                    <span>Discord</span>
+                    <span class="font-monospace text-secondary" style="font-size:0.7rem;">#{{ msg_id[-6:] }}</span>
+                    <i class="bi bi-arrow-up-right" style="font-size:0.7rem;opacity:0.6;"></i>
+                </a>
+            {% elif not category.claimed %}
+                <span class="text-secondary small flex-shrink-0">Not claimed</span>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
