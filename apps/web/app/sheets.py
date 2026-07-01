@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import gspread
+import requests
 from gspread.exceptions import APIError
 from google.oauth2.service_account import Credentials
 
@@ -261,8 +262,13 @@ class SheetsClient:
         while True:
             try:
                 return self.gc.open_by_key(spreadsheet_id)
-            except APIError as exc:
-                if attempt >= max_retries or not self._is_retryable_api_error(exc):
+            except (APIError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+                # A request-level timeout/connection error (e.g. from the http_client
+                # timeout above) isn't an APIError, but a degraded API causing one is
+                # just as retryable as a 503 — don't let it skip the retry loop.
+                retryable = isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)) \
+                    or self._is_retryable_api_error(exc)
+                if attempt >= max_retries or not retryable:
                     raise
                 delay = retry_base_seconds * (2 ** attempt)
                 log.warning(
