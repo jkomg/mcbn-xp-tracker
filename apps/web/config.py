@@ -57,6 +57,12 @@ class Config:
     SHEETS_STARTUP_RETRY_BASE_SECONDS = float(
         os.environ.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', '1.5')
     )
+    # Per-request timeout for the Google Sheets HTTP client. Without this, a
+    # slow/degraded Google API response hangs indefinitely rather than
+    # failing fast into the startup retry loop above.
+    SHEETS_HTTP_TIMEOUT_SECONDS = float(
+        os.environ.get('SHEETS_HTTP_TIMEOUT_SECONDS', '15')
+    )
 
     # Shared bearer token for bot-facing API endpoints
     WEB_APP_API_TOKEN = os.environ.get('WEB_APP_API_TOKEN', '')

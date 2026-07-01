@@ -88,6 +88,7 @@ jobs:
             --timeout 120 \
             --cpu-throttling \
             --no-session-affinity \
+            --startup-probe "httpGet.path=/api/health,httpGet.port=8080,initialDelaySeconds=0,timeoutSeconds=5,periodSeconds=5,failureThreshold=30" \
             --set-env-vars "FLASK_DEBUG=false" \
             --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
             --set-env-vars "BOT_API_REPLAY_PROTECTION_ENABLED=false" \

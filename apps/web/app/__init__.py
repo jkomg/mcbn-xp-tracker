@@ -101,6 +101,7 @@ def create_app():
             validate_headers_on_startup=app.config.get('SHEETS_VALIDATE_HEADERS_ON_STARTUP', False),
             startup_max_retries=app.config.get('SHEETS_STARTUP_MAX_RETRIES', 5),
             startup_retry_base_seconds=app.config.get('SHEETS_STARTUP_RETRY_BASE_SECONDS', 1.5),
+            http_timeout_seconds=app.config.get('SHEETS_HTTP_TIMEOUT_SECONDS', 15.0),
         )
 
     # Initialize DB service and Sheets sync worker

@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import gspread
+import requests
 from gspread.exceptions import APIError
 from google.oauth2.service_account import Credentials
 
@@ -206,7 +207,8 @@ class SheetsClient:
                  cache_ttl: int = 30, credentials_json: str = '',
                  validate_headers_on_startup: bool = False,
                  startup_max_retries: int = 5,
-                 startup_retry_base_seconds: float = 1.5):
+                 startup_retry_base_seconds: float = 1.5,
+                 http_timeout_seconds: float = 15.0):
         # Cloud Run: load credentials from JSON env var; local: from file
         if credentials_json:
             info = json.loads(credentials_json)
@@ -216,6 +218,10 @@ class SheetsClient:
                 credentials_file, scopes=SCOPES
             )
         self.gc = gspread.authorize(creds)
+        # gspread's HTTPClient has no timeout by default, so a degraded Google
+        # API can hang a single call for minutes instead of failing fast into
+        # the retry loop below. Bound it so retries actually behave as retries.
+        self.gc.http_client.timeout = http_timeout_seconds
         self.spreadsheet = self._open_with_retry(
             spreadsheet_id=spreadsheet_id,
             max_retries=max(0, startup_max_retries),
@@ -256,8 +262,13 @@ class SheetsClient:
         while True:
             try:
                 return self.gc.open_by_key(spreadsheet_id)
-            except APIError as exc:
-                if attempt >= max_retries or not self._is_retryable_api_error(exc):
+            except (APIError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+                # A request-level timeout/connection error (e.g. from the http_client
+                # timeout above) isn't an APIError, but a degraded API causing one is
+                # just as retryable as a 503 — don't let it skip the retry loop.
+                retryable = isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)) \
+                    or self._is_retryable_api_error(exc)
+                if attempt >= max_retries or not retryable:
                     raise
                 delay = retry_base_seconds * (2 ** attempt)
                 log.warning(
