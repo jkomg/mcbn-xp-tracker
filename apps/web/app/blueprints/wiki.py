@@ -11,9 +11,11 @@ import markdown as md_lib
 from markupsafe import Markup
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
+    current_app,
 )
 from app.auth import require_staff, get_staff_user, is_staff as _is_staff
 from app.db import db, WikiPage, WikiSyncBlock, DbCharacter, DbSpendRequest
+from app.gcs import resolve_cover_url, is_discord_cdn_url
 
 bp = Blueprint('wiki', __name__)
 
@@ -392,19 +394,25 @@ def new_page():
         new_status = request.form.get('status', 'active').strip()
         if new_status not in WIKI_STATUSES:
             new_status = 'active'
+        raw_cover = request.form.get('cover_image_url', '').strip()
+        cover_url = resolve_cover_url(raw_cover, slug, current_app.config)
         p = WikiPage(
             slug=slug,
             title=title,
             summary=request.form.get('summary', '').strip(),
             body_markdown=request.form.get('body_markdown', ''),
             category=request.form.get('category', '').strip(),
-            cover_image_url=request.form.get('cover_image_url', '').strip(),
+            cover_image_url=cover_url,
             status=new_status,
             source='manual',
             updated_by=get_staff_user(),
         )
         db.session.add(p)
         db.session.commit()
+        if raw_cover and is_discord_cdn_url(cover_url):
+            flash('Page created, but the cover image could not be mirrored to permanent '
+                  'storage — it is still a Discord link and will break once Discord\'s '
+                  'signed URL expires. Try re-saving the cover image later.', 'warning')
         flash(f'Page "{title}" created.', 'success')
         return redirect(url_for('wiki.page', slug=slug))
     return render_template('wiki/edit.html', page=None)
@@ -419,13 +427,18 @@ def edit_page(slug):
         p.summary = request.form.get('summary', '').strip()
         p.category = request.form.get('category', p.category).strip()
         p.body_markdown = request.form.get('body_markdown', '')
-        p.cover_image_url = request.form.get('cover_image_url', '').strip()
+        raw_cover = request.form.get('cover_image_url', '').strip()
+        p.cover_image_url = resolve_cover_url(raw_cover, p.slug, current_app.config)
         new_status = request.form.get('status', p.status).strip()
         if new_status in WIKI_STATUSES:
             p.status = new_status
         p.updated_by = get_staff_user()
         p.updated_at = datetime.now(timezone.utc)
         db.session.commit()
+        if raw_cover and is_discord_cdn_url(p.cover_image_url):
+            flash('Page saved, but the cover image could not be mirrored to permanent '
+                  'storage — it is still a Discord link and will break once Discord\'s '
+                  'signed URL expires. Try re-saving the cover image later.', 'warning')
         flash(f'Page "{p.title}" saved.', 'success')
         return redirect(url_for('wiki.page', slug=slug))
     return render_template('wiki/edit.html', page=p)
