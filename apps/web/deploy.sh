@@ -105,6 +105,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
   --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
   --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
+  --update-secrets "DISCORD_WEBHOOK_URL=mcbn-discord-webhook-url:latest" \
   "${OPTIONAL_SECRET_ARGS[@]}"
 
 echo "==> Routing 100% traffic to latest revision..."

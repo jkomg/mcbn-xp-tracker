@@ -93,7 +93,8 @@ jobs:
             --update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest" \
             --update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest" \
             --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
-            --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest"
+            --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
+            --update-secrets "DISCORD_WEBHOOK_URL=mcbn-discord-webhook-url:latest"
 
       - name: Route 100% traffic to latest revision
         run: |
