@@ -52,11 +52,17 @@ def dashboard_link(redirect_uri: str, source: str, level: str, event: str) -> st
 
 
 def send_alert(webhook_url: str, source: str, level: str, event: str, message: str,
-                details: str = '', link: str = '') -> None:
-    """Best-effort Discord webhook post for a persistent app error. Never raises."""
+                details: str = '', link: str = '', dedupe_key: str = '') -> None:
+    """Best-effort Discord webhook post for a persistent app error. Never raises.
+
+    Rate-limited per *dedupe_key* (default: source:event). Callers whose event
+    name is constant across distinct failures (e.g. the web handler's
+    'unhandled_exception') should pass a more specific dedupe_key — otherwise
+    the first occurrence suppresses alerts for every later, unrelated one.
+    """
     if not webhook_url:
         return
-    if not _should_send(f'{source}:{event}'):
+    if not _should_send(dedupe_key or f'{source}:{event}'):
         return
     try:
         emoji = '\U0001f534' if level == 'error' else '\U0001f7e1'  # red / yellow circle

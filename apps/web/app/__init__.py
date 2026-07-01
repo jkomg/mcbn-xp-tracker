@@ -255,6 +255,9 @@ def create_app():
             details=f'{path}\n{tb_excerpt}' if path else tb_excerpt,
             link=dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
                                  source='web', level='error', event='unhandled_exception'),
+            # event is constant ('unhandled_exception') for every web crash — dedupe on
+            # exception type + route instead, so one noisy route can't hide an unrelated one.
+            dedupe_key=f'web:unhandled_exception:{type(exc).__name__}:{path}',
         )
         # Re-raise so Flask's default 500 handling still applies
         raise exc

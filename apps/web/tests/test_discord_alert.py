@@ -37,6 +37,36 @@ def test_send_alert_is_rate_limited_per_event():
     mock_post.assert_called_once()
 
 
+def test_send_alert_dedupe_key_overrides_source_event_grouping():
+    """A constant event name (e.g. the web handler's 'unhandled_exception') must not
+    suppress alerts for a distinct failure when a more specific dedupe_key is given."""
+    _reset_rate_limit()
+    with patch('app.discord_alert.requests.post') as mock_post:
+        discord_alert.send_alert(
+            'https://x', source='web', level='error', event='unhandled_exception', message='first',
+            dedupe_key='web:unhandled_exception:ValueError:/a',
+        )
+        discord_alert.send_alert(
+            'https://x', source='web', level='error', event='unhandled_exception', message='second',
+            dedupe_key='web:unhandled_exception:KeyError:/b',
+        )
+    assert mock_post.call_count == 2
+
+
+def test_send_alert_same_dedupe_key_still_rate_limited():
+    _reset_rate_limit()
+    with patch('app.discord_alert.requests.post') as mock_post:
+        discord_alert.send_alert(
+            'https://x', source='web', level='error', event='unhandled_exception', message='first',
+            dedupe_key='web:unhandled_exception:ValueError:/a',
+        )
+        discord_alert.send_alert(
+            'https://x', source='web', level='error', event='unhandled_exception', message='second',
+            dedupe_key='web:unhandled_exception:ValueError:/a',
+        )
+    mock_post.assert_called_once()
+
+
 def test_send_alert_never_raises_on_request_failure():
     _reset_rate_limit()
     with patch('app.discord_alert.requests.post', side_effect=RuntimeError('network down')):
