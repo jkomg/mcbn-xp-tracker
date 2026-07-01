@@ -90,6 +90,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --timeout 120 \
   --cpu-throttling \
   --no-session-affinity \
+  --startup-probe "httpGet.path=/api/health,httpGet.port=8080,initialDelaySeconds=0,timeoutSeconds=10,periodSeconds=5,failureThreshold=30" \
   --set-env-vars "FLASK_DEBUG=false" \
   --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
   --set-env-vars "SHEETS_CACHE_TTL=30" \
