@@ -1290,10 +1290,14 @@ def bot_log():
     """Bot forwards its warn/error log entries here for persistent storage."""
     from datetime import datetime, timezone
     from app.db import AppLogEntry, db
+    from app.discord_alert import send_alert, dashboard_link
+    from flask import current_app
     entries = request.get_json(silent=True) or []
     if not isinstance(entries, list):
         return jsonify({'error': 'expected a JSON array'}), 400
     now = datetime.now(timezone.utc)
+    webhook_url = current_app.config.get('DISCORD_WEBHOOK_URL', '')
+    redirect_uri = current_app.config.get('DISCORD_REDIRECT_URI', '')
     for raw in entries[:100]:
         if not isinstance(raw, dict):
             continue
@@ -1310,6 +1314,8 @@ def bot_log():
             ts=ts, source='bot', level=level, event=event,
             message=msg[:2000], details=details[:4000], created_at=now,
         ))
+        send_alert(webhook_url, source='bot', level=level, event=event, message=msg,
+                   details=details, link=dashboard_link(redirect_uri, 'bot', level, event))
     db.session.commit()
     # Prune to 500 most recent entries
     cutoff_query = db.session.query(AppLogEntry.id).order_by(AppLogEntry.created_at.desc()).offset(500).limit(1).scalar()

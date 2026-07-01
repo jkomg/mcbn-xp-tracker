@@ -229,21 +229,36 @@ def create_app():
         if isinstance(exc, HTTPException):
             return exc
         from .db import AppLogEntry, db as _db
+        from .discord_alert import send_alert, dashboard_link
+        message = f'{type(exc).__name__}: {exc}'
+        tb = _traceback.format_exc()
+        path = request.path if request else ''
         try:
-            tb = _traceback.format_exc()
-            path = request.path if request else ''
             entry = AppLogEntry(
                 ts=datetime.now(timezone.utc).isoformat(),
                 source='web',
                 level='error',
                 event='unhandled_exception',
-                message=f'{type(exc).__name__}: {exc}',
+                message=message,
                 details=f'{path}\n\n{tb}'[:4000],
             )
             _db.session.add(entry)
             _db.session.commit()
         except Exception:
             pass
+        # Short excerpt for the alert itself — full traceback lives in AppLogEntry,
+        # linked below. Last few lines are usually the actual failing statement.
+        tb_excerpt = '\n'.join(tb.strip().splitlines()[-6:])
+        send_alert(
+            app.config.get('DISCORD_WEBHOOK_URL', ''),
+            source='web', level='error', event='unhandled_exception', message=message,
+            details=f'{path}\n{tb_excerpt}' if path else tb_excerpt,
+            link=dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
+                                 source='web', level='error', event='unhandled_exception'),
+            # event is constant ('unhandled_exception') for every web crash — dedupe on
+            # exception type + route instead, so one noisy route can't hide an unrelated one.
+            dedupe_key=f'web:unhandled_exception:{type(exc).__name__}:{path}',
+        )
         # Re-raise so Flask's default 500 handling still applies
         raise exc
 
