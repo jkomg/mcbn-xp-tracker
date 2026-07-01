@@ -38,6 +38,13 @@ def main():
         if not stale:
             return
 
+        if not apply_changes:
+            print('\nDry run — not uploading to GCS. Pages that would be attempted:')
+            for p in stale:
+                print(f'  {p.slug}')
+            print('\nRe-run with --apply to actually mirror these and write changes.')
+            return
+
         mirrored, failed = [], []
         for p in stale:
             new_url = resolve_cover_url(p.cover_image_url, p.slug, app.config)
@@ -45,10 +52,9 @@ def main():
                 failed.append(p.slug)
                 continue
             mirrored.append(p.slug)
-            if apply_changes:
-                p.cover_image_url = new_url
+            p.cover_image_url = new_url
 
-        if apply_changes and mirrored:
+        if mirrored:
             db.session.commit()
 
         print(f'\nMirrored: {len(mirrored)}')
@@ -57,9 +63,6 @@ def main():
         print(f'\nStill failing (Discord link likely already expired — needs a fresh bot sync): {len(failed)}')
         for slug in failed:
             print(f'  fail  {slug}')
-
-        if not apply_changes:
-            print('\nDry run — no changes written. Re-run with --apply to persist.')
 
 
 if __name__ == '__main__':
