@@ -91,3 +91,24 @@ def mirror_to_gcs(
     except Exception as exc:
         logger.warning('GCS mirror failed for slug=%s: %s', slug, exc)
         return url
+
+
+def resolve_cover_url(url: str, slug: str, config) -> str:
+    """Resolve a wiki page's cover image URL for permanent storage.
+
+    Discord CDN URLs are signed and expire (~24-48h), so any cover image
+    left pointing at cdn.discordapp.com/media.discordapp.net will go dead.
+    This mirrors those to GCS; non-Discord URLs pass through unchanged.
+
+    *config* is a Flask app config (or any object with .get()) providing
+    GCS_BUCKET_NAME, GOOGLE_CREDENTIALS_JSON, GOOGLE_CREDENTIALS_FILE.
+    """
+    if not url or not is_discord_cdn_url(url):
+        return url
+    return mirror_to_gcs(
+        url=url,
+        slug=slug,
+        bucket_name=config.get('GCS_BUCKET_NAME', 'mcbn-wiki-images'),
+        credentials_json=config.get('GOOGLE_CREDENTIALS_JSON', ''),
+        credentials_file=config.get('GOOGLE_CREDENTIALS_FILE', ''),
+    )
