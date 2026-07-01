@@ -53,6 +53,17 @@ def test_send_alert_dedupe_key_overrides_source_event_grouping():
     assert mock_post.call_count == 2
 
 
+def test_send_alert_not_suppressed_on_low_process_uptime():
+    """Regression: time.monotonic() isn't guaranteed to start far from zero —
+    a freshly-booted CI VM can have low uptime. A brand-new event must not be
+    treated as 'already sent' just because now - 0.0 < the rate limit window."""
+    _reset_rate_limit()
+    with patch('app.discord_alert.time.monotonic', return_value=5.0), \
+         patch('app.discord_alert.requests.post') as mock_post:
+        discord_alert.send_alert('https://x', source='web', level='error', event='boom', message='x')
+    mock_post.assert_called_once()
+
+
 def test_send_alert_same_dedupe_key_still_rate_limited():
     _reset_rate_limit()
     with patch('app.discord_alert.requests.post') as mock_post:

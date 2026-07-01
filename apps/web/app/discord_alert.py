@@ -28,7 +28,10 @@ _lock = threading.Lock()
 def _should_send(event: str) -> bool:
     now = time.monotonic()
     with _lock:
-        last = _last_sent.get(event, 0.0)
+        # time.monotonic() is only guaranteed non-decreasing, not guaranteed to
+        # start far from zero — a fresh process/VM can have low uptime, so 0.0
+        # as the "never sent" default can make a brand-new event look recent.
+        last = _last_sent.get(event, float('-inf'))
         if now - last < _RATE_LIMIT_SECONDS:
             return False
         _last_sent[event] = now
