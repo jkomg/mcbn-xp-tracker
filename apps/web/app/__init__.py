@@ -230,10 +230,13 @@ def create_app():
         if isinstance(exc, HTTPException):
             return exc
         from .db import AppLogEntry, db as _db
-        from .discord_alert import send_alert, dashboard_link
+        from .discord_alert import send_alert, send_escalation_alert, check_escalation, dashboard_link
         message = f'{type(exc).__name__}: {exc}'
         tb = _traceback.format_exc()
         path = request.path if request else ''
+        # event is constant ('unhandled_exception') for every web crash — dedupe on
+        # exception type + route instead, so one noisy route can't hide an unrelated one.
+        dedupe_key = f'web:unhandled_exception:{type(exc).__name__}:{path}'
         try:
             entry = AppLogEntry(
                 ts=datetime.now(timezone.utc).isoformat(),
@@ -242,6 +245,7 @@ def create_app():
                 event='unhandled_exception',
                 message=message,
                 details=f'{path}\n\n{tb}'[:4000],
+                dedupe_key=dedupe_key,
             )
             _db.session.add(entry)
             _db.session.commit()
@@ -250,16 +254,20 @@ def create_app():
         # Short excerpt for the alert itself — full traceback lives in AppLogEntry,
         # linked below. Last few lines are usually the actual failing statement.
         tb_excerpt = '\n'.join(tb.strip().splitlines()[-6:])
+        webhook_url = app.config.get('DISCORD_WEBHOOK_URL', '')
+        link = dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
+                               source='web', level='error', event='unhandled_exception')
         send_alert(
-            app.config.get('DISCORD_WEBHOOK_URL', ''),
+            webhook_url,
             source='web', level='error', event='unhandled_exception', message=message,
             details=f'{path}\n{tb_excerpt}' if path else tb_excerpt,
-            link=dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
-                                 source='web', level='error', event='unhandled_exception'),
-            # event is constant ('unhandled_exception') for every web crash — dedupe on
-            # exception type + route instead, so one noisy route can't hide an unrelated one.
-            dedupe_key=f'web:unhandled_exception:{type(exc).__name__}:{path}',
+            link=link,
+            dedupe_key=dedupe_key,
         )
+        if webhook_url:
+            count = check_escalation(dedupe_key)
+            if count:
+                send_escalation_alert(webhook_url, dedupe_key, count, message, link)
         # Re-raise so Flask's default 500 handling still applies
         raise exc
 
