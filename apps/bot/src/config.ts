@@ -190,6 +190,11 @@ const envSchema = z.object({
   HONEYPOT_WHITELISTED_ROLE_IDS: z.string().optional(),
   HONEYPOT_REQUIRE_YOUNG_ACCOUNT: z.string().optional(),
   HONEYPOT_MAX_ACCOUNT_AGE_DAYS: z.string().optional(),
+  MENTION_BREAKER_ENABLED: z.string().optional(),
+  MENTION_BREAKER_MAX_MENTIONS: z.string().optional(),
+  MENTION_BREAKER_TIMEOUT_MINUTES: z.string().optional(),
+  MENTION_BREAKER_EXEMPT_ROLE_IDS: z.string().optional(),
+  MENTION_BREAKER_MOD_LOG_CHANNEL_ID: z.string().optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -472,6 +477,20 @@ export const config = {
     30,
     'HONEYPOT_MAX_ACCOUNT_AGE_DAYS',
   ),
+  mentionBreakerEnabled: (env.MENTION_BREAKER_ENABLED ?? 'false').toLowerCase() === 'true',
+  mentionBreakerMaxMentions: parsePositiveInt(
+    env.MENTION_BREAKER_MAX_MENTIONS,
+    5,
+    'MENTION_BREAKER_MAX_MENTIONS',
+  ),
+  mentionBreakerTimeoutMinutes: parsePositiveInt(
+    env.MENTION_BREAKER_TIMEOUT_MINUTES,
+    10,
+    'MENTION_BREAKER_TIMEOUT_MINUTES',
+  ),
+  mentionBreakerExemptRoleIds: parseCsvIds(env.MENTION_BREAKER_EXEMPT_ROLE_IDS),
+  mentionBreakerModLogChannelId:
+    env.MENTION_BREAKER_MOD_LOG_CHANNEL_ID ?? env.HONEYPOT_MOD_LOG_CHANNEL_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {

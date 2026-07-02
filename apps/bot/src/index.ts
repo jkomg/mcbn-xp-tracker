@@ -43,6 +43,7 @@ import {
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startHoneypotMonitor } from './services/honeypotMonitor';
+import { startMentionSpamBreaker } from './services/mentionSpamBreaker';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
@@ -353,6 +354,13 @@ void applyStartupConfigOverrides().then(() => {
     });
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
     startHoneypotMonitor(client, honeypotCfg);
+    startMentionSpamBreaker(client, {
+      enabled: config.mentionBreakerEnabled,
+      maxMentions: config.mentionBreakerMaxMentions,
+      timeoutMinutes: config.mentionBreakerTimeoutMinutes,
+      exemptRoleIds: config.mentionBreakerExemptRoleIds,
+      modLogChannelId: config.mentionBreakerModLogChannelId,
+    });
   });
 
   client.on('interactionCreate', async (interaction) => {
