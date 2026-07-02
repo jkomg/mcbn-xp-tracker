@@ -786,8 +786,16 @@ def _normalize_sheet_data(data: dict) -> dict:
     return data
 
 
-def _map_rod_to_cc(rod: dict) -> dict:
-    """Map a Realm of Darkness V5 sheet export to CC character_data format."""
+_ROSTER_AGE_CATEGORIES = ('mortal', 'fledgling', 'neonate', 'ancilla')
+
+
+def _map_rod_to_cc(rod: dict, age_category: str = 'ancilla') -> dict:
+    """Map a Realm of Darkness V5 sheet export to CC character_data format.
+
+    *age_category* should be the character's actual roster age category
+    (one of _ROSTER_AGE_CATEGORIES); defaults to 'ancilla' only when the
+    caller has nothing better (e.g. roster age_category is blank/unrecognized).
+    """
     # Basic identity fields
     data: dict = {
         'name': rod.get('name', ''),
@@ -812,7 +820,7 @@ def _map_rod_to_cc(rod: dict) -> dict:
                 if c
             ]
         ),
-        'age_category': 'ancilla',  # existing characters are treated as ancilla
+        'age_category': age_category if age_category in _ROSTER_AGE_CATEGORIES else 'ancilla',
     }
 
     # Attributes (RoD already uses a flat dict)
@@ -922,7 +930,8 @@ def import_sheet(name):
         return render_template('player/import_sheet.html', char=char)
 
     try:
-        cc_data = _map_rod_to_cc(rod_data)
+        age_category = (char_row.age_category or '').strip().lower()
+        cc_data = _map_rod_to_cc(rod_data, age_category=age_category)
     except Exception as exc:
         logger.warning('RoD sheet import mapping error for %s: %s', name, exc)
         flash('Could not parse the sheet data. Please contact staff for help.', 'danger')
