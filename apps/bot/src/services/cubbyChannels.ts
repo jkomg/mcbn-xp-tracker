@@ -20,6 +20,44 @@ export function normalizeChannelName(value: string): string {
     .replace(/-+/g, '-');
 }
 
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[] = new Array(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+/**
+ * Find the closest-matching existing channel name for a target, to help
+ * staff spot typos (e.g. "emmit-brown" cubby vs a character named "Emmet
+ * Brown"). Returns null if nothing is close enough to be a plausible match —
+ * a genuinely unmapped character shouldn't "match" an unrelated channel.
+ */
+export function findClosestChannelName(target: string, candidates: Iterable<string>): string | null {
+  let best: string | null = null;
+  let bestDistance = Infinity;
+  for (const candidate of candidates) {
+    const distance = levenshteinDistance(target, candidate);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+  if (best === null) return null;
+  const threshold = Math.max(2, Math.ceil(target.length * 0.25));
+  return bestDistance <= threshold ? best : null;
+}
+
 function isNotificationChannel(channel: GuildBasedChannel | null | undefined): channel is NotificationChannel {
   if (!channel) {
     return false;
