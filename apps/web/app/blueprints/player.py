@@ -242,10 +242,20 @@ def character(name):
             status='sheet_review',
         ).order_by(CharacterDraft.submitted_at.desc()).first()
         if not pending_sheet_review:
-            denied_sheet_review = CharacterDraft.query.filter_by(
+            latest_denied = CharacterDraft.query.filter_by(
                 roster_character_id=char_row.id,
                 status='denied',
             ).order_by(CharacterDraft.submitted_at.desc()).first()
+            # Only surface it if nothing has been approved since — otherwise a
+            # denial from before a later, successful re-import would keep
+            # showing "your import was denied" forever even after approval.
+            if latest_denied and (
+                not approved_draft
+                or not approved_draft.approved_at
+                or not latest_denied.submitted_at
+                or latest_denied.submitted_at > approved_draft.approved_at
+            ):
+                denied_sheet_review = latest_denied
 
     # Coterie membership for donate-to-coterie spend option and role display
     player_coterie = None
