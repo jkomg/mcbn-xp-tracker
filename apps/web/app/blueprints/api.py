@@ -1314,8 +1314,15 @@ def bot_log():
             ts=ts, source='bot', level=level, event=event,
             message=msg[:2000], details=details[:4000], created_at=now,
         ))
+        # Some bot events recur per-character/per-channel (e.g. a review
+        # notifier that can't resolve a cubby channel). Deduping on event
+        # name alone would let the first character's alert suppress every
+        # other distinct character hitting the same event for 15 minutes.
+        subject = str(context.get('characterName') or context.get('channelName') or '')
+        dedupe_key = f'bot:{event}:{subject}' if subject else ''
         send_alert(webhook_url, source='bot', level=level, event=event, message=msg,
-                   details=details, link=dashboard_link(redirect_uri, 'bot', level, event))
+                   details=details, link=dashboard_link(redirect_uri, 'bot', level, event),
+                   dedupe_key=dedupe_key)
     db.session.commit()
     # Prune to 500 most recent entries
     cutoff_query = db.session.query(AppLogEntry.id).order_by(AppLogEntry.created_at.desc()).offset(500).limit(1).scalar()
