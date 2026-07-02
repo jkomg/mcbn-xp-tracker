@@ -42,6 +42,7 @@ import {
   handleEditRenameModal,
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
+import { startHoneypotMonitor } from './services/honeypotMonitor';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
@@ -308,6 +309,15 @@ void applyStartupConfigOverrides().then(() => {
     staffRoleId: config.huntConsequenceStaffRoleId,
   };
 
+  const honeypotCfg = {
+    enabled: config.honeypotEnabled,
+    channelId: config.honeypotChannelId,
+    modLogChannelId: config.honeypotModLogChannelId,
+    whitelistedRoleIds: config.honeypotWhitelistedRoleIds,
+    requireYoungAccount: config.honeypotRequireYoungAccount,
+    maxAccountAgeDays: config.honeypotMaxAccountAgeDays,
+  };
+
   client.once('ready', async () => {
     logEvent('info', 'bot_ready', { userTag: client.user?.tag });
     await registerCommands(client);
@@ -342,6 +352,7 @@ void applyStartupConfigOverrides().then(() => {
       creationRulesUrl: config.ccCreationRulesUrl,
     });
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
+    startHoneypotMonitor(client, honeypotCfg);
   });
 
   client.on('interactionCreate', async (interaction) => {

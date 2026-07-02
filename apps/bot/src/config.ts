@@ -184,6 +184,12 @@ const envSchema = z.object({
   STAFF_ROLE_STORYTELLER_ID: z.string().optional(),
   STAFF_ROLE_MODERATOR_ID: z.string().optional(),
   STAFF_ROLE_ADMINISTRATOR_ID: z.string().optional(),
+  HONEYPOT_ENABLED: z.string().optional(),
+  HONEYPOT_CHANNEL_ID: z.string().optional(),
+  HONEYPOT_MOD_LOG_CHANNEL_ID: z.string().optional(),
+  HONEYPOT_WHITELISTED_ROLE_IDS: z.string().optional(),
+  HONEYPOT_REQUIRE_YOUNG_ACCOUNT: z.string().optional(),
+  HONEYPOT_MAX_ACCOUNT_AGE_DAYS: z.string().optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -456,6 +462,16 @@ export const config = {
   staffRoleStorytellerId: env.STAFF_ROLE_STORYTELLER_ID ?? '1168649373731790948',
   staffRoleModeratorId: env.STAFF_ROLE_MODERATOR_ID ?? '1168650352132890794',
   staffRoleAdministratorId: env.STAFF_ROLE_ADMINISTRATOR_ID ?? '1168648955731648554',
+  honeypotEnabled: (env.HONEYPOT_ENABLED ?? 'false').toLowerCase() === 'true',
+  honeypotChannelId: env.HONEYPOT_CHANNEL_ID ?? '',
+  honeypotModLogChannelId: env.HONEYPOT_MOD_LOG_CHANNEL_ID ?? '',
+  honeypotWhitelistedRoleIds: parseCsvIds(env.HONEYPOT_WHITELISTED_ROLE_IDS),
+  honeypotRequireYoungAccount: (env.HONEYPOT_REQUIRE_YOUNG_ACCOUNT ?? 'false').toLowerCase() === 'true',
+  honeypotMaxAccountAgeDays: parsePositiveInt(
+    env.HONEYPOT_MAX_ACCOUNT_AGE_DAYS,
+    30,
+    'HONEYPOT_MAX_ACCOUNT_AGE_DAYS',
+  ),
 };
 
 if (config.testRequesterDiscordId) {
