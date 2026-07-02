@@ -51,6 +51,29 @@ def _apply_local_session_cookie_defaults(app: Flask, session_cookie_secure_confi
     app.config['REMEMBER_COOKIE_SECURE'] = False
 
 
+def _upgrade_with_race_retry(upgrade_fn) -> None:
+    """Run Alembic's upgrade(), tolerating one specific concurrent-worker race.
+
+    Every gunicorn worker (and every container on a rapid double deploy)
+    runs migrations independently against the same remote DB, so two
+    processes can race: both read the same current_revision, both apply the
+    same (idempotent) migration DDL, but only one can win Alembic's own
+    "UPDATE alembic_version ... WHERE version_num = <old>" bookkeeping
+    update. The loser raises CommandError ("expected to match one row...
+    0 found") even though the schema itself ended up correct.
+
+    Retry once: on retry, upgrade_fn() re-reads current_revision fresh (now
+    already at head from the winner) and finds nothing left to do. A
+    genuine migration failure still raises — the retry hits the same real
+    problem and isn't swallowed.
+    """
+    try:
+        upgrade_fn()
+    except Exception as exc:
+        logging.getLogger(__name__).warning('db_upgrade_race_retry: %s', exc)
+        upgrade_fn()
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
@@ -130,7 +153,7 @@ def create_app():
             # and keep alembic_version accurate.  All create_table migrations
             # have IF NOT EXISTS guards so they're safe if the table already
             # exists from a prior db.create_all() run.
-            _db_upgrade()
+            _upgrade_with_race_retry(_db_upgrade)
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp
