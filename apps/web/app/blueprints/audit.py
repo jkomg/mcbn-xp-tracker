@@ -135,6 +135,28 @@ def dismiss_error(entry_id: int):
     return jsonify({'ok': True})
 
 
+@bp.route('/errors/bulk-dismiss', methods=['POST'])
+@require_staff
+def bulk_dismiss_errors():
+    """Dismiss many error entries at once (checkbox selection on /audit/errors)."""
+    from app.db import AppLogEntry, db
+    body = request.get_json(silent=True) or {}
+    raw_ids = body.get('ids')
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({'error': 'ids must be a non-empty array'}), 400
+    try:
+        entry_ids = [int(i) for i in raw_ids]
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ids must be integers'}), 400
+    updated = (
+        AppLogEntry.query
+        .filter(AppLogEntry.id.in_(entry_ids))
+        .update({'dismissed': True}, synchronize_session=False)
+    )
+    db.session.commit()
+    return jsonify({'ok': True, 'count': updated})
+
+
 @bp.route('/errors')
 @require_staff
 def errors():

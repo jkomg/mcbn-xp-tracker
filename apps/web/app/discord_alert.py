@@ -1,7 +1,13 @@
-"""Discord webhook alerting for persistent app errors.
+"""Discord webhook alerting for recurring app errors.
 
-Fires a push notification to a staff Discord channel when a genuine error
-is recorded in AppLogEntry (unhandled web exceptions, bot-reported errors).
+Stays quiet below ESCALATION_THRESHOLD occurrences of the same specific
+issue (same dedupe_key) within ESCALATION_WINDOW_HOURS — every warn/error
+is still persisted to AppLogEntry (visible to any staff on /audit/errors)
+so nothing is lost, but a one-off or self-correcting blip you already
+recognize doesn't alarm other staff who don't. Only once a dedupe_key
+crosses the threshold does a single Discord alert fire, and it re-fires
+every subsequent ESCALATION_THRESHOLD occurrences (10, 15, ...) so an
+ongoing pattern stays visible without paging per-occurrence.
 
 Deliberately NOT wired into the fire-and-forget Sheets sync retry path —
 those failures are covered by the nightly reconciliation job and paging
@@ -11,8 +17,6 @@ someone for something that fixes itself overnight is just noise.
 from __future__ import annotations
 
 import logging
-import threading
-import time
 from datetime import datetime, timedelta
 from urllib.parse import quote, urlparse
 
@@ -20,30 +24,10 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Avoid spamming the channel if the same thing errors repeatedly in a loop.
-_RATE_LIMIT_SECONDS = 15 * 60
-_last_sent: dict[str, float] = {}
-_lock = threading.Lock()
-
-# A single recurring thing (same dedupe_key) that crosses this many
-# occurrences within this window gets a distinct "may not be
-# self-correcting" escalation, on top of (not instead of) the normal
-# rate-limited per-occurrence alert.
+# A recurring thing (same dedupe_key) doesn't page anyone until it crosses
+# this many occurrences within this window.
 ESCALATION_THRESHOLD = 5
 ESCALATION_WINDOW_HOURS = 24
-
-
-def _should_send(event: str) -> bool:
-    now = time.monotonic()
-    with _lock:
-        # time.monotonic() is only guaranteed non-decreasing, not guaranteed to
-        # start far from zero — a fresh process/VM can have low uptime, so 0.0
-        # as the "never sent" default can make a brand-new event look recent.
-        last = _last_sent.get(event, float('-inf'))
-        if now - last < _RATE_LIMIT_SECONDS:
-            return False
-        _last_sent[event] = now
-        return True
 
 
 def dashboard_link(redirect_uri: str, source: str, level: str, event: str) -> str:
@@ -60,31 +44,6 @@ def dashboard_link(redirect_uri: str, source: str, level: str, event: str) -> st
     base = f'{parsed.scheme}://{parsed.netloc}'
     query = f'source={quote(source)}&level={quote(level)}&event={quote(event)}'
     return f'{base}/audit/errors?{query}'
-
-
-def send_alert(webhook_url: str, source: str, level: str, event: str, message: str,
-                details: str = '', link: str = '', dedupe_key: str = '') -> None:
-    """Best-effort Discord webhook post for a persistent app error. Never raises.
-
-    Rate-limited per *dedupe_key* (default: source:event). Callers whose event
-    name is constant across distinct failures (e.g. the web handler's
-    'unhandled_exception') should pass a more specific dedupe_key — otherwise
-    the first occurrence suppresses alerts for every later, unrelated one.
-    """
-    if not webhook_url:
-        return
-    if not _should_send(dedupe_key or f'{source}:{event}'):
-        return
-    try:
-        emoji = '\U0001f534' if level == 'error' else '\U0001f7e1'  # red / yellow circle
-        content = f'{emoji} **{source}** error — `{event}`\n{message[:800]}'
-        if details.strip():
-            content += f'\n```\n{details.strip()[:500]}\n```'
-        if link:
-            content += f'\n🔗 <{link}>'
-        requests.post(webhook_url, json={'content': content[:2000]}, timeout=5)
-    except Exception as exc:
-        logger.warning('discord_alert_failed: %s', exc)
 
 
 def check_escalation(dedupe_key: str) -> int | None:
@@ -114,21 +73,23 @@ def check_escalation(dedupe_key: str) -> int | None:
     return None
 
 
-def send_escalation_alert(webhook_url: str, dedupe_key: str, count: int, message: str, link: str = '') -> None:
+def send_escalation_alert(webhook_url: str, dedupe_key: str, count: int, message: str,
+                           details: str = '', link: str = '') -> None:
     """Best-effort Discord webhook post flagging a recurring issue. Never raises.
 
-    Deliberately bypasses the normal rate limiter — check_escalation() above
-    already only returns non-None at threshold multiples, so this can't fire
-    more often than every ESCALATION_THRESHOLD occurrences.
+    This is the only alert path — nothing posts below ESCALATION_THRESHOLD,
+    so by the time this fires it's an established pattern, not a blip.
     """
     if not webhook_url:
         return
     try:
         content = (
             f'⚠️ **Recurring issue** — `{dedupe_key}` has happened '
-            f'**{count} times** in the last {ESCALATION_WINDOW_HOURS}h and may not be self-correcting.\n'
+            f'**{count} times** in the last {ESCALATION_WINDOW_HOURS}h.\n'
             f'Most recent: {message[:500]}'
         )
+        if details.strip():
+            content += f'\n```\n{details.strip()[:500]}\n```'
         if link:
             content += f'\n🔗 <{link}>'
         requests.post(webhook_url, json={'content': content[:2000]}, timeout=5)

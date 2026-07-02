@@ -95,10 +95,20 @@
 {% endif %}
 
 {% if entries %}
+<div id="bulk-dismiss-bar" class="d-none align-items-center gap-2 mb-2">
+    <span id="bulk-dismiss-count" class="text-muted small"></span>
+    <button id="bulk-dismiss-btn" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-check2-all"></i> Dismiss selected
+    </button>
+    <button id="bulk-clear-btn" class="btn btn-sm btn-outline-secondary">Clear selection</button>
+</div>
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
             <tr>
+                <th style="width: 34px;">
+                    <input type="checkbox" class="form-check-input" id="select-all-errors" title="Select all">
+                </th>
                 <th style="width: 160px;">Time (Eastern)</th>
                 <th style="width: 55px;">Src</th>
                 <th style="width: 60px;">Level</th>
@@ -110,6 +120,9 @@
         <tbody>
             {% for entry in entries %}
             <tr id="log-row-{{ entry.id }}">
+                <td>
+                    <input type="checkbox" class="form-check-input error-select" value="{{ entry.id }}">
+                </td>
                 <td class="text-muted small text-nowrap">{{ entry.timestamp | to_eastern }}</td>
                 <td><span class="badge bg-secondary">{{ entry.source }}</span></td>
                 <td>
@@ -148,8 +161,13 @@
 {% endif %}
 
 <script>
-  // Auto-refresh every 30s so new bot log entries appear without manual reload
-  setTimeout(() => location.reload(), 30000);
+  // Auto-refresh every 30s so new bot log entries appear without manual
+  // reload — but not while the user has rows checked, mid-review.
+  setTimeout(() => {
+    if (!document.querySelector('.error-select:checked')) location.reload();
+  }, 30000);
+
+  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.dismiss-btn');
@@ -157,8 +175,7 @@
     const id = btn.dataset.id;
     const url = btn.dataset.url;
     btn.disabled = true;
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
@@ -170,5 +187,69 @@
       })
       .catch(() => { btn.disabled = false; });
   });
+
+  (function () {
+    const selectAll = document.getElementById('select-all-errors');
+    const bar = document.getElementById('bulk-dismiss-bar');
+    const countEl = document.getElementById('bulk-dismiss-count');
+    const dismissBtn = document.getElementById('bulk-dismiss-btn');
+    const clearBtn = document.getElementById('bulk-clear-btn');
+    if (!selectAll || !bar) return;  // no rows on this page
+
+    function checkboxes() {
+      return Array.from(document.querySelectorAll('.error-select'));
+    }
+
+    function updateBar() {
+      const checked = checkboxes().filter((c) => c.checked);
+      if (checked.length > 0) {
+        bar.classList.remove('d-none');
+        bar.classList.add('d-flex');
+        countEl.textContent = checked.length + ' selected';
+      } else {
+        bar.classList.add('d-none');
+        bar.classList.remove('d-flex');
+      }
+      selectAll.checked = checked.length > 0 && checked.length === checkboxes().length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes().length;
+    }
+
+    selectAll.addEventListener('change', function () {
+      checkboxes().forEach((c) => { c.checked = selectAll.checked; });
+      updateBar();
+    });
+
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('error-select')) updateBar();
+    });
+
+    clearBtn.addEventListener('click', function () {
+      checkboxes().forEach((c) => { c.checked = false; });
+      updateBar();
+    });
+
+    dismissBtn.addEventListener('click', function () {
+      const ids = checkboxes().filter((c) => c.checked).map((c) => parseInt(c.value, 10));
+      if (ids.length === 0) return;
+      dismissBtn.disabled = true;
+      fetch('{{ url_for("audit.bulk_dismiss_errors") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ ids: ids }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            ids.forEach((id) => {
+              const row = document.getElementById('log-row-' + id);
+              if (row) row.remove();
+            });
+            updateBar();
+          }
+          dismissBtn.disabled = false;
+        })
+        .catch(() => { dismissBtn.disabled = false; });
+    });
+  })();
 </script>
 {% endblock %}
