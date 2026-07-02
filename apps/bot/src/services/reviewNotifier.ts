@@ -5,7 +5,7 @@ import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
-import { buildCubbyChannelMap, normalizeChannelName, type NotificationChannel } from './cubbyChannels';
+import { buildCubbyChannelMap, findClosestChannelName, normalizeChannelName, type NotificationChannel } from './cubbyChannels';
 import { liveConfig } from '../liveConfig';
 
 const STATE_PATH = path.resolve('./data/review-notifier-cursor.json');
@@ -130,9 +130,11 @@ function resolveChannel(
     return null;
   }
 
+  const suggestedChannel = findClosestChannelName(fullKey, channelMap.keys());
   logEvent('error', 'review_notifier_channel_missing', {
     characterName,
     eventKey,
+    ...(suggestedChannel ? { suggestedChannel } : {}),
   });
   return null;
 }
