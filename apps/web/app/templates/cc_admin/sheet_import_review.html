@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Review Sheet Import — {{ draft.character_name or 'Draft' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4" style="max-width: 1200px;">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <a href="{{ url_for('cc_admin.sheet_import_list') }}" class="text-muted small mb-1 d-inline-block">
+        ← Back to sheet imports
+      </a>
+      <h2 class="mb-0">{{ draft.character_name or '(unnamed)' }}</h2>
+      <div class="text-muted small mt-1">
+        Player: <span class="font-monospace">{{ draft.player_discord_id }}</span>
+        {% if draft.submitted_at %}
+          · Submitted {{ draft.submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC
+        {% endif %}
+      </div>
+    </div>
+    <span class="badge bg-danger fs-6">Awaiting Review</span>
+  </div>
+
+  {% if not current %}
+  <div class="alert alert-info small mb-3">
+    <i class="bi bi-info-circle"></i> This character has no prior approved sheet — this is a first-time import.
+  </div>
+  {% endif %}
+
+  {% macro sheet_summary(data) %}
+    {% if not data %}
+      <p class="text-muted fst-italic mb-0">No sheet data.</p>
+    {% else %}
+      {% set a = data.get('attributes', {}) %}
+      {% set s = data.get('skills', {}) %}
+      {% set spec = data.get('skill_specialties', {}) %}
+      {% set d = data.get('disciplines', []) %}
+      {% set m = data.get('merits', []) %}
+      {% set f = data.get('flaws', []) %}
+      {% set bg = data.get('backgrounds', []) %}
+
+      <div class="row g-2 mb-3">
+        <div class="col-6"><span class="text-muted small">Clan</span><div class="fw-semibold">{{ data.get('clan') or '—' }}</div></div>
+        <div class="col-6"><span class="text-muted small">Generation</span><div class="fw-semibold">{{ data.get('generation') or '—' }}</div></div>
+        <div class="col-6"><span class="text-muted small">Age Category</span><div class="fw-semibold text-capitalize">{{ data.get('age_category') or '—' }}</div></div>
+        <div class="col-6"><span class="text-muted small">Predator Type</span><div class="fw-semibold">{{ data.get('predatorType') or '—' }}</div></div>
+        <div class="col-3"><span class="text-muted small">Humanity</span><div class="fw-semibold">{{ data.get('humanity', '—') }}</div></div>
+        <div class="col-3"><span class="text-muted small">Blood Potency</span><div class="fw-semibold">{{ data.get('bloodPotency', '—') }}</div></div>
+        <div class="col-3"><span class="text-muted small">Willpower</span><div class="fw-semibold">{{ data.get('willpower', '—') }}</div></div>
+        <div class="col-3"><span class="text-muted small">Health</span><div class="fw-semibold">{{ data.get('maxHealth', '—') }}</div></div>
+      </div>
+
+      <div class="sheet-section-label">Attributes</div>
+      <div class="row g-0 mb-2">
+        {% for group, keys in [('Physical',['strength','dexterity','stamina']),('Social',['charisma','manipulation','composure']),('Mental',['intelligence','wits','resolve'])] %}
+        <div class="col-4">
+          <div class="sheet-group-label">{{ group }}</div>
+          {% for k in keys %}{% set v = a.get(k,0) %}
+          <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ k|title }}</span>
+            <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i<=v %}filled{% endif %}"></span>{% endfor %}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="sheet-section-label">Skills</div>
+      <div class="row g-0 mb-2">
+        {% set phys_skills = ['athletics','brawl','craft','drive','firearms','larceny','melee','stealth','survival'] %}
+        {% set soc_skills  = ['animal_ken','etiquette','insight','intimidation','leadership','performance','persuasion','streetwise','subterfuge'] %}
+        {% set ment_skills = ['academics','awareness','finance','investigation','medicine','occult','politics','science','technology'] %}
+        {% for group, keys in [('Physical',phys_skills),('Social',soc_skills),('Mental',ment_skills)] %}
+        <div class="col-4">
+          <div class="sheet-group-label">{{ group }}</div>
+          {% for k in keys %}{% set v = s.get(k,0) %}{% if v %}
+          <div class="sheet-trait-row">
+            <span class="sheet-trait-name">{{ k|replace('_',' ')|title }}</span>
+            <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i<=v %}filled{% endif %}"></span>{% endfor %}</span>
+          </div>
+          {% if spec.get(k) %}<div class="sheet-specialty-row">{{ spec[k] | join(', ') }}</div>{% endif %}
+          {% endif %}{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if d %}
+      <div class="sheet-section-label">Disciplines</div>
+      <div class="mb-2">
+        {% for p in d|sort(attribute='level') %}
+        <div class="sheet-trait-row">
+          <span class="sheet-trait-name">{{ p.get('name','?') }} <span class="text-muted small">({{ p.get('discipline','?')|title }})</span></span>
+          <span class="badge bg-dark border text-muted" style="font-size:0.65rem;">L{{ p.get('level','?') }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if bg %}
+      <div class="sheet-section-label">Backgrounds</div>
+      <div class="mb-2">
+        {% for b in bg %}
+        <div class="sheet-trait-row">
+          <span class="sheet-trait-name">{{ b.get('name','?') }}</span>
+          <span class="dot-pips">{% set lv=b.get('level',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if m %}
+      <div class="sheet-section-label">Merits</div>
+      <div class="mb-2">
+        {% for item in m %}
+        <div class="sheet-trait-row">
+          <span class="sheet-trait-name">{{ item.get('name','?') }}</span>
+          <span class="dot-pips">{% set lv=item.get('level',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if f %}
+      <div class="sheet-section-label">Flaws</div>
+      <div class="mb-2">
+        {% for item in f %}
+        <div class="sheet-trait-row">
+          <span class="sheet-trait-name">{{ item.get('name','?') }}</span>
+          <span class="dot-pips">{% set lv=item.get('level',0) %}{% for i in range(1,6) %}<span class="dot-pip {% if i<=lv %}filled{% endif %}"></span>{% endfor %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endif %}
+  {% endmacro %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">Currently Live</div>
+        <div class="card-body">{{ sheet_summary(current) }}</div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 border-info">
+        <div class="card-header bg-info bg-opacity-10 py-2 fw-semibold">Proposed Import</div>
+        <div class="card-body">{{ sheet_summary(proposed) }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ── #}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card border-success">
+        <div class="card-body">
+          <h6 class="mb-2"><i class="bi bi-check-circle text-success"></i> Approve</h6>
+          <p class="small text-muted">Makes the proposed import the character's living sheet.</p>
+          <form method="post" action="{{ url_for('cc_admin.sheet_import_approve', draft_id=draft.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success" data-loading-text="Approving…">Approve Import</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-danger">
+        <div class="card-body">
+          <h6 class="mb-2"><i class="bi bi-x-circle text-danger"></i> Deny</h6>
+          <p class="small text-muted">The player's current sheet stays as-is.</p>
+          <form method="post" action="{{ url_for('cc_admin.sheet_import_deny', draft_id=draft.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-2">
+              <textarea class="form-control form-control-sm" name="deny_notes" rows="2"
+                        placeholder="Optional note for the player (e.g. what didn't match)"></textarea>
+            </div>
+            <button type="submit" class="btn btn-outline-danger" data-loading-text="Denying…">Deny Import</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

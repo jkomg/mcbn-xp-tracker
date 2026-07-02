@@ -81,6 +81,10 @@ export interface TrackerAdapter {
     sinceEpoch?: number;
     limit?: number;
   }): Promise<{ events: CcSubmittedDraft[]; hasMore: boolean }>;
+  getPendingSheetImports(opts?: {
+    sinceEpoch?: number;
+    limit?: number;
+  }): Promise<{ events: PendingSheetImport[]; hasMore: boolean }>;
   getCcApprovedDrafts(opts?: {
     sinceEpoch?: number;
     limit?: number;
@@ -417,6 +421,19 @@ export type CcSubmittedDraft = z.infer<typeof ccSubmittedDraftSchema>;
 
 const ccSubmittedDraftsSchema = z.object({
   events: z.array(ccSubmittedDraftSchema),
+  has_more: z.boolean().optional(),
+});
+
+const pendingSheetImportSchema = z.object({
+  id: z.string(),
+  character_name: z.string(),
+  player_discord_id: z.string(),
+  submitted_at_epoch: z.number(),
+});
+export type PendingSheetImport = z.infer<typeof pendingSheetImportSchema>;
+
+const pendingSheetImportsSchema = z.object({
+  events: z.array(pendingSheetImportSchema),
   has_more: z.boolean().optional(),
 });
 
@@ -805,6 +822,34 @@ export class WebAppAdapter implements TrackerAdapter {
     }
     const raw = await resp.json();
     const parsed = ccSubmittedDraftsSchema.parse(raw);
+    return { events: parsed.events, hasMore: parsed.has_more === true };
+  }
+
+  async getPendingSheetImports(opts: {
+    sinceEpoch?: number;
+    limit?: number;
+  } = {}): Promise<{ events: PendingSheetImport[]; hasMore: boolean }> {
+    const params = new URLSearchParams();
+    if (typeof opts.sinceEpoch === 'number' && Number.isFinite(opts.sinceEpoch) && opts.sinceEpoch > 0) {
+      params.set('sinceEpoch', String(Math.floor(opts.sinceEpoch)));
+    }
+    if (typeof opts.limit === 'number' && Number.isFinite(opts.limit) && opts.limit > 0) {
+      params.set('limit', String(Math.floor(opts.limit)));
+    }
+    const query = params.toString();
+    const url = `${this.baseUrl}/api/cc/pending-sheet-imports${query ? `?${query}` : ''}`;
+    const resp = await this.fetchWithTimeout(url, {
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+
+    if (!resp) {
+      throw new Error('Unable to reach web app cc/pending-sheet-imports API.');
+    }
+    if (!resp.ok) {
+      throw new Error(`Web app cc/pending-sheet-imports API failed (${resp.status})`);
+    }
+    const raw = await resp.json();
+    const parsed = pendingSheetImportsSchema.parse(raw);
     return { events: parsed.events, hasMore: parsed.has_more === true };
   }
 

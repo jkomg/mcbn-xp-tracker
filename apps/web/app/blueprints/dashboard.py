@@ -27,6 +27,7 @@ def index():
     pending_claims = len(db_service.get_pending_claims())
     pending_spends = len(db_service.get_pending_spends())
     pending_drafts = CharacterDraft.query.filter_by(status='submitted').count()
+    pending_sheet_imports = CharacterDraft.query.filter_by(status='sheet_review').count()
 
     # Build distinct player list for admin preview-as picker
     preview_players = []
@@ -46,6 +47,7 @@ def index():
         pending_claims=pending_claims,
         pending_spends=pending_spends,
         pending_drafts=pending_drafts,
+        pending_sheet_imports=pending_sheet_imports,
         preview_players=preview_players,
     )
 

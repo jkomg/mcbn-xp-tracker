@@ -258,6 +258,7 @@ class CharacterDraft(db.Model):
     player_discord_id = db.Column(db.String(32), nullable=False, index=True)
     character_name = db.Column(db.String(200), nullable=True)
     # draft | submitted | revision_requested | approved
+    # RoD sheet imports (Issue #292) additionally use: sheet_review | denied | superseded
     status = db.Column(db.String(32), nullable=False, default='draft', index=True)
     is_spc = db.Column(db.Boolean, nullable=False, default=False)
     ticket_channel_id = db.Column(db.String(32), nullable=True)

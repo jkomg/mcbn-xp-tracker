@@ -102,6 +102,24 @@
 </div>
 {% endif %}
 
+{% if pending_sheet_review %}
+<div class="alert alert-info d-flex align-items-center gap-3 mb-3">
+    <i class="bi bi-hourglass-split fs-4"></i>
+    <div class="flex-grow-1">
+        <strong>Sheet import awaiting staff review.</strong>
+        {% if has_approved_draft %}Your current sheet stays active until it's approved.{% endif %}
+    </div>
+</div>
+{% elif denied_sheet_review %}
+<div class="alert alert-warning d-flex align-items-center gap-3 mb-3">
+    <i class="bi bi-x-circle fs-4"></i>
+    <div class="flex-grow-1">
+        <strong>Your last sheet import was denied.</strong>
+        {% if denied_sheet_review.revision_notes %}{{ denied_sheet_review.revision_notes }}{% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Collapsible character sheet (shown only when sheet exists) -->
 {% if has_approved_draft and sheet_data %}
 {% set _a = sheet_data.get('attributes', {}) %}

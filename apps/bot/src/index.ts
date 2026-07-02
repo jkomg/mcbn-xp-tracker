@@ -45,6 +45,7 @@ import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
+import { SheetImportNotifier } from './services/sheetImportNotifier';
 import { CharacterApprovalNotifier } from './services/characterApprovalNotifier';
 import {
   startHuntConsequenceMonitor,
@@ -149,6 +150,14 @@ void applyStartupConfigOverrides().then(() => {
     enabled: config.ccSubmissionNotifierEnabled,
     intervalMs: config.ccSubmissionNotifierIntervalMs,
     lookbackSeconds: config.ccSubmissionNotifierLookbackSeconds,
+  });
+
+  const sheetImportNotifier = new SheetImportNotifier(client, adapter, {
+    enabled: config.sheetImportNotifierEnabled,
+    channelId: config.sheetImportReviewChannelId,
+    webBaseUrl: config.webAppBaseUrl,
+    intervalMs: config.sheetImportNotifierIntervalMs,
+    lookbackSeconds: config.sheetImportNotifierLookbackSeconds,
   });
 
   const characterApprovalNotifier = new CharacterApprovalNotifier(client, adapter, {
@@ -320,6 +329,7 @@ void applyStartupConfigOverrides().then(() => {
     reviewNotifier.start();
     submissionNotifier.start();
     characterSubmissionNotifier.start();
+    sheetImportNotifier.start();
     characterApprovalNotifier.start();
     // Stagger heartbeat relative to configSyncWorker so they don't fire at
     // the same second and compete for connections during backfill scans.

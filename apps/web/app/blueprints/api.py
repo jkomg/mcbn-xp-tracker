@@ -1819,6 +1819,58 @@ def cc_submitted_drafts():
     return jsonify({'events': events, 'has_more': has_more})
 
 
+@bp.route('/cc/pending-sheet-imports', methods=['GET'])
+@require_bot_scope('read')
+@_limit('30 per minute')
+def cc_pending_sheet_imports():
+    """Return recently-submitted RoD sheet imports awaiting staff review since sinceEpoch.
+
+    Used by the bot's SheetImportNotifier (Issue #292) to post a staff-channel
+    summary when a player (re-)imports a sheet. Distinct from
+    /cc/submitted-drafts, which is for new-character-creation drafts and
+    posts to a per-character ticket channel that doesn't exist for these.
+    """
+    from app.db import CharacterDraft
+
+    try:
+        since_epoch = int(request.args.get('sinceEpoch', '0'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'sinceEpoch must be an integer'}), 400
+    if since_epoch < 0:
+        return jsonify({'error': 'sinceEpoch must be non-negative'}), 400
+    try:
+        limit = int(request.args.get('limit', '50'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'limit must be an integer'}), 400
+    if limit < 1 or limit > 200:
+        return jsonify({'error': 'limit must be between 1 and 200'}), 400
+
+    since_dt = datetime.fromtimestamp(since_epoch, tz=timezone.utc)
+    rows = (
+        CharacterDraft.query
+        .filter(
+            CharacterDraft.status == 'sheet_review',
+            CharacterDraft.submitted_at > since_dt,
+        )
+        .order_by(CharacterDraft.submitted_at.asc())
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    events = [
+        {
+            'id': d.id,
+            'character_name': d.character_name or '',
+            'player_discord_id': d.player_discord_id,
+            'submitted_at_epoch': int(d.submitted_at.timestamp()),
+        }
+        for d in rows
+    ]
+    return jsonify({'events': events, 'has_more': has_more})
+
+
 @bp.route('/cc/approved-drafts', methods=['GET'])
 @require_bot_scope('read')
 @_limit('30 per minute')
