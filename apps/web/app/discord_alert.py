@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import datetime, timedelta
 from urllib.parse import quote, urlparse
 
 import requests
@@ -23,6 +24,13 @@ logger = logging.getLogger(__name__)
 _RATE_LIMIT_SECONDS = 15 * 60
 _last_sent: dict[str, float] = {}
 _lock = threading.Lock()
+
+# A single recurring thing (same dedupe_key) that crosses this many
+# occurrences within this window gets a distinct "may not be
+# self-correcting" escalation, on top of (not instead of) the normal
+# rate-limited per-occurrence alert.
+ESCALATION_THRESHOLD = 5
+ESCALATION_WINDOW_HOURS = 24
 
 
 def _should_send(event: str) -> bool:
@@ -77,3 +85,52 @@ def send_alert(webhook_url: str, source: str, level: str, event: str, message: s
         requests.post(webhook_url, json={'content': content[:2000]}, timeout=5)
     except Exception as exc:
         logger.warning('discord_alert_failed: %s', exc)
+
+
+def check_escalation(dedupe_key: str) -> int | None:
+    """Count AppLogEntry rows sharing *dedupe_key* within ESCALATION_WINDOW_HOURS.
+
+    Returns the count if it just crossed a multiple of ESCALATION_THRESHOLD
+    (5, 10, 15, ...), else None. Call this once per newly-inserted row, after
+    it's committed, so each integer count is checked exactly once.
+
+    Best-effort: returns None on any failure (e.g. the DB itself is the
+    thing that's down) rather than raising into the caller's error handler.
+    """
+    if not dedupe_key:
+        return None
+    try:
+        from .db import AppLogEntry
+        cutoff = datetime.utcnow() - timedelta(hours=ESCALATION_WINDOW_HOURS)
+        count = AppLogEntry.query.filter(
+            AppLogEntry.dedupe_key == dedupe_key,
+            AppLogEntry.created_at >= cutoff,
+        ).count()
+    except Exception as exc:
+        logger.warning('escalation_check_failed: %s', exc)
+        return None
+    if count and count % ESCALATION_THRESHOLD == 0:
+        return count
+    return None
+
+
+def send_escalation_alert(webhook_url: str, dedupe_key: str, count: int, message: str, link: str = '') -> None:
+    """Best-effort Discord webhook post flagging a recurring issue. Never raises.
+
+    Deliberately bypasses the normal rate limiter — check_escalation() above
+    already only returns non-None at threshold multiples, so this can't fire
+    more often than every ESCALATION_THRESHOLD occurrences.
+    """
+    if not webhook_url:
+        return
+    try:
+        content = (
+            f'⚠️ **Recurring issue** — `{dedupe_key}` has happened '
+            f'**{count} times** in the last {ESCALATION_WINDOW_HOURS}h and may not be self-correcting.\n'
+            f'Most recent: {message[:500]}'
+        )
+        if link:
+            content += f'\n🔗 <{link}>'
+        requests.post(webhook_url, json={'content': content[:2000]}, timeout=5)
+    except Exception as exc:
+        logger.warning('discord_escalation_alert_failed: %s', exc)
