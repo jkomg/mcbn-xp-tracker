@@ -1316,9 +1316,12 @@ def bot_log():
         # Some bot events recur per-character/per-channel (e.g. a review
         # notifier that can't resolve a cubby channel). Deduping on event
         # name alone would let the first character's occurrences suppress
-        # every other distinct character hitting the same event.
+        # every other distinct character hitting the same event. Events with
+        # no subject (e.g. wiki_sync_scheduled_failed) fall back to plain
+        # event-level grouping — never leave dedupe_key empty, or these lose
+        # escalation tracking entirely (check_escalation treats '' as "skip").
         subject = str(context.get('characterName') or context.get('channelName') or '')
-        dedupe_key = f'bot:{event}:{subject}' if subject else ''
+        dedupe_key = f'bot:{event}:{subject}' if subject else f'bot:{event}'
         db.session.add(AppLogEntry(
             ts=ts, source='bot', level=level, event=event,
             message=msg[:2000], details=details[:4000], created_at=now,
@@ -1331,16 +1334,26 @@ def bot_log():
         # A batch can carry several rows sharing one dedupe_key (all committed
         # together, same timestamp) — checking each individually would see the
         # same final count every time and fire the same escalation once per
-        # row. Check each distinct key once; last row's context wins for the
+        # row. Aggregate to one check per distinct key, telling
+        # check_escalation how many new rows this batch added for that key so
+        # it can detect crossing a threshold multiple even when the batch
+        # doesn't land exactly on one (prior count 4 + this batch's 2 = 6,
+        # still past the 5-occurrence mark). Last row's context wins for the
         # "most recent" framing in the alert.
         by_key = {}
         for dedupe_key, msg, details, link in pending_escalation_checks:
-            if dedupe_key:
-                by_key[dedupe_key] = (msg, details, link)
-        for dedupe_key, (msg, details, link) in by_key.items():
-            count = check_escalation(dedupe_key)
+            entry = by_key.setdefault(dedupe_key, {'n': 0})
+            entry['n'] += 1
+            entry['msg'] = msg
+            entry['details'] = details
+            entry['link'] = link
+        for dedupe_key, info in by_key.items():
+            count = check_escalation(dedupe_key, new_occurrences=info['n'])
             if count:
-                send_escalation_alert(webhook_url, dedupe_key, count, msg, details=details, link=link)
+                send_escalation_alert(
+                    webhook_url, dedupe_key, count, info['msg'],
+                    details=info['details'], link=info['link'],
+                )
     # Prune to 500 most recent entries
     cutoff_query = db.session.query(AppLogEntry.id).order_by(AppLogEntry.created_at.desc()).offset(500).limit(1).scalar()
     if cutoff_query:

@@ -64,3 +64,42 @@ def test_one_characters_occurrences_dont_trigger_escalation_for_another():
     content = mock_post.call_args.kwargs['json']['content']
     assert 'Emmet Brown' in content  # the dedupe_key that crossed the threshold
     assert 'Aliyah' not in content
+
+
+def test_a_batch_jumping_past_the_threshold_still_fires_once():
+    """Codex P1: prior count 4 (from an earlier POST), this batch adds 2 more
+    (total 6) — the batch never lands exactly on 5, but must still alert."""
+    app = _app()
+    client = app.test_client()
+    first_batch = [_entry('Emmet Brown', i) for i in range(ESCALATION_THRESHOLD - 1)]
+    with patch('app.discord_alert.requests.post') as mock_post:
+        res = client.post('/api/bot-log', json=first_batch,
+                           headers={'Authorization': 'Bearer write-token'})
+        assert res.status_code == 200
+        mock_post.assert_not_called()
+
+        second_batch = [_entry('Emmet Brown', 10), _entry('Emmet Brown', 11)]
+        res = client.post('/api/bot-log', json=second_batch,
+                           headers={'Authorization': 'Bearer write-token'})
+        assert res.status_code == 200
+        mock_post.assert_called_once()
+        content = mock_post.call_args.kwargs['json']['content']
+        assert '6 times' in content
+
+
+def test_subjectless_events_still_escalate():
+    """Codex P2: events with no characterName/channelName (e.g.
+    wiki_sync_scheduled_failed) must not lose escalation tracking entirely."""
+    app = _app()
+    payload = [
+        {'level': 'error', 'event': 'wiki_sync_scheduled_failed',
+         'error': 'sync failed', 'eventKey': f'sync:{i}'}
+        for i in range(ESCALATION_THRESHOLD)
+    ]
+    with app.test_client() as client, patch('app.discord_alert.requests.post') as mock_post:
+        res = client.post('/api/bot-log', json=payload,
+                           headers={'Authorization': 'Bearer write-token'})
+    assert res.status_code == 200
+    mock_post.assert_called_once()
+    content = mock_post.call_args.kwargs['json']['content']
+    assert 'wiki_sync_scheduled_failed' in content

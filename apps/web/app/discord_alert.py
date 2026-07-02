@@ -46,17 +46,24 @@ def dashboard_link(redirect_uri: str, source: str, level: str, event: str) -> st
     return f'{base}/audit/errors?{query}'
 
 
-def check_escalation(dedupe_key: str) -> int | None:
+def check_escalation(dedupe_key: str, new_occurrences: int = 1) -> int | None:
     """Count AppLogEntry rows sharing *dedupe_key* within ESCALATION_WINDOW_HOURS.
 
-    Returns the count if it just crossed a multiple of ESCALATION_THRESHOLD
-    (5, 10, 15, ...), else None. Call this once per newly-inserted row, after
-    it's committed, so each integer count is checked exactly once.
+    *new_occurrences* is how many of those rows this call is responsible for
+    (default 1, for the common one-row-at-a-time callers). Batched callers
+    that coalesce several new rows sharing a dedupe_key into a single check
+    (e.g. /api/bot-log) must pass the real count — otherwise a batch that
+    jumps the total past a threshold multiple without landing exactly on it
+    (prior count 4 + 2 new rows = 6) would silently miss the alert forever,
+    since 6 % 5 != 0.
+
+    Returns the current total count if adding *new_occurrences* just crossed
+    at least one multiple of ESCALATION_THRESHOLD, else None.
 
     Best-effort: returns None on any failure (e.g. the DB itself is the
     thing that's down) rather than raising into the caller's error handler.
     """
-    if not dedupe_key:
+    if not dedupe_key or new_occurrences <= 0:
         return None
     try:
         from .db import AppLogEntry
@@ -68,7 +75,8 @@ def check_escalation(dedupe_key: str) -> int | None:
     except Exception as exc:
         logger.warning('escalation_check_failed: %s', exc)
         return None
-    if count and count % ESCALATION_THRESHOLD == 0:
+    prior = max(count - new_occurrences, 0)
+    if count // ESCALATION_THRESHOLD > prior // ESCALATION_THRESHOLD:
         return count
     return None
 
