@@ -253,7 +253,7 @@ def create_app():
         if isinstance(exc, HTTPException):
             return exc
         from .db import AppLogEntry, db as _db
-        from .discord_alert import send_alert, send_escalation_alert, check_escalation, dashboard_link
+        from .discord_alert import send_escalation_alert, check_escalation, dashboard_link
         message = f'{type(exc).__name__}: {exc}'
         tb = _traceback.format_exc()
         path = request.path if request else ''
@@ -274,23 +274,23 @@ def create_app():
             _db.session.commit()
         except Exception:
             pass
-        # Short excerpt for the alert itself — full traceback lives in AppLogEntry,
-        # linked below. Last few lines are usually the actual failing statement.
-        tb_excerpt = '\n'.join(tb.strip().splitlines()[-6:])
+        # Stays quiet below discord_alert.ESCALATION_THRESHOLD occurrences of
+        # this exact exception+route — the AppLogEntry row above is already
+        # visible to any staff on /audit/errors regardless.
         webhook_url = app.config.get('DISCORD_WEBHOOK_URL', '')
-        link = dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
-                               source='web', level='error', event='unhandled_exception')
-        send_alert(
-            webhook_url,
-            source='web', level='error', event='unhandled_exception', message=message,
-            details=f'{path}\n{tb_excerpt}' if path else tb_excerpt,
-            link=link,
-            dedupe_key=dedupe_key,
-        )
         if webhook_url:
             count = check_escalation(dedupe_key)
             if count:
-                send_escalation_alert(webhook_url, dedupe_key, count, message, link)
+                # Short excerpt — full traceback lives in AppLogEntry, linked below.
+                # Last few lines are usually the actual failing statement.
+                tb_excerpt = '\n'.join(tb.strip().splitlines()[-6:])
+                link = dashboard_link(app.config.get('DISCORD_REDIRECT_URI', ''),
+                                       source='web', level='error', event='unhandled_exception')
+                send_escalation_alert(
+                    webhook_url, dedupe_key, count, message,
+                    details=f'{path}\n{tb_excerpt}' if path else tb_excerpt,
+                    link=link,
+                )
         # Re-raise so Flask's default 500 handling still applies
         raise exc
 

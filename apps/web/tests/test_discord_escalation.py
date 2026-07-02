@@ -1,6 +1,8 @@
-"""Tests for occurrence-count escalation alerts (a recurring issue that
-crosses ESCALATION_THRESHOLD within ESCALATION_WINDOW_HOURS gets a distinct
-'may not be self-correcting' message, on top of the normal per-occurrence one).
+"""Tests for occurrence-count escalation alerts — the only alerting path.
+
+Nothing posts to Discord below ESCALATION_THRESHOLD occurrences of the same
+dedupe_key within ESCALATION_WINDOW_HOURS; every warn/error is still
+persisted to AppLogEntry regardless, visible on /audit/errors.
 """
 
 from datetime import datetime, timedelta
@@ -84,6 +86,32 @@ def test_check_escalation_distinct_keys_counted_separately():
         assert discord_alert.check_escalation('bot:x:aliyah') is None
 
 
+def test_check_escalation_new_occurrences_detects_crossing_a_multiple_it_jumped_over():
+    """Codex P1: a batch of several new rows for the same key can push the
+    total past a threshold multiple without landing exactly on it (prior 4 +
+    2 new = 6). Passing the batch size must still catch that crossing."""
+    app = _app()
+    with app.app_context():
+        _seed('bot:x:emmet-brown', discord_alert.ESCALATION_THRESHOLD - 1)  # prior = 4
+        _seed('bot:x:emmet-brown', 2)  # +2 new rows in "one batch" -> total 6
+        assert discord_alert.check_escalation('bot:x:emmet-brown', new_occurrences=2) == 6
+
+
+def test_check_escalation_new_occurrences_no_crossing_stays_quiet():
+    app = _app()
+    with app.app_context():
+        _seed('bot:x:emmet-brown', 1)
+        _seed('bot:x:emmet-brown', 2)  # total 3, still below threshold
+        assert discord_alert.check_escalation('bot:x:emmet-brown', new_occurrences=2) is None
+
+
+def test_check_escalation_new_occurrences_default_matches_single_row_behavior():
+    app = _app()
+    with app.app_context():
+        _seed('bot:x:emmet-brown', discord_alert.ESCALATION_THRESHOLD)
+        assert discord_alert.check_escalation('bot:x:emmet-brown') == discord_alert.ESCALATION_THRESHOLD
+
+
 def test_send_escalation_alert_posts_and_mentions_count():
     with patch('app.discord_alert.requests.post') as mock_post:
         discord_alert.send_escalation_alert('https://x', 'bot:x:emmet-brown', 5, 'no channel found')
@@ -102,3 +130,15 @@ def test_send_escalation_alert_skips_when_no_webhook_url():
 def test_send_escalation_alert_never_raises_on_request_failure():
     with patch('app.discord_alert.requests.post', side_effect=RuntimeError('down')):
         discord_alert.send_escalation_alert('https://x', 'bot:x:emmet-brown', 5, 'no channel found')
+
+
+def test_send_escalation_alert_includes_details_and_link():
+    with patch('app.discord_alert.requests.post') as mock_post:
+        discord_alert.send_escalation_alert(
+            'https://x', 'web:unhandled_exception:ValueError:/wiki', 5, 'ValueError: bad',
+            details='/wiki/characters\nTraceback (most recent call last):\n  raise ValueError',
+            link='https://mcbn.jkomg.us/audit/errors?source=web',
+        )
+    content = mock_post.call_args.kwargs['json']['content']
+    assert 'Traceback' in content
+    assert 'https://mcbn.jkomg.us/audit/errors' in content
