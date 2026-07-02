@@ -24,6 +24,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('player.import_sheet', name=char.character_name) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="sheet_json" class="form-label">Character Sheet JSON</label>
                         <textarea class="form-control font-monospace"
@@ -67,10 +68,11 @@
             <div class="card-body py-2 px-3">
                 <p class="small mb-0 text-warning-emphasis">
                     <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Staff reviews every import before it goes live.</strong>
                     {% if has_sheet %}
-                    <strong>Re-import will overwrite your current sheet.</strong> Once active, your sheet is updated through approved XP spends.
+                    Your current sheet stays active until this one is approved.
                     {% else %}
-                    <strong>After import, your sheet is updated only through approved XP spends.</strong>
+                    Once approved, your sheet is updated through approved XP spends.
                     {% endif %}
                     If you have trouble, contact staff.
                 </p>
