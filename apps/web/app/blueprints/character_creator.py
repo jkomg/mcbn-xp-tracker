@@ -17,6 +17,14 @@ bp = Blueprint('character_creator', __name__)
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), '..', 'static', 'character-app')
 
+# CharacterDraft statuses used by the RoD sheet-import approval gate
+# (player.import_sheet / cc_admin sheet-import review, Issue #292) — not
+# character-creation drafts. Keep them out of this API entirely: they
+# shouldn't show up in the player's draft switcher, and must not be
+# deletable here or a player could silently remove their own pending
+# review row and bypass the approval gate.
+_SHEET_IMPORT_STATUSES = ('sheet_review', 'denied', 'superseded')
+
 
 def _discord_id():
     return session.get('discord_id', '')
@@ -95,6 +103,7 @@ def cc_list_drafts():
     drafts = (
         CharacterDraft.query
         .filter_by(player_discord_id=_discord_id())
+        .filter(CharacterDraft.status.notin_(_SHEET_IMPORT_STATUSES))
         .order_by(CharacterDraft.created_at.desc())
         .all()
     )
@@ -164,7 +173,7 @@ def cc_delete_draft(draft_id):
         return jsonify({'error': 'Not found'}), 404
     if draft.player_discord_id != _discord_id() and not is_staff():
         return jsonify({'error': 'Forbidden'}), 403
-    if draft.status in ('submitted', 'approved'):
+    if draft.status in ('submitted', 'approved', *_SHEET_IMPORT_STATUSES):
         return jsonify({'error': f'Cannot delete a draft with status: {draft.status}'}), 422
     db.session.delete(draft)
     db.session.commit()

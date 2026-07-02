@@ -15,7 +15,7 @@ from app.auth import (
     get_player_discord_id,
 )
 from app.db import AppSetting, CharacterDraft, Coterie, CoterieMember, DbCharacter, db
-from app.models import SPEND_CATEGORIES
+from app.models import AGE_CATEGORIES, SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
 logger = logging.getLogger(__name__)
@@ -222,6 +222,8 @@ def character(name):
     ).first()
     has_approved_draft = False
     sheet_data = None
+    pending_sheet_review = None
+    denied_sheet_review = None
     if char_row:
         approved_draft = CharacterDraft.query.filter_by(
             roster_character_id=char_row.id,
@@ -234,6 +236,26 @@ def character(name):
                     sheet_data = _normalize_sheet_data(json.loads(approved_draft.character_data))
                 except (json.JSONDecodeError, TypeError):
                     sheet_data = None
+
+        pending_sheet_review = CharacterDraft.query.filter_by(
+            roster_character_id=char_row.id,
+            status='sheet_review',
+        ).order_by(CharacterDraft.submitted_at.desc()).first()
+        if not pending_sheet_review:
+            latest_denied = CharacterDraft.query.filter_by(
+                roster_character_id=char_row.id,
+                status='denied',
+            ).order_by(CharacterDraft.submitted_at.desc()).first()
+            # Only surface it if nothing has been approved since — otherwise a
+            # denial from before a later, successful re-import would keep
+            # showing "your import was denied" forever even after approval.
+            if latest_denied and (
+                not approved_draft
+                or not approved_draft.approved_at
+                or not latest_denied.submitted_at
+                or latest_denied.submitted_at > approved_draft.approved_at
+            ):
+                denied_sheet_review = latest_denied
 
     # Coterie membership for donate-to-coterie spend option and role display
     player_coterie = None
@@ -270,6 +292,8 @@ def character(name):
         current_night=current_night,
         has_approved_draft=has_approved_draft,
         sheet_data=sheet_data,
+        pending_sheet_review=pending_sheet_review,
+        denied_sheet_review=denied_sheet_review,
         chronicle_tenets=_get_chronicle_tenets(),
         player_coterie=player_coterie,
         player_coterie_role=player_coterie_role,
@@ -786,8 +810,23 @@ def _normalize_sheet_data(data: dict) -> dict:
     return data
 
 
-def _map_rod_to_cc(rod: dict) -> dict:
-    """Map a Realm of Darkness V5 sheet export to CC character_data format."""
+# Lowercased app.models.AGE_CATEGORIES (the roster's canonical list, e.g.
+# includes 'elder') plus 'ghoul' — a valid CC-approval-flow value
+# (cc_admin.draft_approve capitalizes character_data['age_category'] straight
+# into DbCharacter.age_category without validating against AGE_CATEGORIES).
+# Derived rather than hand-listed so this can't silently drift out of sync
+# and re-introduce the same "unrecognized category falls back to ancilla"
+# bug this allowlist exists to prevent.
+_ROSTER_AGE_CATEGORIES = frozenset({c.lower() for c in AGE_CATEGORIES} | {'ghoul'})
+
+
+def _map_rod_to_cc(rod: dict, age_category: str = 'ancilla') -> dict:
+    """Map a Realm of Darkness V5 sheet export to CC character_data format.
+
+    *age_category* should be the character's actual roster age category
+    (one of _ROSTER_AGE_CATEGORIES); defaults to 'ancilla' only when the
+    caller has nothing better (e.g. roster age_category is blank/unrecognized).
+    """
     # Basic identity fields
     data: dict = {
         'name': rod.get('name', ''),
@@ -812,7 +851,7 @@ def _map_rod_to_cc(rod: dict) -> dict:
                 if c
             ]
         ),
-        'age_category': 'ancilla',  # existing characters are treated as ancilla
+        'age_category': age_category if age_category in _ROSTER_AGE_CATEGORIES else 'ancilla',
     }
 
     # Attributes (RoD already uses a flat dict)
@@ -922,7 +961,8 @@ def import_sheet(name):
         return render_template('player/import_sheet.html', char=char)
 
     try:
-        cc_data = _map_rod_to_cc(rod_data)
+        age_category = (char_row.age_category or '').strip().lower()
+        cc_data = _map_rod_to_cc(rod_data, age_category=age_category)
     except Exception as exc:
         logger.warning('RoD sheet import mapping error for %s: %s', name, exc)
         flash('Could not parse the sheet data. Please contact staff for help.', 'danger')
@@ -932,27 +972,32 @@ def import_sheet(name):
     discord_name = session.get('discord_name', 'unknown')
     now = datetime.now(timezone.utc)
 
+    # A fresh submission replaces any prior one still awaiting review, so the
+    # staff queue and the player's "pending" banner always reflect the latest.
+    CharacterDraft.query.filter_by(
+        roster_character_id=char_row.id,
+        status='sheet_review',
+    ).update({'status': 'superseded'})
+
+    draft = CharacterDraft(
+        player_discord_id=discord_id,
+        character_name=char_row.character_name,
+        status='sheet_review',
+        roster_character_id=char_row.id,
+        character_data=json.dumps(cc_data),
+        submitted_at=now,
+    )
+    db.session.add(draft)
     if existing:
-        existing.character_data = json.dumps(cc_data)
-        existing.updated_at = now
-        existing.approved_by = f'player:{discord_name} (RoD re-import)'
-        action_details = 'Re-imported character sheet from Realm of Darkness export'
-        flash_msg = 'Character sheet updated from your new RoD export.'
-    else:
-        draft = CharacterDraft(
-            player_discord_id=discord_id,
-            character_name=char_row.character_name,
-            status='approved',
-            roster_character_id=char_row.id,
-            character_data=json.dumps(cc_data),
-            approved_at=now,
-            approved_by=f'player:{discord_name} (RoD import)',
-        )
-        db.session.add(draft)
-        action_details = 'Imported character sheet from Realm of Darkness export'
+        action_details = 'Re-submitted character sheet from Realm of Darkness export for staff review'
         flash_msg = (
-            'Character sheet imported! Your living sheet is now active — '
-            'approved spends will update it automatically.'
+            'Character sheet submitted for staff review. Your current sheet stays active until it\'s approved.'
+        )
+    else:
+        action_details = 'Submitted character sheet from Realm of Darkness export for staff review'
+        flash_msg = (
+            'Character sheet submitted for staff review — '
+            'staff will approve it before it becomes your living sheet.'
         )
 
     db_service.log_action(

@@ -6,6 +6,10 @@ Provides:
   GET  /cc-admin/drafts/<id>              — staff UI: review a single draft
   POST /cc-admin/drafts/<id>/approve      — staff: approve a draft
   POST /cc-admin/drafts/<id>/request-revision — staff: send draft back for revision
+  GET  /cc-admin/sheet-imports            — staff UI: list pending RoD sheet imports
+  GET  /cc-admin/sheet-imports/<id>       — staff UI: review a sheet import vs. current sheet
+  POST /cc-admin/sheet-imports/<id>/approve — staff: approve a sheet import
+  POST /cc-admin/sheet-imports/<id>/deny  — staff: deny a sheet import
   GET  /cc-admin/loresheets               — staff UI: view/manage loresheet bans
   POST /cc-admin/loresheets/<id>/ban      — staff: ban a loresheet
   POST /cc-admin/loresheets/<id>/unban    — staff: lift a loresheet ban
@@ -330,6 +334,107 @@ def draft_request_revision(draft_id):
     db.session.commit()
     flash(f'Revision requested for "{draft.character_name or draft.id}".', 'info')
     return redirect(url_for('cc_admin.draft_list'))
+
+
+# ── RoD sheet import review (Issue #292) ────────────────────────────────────
+#
+# Distinct from the character-creation draft flow above: a CharacterDraft
+# with status='sheet_review' is a player re-uploading their Realm of Darkness
+# export for an *already-approved* character. It never touches the roster
+# (already exists) or backgrounds (handled separately) the way draft_approve
+# does for brand-new characters — those don't apply here, hence a dedicated
+# review path instead of reusing draft_approve/draft_request_revision.
+#
+# Lifecycle: sheet_review -> approved (supersedes the character's prior
+# approved row) | denied (character's current approved row is untouched).
+
+@bp.route('/cc-admin/sheet-imports')
+@require_staff
+def sheet_import_list():
+    """Staff view: RoD sheet imports awaiting approval."""
+    drafts = (
+        CharacterDraft.query
+        .filter_by(status='sheet_review')
+        .order_by(CharacterDraft.submitted_at.desc())
+        .all()
+    )
+    return render_template('cc_admin/sheet_imports.html', drafts=drafts)
+
+
+@bp.route('/cc-admin/sheet-imports/<draft_id>')
+@require_staff
+def sheet_import_review(draft_id):
+    """Staff view: review a pending sheet import against the character's current live sheet."""
+    from app.blueprints.player import _normalize_sheet_data
+
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None or draft.status != 'sheet_review':
+        abort(404)
+
+    proposed = {}
+    if draft.character_data:
+        try:
+            proposed = _normalize_sheet_data(json.loads(draft.character_data))
+        except (json.JSONDecodeError, TypeError):
+            proposed = {}
+
+    current = None
+    if draft.roster_character_id:
+        current_draft = CharacterDraft.query.filter_by(
+            roster_character_id=draft.roster_character_id,
+            status='approved',
+        ).first()
+        if current_draft and current_draft.character_data:
+            try:
+                current = _normalize_sheet_data(json.loads(current_draft.character_data))
+            except (json.JSONDecodeError, TypeError):
+                current = None
+
+    return render_template(
+        'cc_admin/sheet_import_review.html',
+        draft=draft,
+        proposed=proposed,
+        current=current,
+    )
+
+
+@bp.route('/cc-admin/sheet-imports/<draft_id>/approve', methods=['POST'])
+@require_staff
+def sheet_import_approve(draft_id):
+    """Approve a pending sheet import: supersede the prior approved sheet and make this one live."""
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None or draft.status != 'sheet_review':
+        abort(404)
+    actor = session.get('staff_user') or session.get('discord_name') or 'unknown'
+
+    if draft.roster_character_id:
+        CharacterDraft.query.filter(
+            CharacterDraft.roster_character_id == draft.roster_character_id,
+            CharacterDraft.status == 'approved',
+            CharacterDraft.id != draft.id,
+        ).update({'status': 'superseded'})
+
+    draft.status = 'approved'
+    draft.approved_by = actor
+    draft.approved_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Sheet import for "{draft.character_name or draft.id}" approved.', 'success')
+    return redirect(url_for('cc_admin.sheet_import_list'))
+
+
+@bp.route('/cc-admin/sheet-imports/<draft_id>/deny', methods=['POST'])
+@require_staff
+def sheet_import_deny(draft_id):
+    """Deny a pending sheet import. The character's current approved sheet is untouched."""
+    draft = db.session.get(CharacterDraft, draft_id)
+    if draft is None or draft.status != 'sheet_review':
+        abort(404)
+    notes = (request.form.get('deny_notes') or '').strip()
+    draft.status = 'denied'
+    draft.revision_notes = notes
+    db.session.commit()
+    flash(f'Sheet import for "{draft.character_name or draft.id}" denied.', 'info')
+    return redirect(url_for('cc_admin.sheet_import_list'))
 
 
 @bp.route('/cc-admin/drafts/<draft_id>/delete', methods=['POST'])
