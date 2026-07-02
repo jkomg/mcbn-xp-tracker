@@ -15,7 +15,7 @@ from app.auth import (
     get_player_discord_id,
 )
 from app.db import AppSetting, CharacterDraft, Coterie, CoterieMember, DbCharacter, db
-from app.models import SPEND_CATEGORIES
+from app.models import AGE_CATEGORIES, SPEND_CATEGORIES
 from app.game_calendar import get_calendar
 
 logger = logging.getLogger(__name__)
@@ -800,7 +800,14 @@ def _normalize_sheet_data(data: dict) -> dict:
     return data
 
 
-_ROSTER_AGE_CATEGORIES = ('mortal', 'fledgling', 'neonate', 'ancilla')
+# Lowercased app.models.AGE_CATEGORIES (the roster's canonical list, e.g.
+# includes 'elder') plus 'ghoul' — a valid CC-approval-flow value
+# (cc_admin.draft_approve capitalizes character_data['age_category'] straight
+# into DbCharacter.age_category without validating against AGE_CATEGORIES).
+# Derived rather than hand-listed so this can't silently drift out of sync
+# and re-introduce the same "unrecognized category falls back to ancilla"
+# bug this allowlist exists to prevent.
+_ROSTER_AGE_CATEGORIES = frozenset({c.lower() for c in AGE_CATEGORIES} | {'ghoul'})
 
 
 def _map_rod_to_cc(rod: dict, age_category: str = 'ancilla') -> dict:
