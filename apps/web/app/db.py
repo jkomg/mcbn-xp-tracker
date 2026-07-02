@@ -21,6 +21,9 @@ class AppLogEntry(db.Model):
     details = db.Column(Text, default='')
     created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     dismissed = db.Column(Boolean, nullable=False, default=False, index=True)
+    # Same grouping key used for Discord alert dedupe (source:event[:subject]) —
+    # lets us count occurrences of "this specific thing" for escalation.
+    dedupe_key = db.Column(String(250), nullable=False, default='', index=True)
 
 
 class DbCharacter(db.Model):
