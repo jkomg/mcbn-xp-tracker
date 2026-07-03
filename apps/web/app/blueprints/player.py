@@ -45,6 +45,15 @@ def my_characters():
     """Player landing page showing their linked characters."""
     discord_id = get_player_discord_id()
     my_chars = db_service.get_characters_by_discord_id(discord_id)
+    has_linked_chars = bool(my_chars)
+
+    # Retired/deceased characters are hidden by default so a player's
+    # dashboard doesn't accumulate every character they've ever played.
+    # ?show=all reveals them again — nothing is deleted either way.
+    show_retired = request.args.get('show') == 'all'
+    retired_count = sum(1 for c in my_chars if not c.active)
+    if not show_retired:
+        my_chars = [c for c in my_chars if c.active]
 
     # Fetch open periods for the banner
     all_periods = db_service.get_all_periods()
@@ -91,13 +100,15 @@ def my_characters():
             my_characters=my_chars,
             all_characters=all_characters,
             show_all=True,
+            show_retired=show_retired,
+            retired_count=retired_count,
             open_periods=open_periods,
             calendar=calendar,
             pending_drafts=pending_drafts,
             chars_with_sheet=chars_with_sheet,
         )
 
-    if not my_chars and not pending_drafts:
+    if not has_linked_chars and not pending_drafts:
         # No linked characters and no drafts — show linking flow
         return redirect(url_for('player.link_character'))
 
@@ -107,6 +118,8 @@ def my_characters():
         my_characters=my_chars,
         all_characters=None,
         show_all=False,
+        show_retired=show_retired,
+        retired_count=retired_count,
         open_periods=open_periods,
         calendar=calendar,
         pending_drafts=pending_drafts,

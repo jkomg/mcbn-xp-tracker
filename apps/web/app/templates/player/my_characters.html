@@ -62,10 +62,21 @@
         {% endif %}
 
         {% if my_characters %}
-        <h6 class="text-muted mb-2">Your Characters</h6>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Your Characters</h6>
+            {% if show_retired %}
+            <a href="{{ url_for('player.my_characters') }}" class="small text-muted text-decoration-none">
+                <i class="bi bi-eye-slash"></i> Hide retired
+            </a>
+            {% elif retired_count %}
+            <a href="{{ url_for('player.my_characters', show='all') }}" class="small text-muted text-decoration-none">
+                <i class="bi bi-eye"></i> Show {{ retired_count }} retired/deceased
+            </a>
+            {% endif %}
+        </div>
         <div class="list-group mb-4">
             {% for char in my_characters %}
-            <div class="list-group-item d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}">
+            <div class="list-group-item d-flex justify-content-between align-items-center has-clan-color clan-{{ char.clan | lower | replace(' ', '-') }}{% if not char.active %} opacity-75{% endif %}">
                 <a href="{{ url_for('player.character', name=char.character_name) }}"
                    class="d-flex align-items-center gap-2 flex-grow-1 text-decoration-none">
                     {% if char.clan %}
@@ -77,6 +88,11 @@
                         <strong>{{ char.character_name }}</strong>
                         {% if char.clan %}
                         <span class="clan-badge clan-{{ char.clan | lower | replace(' ', '-') }} ms-2">{{ char.clan }}</span>
+                        {% endif %}
+                        {% if char.status == 'retired' %}
+                        <span class="badge bg-secondary ms-2">Retired</span>
+                        {% elif char.status == 'deceased' %}
+                        <span class="badge bg-dark ms-2">Deceased</span>
                         {% endif %}
                     </div>
                 </a>
@@ -96,6 +112,12 @@
         <div class="text-center mb-4">
             <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-link-45deg"></i> Link another character
+            </a>
+        </div>
+        {% elif retired_count %}
+        <div class="d-flex justify-content-end mb-2">
+            <a href="{{ url_for('player.my_characters', show='all') }}" class="small text-muted text-decoration-none">
+                <i class="bi bi-eye"></i> Show {{ retired_count }} retired/deceased
             </a>
         </div>
         {% else %}
