@@ -33,6 +33,7 @@ import { handleDeliveryModal } from './commands/delivery';
 import { handleContactSendModal, handleContactReplyModal } from './commands/contact';
 import { handlePostModal } from './commands/post';
 import { handleCobwebModal } from './commands/cobweb';
+import { handleRumorModal } from './commands/rumor';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -514,6 +515,11 @@ void applyStartupConfigOverrides().then(() => {
       }
       const cobwebHandled = await handleCobwebModal(interaction);
       if (cobwebHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const rumorHandled = await handleRumorModal(interaction);
+      if (rumorHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
