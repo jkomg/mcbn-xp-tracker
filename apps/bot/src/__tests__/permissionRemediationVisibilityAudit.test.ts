@@ -124,4 +124,53 @@ describe('permissionRemediation/visibilityAudit', () => {
     const report = await auditVisibility(guild as never, { modLogChannelIds: ['chan-1'] });
     expect(report.rows.find((r) => r.channelId === 'chan-1')?.visibleToEveryone).toBe(false);
   });
+
+  it('a role-level allow overrides an @everyone-level deny on the same channel (staff-only channel pattern)', async () => {
+    // The extremely common "deny @everyone, allow specific staff roles" setup.
+    // Regression test: an earlier version OR'd deny bits across @everyone and
+    // the role together and let any deny win, so this staff role incorrectly
+    // showed up as unable to view its own staff channel.
+    const channel = makeChannel({
+      permissionOverwrites: {
+        cache: makeFakeCollection([
+          makeOverwrite(EVERYONE_ID, 0, 0n, VIEW_CHANNEL),
+          makeOverwrite('moderator-role', 0, VIEW_CHANNEL, 0n),
+        ]),
+      },
+    });
+    const guild = makeGuild({ channels: [channel], roleIds: [EVERYONE_ID, 'moderator-role'] });
+
+    const report = await auditVisibility(guild as never, { modLogChannelIds: [] });
+
+    const row = report.rows[0];
+    expect(row.visibleToEveryone).toBe(false);
+    expect(row.visibleRoleIds).toContain('moderator-role');
+  });
+
+  it('falls back to the category-level overwrite for a role the channel does not mention', async () => {
+    // Channel overrides @everyone but says nothing about "storyteller-role" —
+    // that role's visibility should come from the category's own entry for
+    // it, not be treated as "unset at the channel = category ignored".
+    const category = makeChannel({
+      id: 'cat-1',
+      type: ChannelType.GuildCategory,
+      permissionOverwrites: {
+        cache: makeFakeCollection([makeOverwrite('storyteller-role', 0, VIEW_CHANNEL, 0n)]),
+      },
+    });
+    const child = makeChannel({
+      id: 'chan-1',
+      parentId: 'cat-1',
+      permissionOverwrites: {
+        cache: makeFakeCollection([makeOverwrite(EVERYONE_ID, 0, 0n, VIEW_CHANNEL)]),
+      },
+    });
+    const guild = makeGuild({ channels: [category, child], roleIds: [EVERYONE_ID, 'storyteller-role'] });
+
+    const report = await auditVisibility(guild as never, { modLogChannelIds: [] });
+
+    const row = report.rows.find((r) => r.channelId === 'chan-1');
+    expect(row?.visibleToEveryone).toBe(false);
+    expect(row?.visibleRoleIds).toContain('storyteller-role');
+  });
 });
