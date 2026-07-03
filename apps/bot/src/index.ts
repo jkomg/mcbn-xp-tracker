@@ -31,6 +31,8 @@ import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButt
 import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
 import { handleDeliveryModal } from './commands/delivery';
 import { handleContactSendModal, handleContactReplyModal } from './commands/contact';
+import { handlePostModal } from './commands/post';
+import { handleCobwebModal } from './commands/cobweb';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -502,6 +504,16 @@ void applyStartupConfigOverrides().then(() => {
       }
       const contactReplyHandled = await handleContactReplyModal(interaction, { client, adapter });
       if (contactReplyHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const postHandled = await handlePostModal(interaction);
+      if (postHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const cobwebHandled = await handleCobwebModal(interaction);
+      if (cobwebHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
