@@ -2328,3 +2328,342 @@ def get_coterie_for_character(discord_id: str):
         },
         'members': members,
     })
+
+
+# --- Boon API ---
+
+_BOON_TIERS = {'trivial', 'minor', 'major', 'life'}
+
+
+def _boon_to_dict(boon, creditor, debtor) -> dict:
+    return {
+        'id': boon.id,
+        'creditor_character_name': creditor.character_name,
+        'debtor_character_name': debtor.character_name,
+        'tier': boon.tier,
+        'reason': boon.reason or '',
+        'status': boon.status,
+        'created_at': boon.created_at.isoformat() if boon.created_at else None,
+        'resolved_at': boon.resolved_at.isoformat() if boon.resolved_at else None,
+    }
+
+
+@bp.route('/boons', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def create_boon():
+    """Create a boon: the creditor's player asserts the debtor owes them one.
+
+    Body: { creditorCharacterName, debtorCharacterName, tier, reason, requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbBoon, DbCharacter, db
+    from sqlalchemy import func as _func
+
+    creditor_name = str(payload.get('creditorCharacterName', '')).strip()
+    debtor_name = str(payload.get('debtorCharacterName', '')).strip()
+    tier = str(payload.get('tier', '')).strip().lower()
+    reason = str(payload.get('reason', '')).strip()
+
+    if not creditor_name or not debtor_name:
+        return jsonify({'error': 'creditorCharacterName and debtorCharacterName are required'}), 400
+    if tier not in _BOON_TIERS:
+        return jsonify({'error': f'tier must be one of {", ".join(sorted(_BOON_TIERS))}'}), 400
+
+    creditor = DbCharacter.query.filter(_func.lower(DbCharacter.character_name) == creditor_name.lower()).first()
+    if not creditor or not creditor.active:
+        return jsonify({'error': f'No active character found named "{creditor_name}"'}), 404
+    debtor = DbCharacter.query.filter(_func.lower(DbCharacter.character_name) == debtor_name.lower()).first()
+    if not debtor or not debtor.active:
+        return jsonify({'error': f'No active character found named "{debtor_name}"'}), 404
+    if creditor.id == debtor.id:
+        return jsonify({'error': 'A character cannot owe a boon to themself'}), 400
+
+    if not _requester_can_access_character(creditor, effective_discord_id):
+        return _forbidden('You can only create a boon owed to your own character')
+
+    boon = DbBoon(
+        creditor_character_id=creditor.id,
+        debtor_character_id=debtor.id,
+        tier=tier,
+        reason=reason,
+        created_by_discord_id=effective_discord_id,
+    )
+    db.session.add(boon)
+    db.session.commit()
+
+    return jsonify({'ok': True, 'boon': _boon_to_dict(boon, creditor, debtor)}), 201
+
+
+@bp.route('/boons/by-character/<discord_id>', methods=['GET'])
+@require_bot_scope('read')
+def list_boons_for_character(discord_id: str):
+    """List boons where one of the requester's characters is creditor or debtor."""
+    from app.db import DbBoon, DbCharacter
+    from sqlalchemy import func as _func, or_ as _or
+
+    character_name = request.args.get('character_name', '').strip()
+    status_filter = request.args.get('status', '').strip().lower()
+
+    q = DbCharacter.query.filter_by(player_discord=discord_id, active=True)
+    if character_name:
+        q = q.filter(_func.lower(DbCharacter.character_name) == character_name.lower())
+    char = q.first()
+    if not char:
+        return jsonify({'error': 'No active character found for this Discord user'}), 404
+
+    boon_q = DbBoon.query.filter(
+        _or(DbBoon.creditor_character_id == char.id, DbBoon.debtor_character_id == char.id)
+    )
+    if status_filter:
+        boon_q = boon_q.filter(DbBoon.status == status_filter)
+    boons = boon_q.order_by(DbBoon.created_at.desc()).all()
+
+    result = []
+    for b in boons:
+        direction = 'owed_to_me' if b.creditor_character_id == char.id else 'i_owe'
+        counterparty = b.debtor if direction == 'owed_to_me' else b.creditor
+        result.append({
+            'id': b.id,
+            'direction': direction,
+            'counterparty_name': counterparty.character_name,
+            'tier': b.tier,
+            'reason': b.reason or '',
+            'status': b.status,
+            'created_at': b.created_at.isoformat() if b.created_at else None,
+        })
+
+    return jsonify({'character_name': char.character_name, 'boons': result})
+
+
+@bp.route('/boons/<int:boon_id>/repay-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def boon_repay_action(boon_id: int):
+    """Two-step repayment: debtor proposes, creditor confirms.
+
+    Body: { requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbBoon, db
+
+    boon = DbBoon.query.get(boon_id)
+    if not boon:
+        return jsonify({'error': 'Boon not found'}), 404
+
+    is_creditor = _requester_can_access_character(boon.creditor, effective_discord_id, allow_staff_bypass=False)
+    is_debtor = _requester_can_access_character(boon.debtor, effective_discord_id, allow_staff_bypass=False)
+    is_staff = _is_requester_staff(effective_discord_id)
+
+    if boon.status == 'owed':
+        if not (is_debtor or is_staff):
+            return jsonify({'error': 'Only the debtor can propose repayment of an owed boon'}), 409
+        boon.status = 'repayment_offered'
+        db.session.commit()
+        return jsonify({'ok': True, 'boon': _boon_to_dict(boon, boon.creditor, boon.debtor)})
+
+    if boon.status == 'repayment_offered':
+        if not (is_creditor or is_staff):
+            return jsonify({'error': 'Only the creditor can confirm a proposed repayment'}), 409
+        boon.status = 'repaid'
+        boon.resolved_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'ok': True, 'boon': _boon_to_dict(boon, boon.creditor, boon.debtor)})
+
+    return jsonify({'error': f'Boon is already {boon.status} — nothing to do'}), 409
+
+
+# --- Contact Thread API ---
+
+def _contact_thread_summary(thread) -> dict:
+    return {
+        'id': thread.id,
+        'participant_names': [p.character.character_name for p in thread.participants],
+        'last_message_at': thread.last_message_at.isoformat() if thread.last_message_at else None,
+        'message_count': len(thread.messages),
+    }
+
+
+@bp.route('/contact-threads', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def create_contact_thread():
+    """Start a new #kindred-contact conversation, possibly with multiple recipients.
+
+    Body: { senderCharacterName, recipientCharacterNames: [...], body, requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbCharacter, DbContactMessage, DbContactParticipant, DbContactThread, db
+    from sqlalchemy import func as _func
+
+    sender_name = str(payload.get('senderCharacterName', '')).strip()
+    recipient_names = payload.get('recipientCharacterNames') or []
+    body = str(payload.get('body', '')).strip()
+
+    if not sender_name:
+        return jsonify({'error': 'senderCharacterName is required'}), 400
+    if not isinstance(recipient_names, list) or not recipient_names:
+        return jsonify({'error': 'recipientCharacterNames must be a non-empty list'}), 400
+    if not body:
+        return jsonify({'error': 'body is required'}), 400
+
+    sender = DbCharacter.query.filter(_func.lower(DbCharacter.character_name) == sender_name.lower()).first()
+    if not sender or not sender.active:
+        return jsonify({'error': f'No active character found named "{sender_name}"'}), 404
+    if not _requester_can_access_character(sender, effective_discord_id):
+        return _forbidden('You can only send from your own character')
+
+    recipients = []
+    unresolved = []
+    for raw_name in recipient_names:
+        name = str(raw_name or '').strip()
+        if not name:
+            continue
+        char = DbCharacter.query.filter(_func.lower(DbCharacter.character_name) == name.lower()).first()
+        if not char or not char.active:
+            unresolved.append(name)
+        elif char.id != sender.id:
+            recipients.append(char)
+    if unresolved:
+        return jsonify({'error': f'Could not find active character(s): {", ".join(unresolved)}'}), 404
+    if not recipients:
+        return jsonify({'error': 'At least one valid recipient other than the sender is required'}), 400
+
+    thread = DbContactThread()
+    db.session.add(thread)
+    db.session.flush()  # assigns thread.id, needed for participant rows below
+
+    all_participants = [sender] + recipients
+    for char in all_participants:
+        db.session.add(DbContactParticipant(thread_id=thread.id, character_id=char.id))
+    db.session.add(DbContactMessage(thread_id=thread.id, sender_character_id=sender.id, body=body))
+    db.session.commit()
+
+    return jsonify({
+        'ok': True,
+        'thread_id': thread.id,
+        'participants': [
+            {'character_name': c.character_name, 'discord_id': c.player_discord or ''}
+            for c in all_participants
+        ],
+    }), 201
+
+
+@bp.route('/contact-threads/by-character/<discord_id>', methods=['GET'])
+@require_bot_scope('read')
+def list_contact_threads_for_character(discord_id: str):
+    """List open conversations one of the requester's characters participates in."""
+    from app.db import DbCharacter, DbContactParticipant, DbContactThread
+    from sqlalchemy import func as _func
+
+    character_name = request.args.get('character_name', '').strip()
+    q = DbCharacter.query.filter_by(player_discord=discord_id, active=True)
+    if character_name:
+        q = q.filter(_func.lower(DbCharacter.character_name) == character_name.lower())
+    char = q.first()
+    if not char:
+        return jsonify({'error': 'No active character found for this Discord user'}), 404
+
+    thread_ids = [
+        p.thread_id for p in DbContactParticipant.query.filter_by(character_id=char.id).all()
+    ]
+    threads = []
+    if thread_ids:
+        threads = (
+            DbContactThread.query.filter(DbContactThread.id.in_(thread_ids))
+            .order_by(DbContactThread.last_message_at.desc())
+            .limit(25)
+            .all()
+        )
+
+    return jsonify({
+        'character_name': char.character_name,
+        'threads': [_contact_thread_summary(t) for t in threads],
+    })
+
+
+@bp.route('/contact-threads/<int:thread_id>/messages', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def reply_to_contact_thread(thread_id: int):
+    """Reply to an existing #kindred-contact conversation.
+
+    Body: { senderCharacterName, body, requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbCharacter, DbContactMessage, DbContactParticipant, DbContactThread, db
+    from sqlalchemy import func as _func
+
+    sender_name = str(payload.get('senderCharacterName', '')).strip()
+    body = str(payload.get('body', '')).strip()
+    if not sender_name:
+        return jsonify({'error': 'senderCharacterName is required'}), 400
+    if not body:
+        return jsonify({'error': 'body is required'}), 400
+
+    thread = DbContactThread.query.get(thread_id)
+    if not thread:
+        return jsonify({'error': 'Thread not found'}), 404
+
+    sender = DbCharacter.query.filter(_func.lower(DbCharacter.character_name) == sender_name.lower()).first()
+    if not sender or not sender.active:
+        return jsonify({'error': f'No active character found named "{sender_name}"'}), 404
+    if not _requester_can_access_character(sender, effective_discord_id):
+        return _forbidden('You can only reply from your own character')
+
+    participant = DbContactParticipant.query.filter_by(thread_id=thread.id, character_id=sender.id).first()
+    if not participant:
+        return jsonify({'error': 'Your character is not part of this conversation'}), 403
+
+    message = DbContactMessage(thread_id=thread.id, sender_character_id=sender.id, body=body)
+    thread.last_message_at = datetime.now(timezone.utc)
+    db.session.add(message)
+    db.session.commit()
+
+    other_participants = [
+        {'character_name': p.character.character_name, 'discord_id': p.character.player_discord or ''}
+        for p in thread.participants
+        if p.character_id != sender.id
+    ]
+
+    return jsonify({
+        'ok': True,
+        'message': {'id': message.id, 'sender_character_name': sender.character_name, 'body': body},
+        'other_participants': other_participants,
+    }), 201

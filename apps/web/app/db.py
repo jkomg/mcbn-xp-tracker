@@ -388,3 +388,66 @@ class CoterieAdvantage(db.Model):
                            default=lambda: datetime.now(timezone.utc))
 
     coterie = db.relationship('Coterie', back_populates='advantages')
+
+
+class DbBoon(db.Model):
+    """A prestation ledger entry: one character owes another a boon."""
+    __tablename__ = 'boons'
+    __table_args__ = (
+        db.Index('ix_boons_creditor_status', 'creditor_character_id', 'status'),
+        db.Index('ix_boons_debtor_status', 'debtor_character_id', 'status'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    creditor_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False, index=True)
+    debtor_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False, index=True)
+    tier = db.Column(String(20), nullable=False)  # trivial | minor | major | life
+    reason = db.Column(Text, default='')
+    status = db.Column(String(20), nullable=False, default='owed', index=True)  # owed | repayment_offered | repaid
+    created_at = db.Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_discord_id = db.Column(String(30), default='')
+    resolved_at = db.Column(DateTime, nullable=True)
+
+    creditor = db.relationship('DbCharacter', foreign_keys=[creditor_character_id])
+    debtor = db.relationship('DbCharacter', foreign_keys=[debtor_character_id])
+
+
+class DbContactThread(db.Model):
+    """A #kindred-contact conversation between two or more characters."""
+    __tablename__ = 'contact_threads'
+    id = db.Column(Integer, primary_key=True)
+    created_at = db.Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_message_at = db.Column(DateTime, nullable=False,
+                                default=lambda: datetime.now(timezone.utc), index=True)
+
+    participants = db.relationship('DbContactParticipant', back_populates='thread',
+                                   cascade='all, delete-orphan')
+    messages = db.relationship('DbContactMessage', back_populates='thread',
+                               cascade='all, delete-orphan',
+                               order_by='DbContactMessage.sent_at')
+
+
+class DbContactParticipant(db.Model):
+    __tablename__ = 'contact_participants'
+    __table_args__ = (
+        db.UniqueConstraint('thread_id', 'character_id', name='uq_contact_participant'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    thread_id = db.Column(Integer, db.ForeignKey('contact_threads.id'), nullable=False, index=True)
+    character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False, index=True)
+
+    thread = db.relationship('DbContactThread', back_populates='participants')
+    character = db.relationship('DbCharacter')
+
+
+class DbContactMessage(db.Model):
+    __tablename__ = 'contact_messages'
+    id = db.Column(Integer, primary_key=True)
+    thread_id = db.Column(Integer, db.ForeignKey('contact_threads.id'), nullable=False, index=True)
+    sender_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False, index=True)
+    body = db.Column(Text, default='')
+    sent_at = db.Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    discord_channel_id = db.Column(String(32), nullable=True)
+    discord_message_id = db.Column(String(32), nullable=True)
+
+    thread = db.relationship('DbContactThread', back_populates='messages')
+    sender = db.relationship('DbCharacter')
