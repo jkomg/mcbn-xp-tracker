@@ -5,3 +5,4 @@ dist/
 coverage/
 .vitest/
 data-dev/
+permission-snapshots/

@@ -44,6 +44,14 @@ import {
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startHoneypotMonitor } from './services/honeypotMonitor';
 import { startMentionSpamBreaker } from './services/mentionSpamBreaker';
+import {
+  isPermissionsApplyButton,
+  handlePermissionsApplyButton,
+  isPermissionsRollbackSelect,
+  handlePermissionsRollbackSelect,
+  isPermissionsRollbackButton,
+  handlePermissionsRollbackButton,
+} from './permissionsWizard';
 import { startCharacterTicketMonitor } from './services/characterTicketMonitor';
 import { SubmissionNotifier } from './services/submissionNotifier';
 import { CharacterSubmissionNotifier } from './services/characterSubmissionNotifier';
@@ -402,6 +410,11 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_select', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      if (isPermissionsRollbackSelect(interaction.customId)) {
+        await handlePermissionsRollbackSelect(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_permissions_rollback_select', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
     }
 
     if (interaction.isButton()) {
@@ -418,6 +431,16 @@ void applyStartupConfigOverrides().then(() => {
       if (isDeleteButton(interaction.customId)) {
         await handleDeleteButton(interaction, { client, adapter });
         logEvent('info', 'interaction_handled_delete_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isPermissionsApplyButton(interaction.customId)) {
+        await handlePermissionsApplyButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_permissions_apply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      if (isPermissionsRollbackButton(interaction.customId)) {
+        await handlePermissionsRollbackButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_permissions_rollback_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
       if (isHuntConsequenceButton(interaction.customId)) {

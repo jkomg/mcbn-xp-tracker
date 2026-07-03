@@ -195,6 +195,8 @@ const envSchema = z.object({
   MENTION_BREAKER_TIMEOUT_MINUTES: z.string().optional(),
   MENTION_BREAKER_EXEMPT_ROLE_IDS: z.string().optional(),
   MENTION_BREAKER_MOD_LOG_CHANNEL_ID: z.string().optional(),
+  VERIFIED_MEMBER_ROLE_ID: z.string().optional(),
+  PERMISSION_SNAPSHOT_DIR: z.string().optional(),
 });
 
 // Strip empty strings so optional fields behave as if absent.
@@ -491,6 +493,8 @@ export const config = {
   mentionBreakerExemptRoleIds: parseCsvIds(env.MENTION_BREAKER_EXEMPT_ROLE_IDS),
   mentionBreakerModLogChannelId:
     env.MENTION_BREAKER_MOD_LOG_CHANNEL_ID ?? env.HONEYPOT_MOD_LOG_CHANNEL_ID ?? '',
+  verifiedMemberRoleId: env.VERIFIED_MEMBER_ROLE_ID,
+  permissionSnapshotDir: env.PERMISSION_SNAPSHOT_DIR ?? '',
 };
 
 if (config.testRequesterDiscordId) {
