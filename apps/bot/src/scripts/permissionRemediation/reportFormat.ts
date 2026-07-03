@@ -71,6 +71,22 @@ export function formatVisibilityAudit(report: VisibilityAuditReport, { fullMatri
     }
   }
 
+  const postingGaps = report.rows.filter(
+    (row) => row.visibleRoleIds.filter((id) => !row.sendableRoleIds.includes(id)).length > 0,
+  );
+  if (postingGaps.length > 0) {
+    lines.push('', `Posting narrower than viewing (${postingGaps.length} channels — some roles can see but not post):`);
+    for (const row of postingGaps) {
+      const viewLabel = row.visibleToEveryone
+        ? '@everyone'
+        : row.visibleRoleIds.map((id) => report.roleNames[id] ?? id).sort((a, b) => a.localeCompare(b)).join(', ') || '(nobody)';
+      const postLabel = row.sendableToEveryone
+        ? '@everyone'
+        : row.sendableRoleIds.map((id) => report.roleNames[id] ?? id).sort((a, b) => a.localeCompare(b)).join(', ') || '(nobody)';
+      lines.push(`  #${row.channelName} — can view: ${viewLabel}; can post: ${postLabel}`);
+    }
+  }
+
   if (fullMatrix) {
     lines.push('', `Full channel visibility matrix (${report.rows.length} channels), grouped by category:`);
     const byCategory = new Map<string, ChannelVisibilityRow[]>();
