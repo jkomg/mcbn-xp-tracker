@@ -30,6 +30,7 @@ import {
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
 import { handleDeliveryModal } from './commands/delivery';
+import { handleContactSendModal, handleContactReplyModal } from './commands/contact';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -491,6 +492,16 @@ void applyStartupConfigOverrides().then(() => {
       }
       const deliveryHandled = await handleDeliveryModal(interaction);
       if (deliveryHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const contactSendHandled = await handleContactSendModal(interaction, { client, adapter });
+      if (contactSendHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const contactReplyHandled = await handleContactReplyModal(interaction, { client, adapter });
+      if (contactReplyHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
