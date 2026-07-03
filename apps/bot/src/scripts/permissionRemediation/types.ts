@@ -134,13 +134,19 @@ export type ChannelVisibilityRow = {
   channelId: string;
   channelName: string;
   parentId: string | null;
+  categoryName: string | null;
   visibleRoleIds: string[];
   visibleToEveryone: boolean;
 };
 
 export type VisibilityAssertion = { label: string; channelId: string; ok: boolean; detail: string };
 
-export type VisibilityAuditReport = { rows: ChannelVisibilityRow[]; assertions: VisibilityAssertion[] };
+export type VisibilityAuditReport = {
+  rows: ChannelVisibilityRow[];
+  assertions: VisibilityAssertion[];
+  /** roleId -> role name, for rendering visibleRoleIds without a second lookup. */
+  roleNames: Record<string, string>;
+};
 
 export type VisibilityAuditOptions = {
   verifiedMemberRoleId?: string;

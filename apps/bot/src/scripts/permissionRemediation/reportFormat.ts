@@ -1,4 +1,5 @@
 import type {
+  ChannelVisibilityRow,
   CombinedApplyResult,
   CombinedAuditReport,
   MentionAuditReport,
@@ -71,9 +72,27 @@ export function formatVisibilityAudit(report: VisibilityAuditReport, { fullMatri
   }
 
   if (fullMatrix) {
-    lines.push('', `Full channel visibility matrix (${report.rows.length} channels):`);
+    lines.push('', `Full channel visibility matrix (${report.rows.length} channels), grouped by category:`);
+    const byCategory = new Map<string, ChannelVisibilityRow[]>();
     for (const row of report.rows) {
-      lines.push(`  #${row.channelName}${row.visibleToEveryone ? ' [visible to @everyone]' : ''} — ${row.visibleRoleIds.length} role(s) can view`);
+      const key = row.categoryName ?? '(no category)';
+      const list = byCategory.get(key) ?? [];
+      list.push(row);
+      byCategory.set(key, list);
+    }
+    const categoryNames = [...byCategory.keys()].sort((a, b) => a.localeCompare(b));
+    for (const categoryName of categoryNames) {
+      lines.push('', `-- ${categoryName} --`);
+      for (const row of byCategory.get(categoryName) ?? []) {
+        if (row.visibleToEveryone) {
+          lines.push(`  #${row.channelName} [visible to @everyone]`);
+          continue;
+        }
+        const names = row.visibleRoleIds
+          .map((id) => report.roleNames[id] ?? id)
+          .sort((a, b) => a.localeCompare(b));
+        lines.push(`  #${row.channelName} — ${names.length === 0 ? '(no roles — nobody can see this)' : names.join(', ')}`);
+      }
     }
   }
 
