@@ -422,6 +422,67 @@
     </div><!-- /#background-blanking -->
 </div>
 
+<!-- Boons -->
+<div class="card mb-4">
+    <div class="card-header fw-bold"><i class="bi bi-arrow-left-right text-danger"></i> Boons</div>
+    <div class="card-body">
+        {% if boons %}
+        {% set owed_to_you = boons | selectattr('direction', 'equalto', 'owed_to_me') | list %}
+        {% set you_owe = boons | selectattr('direction', 'equalto', 'i_owe') | list %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2">Owed to you</h6>
+                {% if owed_to_you %}
+                <ul class="list-unstyled mb-0 small">
+                    {% for boon in owed_to_you %}
+                    <li class="mb-2">
+                        <span class="fw-bold">{{ boon.counterparty_name }}</span>
+                        <span class="badge bg-secondary text-uppercase ms-1">{{ boon.tier }}</span>
+                        {% if boon.status == 'repaid' %}
+                        <span class="badge bg-success ms-1">repaid</span>
+                        {% elif boon.status == 'repayment_offered' %}
+                        <span class="badge bg-warning text-dark ms-1">repayment offered</span>
+                        {% endif %}
+                        {% if boon.reason %}
+                        <div class="text-muted">{{ boon.reason }}</div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">Nobody owes you a boon.</p>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2">You owe</h6>
+                {% if you_owe %}
+                <ul class="list-unstyled mb-0 small">
+                    {% for boon in you_owe %}
+                    <li class="mb-2">
+                        <span class="fw-bold">{{ boon.counterparty_name }}</span>
+                        <span class="badge bg-secondary text-uppercase ms-1">{{ boon.tier }}</span>
+                        {% if boon.status == 'repaid' %}
+                        <span class="badge bg-success ms-1">repaid</span>
+                        {% elif boon.status == 'repayment_offered' %}
+                        <span class="badge bg-warning text-dark ms-1">repayment offered</span>
+                        {% endif %}
+                        {% if boon.reason %}
+                        <div class="text-muted">{{ boon.reason }}</div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">You don't owe any boons.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No boons tracked. Use <code>/prestation owe</code> in #prestation to record one.</p>
+        {% endif %}
+    </div>
+</div>
+
 {% if player_coterie %}
 <div class="card mb-4">
     <div class="card-header fw-bold"><i class="bi bi-people-fill text-danger"></i> Coterie</div>

@@ -227,6 +227,7 @@ def character(name):
         if c.status.lower() != 'denied'
     }
     backgrounds = db_service.get_character_backgrounds(name)
+    boons = db_service.get_boons_for_character(name)
     current_night = open_periods[0] if open_periods else None
 
     # Check whether this character has an approved living sheet draft; load data for spend form
@@ -302,6 +303,7 @@ def character(name):
         claimed_periods=claimed_periods,
         spend_categories=SPEND_CATEGORIES,
         backgrounds=backgrounds,
+        boons=boons,
         current_night=current_night,
         has_approved_draft=has_approved_draft,
         sheet_data=sheet_data,

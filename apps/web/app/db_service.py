@@ -27,6 +27,7 @@ from app.db import (
     DbReminderPreference,
     DbSheetsSyncError,
     DbCharacterBackground,
+    DbBoon,
 )
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 from app.game_calendar import next_night_after_downtime
@@ -1191,6 +1192,34 @@ class DBService:
                 'release_night_number': row.release_night_number,
                 'updated_at': row.updated_at or '',
                 'updated_by': row.updated_by or '',
+            })
+        return result
+
+    def get_boons_for_character(self, name: str) -> list[dict]:
+        """Boons where this character is either creditor or debtor. Read-only —
+        all mutations happen through the bot's /prestation command."""
+        from sqlalchemy import or_ as _or
+
+        char = DbCharacter.query.filter(func.lower(DbCharacter.character_name) == name.lower()).first()
+        if not char:
+            return []
+
+        rows = DbBoon.query.filter(
+            _or(DbBoon.creditor_character_id == char.id, DbBoon.debtor_character_id == char.id)
+        ).order_by(DbBoon.created_at.desc()).all()
+
+        result: list[dict] = []
+        for row in rows:
+            direction = 'owed_to_me' if row.creditor_character_id == char.id else 'i_owe'
+            counterparty = row.debtor if direction == 'owed_to_me' else row.creditor
+            result.append({
+                'id': row.id,
+                'direction': direction,
+                'counterparty_name': counterparty.character_name,
+                'tier': row.tier,
+                'reason': row.reason or '',
+                'status': row.status,
+                'created_at': row.created_at,
             })
         return result
 

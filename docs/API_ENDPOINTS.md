@@ -1197,3 +1197,210 @@ Returns the active coterie for a player's character. Used by the bot's `/coterie
 `coterie` is `null` if the character is not in a coterie (still returns 200).
 
 **Response 404:** No active character found for this Discord user (with optional `character_name` filter).
+
+---
+
+## POST /api/boons
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Creates a boon: the creditor's player asserts the debtor owes them one. Called by the bot's `/prestation owe` command.
+
+**Body:**
+```json
+{
+  "creditorCharacterName": "Alice",
+  "debtorCharacterName": "Marcus",
+  "tier": "minor",
+  "reason": "Covered for a missed elysium appearance",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "playerhandle"
+}
+```
+
+`tier` must be one of `trivial`, `minor`, `major`, `life`. The requester must control the creditor character (staff bypass allowed) — you can only assert a boon owed *to* your own character.
+
+**Response 201:**
+```json
+{
+  "ok": true,
+  "boon": {
+    "id": 12,
+    "creditor_character_name": "Alice",
+    "debtor_character_name": "Marcus",
+    "tier": "minor",
+    "reason": "Covered for a missed elysium appearance",
+    "status": "owed",
+    "created_at": "2026-07-03T20:00:00+00:00",
+    "resolved_at": null
+  }
+}
+```
+
+**Response 400:** Missing/invalid fields, invalid `tier`, or `creditorCharacterName == debtorCharacterName`.
+**Response 403:** Requester doesn't control the creditor character.
+**Response 404:** Creditor or debtor character not found (or inactive).
+
+---
+
+## GET /api/boons/by-character/{discord_id}
+
+**Scope:** read | **Rate limit:** 60/min
+
+Lists boons where one of the requester's active characters is either creditor or debtor. Used by the bot's `/prestation status` command.
+
+**Path params:** `discord_id` — Discord snowflake
+
+**Query params:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `character_name` | No | Character name filter — required for players with multiple active characters |
+| `status` | No | Filter to one status: `owed`, `repayment_offered`, `repaid` |
+
+**Response 200:**
+```json
+{
+  "character_name": "Alice",
+  "boons": [
+    {
+      "id": 12,
+      "direction": "owed_to_me",
+      "counterparty_name": "Marcus",
+      "tier": "minor",
+      "reason": "Covered for a missed elysium appearance",
+      "status": "owed",
+      "created_at": "2026-07-03T20:00:00+00:00"
+    }
+  ]
+}
+```
+
+**Response 404:** No active character found for this Discord user.
+
+---
+
+## POST /api/boons/{boon_id}/repay-action
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Two-step boon repayment. The debtor's player calls this to propose repayment (`owed` → `repayment_offered`); the creditor's player calls it again to confirm (`repayment_offered` → `repaid`). Staff may call it at either step regardless of role. Used by the bot's `/prestation repay` command — the bot doesn't need to know which step it is; the endpoint figures it out from the boon's current status and the requester's relationship to it.
+
+**Body:**
+```json
+{
+  "requesterDiscordId": "222222222222222222",
+  "requesterDiscordName": "otherplayerhandle"
+}
+```
+
+**Response 200:** Same `boon` shape as `POST /api/boons`, with the updated `status`.
+**Response 404:** Boon not found.
+**Response 409:** Wrong role for the boon's current status (e.g. the creditor tries to propose, or the debtor tries to confirm their own proposal), or the boon is already `repaid`. The error message explains exactly which case.
+
+---
+
+## POST /api/contact-threads
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Starts a new `#kindred-contact` conversation, possibly with multiple recipients (a group text). Called by the bot's `/contact send` command.
+
+**Body:**
+```json
+{
+  "senderCharacterName": "Alice",
+  "recipientCharacterNames": ["Marcus", "Elena"],
+  "body": "Meet me at the warehouse tonight.",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "playerhandle"
+}
+```
+
+The requester must control the sender character. Every name in `recipientCharacterNames` must resolve to a distinct, active character other than the sender.
+
+**Response 201:**
+```json
+{
+  "ok": true,
+  "thread_id": 7,
+  "participants": [
+    { "character_name": "Alice", "discord_id": "111111111111111111" },
+    { "character_name": "Marcus", "discord_id": "222222222222222222" },
+    { "character_name": "Elena", "discord_id": "333333333333333333" }
+  ]
+}
+```
+
+**Response 400:** Missing fields, or no valid recipient other than the sender.
+**Response 403:** Requester doesn't control the sender character.
+**Response 404:** Sender not found, or one or more recipient names don't resolve to an active character (named in the error message).
+
+---
+
+## GET /api/contact-threads/by-character/{discord_id}
+
+**Scope:** read | **Rate limit:** 60/min
+
+Lists the open conversations (most recent 25 by last activity) one of the requester's active characters participates in. Used by the bot's `/contact reply` thread-picker autocomplete.
+
+**Path params:** `discord_id` — Discord snowflake
+
+**Query params:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `character_name` | No | Character name filter — required for players with multiple active characters |
+
+**Response 200:**
+```json
+{
+  "character_name": "Alice",
+  "threads": [
+    {
+      "id": 7,
+      "participant_names": ["Alice", "Marcus", "Elena"],
+      "last_message_at": "2026-07-03T20:05:00+00:00",
+      "message_count": 3
+    }
+  ]
+}
+```
+
+**Response 404:** No active character found for this Discord user.
+
+---
+
+## POST /api/contact-threads/{thread_id}/messages
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Replies to an existing `#kindred-contact` conversation. Called by the bot's `/contact reply` command.
+
+**Body:**
+```json
+{
+  "senderCharacterName": "Marcus",
+  "body": "On my way.",
+  "requesterDiscordId": "222222222222222222",
+  "requesterDiscordName": "otherplayerhandle"
+}
+```
+
+**Response 201:**
+```json
+{
+  "ok": true,
+  "message": { "id": 21, "sender_character_name": "Marcus", "body": "On my way." },
+  "other_participants": [
+    { "character_name": "Alice", "discord_id": "111111111111111111" },
+    { "character_name": "Elena", "discord_id": "333333333333333333" }
+  ]
+}
+```
+
+`other_participants` is every thread participant except the sender — the bot uses this to mention everyone who should be notified of the reply.
+
+**Response 400:** Missing fields.
+**Response 403:** Requester doesn't control the sender character, or the sender character is not a participant in this thread.
+**Response 404:** Thread not found, or sender character not found.
