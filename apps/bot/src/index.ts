@@ -79,6 +79,18 @@ liveConfig.autoPeriodCloserEnabled = config.autoPeriodCloserEnabled;
 liveConfig.claimReminderEnabled = config.claimReminderEnabled;
 liveConfig.passageOfTimeEnabled = config.passageOfTimeEnabled;
 liveConfig.huntConsequenceEnabled = config.huntConsequenceEnabled;
+liveConfig.honeypotEnabled = config.honeypotEnabled;
+liveConfig.honeypotRequireYoungAccount = config.honeypotRequireYoungAccount;
+liveConfig.honeypotMaxAccountAgeDays = config.honeypotMaxAccountAgeDays;
+liveConfig.honeypotChannelId = config.honeypotChannelId;
+liveConfig.honeypotModLogChannelId = config.honeypotModLogChannelId;
+liveConfig.honeypotWhitelistedRoleIds = new Set(config.honeypotWhitelistedRoleIds);
+liveConfig.mentionBreakerEnabled = config.mentionBreakerEnabled;
+liveConfig.mentionBreakerMaxMentions = config.mentionBreakerMaxMentions;
+liveConfig.mentionBreakerTimeoutMinutes = config.mentionBreakerTimeoutMinutes;
+liveConfig.mentionBreakerExemptRoleIds = new Set(config.mentionBreakerExemptRoleIds);
+liveConfig.mentionBreakerModLogChannelId = config.mentionBreakerModLogChannelId;
+liveConfig.verifiedMemberRoleId = config.verifiedMemberRoleId ?? '';
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   readToken: config.webAppApiReadToken,
@@ -318,15 +330,6 @@ void applyStartupConfigOverrides().then(() => {
     staffRoleId: config.huntConsequenceStaffRoleId,
   };
 
-  const honeypotCfg = {
-    enabled: config.honeypotEnabled,
-    channelId: config.honeypotChannelId,
-    modLogChannelId: config.honeypotModLogChannelId,
-    whitelistedRoleIds: config.honeypotWhitelistedRoleIds,
-    requireYoungAccount: config.honeypotRequireYoungAccount,
-    maxAccountAgeDays: config.honeypotMaxAccountAgeDays,
-  };
-
   client.once('ready', async () => {
     logEvent('info', 'bot_ready', { userTag: client.user?.tag });
     await registerCommands(client);
@@ -361,14 +364,8 @@ void applyStartupConfigOverrides().then(() => {
       creationRulesUrl: config.ccCreationRulesUrl,
     });
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
-    startHoneypotMonitor(client, honeypotCfg);
-    startMentionSpamBreaker(client, {
-      enabled: config.mentionBreakerEnabled,
-      maxMentions: config.mentionBreakerMaxMentions,
-      timeoutMinutes: config.mentionBreakerTimeoutMinutes,
-      exemptRoleIds: config.mentionBreakerExemptRoleIds,
-      modLogChannelId: config.mentionBreakerModLogChannelId,
-    });
+    startHoneypotMonitor(client);
+    startMentionSpamBreaker(client);
   });
 
   client.on('interactionCreate', async (interaction) => {

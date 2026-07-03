@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { startMentionSpamBreaker, type MentionSpamBreakerConfig } from '../services/mentionSpamBreaker';
+import { liveConfig } from '../liveConfig';
+import { startMentionSpamBreaker } from '../services/mentionSpamBreaker';
 
 function makeClient() {
   const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -56,31 +57,25 @@ function makeMessage(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeConfig(overrides: Partial<MentionSpamBreakerConfig> = {}): MentionSpamBreakerConfig {
-  return {
-    enabled: true,
-    maxMentions: 5,
-    timeoutMinutes: 10,
-    exemptRoleIds: new Set<string>(),
-    modLogChannelId: 'modlog-channel',
-    ...overrides,
-  };
-}
-
 describe('mentionSpamBreaker', () => {
   let client: ReturnType<typeof makeClient>;
 
   beforeEach(() => {
     client = makeClient();
+    liveConfig.mentionBreakerEnabled = true;
+    liveConfig.mentionBreakerMaxMentions = 5;
+    liveConfig.mentionBreakerTimeoutMinutes = 10;
+    liveConfig.mentionBreakerExemptRoleIds = new Set();
+    liveConfig.mentionBreakerModLogChannelId = 'modlog-channel';
   });
 
   it('registers a messageCreate listener', () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     expect(client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
   });
 
   it('deletes and times out on mass role mentions over the limit', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ mentions: makeMentions({ roles: 8 }) });
     await client.emit('messageCreate', message);
 
@@ -92,7 +87,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('counts users and roles together', async () => {
-    startMentionSpamBreaker(client as never, makeConfig({ maxMentions: 5 }));
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ mentions: makeMentions({ users: 3, roles: 3 }) });
     await client.emit('messageCreate', message);
 
@@ -100,7 +95,8 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('treats @everyone as instantly over any limit', async () => {
-    startMentionSpamBreaker(client as never, makeConfig({ maxMentions: 50 }));
+    liveConfig.mentionBreakerMaxMentions = 50;
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ mentions: makeMentions({ everyone: true }) });
     await client.emit('messageCreate', message);
 
@@ -108,7 +104,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('ignores messages at or under the limit', async () => {
-    startMentionSpamBreaker(client as never, makeConfig({ maxMentions: 5 }));
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ mentions: makeMentions({ users: 2, roles: 3 }) });
     await client.emit('messageCreate', message);
 
@@ -117,7 +113,8 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('does nothing when disabled', async () => {
-    startMentionSpamBreaker(client as never, makeConfig({ enabled: false }));
+    liveConfig.mentionBreakerEnabled = false;
+    startMentionSpamBreaker(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -125,7 +122,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('ignores bot authors', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ author: { id: 'carl', bot: true, tag: 'Carl-bot#0001' } });
     await client.emit('messageCreate', message);
 
@@ -133,7 +130,8 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('skips exempt roles', async () => {
-    startMentionSpamBreaker(client as never, makeConfig({ exemptRoleIds: new Set(['staff-role']) }));
+    liveConfig.mentionBreakerExemptRoleIds = new Set(['staff-role']);
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({
       member: {
         id: 'user-1',
@@ -148,7 +146,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('posts a mod-log embed after tripping', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -156,7 +154,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('still times out when delete fails', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage();
     message.delete = vi.fn().mockRejectedValue(new Error('Unknown Message'));
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
@@ -164,7 +162,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('does not throw when timeout fails', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage();
     message.member.timeout = vi.fn().mockRejectedValue(new Error('Missing Permissions'));
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
@@ -172,7 +170,7 @@ describe('mentionSpamBreaker', () => {
   });
 
   it('ignores DMs (no guild member)', async () => {
-    startMentionSpamBreaker(client as never, makeConfig());
+    startMentionSpamBreaker(client as never);
     const message = makeMessage({ member: null });
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
     expect(message.delete).not.toHaveBeenCalled();

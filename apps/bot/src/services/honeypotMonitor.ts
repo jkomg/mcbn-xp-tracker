@@ -1,19 +1,16 @@
 import { EmbedBuilder, type Client, type Message } from 'discord.js';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage, logEvent } from '../logger';
 
 /**
  * Bans anyone who posts in a hidden "bait" channel that only unverified/new
  * accounts and spam bots can see. Deny "View Channel" for the normal member
  * role on that channel so real members never trigger it.
+ *
+ * All config is read live from liveConfig on every message — dashboard
+ * changes (Settings → Bot — Feature Flags / Channel IDs / Tuning) apply
+ * within ~1 minute, no bot restart needed.
  */
-export type HoneypotConfig = {
-  enabled: boolean;
-  channelId: string;
-  modLogChannelId: string;
-  whitelistedRoleIds: Set<string>;
-  requireYoungAccount: boolean;
-  maxAccountAgeDays: number;
-};
 
 const BAN_REASON = 'Honeypot trigger: posted in bait channel (auto-detected spam)';
 const DELETE_MESSAGE_SECONDS = 86_400; // purge 1 day of the banned user's messages
@@ -22,35 +19,32 @@ function accountAgeDays(createdTimestamp: number): number {
   return (Date.now() - createdTimestamp) / 86_400_000;
 }
 
-export function startHoneypotMonitor(client: Client, cfg: HoneypotConfig): void {
+export function startHoneypotMonitor(client: Client): void {
   client.on('messageCreate', (message) => {
-    handleMessage(message, cfg).catch((error) =>
+    handleMessage(message).catch((error) =>
       logEvent('error', 'honeypot_monitor_error', { error: errorToMessage(error) }),
     );
   });
 
-  logEvent('info', 'honeypot_monitor_started', {
-    enabled: cfg.enabled,
-    channelId: cfg.channelId || null,
-  });
+  logEvent('info', 'honeypot_monitor_started', {});
 }
 
-async function handleMessage(message: Message, cfg: HoneypotConfig): Promise<void> {
-  if (!cfg.enabled) return;
-  if (!cfg.channelId || message.channelId !== cfg.channelId) return;
+async function handleMessage(message: Message): Promise<void> {
+  if (!liveConfig.honeypotEnabled) return;
+  if (!liveConfig.honeypotChannelId || message.channelId !== liveConfig.honeypotChannelId) return;
   if (message.author.bot) return;
 
   const guild = message.guild;
   const member = message.member;
   if (!guild || !member) return;
 
-  if (member.roles.cache.some((role) => cfg.whitelistedRoleIds.has(role.id))) {
+  if (member.roles.cache.some((role) => liveConfig.honeypotWhitelistedRoleIds.has(role.id))) {
     logEvent('info', 'honeypot_whitelisted_skip', { userId: member.id });
     return;
   }
 
   const ageDays = accountAgeDays(message.author.createdTimestamp);
-  if (cfg.requireYoungAccount && ageDays > cfg.maxAccountAgeDays) {
+  if (liveConfig.honeypotRequireYoungAccount && ageDays > liveConfig.honeypotMaxAccountAgeDays) {
     logEvent('info', 'honeypot_old_account_skip', { userId: member.id, ageDays });
     return;
   }
@@ -74,9 +68,9 @@ async function handleMessage(message: Message, cfg: HoneypotConfig): Promise<voi
     return;
   }
 
-  if (!cfg.modLogChannelId) return;
+  if (!liveConfig.honeypotModLogChannelId) return;
 
-  const logChannel = await guild.channels.fetch(cfg.modLogChannelId).catch(() => null);
+  const logChannel = await guild.channels.fetch(liveConfig.honeypotModLogChannelId).catch(() => null);
   if (!logChannel?.isTextBased()) return;
 
   const embed = new EmbedBuilder()
