@@ -94,10 +94,16 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
     const visibleRoleIds: string[] = [];
     const sendableRoleIds: string[] = [];
     for (const roleId of roleIds) {
-      if (resolvePermission(roleId, guild.id, channelOws, categoryOws, VIEW_CHANNEL)) {
+      const canView = resolvePermission(roleId, guild.id, channelOws, categoryOws, VIEW_CHANNEL);
+      if (canView) {
         visibleRoleIds.push(roleId);
       }
-      if (resolvePermission(roleId, guild.id, channelOws, categoryOws, SEND_MESSAGES)) {
+      // Send Messages only matters if the role can also see the channel — Discord
+      // has no path to post in a channel you can't view, regardless of how the
+      // Send Messages bit itself resolves (e.g. a private channel that denies
+      // View Channel to @everyone but never touches Send Messages would otherwise
+      // report @everyone as able to post in a channel it can't even open).
+      if (canView && resolvePermission(roleId, guild.id, channelOws, categoryOws, SEND_MESSAGES)) {
         sendableRoleIds.push(roleId);
       }
     }

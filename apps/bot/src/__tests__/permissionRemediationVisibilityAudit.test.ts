@@ -196,6 +196,27 @@ describe('permissionRemediation/visibilityAudit', () => {
     expect(row.sendableRoleIds).toEqual(['moderator-role']);
   });
 
+  it('never reports a role as able to post in a channel it cannot view', async () => {
+    // Regression test (flagged in review of #325): a private channel denies
+    // View Channel to @everyone and never touches Send Messages at all. Send
+    // Messages alone resolves to "allowed" (nothing denies it), but nobody
+    // without View Channel can actually post — Discord has no path to send a
+    // message in a channel you can't open. sendableRoleIds must reflect that.
+    const channel = makeChannel({
+      permissionOverwrites: {
+        cache: makeFakeCollection([makeOverwrite(EVERYONE_ID, 0, 0n, VIEW_CHANNEL)]),
+      },
+    });
+    const guild = makeGuild({ channels: [channel] });
+
+    const report = await auditVisibility(guild as never, { modLogChannelIds: [] });
+
+    const row = report.rows[0];
+    expect(row.visibleToEveryone).toBe(false);
+    expect(row.sendableToEveryone).toBe(false);
+    expect(row.sendableRoleIds).toEqual([]);
+  });
+
   it('falls back to the category-level overwrite for Send Messages, same as View Channel', async () => {
     const category = makeChannel({
       id: 'cat-1',

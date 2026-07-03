@@ -137,7 +137,7 @@ export type ChannelVisibilityRow = {
   categoryName: string | null;
   visibleRoleIds: string[];
   visibleToEveryone: boolean;
-  /** Roles that resolve to Send Messages true — a subset of visibleRoleIds in the common case. */
+  /** Roles that can both view the channel and resolve to Send Messages true — always a subset of visibleRoleIds. */
   sendableRoleIds: string[];
   sendableToEveryone: boolean;
 };
