@@ -10,41 +10,68 @@ import type {
 
 const VIEW_CHANNEL = 1n << 10n;
 
+function findRoleOverwrite(overwrites: OverwriteSnapshotEntry[], id: string): OverwriteSnapshotEntry | undefined {
+  return overwrites.find((o) => o.type === 0 && o.id === id);
+}
+
 /**
- * Resolves whether a single role (in isolation, plus the @everyone baseline)
- * can view a channel given its overwrites — deny beats allow beats "unset".
- * Ported from apps/bot/scripts/check-user-cubby-access.mjs, generalized from
- * "one member's role set" to "every role independently" so the audit can
- * answer "which roles let someone see this channel" rather than "can this
- * one user see it".
+ * The overwrite that actually governs a given role/`@everyone` on this
+ * channel: the channel's own entry for that entity if it has one, else the
+ * parent category's entry for that entity. This is per-entity fallback, not
+ * "use the channel's overwrites as a whole or the category's as a whole" —
+ * a channel that overrides @everyone but says nothing about a specific role
+ * still inherits that role's category-level entry.
  */
-function resolveViewChannel(roleId: string, everyoneId: string, overwrites: OverwriteSnapshotEntry[]): boolean | null {
-  let allow = 0n;
-  let deny = 0n;
+function effectiveOverwrite(
+  entityId: string,
+  channelOws: OverwriteSnapshotEntry[],
+  categoryOws: OverwriteSnapshotEntry[],
+): OverwriteSnapshotEntry | undefined {
+  return findRoleOverwrite(channelOws, entityId) ?? findRoleOverwrite(categoryOws, entityId);
+}
 
-  const everyoneOw = overwrites.find((o) => o.type === 0 && o.id === everyoneId);
-  if (everyoneOw) {
-    allow |= BigInt(everyoneOw.allow);
-    deny |= BigInt(everyoneOw.deny);
-  }
+/** Applies one overwrite's deny-then-allow on top of the running tri-state. */
+function applyOverwrite(state: boolean | null, ow: OverwriteSnapshotEntry | undefined): boolean | null {
+  if (!ow) return state;
+  let next = state;
+  if (BigInt(ow.deny) & VIEW_CHANNEL) next = false;
+  if (BigInt(ow.allow) & VIEW_CHANNEL) next = true;
+  return next;
+}
+
+/**
+ * Resolves whether someone holding only `@everyone` + one specific role can
+ * view a channel. Matches Discord's real resolution order: the `@everyone`
+ * overwrite sets a baseline, then the role's own overwrite is applied ON TOP
+ * of it — so an explicit role-level allow correctly overrides an
+ * `@everyone`-level deny (a very common "deny @everyone, allow staff roles"
+ * pattern). An earlier version of this function OR'd all deny/allow bits
+ * together and let any deny win regardless of source, which made staff-only
+ * channels incorrectly report as visible to nobody.
+ */
+function resolveViewChannel(
+  roleId: string,
+  everyoneId: string,
+  channelOws: OverwriteSnapshotEntry[],
+  categoryOws: OverwriteSnapshotEntry[],
+): boolean {
+  let state: boolean | null = null;
+  state = applyOverwrite(state, effectiveOverwrite(everyoneId, channelOws, categoryOws));
   if (roleId !== everyoneId) {
-    const roleOw = overwrites.find((o) => o.type === 0 && o.id === roleId);
-    if (roleOw) {
-      allow |= BigInt(roleOw.allow);
-      deny |= BigInt(roleOw.deny);
-    }
+    state = applyOverwrite(state, effectiveOverwrite(roleId, channelOws, categoryOws));
   }
-
-  if (deny & VIEW_CHANNEL) return false;
-  if (allow & VIEW_CHANNEL) return true;
-  return null; // inherits — from the category, or from Discord's "visible by default" base case
+  // Nothing set anywhere means Discord shows the channel by default.
+  return state ?? true;
 }
 
 /**
  * Report-only: computes effective View Channel visibility per role per
  * channel, plus two concrete config-driven assertions (mod-log channels
  * hidden from @everyone; the honeypot bait channel hidden from the verified
- * member role, if configured). Never mutates anything.
+ * member role, if configured). Never mutates anything. Does not account for
+ * member-level (per-user) overwrites — a channel with 0 visible roles may
+ * still be visible to a specific member via a member-type overwrite (e.g. a
+ * character cubby channel), which this audit doesn't inspect.
  */
 export async function auditVisibility(guild: Guild, options: VisibilityAuditOptions): Promise<VisibilityAuditReport> {
   const channels = await fetchAllNonThreadChannels(guild);
@@ -62,15 +89,9 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
 
     const visibleRoleIds: string[] = [];
     for (const roleId of roleIds) {
-      const channelResult = resolveViewChannel(roleId, guild.id, channelOws);
-      const categoryResult = resolveViewChannel(roleId, guild.id, categoryOws);
-      // Nothing set anywhere means Discord shows the channel by default —
-      // unlike the read-only .mjs precedent this ports from, we treat that
-      // as visible=true rather than "not counted", since the two assertions
-      // below need to catch a channel that's private-by-omission, not just
-      // private-by-explicit-deny.
-      const effective = channelResult ?? categoryResult ?? true;
-      if (effective) visibleRoleIds.push(roleId);
+      if (resolveViewChannel(roleId, guild.id, channelOws, categoryOws)) {
+        visibleRoleIds.push(roleId);
+      }
     }
 
     rows.push({
