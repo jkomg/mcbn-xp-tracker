@@ -22,6 +22,7 @@ import { startApproveWizard, findPlayerInChannel, findLatestPdf } from '../appro
 import { runActivityBackfill, cancelActivityBackfill, isActivityBackfillRunning } from '../services/activityBackfillScanner';
 import type { ActivityCategory } from '../services/discordActivityCategories';
 import { startEditWizard } from '../editWizard';
+import { startPermissionsAudit, startPermissionsApply, startPermissionsRollback } from '../permissionsWizard';
 
 export const name = config.lasombraCommandName;
 
@@ -153,6 +154,24 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
           .setAutocomplete(true),
       ),
+  )
+  .addSubcommandGroup((g) =>
+    g
+      .setName('permissions')
+      .setDescription('Audit and remediate Discord role/channel permission hygiene')
+      .addSubcommand((s) =>
+        s.setName('audit').setDescription('Report-only scan for mention/overwrite/visibility issues (staff only)'),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('apply')
+          .setDescription('Fix mention + overwrite issues, snapshotting first (Administrator-role staff only)'),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('rollback')
+          .setDescription('Restore a prior permissions snapshot (Administrator-role staff only)'),
+      ),
   );
 
 const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
@@ -179,6 +198,21 @@ const pendingBroadcasts = new Map<string, PendingBroadcast>();
 
 export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
   const sub = interaction.options.getSubcommand();
+
+  if (interaction.options.getSubcommandGroup(false) === 'permissions') {
+    if (sub === 'audit') {
+      await startPermissionsAudit(interaction, ctx);
+      return;
+    }
+    if (sub === 'apply') {
+      await startPermissionsApply(interaction, ctx);
+      return;
+    }
+    if (sub === 'rollback') {
+      await startPermissionsRollback(interaction, ctx);
+      return;
+    }
+  }
 
   if (sub === 'approve') {
     await startApproveWizard(interaction, ctx);
