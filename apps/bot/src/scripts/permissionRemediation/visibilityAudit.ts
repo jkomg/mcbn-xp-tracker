@@ -98,9 +98,15 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
       channelId: channel.id,
       channelName: channel.name,
       parentId,
+      categoryName: category?.name ?? null,
       visibleRoleIds,
       visibleToEveryone: visibleRoleIds.includes(guild.id),
     });
+  }
+
+  const roleNames: Record<string, string> = {};
+  for (const role of guild.roles.cache.values()) {
+    roleNames[role.id] = role.id === guild.id ? '@everyone' : role.name;
   }
 
   const assertions: VisibilityAssertion[] = [];
@@ -132,5 +138,5 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
     }
   }
 
-  return { rows, assertions };
+  return { rows, assertions, roleNames };
 }
