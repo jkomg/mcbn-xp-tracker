@@ -5,6 +5,7 @@ import { makeFakeCollection } from './testUtils/fakeCollection';
 
 const EVERYONE_ID = 'guild-1';
 const VIEW_CHANNEL = 1024n; // 1n << 10n
+const SEND_MESSAGES = 2048n; // 1n << 11n
 
 function makeOverwrite(id: string, type: 0 | 1, allow: bigint, deny: bigint) {
   return { id, type, allow: { bitfield: allow }, deny: { bitfield: deny } };
@@ -172,5 +173,43 @@ describe('permissionRemediation/visibilityAudit', () => {
     const row = report.rows.find((r) => r.channelId === 'chan-1');
     expect(row?.visibleToEveryone).toBe(false);
     expect(row?.visibleRoleIds).toContain('storyteller-role');
+  });
+
+  it('resolves Send Messages independently from View Channel (broadcast-channel pattern)', async () => {
+    // @everyone can view but only Moderator can post — the "read-only
+    // announcement channel" pattern found across the real server.
+    const channel = makeChannel({
+      permissionOverwrites: {
+        cache: makeFakeCollection([
+          makeOverwrite(EVERYONE_ID, 0, 0n, SEND_MESSAGES),
+          makeOverwrite('moderator-role', 0, VIEW_CHANNEL | SEND_MESSAGES, 0n),
+        ]),
+      },
+    });
+    const guild = makeGuild({ channels: [channel], roleIds: [EVERYONE_ID, 'moderator-role'] });
+
+    const report = await auditVisibility(guild as never, { modLogChannelIds: [] });
+
+    const row = report.rows[0];
+    expect(row.visibleToEveryone).toBe(true);
+    expect(row.sendableToEveryone).toBe(false);
+    expect(row.sendableRoleIds).toEqual(['moderator-role']);
+  });
+
+  it('falls back to the category-level overwrite for Send Messages, same as View Channel', async () => {
+    const category = makeChannel({
+      id: 'cat-1',
+      type: ChannelType.GuildCategory,
+      permissionOverwrites: {
+        cache: makeFakeCollection([makeOverwrite('storyteller-role', 0, SEND_MESSAGES, 0n)]),
+      },
+    });
+    const child = makeChannel({ id: 'chan-1', parentId: 'cat-1' });
+    const guild = makeGuild({ channels: [category, child], roleIds: [EVERYONE_ID, 'storyteller-role'] });
+
+    const report = await auditVisibility(guild as never, { modLogChannelIds: [] });
+
+    const row = report.rows.find((r) => r.channelId === 'chan-1');
+    expect(row?.sendableRoleIds).toContain('storyteller-role');
   });
 });

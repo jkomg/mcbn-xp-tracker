@@ -9,6 +9,7 @@ import type {
 } from './types';
 
 const VIEW_CHANNEL = 1n << 10n;
+const SEND_MESSAGES = 1n << 11n;
 
 function findRoleOverwrite(overwrites: OverwriteSnapshotEntry[], id: string): OverwriteSnapshotEntry | undefined {
   return overwrites.find((o) => o.type === 0 && o.id === id);
@@ -30,48 +31,51 @@ function effectiveOverwrite(
   return findRoleOverwrite(channelOws, entityId) ?? findRoleOverwrite(categoryOws, entityId);
 }
 
-/** Applies one overwrite's deny-then-allow on top of the running tri-state. */
-function applyOverwrite(state: boolean | null, ow: OverwriteSnapshotEntry | undefined): boolean | null {
+/** Applies one overwrite's deny-then-allow on top of the running tri-state, for a single permission bit. */
+function applyOverwrite(state: boolean | null, ow: OverwriteSnapshotEntry | undefined, bit: bigint): boolean | null {
   if (!ow) return state;
   let next = state;
-  if (BigInt(ow.deny) & VIEW_CHANNEL) next = false;
-  if (BigInt(ow.allow) & VIEW_CHANNEL) next = true;
+  if (BigInt(ow.deny) & bit) next = false;
+  if (BigInt(ow.allow) & bit) next = true;
   return next;
 }
 
 /**
- * Resolves whether someone holding only `@everyone` + one specific role can
- * view a channel. Matches Discord's real resolution order: the `@everyone`
- * overwrite sets a baseline, then the role's own overwrite is applied ON TOP
- * of it — so an explicit role-level allow correctly overrides an
- * `@everyone`-level deny (a very common "deny @everyone, allow staff roles"
- * pattern). An earlier version of this function OR'd all deny/allow bits
+ * Resolves whether someone holding only `@everyone` + one specific role has
+ * a given permission bit on a channel. Matches Discord's real resolution
+ * order: the `@everyone` overwrite sets a baseline, then the role's own
+ * overwrite is applied ON TOP of it — so an explicit role-level allow
+ * correctly overrides an `@everyone`-level deny (a very common "deny
+ * @everyone, allow staff roles" pattern). An earlier version of this
+ * function (when it only handled View Channel) OR'd all deny/allow bits
  * together and let any deny win regardless of source, which made staff-only
  * channels incorrectly report as visible to nobody.
  */
-function resolveViewChannel(
+function resolvePermission(
   roleId: string,
   everyoneId: string,
   channelOws: OverwriteSnapshotEntry[],
   categoryOws: OverwriteSnapshotEntry[],
+  bit: bigint,
 ): boolean {
   let state: boolean | null = null;
-  state = applyOverwrite(state, effectiveOverwrite(everyoneId, channelOws, categoryOws));
+  state = applyOverwrite(state, effectiveOverwrite(everyoneId, channelOws, categoryOws), bit);
   if (roleId !== everyoneId) {
-    state = applyOverwrite(state, effectiveOverwrite(roleId, channelOws, categoryOws));
+    state = applyOverwrite(state, effectiveOverwrite(roleId, channelOws, categoryOws), bit);
   }
-  // Nothing set anywhere means Discord shows the channel by default.
+  // Nothing set anywhere means Discord grants the permission by default.
   return state ?? true;
 }
 
 /**
- * Report-only: computes effective View Channel visibility per role per
- * channel, plus two concrete config-driven assertions (mod-log channels
- * hidden from @everyone; the honeypot bait channel hidden from the verified
- * member role, if configured). Never mutates anything. Does not account for
- * member-level (per-user) overwrites — a channel with 0 visible roles may
- * still be visible to a specific member via a member-type overwrite (e.g. a
- * character cubby channel), which this audit doesn't inspect.
+ * Report-only: computes effective View Channel and Send Messages resolution
+ * per role per channel, plus two concrete config-driven assertions (mod-log
+ * channels hidden from @everyone; the honeypot bait channel hidden from the
+ * verified member role, if configured). Never mutates anything. Does not
+ * account for member-level (per-user) overwrites — a channel with 0 visible
+ * roles may still be visible to a specific member via a member-type
+ * overwrite (e.g. a character cubby channel), which this audit doesn't
+ * inspect.
  */
 export async function auditVisibility(guild: Guild, options: VisibilityAuditOptions): Promise<VisibilityAuditReport> {
   const channels = await fetchAllNonThreadChannels(guild);
@@ -88,9 +92,13 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
     const categoryOws = category ? category.permissionOverwrites.cache.map(overwriteToSnapshotEntry) : [];
 
     const visibleRoleIds: string[] = [];
+    const sendableRoleIds: string[] = [];
     for (const roleId of roleIds) {
-      if (resolveViewChannel(roleId, guild.id, channelOws, categoryOws)) {
+      if (resolvePermission(roleId, guild.id, channelOws, categoryOws, VIEW_CHANNEL)) {
         visibleRoleIds.push(roleId);
+      }
+      if (resolvePermission(roleId, guild.id, channelOws, categoryOws, SEND_MESSAGES)) {
+        sendableRoleIds.push(roleId);
       }
     }
 
@@ -101,6 +109,8 @@ export async function auditVisibility(guild: Guild, options: VisibilityAuditOpti
       categoryName: category?.name ?? null,
       visibleRoleIds,
       visibleToEveryone: visibleRoleIds.includes(guild.id),
+      sendableRoleIds,
+      sendableToEveryone: sendableRoleIds.includes(guild.id),
     });
   }
 

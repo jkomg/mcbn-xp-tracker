@@ -137,6 +137,9 @@ export type ChannelVisibilityRow = {
   categoryName: string | null;
   visibleRoleIds: string[];
   visibleToEveryone: boolean;
+  /** Roles that resolve to Send Messages true — a subset of visibleRoleIds in the common case. */
+  sendableRoleIds: string[];
+  sendableToEveryone: boolean;
 };
 
 export type VisibilityAssertion = { label: string; channelId: string; ok: boolean; detail: string };
