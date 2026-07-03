@@ -20,4 +20,17 @@ export const liveConfig = {
   ccTicketMonitorEnabled: true,
   /** Category IDs to restrict the CC ticket monitor to. Seeded from .env in index.ts, then updated by ConfigSyncWorker. */
   ccTicketCategoryIds: new Set<string>(),
+  /** Honeypot + mention-spam breaker — fully live (checked per-message, no restart needed). */
+  honeypotEnabled: false,
+  honeypotRequireYoungAccount: false,
+  honeypotMaxAccountAgeDays: 30,
+  honeypotChannelId: '',
+  honeypotModLogChannelId: '',
+  honeypotWhitelistedRoleIds: new Set<string>(),
+  mentionBreakerEnabled: false,
+  mentionBreakerMaxMentions: 5,
+  mentionBreakerTimeoutMinutes: 10,
+  mentionBreakerExemptRoleIds: new Set<string>(),
+  mentionBreakerModLogChannelId: '',
+  verifiedMemberRoleId: '',
 };

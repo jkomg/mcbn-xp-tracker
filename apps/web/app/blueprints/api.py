@@ -780,16 +780,28 @@ def bot_config():
         'BOT_RESTART_REQUESTED': 'restartRequested',
         'BOT_WIKI_SYNC_REQUESTED': 'wikiSyncRequested',
         'BOT_CC_TICKET_MONITOR_ENABLED': 'ccTicketMonitorEnabled',
+        'BOT_HONEYPOT_ENABLED': 'honeypotEnabled',
+        'BOT_HONEYPOT_REQUIRE_YOUNG_ACCOUNT': 'honeypotRequireYoungAccount',
+        'BOT_MENTION_BREAKER_ENABLED': 'mentionBreakerEnabled',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
         'BOT_REVIEW_NOTIFIER_INTERVAL_MS': 'reviewNotifierIntervalMs',
         'BOT_SUBMISSION_NOTIFIER_INTERVAL_MS': 'submissionNotifierIntervalMs',
         'BOT_CLAIM_REMINDER_INTERVAL_MS': 'claimReminderIntervalMs',
+        'BOT_HONEYPOT_MAX_ACCOUNT_AGE_DAYS': 'honeypotMaxAccountAgeDays',
+        'BOT_MENTION_BREAKER_MAX_MENTIONS': 'mentionBreakerMaxMentions',
+        'BOT_MENTION_BREAKER_TIMEOUT_MINUTES': 'mentionBreakerTimeoutMinutes',
     }
     STR_KEYS = {
         'BOT_ANNOUNCEMENTS_CHANNEL_ID': 'announcementsChannelId',
         'BOT_CC_TICKET_CATEGORY_IDS': 'ccTicketCategoryIds',
+        'BOT_HONEYPOT_CHANNEL_ID': 'honeypotChannelId',
+        'BOT_HONEYPOT_MOD_LOG_CHANNEL_ID': 'honeypotModLogChannelId',
+        'BOT_HONEYPOT_WHITELISTED_ROLE_IDS': 'honeypotWhitelistedRoleIds',
+        'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS': 'mentionBreakerExemptRoleIds',
+        'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID': 'mentionBreakerModLogChannelId',
+        'BOT_VERIFIED_MEMBER_ROLE_ID': 'verifiedMemberRoleId',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting

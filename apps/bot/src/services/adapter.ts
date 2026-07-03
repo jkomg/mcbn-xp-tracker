@@ -33,6 +33,18 @@ export interface BotConfigResponse {
   claimReminderIntervalMs: number | null;
   announcementsChannelId: string | null;
   ccTicketCategoryIds: string | null;
+  honeypotEnabled: boolean | null;
+  honeypotRequireYoungAccount: boolean | null;
+  honeypotMaxAccountAgeDays: number | null;
+  honeypotChannelId: string | null;
+  honeypotModLogChannelId: string | null;
+  honeypotWhitelistedRoleIds: string | null;
+  mentionBreakerEnabled: boolean | null;
+  mentionBreakerMaxMentions: number | null;
+  mentionBreakerTimeoutMinutes: number | null;
+  mentionBreakerExemptRoleIds: string | null;
+  mentionBreakerModLogChannelId: string | null;
+  verifiedMemberRoleId: string | null;
   staffDiscordIds: string[] | null;
 }
 

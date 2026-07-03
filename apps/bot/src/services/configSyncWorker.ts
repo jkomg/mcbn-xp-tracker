@@ -35,6 +35,22 @@ export class ConfigSyncWorker {
       liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
         ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.ccTicketCategoryIds);
+      if (cfg.honeypotEnabled !== null) liveConfig.honeypotEnabled = cfg.honeypotEnabled;
+      if (cfg.honeypotRequireYoungAccount !== null) liveConfig.honeypotRequireYoungAccount = cfg.honeypotRequireYoungAccount;
+      if (cfg.mentionBreakerEnabled !== null) liveConfig.mentionBreakerEnabled = cfg.mentionBreakerEnabled;
+      liveConfig.honeypotMaxAccountAgeDays = cfg.honeypotMaxAccountAgeDays ?? config.honeypotMaxAccountAgeDays;
+      liveConfig.honeypotChannelId = cfg.honeypotChannelId ?? config.honeypotChannelId;
+      liveConfig.honeypotModLogChannelId = cfg.honeypotModLogChannelId ?? config.honeypotModLogChannelId;
+      liveConfig.honeypotWhitelistedRoleIds = cfg.honeypotWhitelistedRoleIds != null
+        ? new Set(cfg.honeypotWhitelistedRoleIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.honeypotWhitelistedRoleIds);
+      liveConfig.mentionBreakerMaxMentions = cfg.mentionBreakerMaxMentions ?? config.mentionBreakerMaxMentions;
+      liveConfig.mentionBreakerTimeoutMinutes = cfg.mentionBreakerTimeoutMinutes ?? config.mentionBreakerTimeoutMinutes;
+      liveConfig.mentionBreakerExemptRoleIds = cfg.mentionBreakerExemptRoleIds != null
+        ? new Set(cfg.mentionBreakerExemptRoleIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.mentionBreakerExemptRoleIds);
+      liveConfig.mentionBreakerModLogChannelId = cfg.mentionBreakerModLogChannelId ?? config.mentionBreakerModLogChannelId;
+      liveConfig.verifiedMemberRoleId = cfg.verifiedMemberRoleId ?? config.verifiedMemberRoleId ?? '';
       // Rebuild testerDiscordIds each sync so removals are respected:
       // start from the env-seeded snapshot, then union in current DB staff.
       config.testerDiscordIds = new Set(config.envTesterDiscordIds);

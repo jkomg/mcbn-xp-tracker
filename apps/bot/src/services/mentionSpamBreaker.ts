@@ -1,4 +1,5 @@
 import { EmbedBuilder, type Client, type Message } from 'discord.js';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage, logEvent } from '../logger';
 
 /**
@@ -9,19 +10,12 @@ import { errorToMessage, logEvent } from '../logger';
  * fan out, while this service can only act after delivery. Keep both enabled
  * — this layer stops repeat pings, times out the author, and alerts staff
  * even if AutoMod is misconfigured or the rule gets deleted.
- * See scripts: npm run ops:audit-mentions -- --setup-automod
+ * See scripts: npm run ops:permissions -- --setup-automod
+ *
+ * All config is read live from liveConfig on every message — dashboard
+ * changes (Settings → Bot — Feature Flags / Channel IDs / Tuning) apply
+ * within ~1 minute, no bot restart needed.
  */
-export type MentionSpamBreakerConfig = {
-  enabled: boolean;
-  /** Messages with MORE than this many unique user+role mentions trip the breaker. */
-  maxMentions: number;
-  /** Timeout applied to the author, in minutes. */
-  timeoutMinutes: number;
-  /** Role IDs exempt from the breaker (staff, trusted bots' roles). */
-  exemptRoleIds: Set<string>;
-  /** Channel for audit embeds; falls back silently if unset/unreachable. */
-  modLogChannelId: string;
-};
 
 const TRIP_REASON = 'Mention-spam circuit breaker: mass mentions in one message';
 
@@ -31,32 +25,28 @@ function countUniqueMentions(message: Message): number {
   return message.mentions.users.size + message.mentions.roles.size + everyone;
 }
 
-export function startMentionSpamBreaker(client: Client, cfg: MentionSpamBreakerConfig): void {
+export function startMentionSpamBreaker(client: Client): void {
   client.on('messageCreate', (message) => {
-    handleMessage(message, cfg).catch((error) =>
+    handleMessage(message).catch((error) =>
       logEvent('error', 'mention_breaker_error', { error: errorToMessage(error) }),
     );
   });
 
-  logEvent('info', 'mention_breaker_started', {
-    enabled: cfg.enabled,
-    maxMentions: cfg.maxMentions,
-    timeoutMinutes: cfg.timeoutMinutes,
-  });
+  logEvent('info', 'mention_breaker_started', {});
 }
 
-async function handleMessage(message: Message, cfg: MentionSpamBreakerConfig): Promise<void> {
-  if (!cfg.enabled) return;
+async function handleMessage(message: Message): Promise<void> {
+  if (!liveConfig.mentionBreakerEnabled) return;
   if (message.author.bot) return;
 
   const guild = message.guild;
   const member = message.member;
   if (!guild || !member) return;
 
-  if (member.roles.cache.some((role) => cfg.exemptRoleIds.has(role.id))) return;
+  if (member.roles.cache.some((role) => liveConfig.mentionBreakerExemptRoleIds.has(role.id))) return;
 
   const mentionCount = countUniqueMentions(message);
-  if (mentionCount <= cfg.maxMentions) return;
+  if (mentionCount <= liveConfig.mentionBreakerMaxMentions) return;
 
   const contentPreview = message.content ? message.content.slice(0, 500) : '(no text content)';
 
@@ -71,7 +61,7 @@ async function handleMessage(message: Message, cfg: MentionSpamBreakerConfig): P
 
   let timedOut = false;
   try {
-    await member.timeout(cfg.timeoutMinutes * 60_000, TRIP_REASON);
+    await member.timeout(liveConfig.mentionBreakerTimeoutMinutes * 60_000, TRIP_REASON);
     timedOut = true;
   } catch (error) {
     logEvent('error', 'mention_breaker_timeout_failed', {
@@ -88,9 +78,9 @@ async function handleMessage(message: Message, cfg: MentionSpamBreakerConfig): P
     timedOut,
   });
 
-  if (!cfg.modLogChannelId) return;
+  if (!liveConfig.mentionBreakerModLogChannelId) return;
 
-  const logChannel = await guild.channels.fetch(cfg.modLogChannelId).catch(() => null);
+  const logChannel = await guild.channels.fetch(liveConfig.mentionBreakerModLogChannelId).catch(() => null);
   if (!logChannel?.isTextBased()) return;
 
   const embed = new EmbedBuilder()
@@ -99,7 +89,7 @@ async function handleMessage(message: Message, cfg: MentionSpamBreakerConfig): P
     .setTimestamp(new Date())
     .setDescription(
       timedOut
-        ? `Message deleted and author timed out for ${cfg.timeoutMinutes} minutes. Review and ban if malicious.`
+        ? `Message deleted and author timed out for ${liveConfig.mentionBreakerTimeoutMinutes} minutes. Review and ban if malicious.`
         : 'Message deleted but **timeout failed** — check role hierarchy/permissions and act manually.',
     )
     .addFields(

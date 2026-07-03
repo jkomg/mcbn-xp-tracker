@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { config } from './config';
 import type { CommandContext } from './discord';
+import { liveConfig } from './liveConfig';
 import { errorToMessage, logEvent } from './logger';
 import { formatApplyResult, formatCombinedAudit, formatRestoreResult } from './scripts/permissionRemediation/reportFormat';
 import { runApply, runAudit } from './scripts/permissionRemediation/runAll';
@@ -38,9 +39,12 @@ function buildAuditOptions(): CombinedAuditOptions {
     mention: { keepMentionableRoleIds: new Set(), keepMentionEveryoneIds: new Set() },
     overwriteAudit: { includeMembers: false, includeZero: false },
     visibility: {
-      verifiedMemberRoleId: config.verifiedMemberRoleId,
-      honeypotChannelId: config.honeypotChannelId,
-      modLogChannelIds: [config.honeypotModLogChannelId, config.mentionBreakerModLogChannelId].filter(Boolean),
+      verifiedMemberRoleId: liveConfig.verifiedMemberRoleId || config.verifiedMemberRoleId,
+      honeypotChannelId: liveConfig.honeypotChannelId || config.honeypotChannelId,
+      modLogChannelIds: [
+        liveConfig.honeypotModLogChannelId || config.honeypotModLogChannelId,
+        liveConfig.mentionBreakerModLogChannelId || config.mentionBreakerModLogChannelId,
+      ].filter(Boolean),
     },
   };
 }

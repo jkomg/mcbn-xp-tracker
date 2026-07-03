@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { startHoneypotMonitor, type HoneypotConfig } from '../services/honeypotMonitor';
+import { liveConfig } from '../liveConfig';
+import { startHoneypotMonitor } from '../services/honeypotMonitor';
 
 function makeClient() {
   const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -53,32 +54,26 @@ function makeMessage(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeConfig(overrides: Partial<HoneypotConfig> = {}): HoneypotConfig {
-  return {
-    enabled: true,
-    channelId: 'honeypot-channel',
-    modLogChannelId: 'modlog-channel',
-    whitelistedRoleIds: new Set<string>(),
-    requireYoungAccount: false,
-    maxAccountAgeDays: 30,
-    ...overrides,
-  };
-}
-
 describe('honeypotMonitor', () => {
   let client: ReturnType<typeof makeClient>;
 
   beforeEach(() => {
     client = makeClient();
+    liveConfig.honeypotEnabled = true;
+    liveConfig.honeypotChannelId = 'honeypot-channel';
+    liveConfig.honeypotModLogChannelId = 'modlog-channel';
+    liveConfig.honeypotWhitelistedRoleIds = new Set();
+    liveConfig.honeypotRequireYoungAccount = false;
+    liveConfig.honeypotMaxAccountAgeDays = 30;
   });
 
   it('registers a messageCreate listener', () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     expect(client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
   });
 
   it('deletes the message and bans the author on trigger', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -90,7 +85,7 @@ describe('honeypotMonitor', () => {
   });
 
   it('posts an audit embed to the mod-log channel', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -98,7 +93,8 @@ describe('honeypotMonitor', () => {
   });
 
   it('does nothing when disabled', async () => {
-    startHoneypotMonitor(client as never, makeConfig({ enabled: false }));
+    liveConfig.honeypotEnabled = false;
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -107,7 +103,7 @@ describe('honeypotMonitor', () => {
   });
 
   it('ignores messages outside the honeypot channel', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage({ channelId: 'some-other-channel' });
     await client.emit('messageCreate', message);
 
@@ -116,7 +112,7 @@ describe('honeypotMonitor', () => {
   });
 
   it('ignores messages from bots', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage({ author: { id: 'bot-1', bot: true, tag: 'Bot#0001', createdTimestamp: Date.now() } });
     await client.emit('messageCreate', message);
 
@@ -125,10 +121,8 @@ describe('honeypotMonitor', () => {
   });
 
   it('skips whitelisted roles', async () => {
-    startHoneypotMonitor(
-      client as never,
-      makeConfig({ whitelistedRoleIds: new Set(['staff-role']) }),
-    );
+    liveConfig.honeypotWhitelistedRoleIds = new Set(['staff-role']);
+    startHoneypotMonitor(client as never);
     const message = makeMessage({
       member: { id: 'user-1', roles: { cache: makeRolesCache(['staff-role']) } },
     });
@@ -139,10 +133,9 @@ describe('honeypotMonitor', () => {
   });
 
   it('skips accounts older than the threshold when requireYoungAccount is set', async () => {
-    startHoneypotMonitor(
-      client as never,
-      makeConfig({ requireYoungAccount: true, maxAccountAgeDays: 30 }),
-    );
+    liveConfig.honeypotRequireYoungAccount = true;
+    liveConfig.honeypotMaxAccountAgeDays = 30;
+    startHoneypotMonitor(client as never);
     const message = makeMessage({
       author: {
         id: 'user-1',
@@ -158,10 +151,9 @@ describe('honeypotMonitor', () => {
   });
 
   it('still bans a young account when requireYoungAccount is set', async () => {
-    startHoneypotMonitor(
-      client as never,
-      makeConfig({ requireYoungAccount: true, maxAccountAgeDays: 30 }),
-    );
+    liveConfig.honeypotRequireYoungAccount = true;
+    liveConfig.honeypotMaxAccountAgeDays = 30;
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     await client.emit('messageCreate', message);
 
@@ -169,14 +161,14 @@ describe('honeypotMonitor', () => {
   });
 
   it('does not throw when ban fails', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     message.guild.members.ban = vi.fn().mockRejectedValue(new Error('Missing Permissions'));
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
   });
 
   it('does not throw when delete fails', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage();
     message.delete = vi.fn().mockRejectedValue(new Error('Unknown Message'));
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
@@ -184,7 +176,7 @@ describe('honeypotMonitor', () => {
   });
 
   it('ignores messages with no guild member (DMs)', async () => {
-    startHoneypotMonitor(client as never, makeConfig());
+    startHoneypotMonitor(client as never);
     const message = makeMessage({ member: null });
     await expect(client.emit('messageCreate', message)).resolves.not.toThrow();
     expect(message.delete).not.toHaveBeenCalled();
