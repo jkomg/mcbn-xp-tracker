@@ -31,9 +31,14 @@ Populate `apps/bot/.env.dev`:
 - `BOT_TOKEN` / `CLIENT_ID` — the dev bot's own Discord application, **not**
   production Lasombra's.
 - `TEST_GUILD_ID` — the test server's guild ID.
-- `WEB_APP_BASE_URL`, `WEB_APP_API_READ_TOKEN`, `WEB_APP_API_WRITE_TOKEN` —
-  point these at the **dev** web dashboard, not production, so nothing here
-  can write real player data.
+- `WEB_APP_BASE_URL` — point this at the **dev** web dashboard, not
+  production, so nothing here can write real player data.
+- `WEB_APP_API_TOKEN` — a shared secret you invent (e.g.
+  `openssl rand -hex 32`), set to the same value here and as
+  `WEB_APP_API_TOKEN` in the dev web app's own `.env`. It's not issued by
+  anything — it's just a password the bot and web app agree on. Grants both
+  read and write; the separate `WEB_APP_API_READ_TOKEN`/
+  `WEB_APP_API_WRITE_TOKEN` are optional scoped alternatives, not needed here.
 - Any other vars a feature you're testing needs (staff role IDs, other
   feature flags) — copy from `.env.example` as needed. `.env.dev` is a
   minimal overlay, not a full copy of `.env.example`.
