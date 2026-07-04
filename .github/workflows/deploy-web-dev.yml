@@ -99,7 +99,7 @@ jobs:
             --update-secrets "DISCORD_CLIENT_SECRET=mcbn-dev-discord-client-secret:latest" \
             --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
             --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
-            --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
+            --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token-dev:latest" \
             --update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest" \
             --update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest" \
             --update-secrets "DATABASE_URL=mcbn-dev-database-url:latest" \
