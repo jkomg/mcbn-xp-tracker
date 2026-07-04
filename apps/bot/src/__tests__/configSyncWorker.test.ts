@@ -68,6 +68,7 @@ function baseBotConfig(overrides: Partial<BotConfigResponse> = {}): BotConfigRes
     mentionBreakerModLogChannelId: null,
     verifiedMemberRoleId: null,
     staffDiscordIds: null,
+    disabledCommands: null,
     ...overrides,
   };
 }

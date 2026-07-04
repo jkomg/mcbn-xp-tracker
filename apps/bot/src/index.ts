@@ -34,6 +34,7 @@ import { handleContactSendModal, handleContactReplyModal, handleContactReplyButt
 import { handlePostModal, handlePostReplyButton } from './commands/post';
 import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
 import { handleRumorModal } from './commands/rumor';
+import { buildDisableTokens, isAnyTokenDisabled } from './services/commandGating';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -387,6 +388,17 @@ void applyStartupConfigOverrides().then(() => {
       if (!cmd?.autocomplete) {
         return;
       }
+      if (!config.testerDiscordIds.has(interaction.user.id)) {
+        const tokens = buildDisableTokens(
+          interaction.commandName,
+          interaction.options.getSubcommandGroup(false),
+          interaction.options.getSubcommand(false),
+        );
+        if (isAnyTokenDisabled(tokens, liveConfig.disabledCommands)) {
+          await interaction.respond([]);
+          return;
+        }
+      }
       await cmd.autocomplete(interaction, { client, adapter });
       return;
     }
@@ -557,6 +569,19 @@ void applyStartupConfigOverrides().then(() => {
     const cmd = client.commands.get(interaction.commandName);
     if (!cmd) {
       return;
+    }
+
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      const tokens = buildDisableTokens(
+        interaction.commandName,
+        interaction.options.getSubcommandGroup(false),
+        interaction.options.getSubcommand(false),
+      );
+      if (isAnyTokenDisabled(tokens, liveConfig.disabledCommands)) {
+        logEvent('info', 'command_execute_blocked_disabled', { ...baseMeta, commandName: interaction.commandName, tokens });
+        await interaction.reply({ content: 'This command is currently disabled by staff.', ephemeral: true });
+        return;
+      }
     }
 
     logEvent('info', 'command_execute_start', { ...baseMeta, commandName: interaction.commandName });

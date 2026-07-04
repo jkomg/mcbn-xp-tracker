@@ -33,4 +33,6 @@ export const liveConfig = {
   mentionBreakerExemptRoleIds: new Set<string>(),
   mentionBreakerModLogChannelId: '',
   verifiedMemberRoleId: '',
+  /** Per-command/subcommand kill switches, e.g. "xp.submit", "cobweb". Set-membership check, no restart needed. */
+  disabledCommands: new Set<string>(),
 };

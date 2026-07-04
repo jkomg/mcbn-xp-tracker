@@ -46,6 +46,7 @@ export interface BotConfigResponse {
   mentionBreakerModLogChannelId: string | null;
   verifiedMemberRoleId: string | null;
   staffDiscordIds: string[] | null;
+  disabledCommands: string | null;
 }
 
 export interface TrackerAdapter {
