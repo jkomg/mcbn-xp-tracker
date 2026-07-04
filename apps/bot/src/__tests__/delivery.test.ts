@@ -146,30 +146,34 @@ describe('/deliver modal submit', () => {
 
   it('ignores modals with a different customId', async () => {
     const interaction = makeModalInteraction('some:other:modal', 'text');
-    const handled = await handleDeliveryModal(interaction as never);
+    const adapter = makeAdapter();
+    const handled = await handleDeliveryModal(interaction as never, { adapter } as never);
     expect(handled).toBe(false);
   });
 
   it('reports session expiry when there is no pending delivery', async () => {
     const interaction = makeModalInteraction('deliver:letter', 'text', 'never-started-a-delivery');
-    const handled = await handleDeliveryModal(interaction as never);
+    const adapter = makeAdapter();
+    const handled = await handleDeliveryModal(interaction as never, { adapter } as never);
     expect(handled).toBe(true);
     expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('Session expired'));
   });
 
-  it('posts the letter embed and confirms delivery after a successful /deliver execute', async () => {
+  it('posts the letter embed, @-mentions the recipient, and confirms delivery after a successful /deliver execute', async () => {
     const cmdInteraction = makeChatInteraction({ to: 'Elena', character: null }, 'user-2');
     const adapter = makeAdapter();
     await execute(cmdInteraction as never, { adapter } as never);
 
     const modalInteraction = makeModalInteraction('deliver:letter', 'The night grows long.', 'user-2');
-    const handled = await handleDeliveryModal(modalInteraction as never);
+    const handled = await handleDeliveryModal(modalInteraction as never, { adapter } as never);
 
     expect(handled).toBe(true);
     expect(modalInteraction._channel.send).toHaveBeenCalledTimes(1);
-    const sentEmbed = modalInteraction._channel.send.mock.calls[0][0].embeds[0];
-    expect(sentEmbed.data.title).toBe('📜 A Letter Arrives');
-    expect(sentEmbed.data.description).toBe('The night grows long.');
+    const sendArgs = modalInteraction._channel.send.mock.calls[0][0];
+    expect(sendArgs.content).toBe('<@user-1>');
+    const sentEmbed = sendArgs.embeds[0];
+    expect(sentEmbed.data.title).toBe('✉️ A Letter Arrives');
+    expect(sentEmbed.data.description).toBe('**To:** Elena\n**From:** Marcus\n\nThe night grows long.');
     expect(modalInteraction.editReply).toHaveBeenCalledWith(expect.stringContaining('delivered to **Elena**'));
   });
 });

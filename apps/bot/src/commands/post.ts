@@ -5,6 +5,8 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ModalBuilder,
@@ -12,6 +14,7 @@ import {
   SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle,
+  type ButtonInteraction,
   type TextChannel,
 } from 'discord.js';
 import type { CommandContext } from '../discord';
@@ -21,8 +24,9 @@ import { resolveOwnedCharacter } from '../services/characterOwnership';
 
 const _POST_ACCENT = 0x1d9bf0;
 const MODAL_ID = 'post:social';
+const REPLY_BUTTON_PREFIX = 'post:reply-btn:';
 
-type PendingPost = { senderCharacterName: string; handle: string };
+type PendingPost = { senderCharacterName: string; handle: string; replyToHandle?: string };
 const pendingPosts = new Map<string, PendingPost>();
 
 export const name = 'post';
@@ -76,8 +80,11 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
   }
 
   pendingPosts.set(interaction.user.id, { senderCharacterName: ownership.characterName, handle: ownership.characterName });
+  await interaction.showModal(buildPostModal('New Social Media Post'));
+}
 
-  const modal = new ModalBuilder().setCustomId(MODAL_ID).setTitle('New Social Media Post');
+function buildPostModal(title: string): ModalBuilder {
+  const modal = new ModalBuilder().setCustomId(MODAL_ID).setTitle(title);
   const handleInput = new TextInputBuilder()
     .setCustomId('handle')
     .setLabel('Handle (optional)')
@@ -96,7 +103,31 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     new ActionRowBuilder<TextInputBuilder>().addComponents(handleInput),
     new ActionRowBuilder<TextInputBuilder>().addComponents(contentInput),
   );
-  await interaction.showModal(modal);
+  return modal;
+}
+
+/** Handles the 💬 Reply button attached to posted posts — opens the post modal, tagging the new post as a reply. */
+export async function handlePostReplyButton(interaction: ButtonInteraction, ctx: CommandContext): Promise<boolean> {
+  if (!interaction.customId.startsWith(REPLY_BUTTON_PREFIX)) return false;
+
+  const replyToHandle = decodeURIComponent(interaction.customId.slice(REPLY_BUTTON_PREFIX.length));
+
+  const ownership = await resolveOwnedCharacter(ctx.adapter, interaction.user.id);
+  if (!ownership.ok) {
+    await interaction.reply({
+      content: `${ownership.errorMessage} Or use \`/post\` and pass the \`character\` option directly.`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  pendingPosts.set(interaction.user.id, {
+    senderCharacterName: ownership.characterName,
+    handle: ownership.characterName,
+    replyToHandle,
+  });
+  await interaction.showModal(buildPostModal(`Reply to @${replyToHandle}`.slice(0, 45)));
+  return true;
 }
 
 export async function handlePostModal(interaction: ModalSubmitInteraction): Promise<boolean> {
@@ -128,14 +159,24 @@ export async function handlePostModal(interaction: ModalSubmitInteraction): Prom
     return true;
   }
 
+  const description = pending.replyToHandle ? `↩️ Replying to @${pending.replyToHandle}\n\n${content}` : content;
+
   const embed = new EmbedBuilder()
     .setTitle(`📱 @${handle}`)
     .setColor(_POST_ACCENT)
-    .setDescription(content)
-    .setFooter({ text: `Posted by ${pending.senderCharacterName} — in character.` });
+    .setDescription(description)
+    .setFooter({ text: `Posted by ${pending.senderCharacterName} — in character.` })
+    .setTimestamp();
+
+  const replyButton = new ButtonBuilder()
+    .setCustomId(`${REPLY_BUTTON_PREFIX}${encodeURIComponent(handle)}`)
+    .setLabel('Reply')
+    .setEmoji('💬')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(replyButton);
 
   try {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [embed], components: [row] });
   } catch (err) {
     await interaction.editReply(`Could not post: ${errorToMessage(err)}`);
     return true;

@@ -6,7 +6,13 @@ const mockConfig = vi.hoisted(() => ({
 
 vi.mock('../config', () => ({ config: mockConfig }));
 
-import { autocomplete, execute, handleContactSendModal, handleContactReplyModal } from '../commands/contact';
+import {
+  autocomplete,
+  execute,
+  handleContactSendModal,
+  handleContactReplyModal,
+  handleContactReplyButton,
+} from '../commands/contact';
 
 function makeRoster() {
   return {
@@ -152,7 +158,7 @@ describe('/contact modal submits', () => {
     expect(modalInteraction._channel.send).toHaveBeenCalledTimes(1);
     const sendArgs = modalInteraction._channel.send.mock.calls[0][0];
     expect(sendArgs.content).toBe('<@222>');
-    expect(sendArgs.embeds[0].data.title).toBe('📱 Incoming Message');
+    expect(sendArgs.embeds[0].data.title).toBe('📲 New Text Message');
   });
 
   it('reply: posts an embed and confirms without needing a recipient list', async () => {
@@ -188,5 +194,84 @@ describe('/contact modal submits', () => {
 
     expect(modalInteraction.editReply).toHaveBeenCalledWith(expect.stringContaining('No active character found'));
     expect(modalInteraction._channel.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('/contact reply button', () => {
+  function makeButtonInteraction(customId: string, userId = 'user-1') {
+    return {
+      customId,
+      user: { id: userId, username: `user-${userId}` },
+      reply: vi.fn().mockResolvedValue(undefined),
+      showModal: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it('opens the reply modal directly when the user owns exactly one active character', async () => {
+    const interaction = makeButtonInteraction('contact:reply-btn:7', 'user-1');
+    const adapter = makeAdapter();
+
+    const handled = await handleContactReplyButton(interaction as never, { adapter } as never);
+
+    expect(handled).toBe(true);
+    expect(interaction.showModal).toHaveBeenCalledTimes(1);
+    expect(interaction.reply).not.toHaveBeenCalled();
+  });
+
+  it('picks the right character when the user owns several but only one is in this thread', async () => {
+    const roster = {
+      characters: [
+        { name: 'Marcus', discordId: 'user-multi' },
+        { name: 'Other Guy', discordId: 'user-multi' },
+      ],
+    };
+    const adapter = makeAdapter({
+      getActiveRosterWithIds: vi.fn().mockResolvedValue(roster),
+      getContactThreadsForCharacter: vi.fn().mockImplementation((_discordId: string, characterName?: string) => {
+        if (characterName === 'Marcus') {
+          return Promise.resolve({ character_name: 'Marcus', threads: [{ id: 7, participant_names: [], last_message_at: null, message_count: 1 }] });
+        }
+        return Promise.resolve({ character_name: characterName, threads: [] });
+      }),
+    });
+
+    const interaction = makeButtonInteraction('contact:reply-btn:7', 'user-multi');
+    const handled = await handleContactReplyButton(interaction as never, { adapter } as never);
+
+    expect(handled).toBe(true);
+    expect(interaction.showModal).toHaveBeenCalledTimes(1);
+    expect(interaction.reply).not.toHaveBeenCalled();
+  });
+
+  it('asks for the character option when more than one owned character is in this thread', async () => {
+    const roster = {
+      characters: [
+        { name: 'Marcus', discordId: 'user-multi' },
+        { name: 'Other Guy', discordId: 'user-multi' },
+      ],
+    };
+    const adapter = makeAdapter({
+      getActiveRosterWithIds: vi.fn().mockResolvedValue(roster),
+      getContactThreadsForCharacter: vi.fn().mockResolvedValue({
+        character_name: 'x',
+        threads: [{ id: 7, participant_names: [], last_message_at: null, message_count: 1 }],
+      }),
+    });
+
+    const interaction = makeButtonInteraction('contact:reply-btn:7', 'user-multi');
+    const handled = await handleContactReplyButton(interaction as never, { adapter } as never);
+
+    expect(handled).toBe(true);
+    expect(interaction.showModal).not.toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('More than one of your characters') }),
+    );
+  });
+
+  it('ignores button clicks for other custom ids', async () => {
+    const interaction = makeButtonInteraction('some:other:button', 'user-1');
+    const adapter = makeAdapter();
+    const handled = await handleContactReplyButton(interaction as never, { adapter } as never);
+    expect(handled).toBe(false);
   });
 });

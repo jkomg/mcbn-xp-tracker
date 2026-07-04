@@ -212,10 +212,23 @@ async function handleOwe(interaction: ChatInputCommandInteraction, ctx: CommandC
       { name: 'Tier', value: tierBadge(result.boon.tier), inline: true },
       { name: 'Reason', value: result.boon.reason || '—', inline: false },
     )
-    .setFooter({ text: `Boon #${result.boon.id} — use /prestation repay to settle.` });
+    .setFooter({ text: `Boon #${result.boon.id} — use /prestation repay to settle.` })
+    .setTimestamp();
+
+  let debtorMention = '';
+  try {
+    const roster = await ctx.adapter.getActiveRosterWithIds();
+    const debtorName = result.boon.debtor_character_name.toLowerCase();
+    const debtorCharacter = roster.characters.find((c) => c.name.toLowerCase() === debtorName);
+    if (debtorCharacter?.discordId) {
+      debtorMention = `<@${debtorCharacter.discordId}>`;
+    }
+  } catch {
+    debtorMention = '';
+  }
 
   try {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ content: debtorMention || undefined, embeds: [embed] });
   } catch (err) {
     await interaction.editReply(`Boon recorded, but could not post to the channel: ${errorToMessage(err)}`);
     return;

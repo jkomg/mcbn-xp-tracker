@@ -7,6 +7,8 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ModalBuilder,
@@ -14,6 +16,7 @@ import {
   SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle,
+  type ButtonInteraction,
   type TextChannel,
 } from 'discord.js';
 import type { CommandContext } from '../discord';
@@ -25,6 +28,7 @@ import type { ContactParticipant } from '../services/adapter';
 const _BLUE = 0x4a90d9;
 const SEND_MODAL_ID = 'contact:send';
 const REPLY_MODAL_ID = 'contact:reply';
+const REPLY_BUTTON_PREFIX = 'contact:reply-btn:';
 
 type PendingSend = { senderCharacterName: string; recipientNames: string[] };
 type PendingReply = { senderCharacterName: string; threadId: number };
@@ -216,7 +220,10 @@ async function handleReply(interaction: ChatInputCommandInteraction, ctx: Comman
   }
 
   pendingReplies.set(interaction.user.id, { senderCharacterName: ownership.characterName, threadId });
+  await interaction.showModal(buildReplyModal());
+}
 
+function buildReplyModal(): ModalBuilder {
   const modal = new ModalBuilder().setCustomId(REPLY_MODAL_ID).setTitle('Reply');
   const messageInput = new TextInputBuilder()
     .setCustomId('message')
@@ -226,26 +233,111 @@ async function handleReply(interaction: ChatInputCommandInteraction, ctx: Comman
     .setMaxLength(1500)
     .setRequired(true);
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
-  await interaction.showModal(modal);
+  return modal;
 }
 
-function buildContactEmbed(title: string, from: string, body: string, mentions: ContactParticipant[]): {
+/**
+ * Resolves which of a Discord user's owned characters is actually a
+ * participant in the given thread — unlike resolveOwnedCharacter, this
+ * disambiguates using thread membership, not just "do you own exactly one
+ * active character." A player with several characters should still get an
+ * instant reply as long as only one of them is in this specific conversation.
+ */
+async function resolveThreadParticipantCharacter(
+  ctx: CommandContext,
+  discordUserId: string,
+  threadId: number,
+): Promise<{ ok: true; characterName: string } | { ok: false; errorMessage: string }> {
+  const roster = await ctx.adapter.getActiveRosterWithIds();
+  const owned = roster.characters.filter((c) => c.discordId === discordUserId);
+
+  if (owned.length === 0) {
+    return { ok: false, errorMessage: 'No linked active character found. Use the web player page to link one first.' };
+  }
+  if (owned.length === 1) {
+    return { ok: true, characterName: owned[0].name };
+  }
+
+  const matches: string[] = [];
+  for (const character of owned) {
+    const result = await ctx.adapter.getContactThreadsForCharacter(discordUserId, character.name).catch(() => null);
+    if (result?.threads.some((t) => t.id === threadId)) {
+      matches.push(character.name);
+    }
+  }
+
+  if (matches.length === 1) {
+    return { ok: true, characterName: matches[0] };
+  }
+  if (matches.length === 0) {
+    return { ok: false, errorMessage: 'None of your linked characters are part of this conversation.' };
+  }
+  return {
+    ok: false,
+    errorMessage: 'More than one of your characters is in this conversation. Please provide the `character` option.',
+  };
+}
+
+/** Handles the 📲 Reply button attached to posted messages — jumps straight to the reply modal. */
+export async function handleContactReplyButton(interaction: ButtonInteraction, ctx: CommandContext): Promise<boolean> {
+  if (!interaction.customId.startsWith(REPLY_BUTTON_PREFIX)) return false;
+
+  const threadId = Number(interaction.customId.slice(REPLY_BUTTON_PREFIX.length));
+  if (!Number.isInteger(threadId) || threadId <= 0) {
+    await interaction.reply({ content: 'This conversation link looks broken — use `/contact reply` instead.', ephemeral: true });
+    return true;
+  }
+
+  const ownership = await resolveThreadParticipantCharacter(ctx, interaction.user.id, threadId);
+  if (!ownership.ok) {
+    await interaction.reply({
+      content: `${ownership.errorMessage} Or use \`/contact reply\` and pass the \`character\` option directly.`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  pendingReplies.set(interaction.user.id, { senderCharacterName: ownership.characterName, threadId });
+  await interaction.showModal(buildReplyModal());
+  return true;
+}
+
+function buildContactEmbed(
+  title: string,
+  from: string,
+  to: string[],
+  body: string,
+  mentions: ContactParticipant[],
+  threadId: number,
+): {
   embed: EmbedBuilder;
   content: string;
+  components: ActionRowBuilder<ButtonBuilder>[];
 } {
+  const quoted = body
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
+
   const embed = new EmbedBuilder()
     .setTitle(title)
     .setColor(_BLUE)
-    .addFields({ name: 'From', value: from, inline: true })
-    .setDescription(body)
-    .setFooter({ text: 'Sent via text — in character.' });
+    .setDescription(`**To:** ${to.join(', ')}\n**From:** ${from}\n\n${quoted}`)
+    .setFooter({ text: '🔒 Encrypted line — in character.' })
+    .setTimestamp();
 
   const mentionText = mentions
     .filter((p) => p.discord_id)
     .map((p) => `<@${p.discord_id}>`)
     .join(' ');
 
-  return { embed, content: mentionText };
+  const replyButton = new ButtonBuilder()
+    .setCustomId(`${REPLY_BUTTON_PREFIX}${threadId}`)
+    .setLabel('Reply')
+    .setEmoji('📲')
+    .setStyle(ButtonStyle.Primary);
+
+  return { embed, content: mentionText, components: [new ActionRowBuilder<ButtonBuilder>().addComponents(replyButton)] };
 }
 
 async function fetchContactChannel(interaction: ModalSubmitInteraction): Promise<TextChannel | null> {
@@ -275,7 +367,7 @@ export async function handleContactSendModal(
     { requesterDiscordId: interaction.user.id, requesterDiscordName: interaction.user.username },
     { senderCharacterName: pending.senderCharacterName, recipientCharacterNames: pending.recipientNames, body: message },
   );
-  if (!result.ok || !result.participants) {
+  if (!result.ok || !result.participants || !result.threadId) {
     await interaction.editReply(`Could not send: ${result.message}`);
     return true;
   }
@@ -289,10 +381,17 @@ export async function handleContactSendModal(
   const otherParticipants = result.participants.filter(
     (p) => p.character_name.toLowerCase() !== pending.senderCharacterName.toLowerCase(),
   );
-  const { embed, content } = buildContactEmbed('📱 Incoming Message', pending.senderCharacterName, message, otherParticipants);
+  const { embed, content, components } = buildContactEmbed(
+    '📲 New Text Message',
+    pending.senderCharacterName,
+    otherParticipants.map((p) => p.character_name),
+    message,
+    otherParticipants,
+    result.threadId,
+  );
 
   try {
-    await channel.send({ content: content || undefined, embeds: [embed] });
+    await channel.send({ content: content || undefined, embeds: [embed], components });
   } catch (err) {
     await interaction.editReply(`Could not post the message: ${errorToMessage(err)}`);
     return true;
@@ -335,10 +434,17 @@ export async function handleContactReplyModal(
     return true;
   }
 
-  const { embed, content } = buildContactEmbed('📱 Reply', pending.senderCharacterName, message, result.otherParticipants);
+  const { embed, content, components } = buildContactEmbed(
+    '📲 Reply',
+    pending.senderCharacterName,
+    result.otherParticipants.map((p) => p.character_name),
+    message,
+    result.otherParticipants,
+    pending.threadId,
+  );
 
   try {
-    await channel.send({ content: content || undefined, embeds: [embed] });
+    await channel.send({ content: content || undefined, embeds: [embed], components });
   } catch (err) {
     await interaction.editReply(`Could not post the reply: ${errorToMessage(err)}`);
     return true;

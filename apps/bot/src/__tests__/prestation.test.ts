@@ -101,8 +101,9 @@ describe('/prestation owe', () => {
       { creditorCharacterName: 'Alice', debtorCharacterName: 'Marcus', tier: 'minor', reason: 'Covered a shift' },
     );
     expect(interaction._channel.send).toHaveBeenCalledTimes(1);
-    const embed = interaction._channel.send.mock.calls[0][0].embeds[0];
-    expect(embed.data.title).toBe('🩸 Boon Owed');
+    const sendArgs = interaction._channel.send.mock.calls[0][0];
+    expect(sendArgs.content).toBe('<@user-2>');
+    expect(sendArgs.embeds[0].data.title).toBe('🩸 Boon Owed');
     expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('Boon #5 recorded'));
   });
 

@@ -29,10 +29,10 @@ import {
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
-import { handleDeliveryModal } from './commands/delivery';
-import { handleContactSendModal, handleContactReplyModal } from './commands/contact';
-import { handlePostModal } from './commands/post';
-import { handleCobwebModal } from './commands/cobweb';
+import { handleDeliveryModal, handleDeliveryReplyButton } from './commands/delivery';
+import { handleContactSendModal, handleContactReplyModal, handleContactReplyButton } from './commands/contact';
+import { handlePostModal, handlePostReplyButton } from './commands/post';
+import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
 import { handleRumorModal } from './commands/rumor';
 import {
   handleApproveWizardStringSelect,
@@ -460,6 +460,26 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      const contactReplyButtonHandled = await handleContactReplyButton(interaction, { client, adapter });
+      if (contactReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_contact_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const deliveryReplyButtonHandled = await handleDeliveryReplyButton(interaction, { client, adapter });
+      if (deliveryReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_delivery_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const cobwebReplyButtonHandled = await handleCobwebReplyButton(interaction, { client, adapter });
+      if (cobwebReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_cobweb_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const postReplyButtonHandled = await handlePostReplyButton(interaction, { client, adapter });
+      if (postReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_post_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardButton(interaction, adapter);
       if (handled) {
         logEvent('info', 'interaction_handled_button', { ...baseMeta, customId: interaction.customId });
@@ -493,7 +513,7 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
-      const deliveryHandled = await handleDeliveryModal(interaction);
+      const deliveryHandled = await handleDeliveryModal(interaction, { client, adapter });
       if (deliveryHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;

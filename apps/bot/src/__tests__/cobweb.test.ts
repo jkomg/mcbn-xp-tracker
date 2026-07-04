@@ -80,7 +80,7 @@ describe('/cobweb', () => {
     expect(modalInteraction._channel.send).toHaveBeenCalledTimes(1);
     const embed = modalInteraction._channel.send.mock.calls[0][0].embeds[0];
     expect(embed.data.title).toBe('🕸️ A Whisper in the Web');
-    expect(embed.data.description).toBe('Can you hear me?');
+    expect(embed.data.description).toBe('**From:** *Cassandra*\n\n*"Can you hear me?"*');
     // Ownership resolution only ever checked clan-agnostic roster data — no
     // discipline field is referenced anywhere in this command.
     expect(adapter.getActiveRosterWithIds).toHaveBeenCalled();

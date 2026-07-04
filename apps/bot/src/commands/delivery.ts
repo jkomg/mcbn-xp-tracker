@@ -5,6 +5,8 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ModalBuilder,
@@ -12,6 +14,7 @@ import {
   SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle,
+  type ButtonInteraction,
   type TextChannel,
 } from 'discord.js';
 import type { CommandContext } from '../discord';
@@ -21,6 +24,7 @@ import { resolveOwnedCharacter } from '../services/characterOwnership';
 
 const _GOLD = 0xc8a85b;
 const MODAL_ID = 'deliver:letter';
+const REPLY_BUTTON_PREFIX = 'deliver:reply-btn:';
 
 type PendingDelivery = { senderCharacterName: string; to: string };
 const pendingDeliveries = new Map<string, PendingDelivery>();
@@ -95,7 +99,10 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
   }
 
   pendingDeliveries.set(interaction.user.id, { senderCharacterName: ownership.characterName, to });
+  await interaction.showModal(buildDeliveryModal());
+}
 
+function buildDeliveryModal(): ModalBuilder {
   const modal = new ModalBuilder().setCustomId(MODAL_ID).setTitle('Deliver a Letter');
   const letterInput = new TextInputBuilder()
     .setCustomId('letter_text')
@@ -105,10 +112,35 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     .setMaxLength(3900)
     .setRequired(true);
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(letterInput));
-  await interaction.showModal(modal);
+  return modal;
 }
 
-export async function handleDeliveryModal(interaction: ModalSubmitInteraction): Promise<boolean> {
+/** Handles the ✉️ Reply button attached to posted letters — replies to the original sender directly. */
+export async function handleDeliveryReplyButton(interaction: ButtonInteraction, ctx: CommandContext): Promise<boolean> {
+  if (!interaction.customId.startsWith(REPLY_BUTTON_PREFIX)) return false;
+
+  const to = decodeURIComponent(interaction.customId.slice(REPLY_BUTTON_PREFIX.length));
+
+  const ownership = await resolveOwnedCharacter(ctx.adapter, interaction.user.id);
+  if (!ownership.ok) {
+    await interaction.reply({
+      content: `${ownership.errorMessage} Or use \`/deliver\` and pass the \`character\` option directly.`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  if (to.toLowerCase() === ownership.characterName.toLowerCase()) {
+    await interaction.reply({ content: "You can't deliver a letter to yourself.", ephemeral: true });
+    return true;
+  }
+
+  pendingDeliveries.set(interaction.user.id, { senderCharacterName: ownership.characterName, to });
+  await interaction.showModal(buildDeliveryModal());
+  return true;
+}
+
+export async function handleDeliveryModal(interaction: ModalSubmitInteraction, ctx: CommandContext): Promise<boolean> {
   if (interaction.customId !== MODAL_ID) return false;
 
   await interaction.deferReply({ ephemeral: true });
@@ -136,17 +168,33 @@ export async function handleDeliveryModal(interaction: ModalSubmitInteraction): 
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('📜 A Letter Arrives')
+    .setTitle('✉️ A Letter Arrives')
     .setColor(_GOLD)
-    .addFields(
-      { name: 'From', value: pending.senderCharacterName, inline: true },
-      { name: 'To', value: pending.to, inline: true },
-    )
-    .setDescription(letterText)
-    .setFooter({ text: 'Hand-delivered — in character.' });
+    .setDescription(`**To:** ${pending.to}\n**From:** ${pending.senderCharacterName}\n\n${letterText}`)
+    .setFooter({ text: '🕯️ Hand-delivered, sealed in wax — in character.' })
+    .setTimestamp();
+
+  const replyButton = new ButtonBuilder()
+    .setCustomId(`${REPLY_BUTTON_PREFIX}${encodeURIComponent(pending.senderCharacterName)}`)
+    .setLabel('Reply')
+    .setEmoji('✉️')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(replyButton);
+
+  let recipientMention = '';
+  try {
+    const roster = await ctx.adapter.getActiveRosterWithIds();
+    const recipientName = pending.to.toLowerCase();
+    const recipientCharacter = roster.characters.find((c) => c.name.toLowerCase() === recipientName);
+    if (recipientCharacter?.discordId) {
+      recipientMention = `<@${recipientCharacter.discordId}>`;
+    }
+  } catch {
+    recipientMention = '';
+  }
 
   try {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ content: recipientMention || undefined, embeds: [embed], components: [row] });
   } catch (err) {
     await interaction.editReply(`Could not post the letter: ${errorToMessage(err)}`);
     return true;

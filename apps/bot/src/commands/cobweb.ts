@@ -7,6 +7,8 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ModalBuilder,
@@ -14,6 +16,7 @@ import {
   SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle,
+  type ButtonInteraction,
   type TextChannel,
 } from 'discord.js';
 import type { CommandContext } from '../discord';
@@ -23,6 +26,7 @@ import { resolveOwnedCharacter } from '../services/characterOwnership';
 
 const _COBWEB_PURPLE = 0x4b0082;
 const MODAL_ID = 'cobweb:whisper';
+const REPLY_BUTTON_ID = 'cobweb:reply-btn';
 
 const pendingWhispers = new Map<string, string>();
 
@@ -77,7 +81,10 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
   }
 
   pendingWhispers.set(interaction.user.id, ownership.characterName);
+  await interaction.showModal(buildWhisperModal());
+}
 
+function buildWhisperModal(): ModalBuilder {
   const modal = new ModalBuilder().setCustomId(MODAL_ID).setTitle('Reach Out and Touch Mind');
   const messageInput = new TextInputBuilder()
     .setCustomId('message')
@@ -87,7 +94,29 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
     .setMaxLength(1500)
     .setRequired(true);
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
-  await interaction.showModal(modal);
+  return modal;
+}
+
+/**
+ * Handles the 🕸️ Whisper Back button attached to posted whispers. Cobweb is
+ * broadcast, not 1:1 — there's no specific reply target, so this just jumps
+ * straight to a fresh whisper instead of requiring `/cobweb` again.
+ */
+export async function handleCobwebReplyButton(interaction: ButtonInteraction, ctx: CommandContext): Promise<boolean> {
+  if (interaction.customId !== REPLY_BUTTON_ID) return false;
+
+  const ownership = await resolveOwnedCharacter(ctx.adapter, interaction.user.id);
+  if (!ownership.ok) {
+    await interaction.reply({
+      content: `${ownership.errorMessage} Or use \`/cobweb\` and pass the \`character\` option directly.`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  pendingWhispers.set(interaction.user.id, ownership.characterName);
+  await interaction.showModal(buildWhisperModal());
+  return true;
 }
 
 export async function handleCobwebModal(interaction: ModalSubmitInteraction): Promise<boolean> {
@@ -120,12 +149,19 @@ export async function handleCobwebModal(interaction: ModalSubmitInteraction): Pr
   const embed = new EmbedBuilder()
     .setTitle('🕸️ A Whisper in the Web')
     .setColor(_COBWEB_PURPLE)
-    .addFields({ name: 'From', value: senderCharacterName, inline: true })
-    .setDescription(message)
-    .setFooter({ text: 'Received only by those attuned — trust-based, no mechanical verification.' });
+    .setDescription(`**From:** *${senderCharacterName}*\n\n*"${message}"*`)
+    .setFooter({ text: '🧠 Heard only by those attuned — trust-based, no mechanical verification.' })
+    .setTimestamp();
+
+  const replyButton = new ButtonBuilder()
+    .setCustomId(REPLY_BUTTON_ID)
+    .setLabel('Whisper Back')
+    .setEmoji('🕸️')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(replyButton);
 
   try {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [embed], components: [row] });
   } catch (err) {
     await interaction.editReply(`Could not send: ${errorToMessage(err)}`);
     return true;
