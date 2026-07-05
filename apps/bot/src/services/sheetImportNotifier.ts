@@ -3,6 +3,7 @@ import path from 'node:path';
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter, PendingSheetImport } from './adapter';
+import type { BotClient } from '../discord';
 
 const STATE_PATH = path.resolve('./data/sheet-import-notifier-cursor.json');
 
@@ -28,10 +29,15 @@ function saveCursorState(state: CursorState) {
   }
 }
 
-export function buildSheetImportEmbed(draft: PendingSheetImport, reviewUrl: string): EmbedBuilder {
+export function buildSheetImportEmbed(
+  draft: PendingSheetImport,
+  reviewUrl: string,
+  staffRoleId: string,
+): EmbedBuilder {
   const description = [
     draft.player_discord_id ? `**Player:** <@${draft.player_discord_id}>` : null,
     `[Review this import](${reviewUrl})`,
+    staffRoleId ? `<@&${staffRoleId}>` : null,
   ]
     .filter(Boolean)
     .join('\n');
@@ -45,7 +51,8 @@ export function buildSheetImportEmbed(draft: PendingSheetImport, reviewUrl: stri
 
 type SheetImportNotifierConfig = {
   enabled: boolean;
-  channelId: string;
+  guildId: string;
+  staffRoleId: string;
   webBaseUrl: string;
   intervalMs: number;
   /** How far back to look on first boot (seconds). Prevents flooding old submissions. */
@@ -53,7 +60,7 @@ type SheetImportNotifierConfig = {
 };
 
 export class SheetImportNotifier {
-  private readonly client: Client;
+  private readonly client: BotClient;
   private readonly adapter: TrackerAdapter;
   private readonly config: SheetImportNotifierConfig;
   private timer: NodeJS.Timeout | null = null;
@@ -62,15 +69,16 @@ export class SheetImportNotifier {
   private cursorEpoch = 0;
   private readonly seenIds = new Set<string>();
 
-  constructor(client: Client, adapter: TrackerAdapter, config: SheetImportNotifierConfig) {
+  constructor(client: BotClient, adapter: TrackerAdapter, config: SheetImportNotifierConfig) {
     this.client = client;
     this.adapter = adapter;
     this.config = config;
   }
 
   start() {
-    if (!this.config.channelId) {
-      logEvent('warn', 'sheet_import_notifier_disabled_missing_channel');
+    if (!this.config.enabled) return;
+    if (!this.config.guildId) {
+      logEvent('warn', 'sheet_import_notifier_disabled_missing_guild');
       return;
     }
     if (this.timer) return;
@@ -80,7 +88,7 @@ export class SheetImportNotifier {
     this.timer.unref();
     void this.pollOnce();
     logEvent('info', 'sheet_import_notifier_started', {
-      channelId: this.config.channelId,
+      guildId: this.config.guildId,
       intervalMs: this.config.intervalMs,
     });
   }
@@ -92,7 +100,7 @@ export class SheetImportNotifier {
   }
 
   private async pollOnce() {
-    if (!this.config.enabled || !this.config.channelId) return;
+    if (!this.config.enabled || !this.config.guildId) return;
     if (this.polling) return;
     this.polling = true;
     try {
@@ -126,16 +134,6 @@ export class SheetImportNotifier {
         return;
       }
 
-      const channel = await this.client.channels
-        .fetch(this.config.channelId)
-        .catch(() => null) as TextChannel | null;
-      if (!channel) {
-        logEvent('warn', 'sheet_import_notifier_channel_not_found', {
-          channelId: this.config.channelId,
-        });
-        return;
-      }
-
       let pages = 0;
       while (pages < 10) {
         const page = await this.adapter.getPendingSheetImports({
@@ -155,9 +153,31 @@ export class SheetImportNotifier {
           }
           saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
 
+          if (!draft.cubby_channel_id) {
+            logEvent('warn', 'sheet_import_notifier_no_cubby', {
+              draftId: draft.id,
+              characterName: draft.character_name,
+            });
+            continue;
+          }
+
+          const channel = await this.client.channels
+            .fetch(draft.cubby_channel_id)
+            .catch(() => null) as TextChannel | null;
+          if (!channel) {
+            logEvent('warn', 'sheet_import_notifier_channel_not_found', {
+              draftId: draft.id,
+              cubbyChannelId: draft.cubby_channel_id,
+            });
+            continue;
+          }
+
           const reviewUrl = `${this.config.webBaseUrl.replace(/\/+$/, '')}/cc-admin/sheet-imports/${draft.id}`;
           try {
-            await channel.send({ embeds: [buildSheetImportEmbed(draft, reviewUrl)] });
+            await channel.send({
+              embeds: [buildSheetImportEmbed(draft, reviewUrl, this.config.staffRoleId)],
+              allowedMentions: { parse: ['roles', 'users'] },
+            });
             logEvent('info', 'sheet_import_notifier_posted', {
               draftId: draft.id,
               characterName: draft.character_name,

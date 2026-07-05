@@ -441,6 +441,7 @@ const pendingSheetImportSchema = z.object({
   character_name: z.string(),
   player_discord_id: z.string(),
   submitted_at_epoch: z.number(),
+  cubby_channel_id: z.string().nullable().optional(),
 });
 export type PendingSheetImport = z.infer<typeof pendingSheetImportSchema>;
 

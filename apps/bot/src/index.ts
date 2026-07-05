@@ -176,7 +176,8 @@ void applyStartupConfigOverrides().then(() => {
 
   const sheetImportNotifier = new SheetImportNotifier(client, adapter, {
     enabled: config.sheetImportNotifierEnabled,
-    channelId: config.sheetImportReviewChannelId,
+    guildId: config.discordGuildId,
+    staffRoleId: config.staffRoleStorytellerId,
     webBaseUrl: config.webAppBaseUrl,
     intervalMs: config.sheetImportNotifierIntervalMs,
     lookbackSeconds: config.sheetImportNotifierLookbackSeconds,
