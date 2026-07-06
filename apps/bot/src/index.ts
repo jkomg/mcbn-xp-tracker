@@ -35,6 +35,7 @@ import { handlePostModal, handlePostReplyButton } from './commands/post';
 import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
 import { handleRumorModal } from './commands/rumor';
 import { buildDisableTokens, isAnyTokenDisabled } from './services/commandGating';
+import { memberHasAnyRole, requiredRoleIds } from './services/roleGate';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -381,6 +382,11 @@ void applyStartupConfigOverrides().then(() => {
     startMentionSpamBreaker(client);
   });
 
+  const accessRoleIds = requiredRoleIds(config);
+  if (accessRoleIds.length === 0) {
+    logEvent('warn', 'access_gate_misconfigured_no_role_ids', {});
+  }
+
   client.on('interactionCreate', async (interaction) => {
   const baseMeta = {
     interactionId: interaction.id,
@@ -390,6 +396,22 @@ void applyStartupConfigOverrides().then(() => {
   };
 
   try {
+    // interaction.member is null for DM-context interactions — denied by
+    // memberHasAnyRole, which is intentional: correspondence/RP commands
+    // are guild-only, so DM usage has no legitimate case here.
+    if (!config.testerDiscordIds.has(interaction.user.id) && !memberHasAnyRole(interaction.member, accessRoleIds)) {
+      logEvent('info', 'interaction_blocked_unverified_role', baseMeta);
+      if (interaction.isAutocomplete()) {
+        await interaction.respond([]);
+      } else if (interaction.isRepliable()) {
+        await interaction.reply({
+          content: 'You need an approved character (Mortal, Ghoul, or Kindred) or a staff role to use this bot.',
+          ephemeral: true,
+        });
+      }
+      return;
+    }
+
     if (interaction.isAutocomplete()) {
       const cmd = client.commands.get(interaction.commandName);
       if (!cmd?.autocomplete) {
