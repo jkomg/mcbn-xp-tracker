@@ -3,6 +3,7 @@ import path from 'node:path';
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter, PendingSheetImport } from './adapter';
+import type { BotClient } from '../discord';
 
 const STATE_PATH = path.resolve('./data/sheet-import-notifier-cursor.json');
 
@@ -45,7 +46,8 @@ export function buildSheetImportEmbed(draft: PendingSheetImport, reviewUrl: stri
 
 type SheetImportNotifierConfig = {
   enabled: boolean;
-  channelId: string;
+  guildId: string;
+  staffRoleId: string;
   webBaseUrl: string;
   intervalMs: number;
   /** How far back to look on first boot (seconds). Prevents flooding old submissions. */
@@ -53,7 +55,7 @@ type SheetImportNotifierConfig = {
 };
 
 export class SheetImportNotifier {
-  private readonly client: Client;
+  private readonly client: BotClient;
   private readonly adapter: TrackerAdapter;
   private readonly config: SheetImportNotifierConfig;
   private timer: NodeJS.Timeout | null = null;
@@ -62,15 +64,16 @@ export class SheetImportNotifier {
   private cursorEpoch = 0;
   private readonly seenIds = new Set<string>();
 
-  constructor(client: Client, adapter: TrackerAdapter, config: SheetImportNotifierConfig) {
+  constructor(client: BotClient, adapter: TrackerAdapter, config: SheetImportNotifierConfig) {
     this.client = client;
     this.adapter = adapter;
     this.config = config;
   }
 
   start() {
-    if (!this.config.channelId) {
-      logEvent('warn', 'sheet_import_notifier_disabled_missing_channel');
+    if (!this.config.enabled) return;
+    if (!this.config.guildId) {
+      logEvent('warn', 'sheet_import_notifier_disabled_missing_guild');
       return;
     }
     if (this.timer) return;
@@ -80,7 +83,7 @@ export class SheetImportNotifier {
     this.timer.unref();
     void this.pollOnce();
     logEvent('info', 'sheet_import_notifier_started', {
-      channelId: this.config.channelId,
+      guildId: this.config.guildId,
       intervalMs: this.config.intervalMs,
     });
   }
@@ -92,7 +95,7 @@ export class SheetImportNotifier {
   }
 
   private async pollOnce() {
-    if (!this.config.enabled || !this.config.channelId) return;
+    if (!this.config.enabled || !this.config.guildId) return;
     if (this.polling) return;
     this.polling = true;
     try {
@@ -126,16 +129,6 @@ export class SheetImportNotifier {
         return;
       }
 
-      const channel = await this.client.channels
-        .fetch(this.config.channelId)
-        .catch(() => null) as TextChannel | null;
-      if (!channel) {
-        logEvent('warn', 'sheet_import_notifier_channel_not_found', {
-          channelId: this.config.channelId,
-        });
-        return;
-      }
-
       let pages = 0;
       while (pages < 10) {
         const page = await this.adapter.getPendingSheetImports({
@@ -145,9 +138,36 @@ export class SheetImportNotifier {
         if (page.events.length === 0) break;
 
         for (const draft of page.events) {
-          this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
+          if (this.seenIds.has(draft.id)) {
+            this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
+            continue;
+          }
 
-          if (this.seenIds.has(draft.id)) continue;
+          // Don't mark seen or advance the cursor until the cubby channel actually
+          // resolves — the roster's ticket_channel_id may not be backfilled yet
+          // (e.g. import arrives before roster sync, or mid-deploy). Leaving the
+          // cursor behind keeps this draft retryable on the next poll instead of
+          // silently dropping it forever once seenIds/cursor are persisted.
+          if (!draft.cubby_channel_id) {
+            logEvent('warn', 'sheet_import_notifier_no_cubby', {
+              draftId: draft.id,
+              characterName: draft.character_name,
+            });
+            continue;
+          }
+
+          const channel = await this.client.channels
+            .fetch(draft.cubby_channel_id)
+            .catch(() => null) as TextChannel | null;
+          if (!channel) {
+            logEvent('warn', 'sheet_import_notifier_channel_not_found', {
+              draftId: draft.id,
+              cubbyChannelId: draft.cubby_channel_id,
+            });
+            continue;
+          }
+
+          this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
           this.seenIds.add(draft.id);
           if (this.seenIds.size > 2000) {
             const first = this.seenIds.values().next().value;
@@ -157,7 +177,11 @@ export class SheetImportNotifier {
 
           const reviewUrl = `${this.config.webBaseUrl.replace(/\/+$/, '')}/cc-admin/sheet-imports/${draft.id}`;
           try {
-            await channel.send({ embeds: [buildSheetImportEmbed(draft, reviewUrl)] });
+            await channel.send({
+              content: this.config.staffRoleId ? `<@&${this.config.staffRoleId}>` : undefined,
+              embeds: [buildSheetImportEmbed(draft, reviewUrl)],
+              allowedMentions: this.config.staffRoleId ? { roles: [this.config.staffRoleId] } : { parse: [] },
+            });
             logEvent('info', 'sheet_import_notifier_posted', {
               draftId: draft.id,
               characterName: draft.character_name,

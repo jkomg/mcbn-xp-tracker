@@ -129,7 +129,6 @@ const envSchema = z.object({
   SUBMISSION_NOTIFIER_INTERVAL_MS: z.string().optional(),
   SUBMISSION_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
   SHEET_IMPORT_NOTIFIER_ENABLED: z.string().optional(),
-  SHEET_IMPORT_REVIEW_CHANNEL_ID: z.string().optional(),
   SHEET_IMPORT_NOTIFIER_INTERVAL_MS: z.string().optional(),
   SHEET_IMPORT_NOTIFIER_LOOKBACK_SECONDS: z.string().optional(),
   HUNT_CONSEQUENCE_ENABLED: z.string().optional(),
@@ -376,7 +375,6 @@ export const config = {
     'SUBMISSION_NOTIFIER_LOOKBACK_SECONDS',
   ),
   sheetImportNotifierEnabled: (env.SHEET_IMPORT_NOTIFIER_ENABLED ?? 'false').toLowerCase() === 'true',
-  sheetImportReviewChannelId: env.SHEET_IMPORT_REVIEW_CHANNEL_ID ?? '',
   sheetImportNotifierIntervalMs: parsePositiveInt(
     env.SHEET_IMPORT_NOTIFIER_INTERVAL_MS,
     120_000,

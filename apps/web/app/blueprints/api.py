@@ -1860,12 +1860,10 @@ def cc_submitted_drafts():
 def cc_pending_sheet_imports():
     """Return recently-submitted RoD sheet imports awaiting staff review since sinceEpoch.
 
-    Used by the bot's SheetImportNotifier (Issue #292) to post a staff-channel
-    summary when a player (re-)imports a sheet. Distinct from
-    /cc/submitted-drafts, which is for new-character-creation drafts and
-    posts to a per-character ticket channel that doesn't exist for these.
+    Used by the bot's SheetImportNotifier (Issue #292) to post to the character's
+    cubby channel with a staff ping when a player (re-)imports a sheet.
     """
-    from app.db import CharacterDraft
+    from app.db import CharacterDraft, DbCharacter
 
     try:
         since_epoch = int(request.args.get('sinceEpoch', '0'))
@@ -1894,12 +1892,20 @@ def cc_pending_sheet_imports():
     has_more = len(rows) > limit
     rows = rows[:limit]
 
+    # Bulk-fetch cubby channel IDs from the roster for all drafts that have one.
+    roster_ids = [d.roster_character_id for d in rows if d.roster_character_id is not None]
+    cubby_by_roster_id: dict = {}
+    if roster_ids:
+        chars = DbCharacter.query.filter(DbCharacter.id.in_(roster_ids)).all()
+        cubby_by_roster_id = {c.id: c.ticket_channel_id for c in chars}
+
     events = [
         {
             'id': d.id,
             'character_name': d.character_name or '',
             'player_discord_id': d.player_discord_id,
             'submitted_at_epoch': int(d.submitted_at.timestamp()),
+            'cubby_channel_id': cubby_by_roster_id.get(d.roster_character_id) if d.roster_character_id else None,
         }
         for d in rows
     ]
