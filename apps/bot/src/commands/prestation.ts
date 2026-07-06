@@ -11,6 +11,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage } from '../logger';
 import { resolveOwnedCharacter } from '../services/characterOwnership';
 import type { BoonTier } from '../services/adapter';
@@ -156,13 +157,13 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
 }
 
 async function fetchPrestationChannel(interaction: ChatInputCommandInteraction): Promise<TextChannel | null> {
-  const fetched = await interaction.client.channels.fetch(config.correspondencePrestationChannelId).catch(() => null);
+  const fetched = await interaction.client.channels.fetch((liveConfig.correspondencePrestationChannelId || config.correspondencePrestationChannelId)).catch(() => null);
   if (!fetched || !fetched.isTextBased() || !('send' in fetched)) return null;
   return fetched as TextChannel;
 }
 
 async function handleOwe(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondencePrestationChannelId) {
+  if (!(liveConfig.correspondencePrestationChannelId || config.correspondencePrestationChannelId)) {
     await interaction.reply({
       content: 'The prestation channel is not configured yet — ask a staff member to set `CORRESPONDENCE_PRESTATION_CHANNEL_ID`.',
       ephemeral: true,
@@ -271,7 +272,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction, ctx: Comma
 }
 
 async function handleRepay(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondencePrestationChannelId) {
+  if (!(liveConfig.correspondencePrestationChannelId || config.correspondencePrestationChannelId)) {
     await interaction.reply({
       content: 'The prestation channel is not configured yet — ask a staff member to set `CORRESPONDENCE_PRESTATION_CHANNEL_ID`.',
       ephemeral: true,

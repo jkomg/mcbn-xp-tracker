@@ -54,6 +54,12 @@ export class ConfigSyncWorker {
       liveConfig.disabledCommands = cfg.disabledCommands != null
         ? new Set(cfg.disabledCommands.split(',').map(s => s.trim()).filter(Boolean))
         : new Set();
+      liveConfig.correspondenceDeliveryChannelId = cfg.correspondenceDeliveryChannelId ?? config.correspondenceDeliveryChannelId;
+      liveConfig.correspondenceContactChannelId = cfg.correspondenceContactChannelId ?? config.correspondenceContactChannelId;
+      liveConfig.correspondencePrestationChannelId = cfg.correspondencePrestationChannelId ?? config.correspondencePrestationChannelId;
+      liveConfig.correspondenceSocialChannelId = cfg.correspondenceSocialChannelId ?? config.correspondenceSocialChannelId;
+      liveConfig.correspondenceCobwebChannelId = cfg.correspondenceCobwebChannelId ?? config.correspondenceCobwebChannelId;
+      liveConfig.correspondenceRumorChannelId = cfg.correspondenceRumorChannelId ?? config.correspondenceRumorChannelId;
       // Rebuild testerDiscordIds each sync so removals are respected:
       // start from the env-seeded snapshot, then union in current DB staff.
       config.testerDiscordIds = new Set(config.envTesterDiscordIds);

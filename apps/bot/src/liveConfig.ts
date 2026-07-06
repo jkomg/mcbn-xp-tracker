@@ -35,4 +35,11 @@ export const liveConfig = {
   verifiedMemberRoleId: '',
   /** Per-command/subcommand kill switches, e.g. "xp.submit", "cobweb". Set-membership check, no restart needed. */
   disabledCommands: new Set<string>(),
+  /** Correspondence command channel IDs — fully live (read per-invocation, no restart needed). */
+  correspondenceDeliveryChannelId: '',
+  correspondenceContactChannelId: '',
+  correspondencePrestationChannelId: '',
+  correspondenceSocialChannelId: '',
+  correspondenceCobwebChannelId: '',
+  correspondenceRumorChannelId: '',
 };

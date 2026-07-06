@@ -97,6 +97,12 @@ liveConfig.mentionBreakerTimeoutMinutes = config.mentionBreakerTimeoutMinutes;
 liveConfig.mentionBreakerExemptRoleIds = new Set(config.mentionBreakerExemptRoleIds);
 liveConfig.mentionBreakerModLogChannelId = config.mentionBreakerModLogChannelId;
 liveConfig.verifiedMemberRoleId = config.verifiedMemberRoleId ?? '';
+liveConfig.correspondenceDeliveryChannelId = config.correspondenceDeliveryChannelId;
+liveConfig.correspondenceContactChannelId = config.correspondenceContactChannelId;
+liveConfig.correspondencePrestationChannelId = config.correspondencePrestationChannelId;
+liveConfig.correspondenceSocialChannelId = config.correspondenceSocialChannelId;
+liveConfig.correspondenceCobwebChannelId = config.correspondenceCobwebChannelId;
+liveConfig.correspondenceRumorChannelId = config.correspondenceRumorChannelId;
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   readToken: config.webAppApiReadToken,

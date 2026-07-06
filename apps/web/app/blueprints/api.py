@@ -803,6 +803,12 @@ def bot_config():
         'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID': 'mentionBreakerModLogChannelId',
         'BOT_VERIFIED_MEMBER_ROLE_ID': 'verifiedMemberRoleId',
         'BOT_DISABLED_COMMANDS': 'disabledCommands',
+        'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID': 'correspondenceDeliveryChannelId',
+        'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID': 'correspondenceContactChannelId',
+        'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID': 'correspondencePrestationChannelId',
+        'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID': 'correspondenceSocialChannelId',
+        'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': 'correspondenceCobwebChannelId',
+        'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': 'correspondenceRumorChannelId',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting
