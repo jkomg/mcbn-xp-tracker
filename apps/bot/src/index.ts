@@ -383,6 +383,9 @@ void applyStartupConfigOverrides().then(() => {
   });
 
   const accessRoleIds = requiredRoleIds(config);
+  if (accessRoleIds.length === 0) {
+    logEvent('warn', 'access_gate_misconfigured_no_role_ids', {});
+  }
 
   client.on('interactionCreate', async (interaction) => {
   const baseMeta = {
@@ -393,6 +396,9 @@ void applyStartupConfigOverrides().then(() => {
   };
 
   try {
+    // interaction.member is null for DM-context interactions — denied by
+    // memberHasAnyRole, which is intentional: correspondence/RP commands
+    // are guild-only, so DM usage has no legitimate case here.
     if (!config.testerDiscordIds.has(interaction.user.id) && !memberHasAnyRole(interaction.member, accessRoleIds)) {
       logEvent('info', 'interaction_blocked_unverified_role', baseMeta);
       if (interaction.isAutocomplete()) {
