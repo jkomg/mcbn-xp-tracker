@@ -799,6 +799,79 @@
     </div>
   </div>
 
+  {# Bot — Commands #}
+  <h5 class="mb-2 mt-2">
+    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
+            style="font-size:0.75rem; letter-spacing:0.05em;"
+            data-bs-toggle="collapse" data-bs-target="#section-bot-commands" aria-expanded="false">
+      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+      Bot — Commands
+    </button>
+  </h5>
+  <div class="collapse mb-4" id="section-bot-commands">
+    <p class="text-muted small mb-2">
+      Turn any Discord command (or individual subcommand) off without a redeploy. Staff (BOT_TESTER_IDS) can still
+      run a disabled command themselves; everyone else gets a polite "disabled" reply. Disabling a whole command
+      disables all of its subcommands too. Changes apply to the bot within 1 minute — the command still appears
+      in Discord's picker either way, it just won't run for non-staff users while off.
+    </p>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:260px">Command</th>
+              <th style="width:140px">Status</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cmd in bot_commands %}
+            <tr>
+              <td class="fw-semibold">{{ cmd.label }}</td>
+              <td>
+                {% if can_edit %}
+                <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="mb-0">
+                  <input type="hidden" name="token" value="{{ cmd.token }}">
+                  <input type="hidden" name="action" value="{{ 'enable' if cmd.disabled else 'disable' }}">
+                  <button type="submit" class="btn btn-sm {% if cmd.disabled %}btn-outline-secondary{% else %}btn-success{% endif %}" style="min-width:90px">
+                    {% if cmd.disabled %}<i class="bi bi-toggle-off"></i> OFF{% else %}<i class="bi bi-toggle-on"></i> ON{% endif %}
+                  </button>
+                </form>
+                {% else %}
+                  {% if cmd.disabled %}<span class="badge bg-secondary">Disabled</span>{% else %}<span class="badge bg-success">Enabled</span>{% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ cmd.description }}</td>
+            </tr>
+            {% for sub in cmd.subcommands %}
+            <tr>
+              <td class="text-muted small ps-4">↳ {{ sub.label }}</td>
+              <td>
+                {% if can_edit %}
+                <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="d-flex align-items-center gap-1 mb-0">
+                  <input type="hidden" name="token" value="{{ sub.token }}">
+                  <input type="hidden" name="action" value="{{ 'enable' if sub.own_disabled else 'disable' }}">
+                  <button type="submit" class="btn btn-sm {% if sub.disabled %}btn-outline-secondary{% else %}btn-success{% endif %}"
+                          style="min-width:90px" {% if cmd.disabled and not sub.own_disabled %}disabled{% endif %}>
+                    {% if sub.disabled %}<i class="bi bi-toggle-off"></i> OFF{% else %}<i class="bi bi-toggle-on"></i> ON{% endif %}
+                  </button>
+                  {% if sub.inherited %}<span class="badge bg-secondary ms-1" title="Disabled via the master switch above">via master</span>{% endif %}
+                </form>
+                {% else %}
+                  {% if sub.disabled %}<span class="badge bg-secondary">Disabled</span>{% else %}<span class="badge bg-success">Enabled</span>{% endif %}
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ sub.description }}</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 {% if wiki_sync.requested or (wiki_sync.status == 'running' and not wiki_sync.is_stale) %}

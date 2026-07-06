@@ -1,6 +1,6 @@
 services:
   bot-dev:
-    container_name: lasombra-dev
+    container_name: zapathasura
     build:
       context: ./apps/bot
       dockerfile: Dockerfile

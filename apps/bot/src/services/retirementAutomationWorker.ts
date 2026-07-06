@@ -147,6 +147,8 @@ export class RetirementAutomationWorker {
       if (this.cfg.wikiBatchEnabled && !config.wikiSyncEnabled) {
         await this.maybeRequestWikiBatch();
       }
+    } catch (err) {
+      logEvent('warn', 'retirement_automation_tick_failed', { error: errorToMessage(err) });
     } finally {
       this.running = false;
     }

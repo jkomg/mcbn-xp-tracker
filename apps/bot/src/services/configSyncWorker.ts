@@ -51,6 +51,9 @@ export class ConfigSyncWorker {
         : new Set(config.mentionBreakerExemptRoleIds);
       liveConfig.mentionBreakerModLogChannelId = cfg.mentionBreakerModLogChannelId ?? config.mentionBreakerModLogChannelId;
       liveConfig.verifiedMemberRoleId = cfg.verifiedMemberRoleId ?? config.verifiedMemberRoleId ?? '';
+      liveConfig.disabledCommands = cfg.disabledCommands != null
+        ? new Set(cfg.disabledCommands.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set();
       // Rebuild testerDiscordIds each sync so removals are respected:
       // start from the env-seeded snapshot, then union in current DB staff.
       config.testerDiscordIds = new Set(config.envTesterDiscordIds);

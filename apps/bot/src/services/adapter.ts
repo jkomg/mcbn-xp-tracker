@@ -46,6 +46,7 @@ export interface BotConfigResponse {
   mentionBreakerModLogChannelId: string | null;
   verifiedMemberRoleId: string | null;
   staffDiscordIds: string[] | null;
+  disabledCommands: string | null;
 }
 
 export interface TrackerAdapter {
@@ -186,7 +187,65 @@ export interface TrackerAdapter {
     } | null;
     members: Array<{ character_name: string; clan: string; player_discord_id: string; player_name: string }>;
   } | null>;
+  createBoon(
+    requester: RequesterContext,
+    payload: { creditorCharacterName: string; debtorCharacterName: string; tier: BoonTier; reason: string },
+  ): Promise<{ ok: boolean; message: string; boon?: BoonDetails }>;
+  getBoonsForCharacter(
+    discordId: string,
+    characterName?: string,
+    status?: string,
+  ): Promise<{ character_name: string; boons: BoonSummary[] } | null>;
+  actOnBoonRepay(
+    boonId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; boon?: BoonDetails }>;
+  createContactThread(
+    requester: RequesterContext,
+    payload: { senderCharacterName: string; recipientCharacterNames: string[]; body: string },
+  ): Promise<{ ok: boolean; message: string; threadId?: number; participants?: ContactParticipant[] }>;
+  getContactThreadsForCharacter(
+    discordId: string,
+    characterName?: string,
+  ): Promise<{ character_name: string; threads: ContactThreadSummary[] } | null>;
+  replyToContactThread(
+    threadId: number,
+    requester: RequesterContext,
+    payload: { senderCharacterName: string; body: string },
+  ): Promise<{ ok: boolean; message: string; otherParticipants?: ContactParticipant[] }>;
 }
+
+export type BoonTier = 'trivial' | 'minor' | 'major' | 'life';
+
+export type BoonDetails = {
+  id: number;
+  creditor_character_name: string;
+  debtor_character_name: string;
+  tier: string;
+  reason: string;
+  status: string;
+  created_at: string | null;
+  resolved_at: string | null;
+};
+
+export type BoonSummary = {
+  id: number;
+  direction: 'owed_to_me' | 'i_owe';
+  counterparty_name: string;
+  tier: string;
+  reason: string;
+  status: string;
+  created_at: string | null;
+};
+
+export type ContactParticipant = { character_name: string; discord_id: string };
+
+export type ContactThreadSummary = {
+  id: number;
+  participant_names: string[];
+  last_message_at: string | null;
+  message_count: number;
+};
 
 export type CharacterDetails = {
   character_name: string;
@@ -1496,6 +1555,150 @@ export class WebAppAdapter implements TrackerAdapter {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`coteries/by-character GET failed: ${res.status}`);
     return res.json() as Promise<ReturnType<TrackerAdapter['getCoterieForCharacter']> extends Promise<infer T> ? T : never>;
+  }
+
+  private async errorMessageFrom(resp: Response, fallback: string): Promise<string> {
+    const body = await resp.json().catch(() => ({})) as Record<string, unknown>;
+    return (body.error as string | undefined) ?? fallback;
+  }
+
+  async createBoon(
+    requester: RequesterContext,
+    payload: { creditorCharacterName: string; debtorCharacterName: string; tier: BoonTier; reason: string },
+  ): Promise<{ ok: boolean; message: string; boon?: BoonDetails }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/boons`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        creditorCharacterName: payload.creditorCharacterName,
+        debtorCharacterName: payload.debtorCharacterName,
+        tier: payload.tier,
+        reason: payload.reason,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; boon: BoonDetails };
+    return { ok: data.ok, message: 'Boon recorded.', boon: data.boon };
+  }
+
+  async getBoonsForCharacter(discordId: string, characterName?: string, status?: string) {
+    const params = new URLSearchParams();
+    if (characterName) params.set('character_name', characterName);
+    if (status) params.set('status', status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/boons/by-character/${encodeURIComponent(discordId)}${qs}`,
+      { method: 'GET', headers: this.readAuthHeaders() },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`boons/by-character GET failed: ${res.status}`);
+    return res.json() as Promise<{ character_name: string; boons: BoonSummary[] }>;
+  }
+
+  async actOnBoonRepay(
+    boonId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; boon?: BoonDetails }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/boons/${boonId}/repay-action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; boon: BoonDetails };
+    return { ok: data.ok, message: 'Boon updated.', boon: data.boon };
+  }
+
+  async createContactThread(
+    requester: RequesterContext,
+    payload: { senderCharacterName: string; recipientCharacterNames: string[]; body: string },
+  ): Promise<{ ok: boolean; message: string; threadId?: number; participants?: ContactParticipant[] }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/contact-threads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        senderCharacterName: payload.senderCharacterName,
+        recipientCharacterNames: payload.recipientCharacterNames,
+        body: payload.body,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; thread_id: number; participants: ContactParticipant[] };
+    return { ok: data.ok, message: 'Message sent.', threadId: data.thread_id, participants: data.participants };
+  }
+
+  async getContactThreadsForCharacter(discordId: string, characterName?: string) {
+    const qs = characterName ? `?character_name=${encodeURIComponent(characterName)}` : '';
+    const res = await this.fetchWithTimeout(
+      `${this.baseUrl}/api/contact-threads/by-character/${encodeURIComponent(discordId)}${qs}`,
+      { method: 'GET', headers: this.readAuthHeaders() },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`contact-threads/by-character GET failed: ${res.status}`);
+    return res.json() as Promise<{ character_name: string; threads: ContactThreadSummary[] }>;
+  }
+
+  async replyToContactThread(
+    threadId: number,
+    requester: RequesterContext,
+    payload: { senderCharacterName: string; body: string },
+  ): Promise<{ ok: boolean; message: string; otherParticipants?: ContactParticipant[] }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/contact-threads/${threadId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        senderCharacterName: payload.senderCharacterName,
+        body: payload.body,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; other_participants: ContactParticipant[] };
+    return { ok: data.ok, message: 'Reply sent.', otherParticipants: data.other_participants };
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

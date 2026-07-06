@@ -10,6 +10,8 @@
     "lint": "node scripts/lint.mjs",
     "format:check": "node scripts/format-check.mjs",
     "ops:permissions": "tsx src/scripts/permissionRemediation/cli.ts",
+    "ops:setup-test-channels": "tsx src/scripts/setupTestChannels.ts",
+    "dev:test-guild": "DOTENV_CONFIG_PATH=.env.dev tsx src/index.ts",
     "ops:check-adapter": "bash scripts/check-adapter.sh",
     "ops:deploy-local": "bash scripts/deploy-local.sh",
     "ops:docker:up": "docker compose -f docker-compose.yml up -d --build",
