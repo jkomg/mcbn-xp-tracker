@@ -29,15 +29,10 @@ function saveCursorState(state: CursorState) {
   }
 }
 
-export function buildSheetImportEmbed(
-  draft: PendingSheetImport,
-  reviewUrl: string,
-  staffRoleId: string,
-): EmbedBuilder {
+export function buildSheetImportEmbed(draft: PendingSheetImport, reviewUrl: string): EmbedBuilder {
   const description = [
     draft.player_discord_id ? `**Player:** <@${draft.player_discord_id}>` : null,
     `[Review this import](${reviewUrl})`,
-    staffRoleId ? `<@&${staffRoleId}>` : null,
   ]
     .filter(Boolean)
     .join('\n');
@@ -143,16 +138,16 @@ export class SheetImportNotifier {
         if (page.events.length === 0) break;
 
         for (const draft of page.events) {
-          this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
-
-          if (this.seenIds.has(draft.id)) continue;
-          this.seenIds.add(draft.id);
-          if (this.seenIds.size > 2000) {
-            const first = this.seenIds.values().next().value;
-            if (first) this.seenIds.delete(first);
+          if (this.seenIds.has(draft.id)) {
+            this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
+            continue;
           }
-          saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
 
+          // Don't mark seen or advance the cursor until the cubby channel actually
+          // resolves — the roster's ticket_channel_id may not be backfilled yet
+          // (e.g. import arrives before roster sync, or mid-deploy). Leaving the
+          // cursor behind keeps this draft retryable on the next poll instead of
+          // silently dropping it forever once seenIds/cursor are persisted.
           if (!draft.cubby_channel_id) {
             logEvent('warn', 'sheet_import_notifier_no_cubby', {
               draftId: draft.id,
@@ -172,11 +167,20 @@ export class SheetImportNotifier {
             continue;
           }
 
+          this.cursorEpoch = Math.max(this.cursorEpoch, draft.submitted_at_epoch);
+          this.seenIds.add(draft.id);
+          if (this.seenIds.size > 2000) {
+            const first = this.seenIds.values().next().value;
+            if (first) this.seenIds.delete(first);
+          }
+          saveCursorState({ cursorEpoch: this.cursorEpoch, seenIds: [...this.seenIds] });
+
           const reviewUrl = `${this.config.webBaseUrl.replace(/\/+$/, '')}/cc-admin/sheet-imports/${draft.id}`;
           try {
             await channel.send({
-              embeds: [buildSheetImportEmbed(draft, reviewUrl, this.config.staffRoleId)],
-              allowedMentions: { parse: ['roles', 'users'] },
+              content: this.config.staffRoleId ? `<@&${this.config.staffRoleId}>` : undefined,
+              embeds: [buildSheetImportEmbed(draft, reviewUrl)],
+              allowedMentions: this.config.staffRoleId ? { roles: [this.config.staffRoleId] } : { parse: [] },
             });
             logEvent('info', 'sheet_import_notifier_posted', {
               draftId: draft.id,
