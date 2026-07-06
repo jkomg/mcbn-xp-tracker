@@ -194,6 +194,12 @@ const envSchema = z.object({
   MENTION_BREAKER_TIMEOUT_MINUTES: z.string().optional(),
   MENTION_BREAKER_EXEMPT_ROLE_IDS: z.string().optional(),
   MENTION_BREAKER_MOD_LOG_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_DELIVERY_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_CONTACT_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_PRESTATION_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_SOCIAL_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_COBWEB_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_RUMOR_CHANNEL_ID: z.string().optional(),
   VERIFIED_MEMBER_ROLE_ID: z.string().optional(),
   PERMISSION_SNAPSHOT_DIR: z.string().optional(),
 });
@@ -493,6 +499,12 @@ export const config = {
     env.MENTION_BREAKER_MOD_LOG_CHANNEL_ID ?? env.HONEYPOT_MOD_LOG_CHANNEL_ID ?? '',
   verifiedMemberRoleId: env.VERIFIED_MEMBER_ROLE_ID,
   permissionSnapshotDir: env.PERMISSION_SNAPSHOT_DIR ?? '',
+  correspondenceDeliveryChannelId: env.CORRESPONDENCE_DELIVERY_CHANNEL_ID ?? '',
+  correspondenceContactChannelId: env.CORRESPONDENCE_CONTACT_CHANNEL_ID ?? '',
+  correspondencePrestationChannelId: env.CORRESPONDENCE_PRESTATION_CHANNEL_ID ?? '',
+  correspondenceSocialChannelId: env.CORRESPONDENCE_SOCIAL_CHANNEL_ID ?? '',
+  correspondenceCobwebChannelId: env.CORRESPONDENCE_COBWEB_CHANNEL_ID ?? '',
+  correspondenceRumorChannelId: env.CORRESPONDENCE_RUMOR_CHANNEL_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {

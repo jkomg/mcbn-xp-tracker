@@ -29,6 +29,12 @@ import {
 } from './interactiveClaimWizard';
 import { handleCombatParticipantSelect, handleCombatSetupModal, handleCombatButton, isCombatButton } from './combatSetupWizard';
 import { handleBroadcastModal, handleDeleteButton, handleUpdateModal, isDeleteButton } from './commands/lasombra';
+import { handleDeliveryModal, handleDeliveryReplyButton } from './commands/delivery';
+import { handleContactSendModal, handleContactReplyModal, handleContactReplyButton } from './commands/contact';
+import { handlePostModal, handlePostReplyButton } from './commands/post';
+import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
+import { handleRumorModal } from './commands/rumor';
+import { buildDisableTokens, isAnyTokenDisabled } from './services/commandGating';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
@@ -383,6 +389,17 @@ void applyStartupConfigOverrides().then(() => {
       if (!cmd?.autocomplete) {
         return;
       }
+      if (!config.testerDiscordIds.has(interaction.user.id)) {
+        const tokens = buildDisableTokens(
+          interaction.commandName,
+          interaction.options.getSubcommandGroup(false),
+          interaction.options.getSubcommand(false),
+        );
+        if (isAnyTokenDisabled(tokens, liveConfig.disabledCommands)) {
+          await interaction.respond([]);
+          return;
+        }
+      }
       await cmd.autocomplete(interaction, { client, adapter });
       return;
     }
@@ -456,6 +473,26 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      const contactReplyButtonHandled = await handleContactReplyButton(interaction, { client, adapter });
+      if (contactReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_contact_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const deliveryReplyButtonHandled = await handleDeliveryReplyButton(interaction, { client, adapter });
+      if (deliveryReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_delivery_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const cobwebReplyButtonHandled = await handleCobwebReplyButton(interaction, { client, adapter });
+      if (cobwebReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_cobweb_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const postReplyButtonHandled = await handlePostReplyButton(interaction, { client, adapter });
+      if (postReplyButtonHandled) {
+        logEvent('info', 'interaction_handled_post_reply_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardButton(interaction, adapter);
       if (handled) {
         logEvent('info', 'interaction_handled_button', { ...baseMeta, customId: interaction.customId });
@@ -489,6 +526,36 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      const deliveryHandled = await handleDeliveryModal(interaction, { client, adapter });
+      if (deliveryHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const contactSendHandled = await handleContactSendModal(interaction, { client, adapter });
+      if (contactSendHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const contactReplyHandled = await handleContactReplyModal(interaction, { client, adapter });
+      if (contactReplyHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const postHandled = await handlePostModal(interaction);
+      if (postHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const cobwebHandled = await handleCobwebModal(interaction);
+      if (cobwebHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const rumorHandled = await handleRumorModal(interaction);
+      if (rumorHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const handled = await handleClaimWizardModal(interaction);
       if (handled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
@@ -503,6 +570,19 @@ void applyStartupConfigOverrides().then(() => {
     const cmd = client.commands.get(interaction.commandName);
     if (!cmd) {
       return;
+    }
+
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      const tokens = buildDisableTokens(
+        interaction.commandName,
+        interaction.options.getSubcommandGroup(false),
+        interaction.options.getSubcommand(false),
+      );
+      if (isAnyTokenDisabled(tokens, liveConfig.disabledCommands)) {
+        logEvent('info', 'command_execute_blocked_disabled', { ...baseMeta, commandName: interaction.commandName, tokens });
+        await interaction.reply({ content: 'This command is currently disabled by staff.', ephemeral: true });
+        return;
+      }
     }
 
     logEvent('info', 'command_execute_start', { ...baseMeta, commandName: interaction.commandName });

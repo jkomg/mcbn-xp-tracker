@@ -802,6 +802,7 @@ def bot_config():
         'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS': 'mentionBreakerExemptRoleIds',
         'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID': 'mentionBreakerModLogChannelId',
         'BOT_VERIFIED_MEMBER_ROLE_ID': 'verifiedMemberRoleId',
+        'BOT_DISABLED_COMMANDS': 'disabledCommands',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting

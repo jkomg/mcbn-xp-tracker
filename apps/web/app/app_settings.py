@@ -31,6 +31,8 @@ EDITABLE_KEYS = {
     # Bot restart / sync signals
     'BOT_RESTART_REQUESTED',
     'BOT_WIKI_SYNC_REQUESTED',
+    # Per-command/subcommand kill switches (polled by bot via /api/bot-config)
+    'BOT_DISABLED_COMMANDS',
     # CC ticket monitor (polled by bot via /api/bot-config; applies within 1 minute)
     'BOT_CC_TICKET_MONITOR_ENABLED',
     'BOT_CC_TICKET_CATEGORY_IDS',

@@ -17,6 +17,7 @@ from app.app_settings import (
     get_app_setting,
     set_app_setting,
 )
+from app.bot_commands_catalog import BOT_COMMAND_CATALOG, flattened_tokens
 from app.db import RetirementAutomationJob
 from app.retirement_automation import retirement_next_retry_at
 
@@ -359,6 +360,32 @@ def index():
         },
     ]
 
+    # ── Bot command kill switches (DB-backed CSV; polled by bot via /api/bot-config) ──
+    _disabled_raw = get_app_setting('BOT_DISABLED_COMMANDS', '')
+    _disabled_tokens = {t.strip() for t in _disabled_raw.split(',') if t.strip()}
+
+    bot_commands = []
+    for _cmd in BOT_COMMAND_CATALOG:
+        _cmd_disabled = _cmd['name'] in _disabled_tokens
+        subcommands = []
+        for _sub in _cmd['subcommands']:
+            _sub_token = f"{_cmd['name']}.{_sub['name']}"
+            subcommands.append({
+                'token': _sub_token,
+                'label': _sub['label'],
+                'description': _sub['description'],
+                'own_disabled': _sub_token in _disabled_tokens,
+                'disabled': _cmd_disabled or _sub_token in _disabled_tokens,
+                'inherited': _cmd_disabled and _sub_token not in _disabled_tokens,
+            })
+        bot_commands.append({
+            'token': _cmd['name'],
+            'label': _cmd['label'],
+            'description': _cmd['description'],
+            'disabled': _cmd_disabled,
+            'subcommands': subcommands,
+        })
+
     # ── Bot channel IDs (DB-backed; take effect after bot restart) ────────
     def _eff_str(key):
         record = overrides.get(key)
@@ -700,6 +727,7 @@ def index():
         web_tuning=web_tuning,
         integrations=integrations,
         bot_flags=bot_flags,
+        bot_commands=bot_commands,
         bot_channels=bot_channels,
         bot_tuning=bot_tuning,
         chronicle_settings=chronicle_settings,
@@ -878,6 +906,41 @@ def update():
             set_app_setting(key, raw_value, updated_by)
         flash(f'{key} updated.', 'success')
 
+    return redirect(url_for('settings.index'))
+
+
+@bp.route('/commands/toggle', methods=['POST'])
+@require_staff
+def toggle_bot_command():
+    if not is_settings_admin():
+        flash('You do not have permission to change settings.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    token = request.form.get('token', '').strip()
+    action = request.form.get('action', '').strip()  # 'disable' or 'enable'
+
+    if token not in flattened_tokens():
+        flash(f'Unknown command: {token}', 'danger')
+        return redirect(url_for('settings.index'))
+    if action not in ('disable', 'enable'):
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    updated_by = (
+        session.get('discord_name')
+        or session.get('staff_user')
+        or session.get('discord_id', 'unknown')
+    )
+
+    current = {t.strip() for t in get_app_setting('BOT_DISABLED_COMMANDS', '').split(',') if t.strip()}
+    if action == 'disable':
+        current.add(token)
+        flash(f'`{token}` disabled.', 'success')
+    else:
+        current.discard(token)
+        flash(f'`{token}` re-enabled.', 'success')
+
+    set_app_setting('BOT_DISABLED_COMMANDS', ','.join(sorted(current)), updated_by)
     return redirect(url_for('settings.index'))
 
 
