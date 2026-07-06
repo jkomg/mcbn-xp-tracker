@@ -19,6 +19,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage } from '../logger';
 import { resolveOwnedCharacter } from '../services/characterOwnership';
 
@@ -70,7 +71,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, ctx: Co
 }
 
 export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondenceDeliveryChannelId) {
+  if (!(liveConfig.correspondenceDeliveryChannelId || config.correspondenceDeliveryChannelId)) {
     await interaction.reply({
       content: 'The delivery channel is not configured yet — ask a staff member to set `CORRESPONDENCE_DELIVERY_CHANNEL_ID`.',
       ephemeral: true,
@@ -156,7 +157,7 @@ export async function handleDeliveryModal(interaction: ModalSubmitInteraction, c
 
   let channel: TextChannel;
   try {
-    const fetched = await interaction.client.channels.fetch(config.correspondenceDeliveryChannelId);
+    const fetched = await interaction.client.channels.fetch((liveConfig.correspondenceDeliveryChannelId || config.correspondenceDeliveryChannelId));
     if (!fetched || !fetched.isTextBased() || !('send' in fetched)) {
       await interaction.editReply('Could not find the delivery channel. Ask staff to check the configured channel ID.');
       return true;

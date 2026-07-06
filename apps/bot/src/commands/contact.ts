@@ -21,6 +21,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage } from '../logger';
 import { resolveOwnedCharacter } from '../services/characterOwnership';
 import type { ContactParticipant } from '../services/adapter';
@@ -146,7 +147,7 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
 }
 
 async function handleSend(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondenceContactChannelId) {
+  if (!(liveConfig.correspondenceContactChannelId || config.correspondenceContactChannelId)) {
     await interaction.reply({
       content: 'The contact channel is not configured yet — ask a staff member to set `CORRESPONDENCE_CONTACT_CHANNEL_ID`.',
       ephemeral: true,
@@ -197,7 +198,7 @@ async function handleSend(interaction: ChatInputCommandInteraction, ctx: Command
 }
 
 async function handleReply(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondenceContactChannelId) {
+  if (!(liveConfig.correspondenceContactChannelId || config.correspondenceContactChannelId)) {
     await interaction.reply({
       content: 'The contact channel is not configured yet — ask a staff member to set `CORRESPONDENCE_CONTACT_CHANNEL_ID`.',
       ephemeral: true,
@@ -341,7 +342,7 @@ function buildContactEmbed(
 }
 
 async function fetchContactChannel(interaction: ModalSubmitInteraction): Promise<TextChannel | null> {
-  const fetched = await interaction.client.channels.fetch(config.correspondenceContactChannelId).catch(() => null);
+  const fetched = await interaction.client.channels.fetch((liveConfig.correspondenceContactChannelId || config.correspondenceContactChannelId)).catch(() => null);
   if (!fetched || !fetched.isTextBased() || !('send' in fetched)) return null;
   return fetched as TextChannel;
 }

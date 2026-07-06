@@ -47,6 +47,12 @@ export interface BotConfigResponse {
   verifiedMemberRoleId: string | null;
   staffDiscordIds: string[] | null;
   disabledCommands: string | null;
+  correspondenceDeliveryChannelId: string | null;
+  correspondenceContactChannelId: string | null;
+  correspondencePrestationChannelId: string | null;
+  correspondenceSocialChannelId: string | null;
+  correspondenceCobwebChannelId: string | null;
+  correspondenceRumorChannelId: string | null;
 }
 
 export interface TrackerAdapter {

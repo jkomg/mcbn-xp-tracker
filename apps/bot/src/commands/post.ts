@@ -19,6 +19,7 @@ import {
 } from 'discord.js';
 import type { CommandContext } from '../discord';
 import { config } from '../config';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage } from '../logger';
 import { resolveOwnedCharacter } from '../services/characterOwnership';
 
@@ -64,7 +65,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, ctx: Co
 }
 
 export async function execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!config.correspondenceSocialChannelId) {
+  if (!(liveConfig.correspondenceSocialChannelId || config.correspondenceSocialChannelId)) {
     await interaction.reply({
       content: 'The social media channel is not configured yet — ask a staff member to set `CORRESPONDENCE_SOCIAL_CHANNEL_ID`.',
       ephemeral: true,
@@ -148,7 +149,7 @@ export async function handlePostModal(interaction: ModalSubmitInteraction): Prom
 
   let channel: TextChannel;
   try {
-    const fetched = await interaction.client.channels.fetch(config.correspondenceSocialChannelId);
+    const fetched = await interaction.client.channels.fetch((liveConfig.correspondenceSocialChannelId || config.correspondenceSocialChannelId));
     if (!fetched || !fetched.isTextBased() || !('send' in fetched)) {
       await interaction.editReply('Could not find the social media channel. Ask staff to check the configured channel ID.');
       return true;
