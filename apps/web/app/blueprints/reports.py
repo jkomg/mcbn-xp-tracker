@@ -301,8 +301,6 @@ def health():
     data_capped = bool(earliest_date) and requested_start < earliest_date
 
     prev_start, prev_end = shift_window(start, end)
-    if earliest_date:
-        prev_start = max(prev_start, earliest_date)
 
     def _rows_for(since: str, until: str) -> list[dict]:
         if since > until:
@@ -317,14 +315,23 @@ def health():
         ]
 
     rows = _rows_for(start, end)
-    prev_rows = _rows_for(prev_start, prev_end)
+    # Only compare against a *full* prior period — if the natural previous
+    # window would dip before the earliest tracked date, there's no fair
+    # same-length baseline to compare against, so skip it entirely rather
+    # than silently comparing against a truncated (shorter) window, which
+    # can read as a misleading spike or drop.
+    prev_rows = [] if (earliest_date and prev_start < earliest_date) else _rows_for(prev_start, prev_end)
 
     discord_ids = {r['discord_id'] for r in rows} | {r['discord_id'] for r in prev_rows}
     name_rows = DiscordDisplayName.query.filter(DiscordDisplayName.discord_id.in_(discord_ids)).all()
     display_names = {r.discord_id: r.display_name for r in name_rows}
 
     active_characters = [
-        {'character_name': c.character_name, 'player_discord': c.player_discord}
+        {
+            'character_name': c.character_name,
+            'player_discord': c.player_discord,
+            'player_discord_name': c.player_discord_name,
+        }
         for c in DbCharacter.query.filter_by(active=True).all()
     ]
 

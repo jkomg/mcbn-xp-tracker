@@ -143,3 +143,35 @@ def test_not_posting_lists_all_characters_for_a_silent_multi_character_player():
     ]
     report = build_health_report([], [], active_characters, {}, '2026-06-01', '2026-06-01')
     assert report['not_posting'][0]['characters'] == ['Alpha', 'Beta']
+
+
+def test_not_posting_falls_back_to_roster_display_name_when_never_posted():
+    """Regression test: a player with zero posts in either window never gets
+    a display_names entry (that dict is only populated from activity rows),
+    so the not-posting table needs the roster's own player_discord_name as a
+    fallback instead of rendering a raw Discord ID."""
+    active_characters = [
+        {'character_name': 'Zara', 'player_discord': 'p2', 'player_discord_name': 'ZaraPlayer'},
+    ]
+    report = build_health_report([], [], active_characters, {}, '2026-06-01', '2026-06-01')
+    assert report['not_posting'][0]['display_name'] == 'ZaraPlayer'
+
+
+def test_not_posting_prefers_activity_tracked_name_over_roster_name():
+    """A player who posted last period but not this one is in not_posting
+    with a real (possibly more current) activity-tracked name — prefer that
+    over the roster snapshot when both are available."""
+    active_characters = [
+        {'character_name': 'Zara', 'player_discord': 'p2', 'player_discord_name': 'OldRosterName'},
+    ]
+    prev_rows = _rows(('p2', '2026-05-01', 'ic', 1))
+    report = build_health_report(
+        [], prev_rows, active_characters, {'p2': 'CurrentDisplayName'}, '2026-06-01', '2026-06-01',
+    )
+    assert report['not_posting'][0]['display_name'] == 'CurrentDisplayName'
+
+
+def test_not_posting_blank_display_name_when_neither_source_available():
+    active_characters = [{'character_name': 'Zara', 'player_discord': 'p2'}]
+    report = build_health_report([], [], active_characters, {}, '2026-06-01', '2026-06-01')
+    assert report['not_posting'][0]['display_name'] == ''

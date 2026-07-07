@@ -86,12 +86,19 @@ def build_health_report(
     # characters, and posting once should count for all of them.
     active_by_player: dict[str, list[str]] = {}
     unlinked_characters: list[str] = []
+    # Roster's own known name for a player — the only source available for
+    # someone who's never posted, since display_names is only ever populated
+    # from activity the bot has actually observed.
+    roster_display_name: dict[str, str] = {}
     for char in active_characters:
         pid = (char.get('player_discord') or '').strip()
         if not pid:
             unlinked_characters.append(char['character_name'])
             continue
         active_by_player.setdefault(pid, []).append(char['character_name'])
+        name = (char.get('player_discord_name') or '').strip()
+        if name and pid not in roster_display_name:
+            roster_display_name[pid] = name
 
     posted_player_ids = set(active_by_player) & posted_discord_ids
     not_posted_player_ids = set(active_by_player) - posted_discord_ids
@@ -105,7 +112,7 @@ def build_health_report(
         (
             {
                 'discord_id': pid,
-                'display_name': display_names.get(pid, ''),
+                'display_name': display_names.get(pid) or roster_display_name.get(pid, ''),
                 'characters': sorted(active_by_player[pid]),
             }
             for pid in not_posted_player_ids
