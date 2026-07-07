@@ -65,13 +65,20 @@ def test_updates_existing_merit_entry_when_not_in_backgrounds():
     assert data['backgrounds'] == []
 
 
-def test_new_background_appends_to_backgrounds_array_when_it_exists():
+def test_new_entry_always_defaults_to_merits_even_when_backgrounds_array_exists():
+    """A genuinely new purchase (no existing entry in either array) can't be
+    reliably classified as Background vs. Merit from the name alone without
+    duplicating the character-app's full background catalog here — so it
+    always defaults to merits, matching this function's original behavior.
+    Regression guard for a bug caught in review: defaulting new entries to
+    'backgrounds' whenever that array happened to exist would misclassify
+    ordinary new merit purchases (e.g. Iron Will) as backgrounds instead."""
     data = {'backgrounds': [], 'merits': []}
-    patched = _apply_patch(data, 'Advantage (Merit/Background)', 'Contacts', '', 1)
+    patched = _apply_patch(data, 'Advantage (Merit/Background)', 'Iron Will', '', 1)
 
     assert patched is True
-    assert data['backgrounds'] == [{'name': 'Contacts', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'}]
-    assert data['merits'] == []
+    assert data['merits'] == [{'name': 'Iron Will', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'}]
+    assert data['backgrounds'] == []
 
 
 def test_new_entry_falls_back_to_merits_for_pre_v7_sheets_with_no_backgrounds_array():

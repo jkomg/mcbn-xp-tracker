@@ -230,8 +230,12 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
                 if item.get('name', '').lower() == key:
                     item['level'] = new_dots
                     return True
-        target_array = 'backgrounds' if isinstance(data.get('backgrounds'), list) else 'merits'
-        data.setdefault(target_array, []).append({
+        # No existing entry in either array — this is a genuinely new
+        # purchase. We can't reliably tell "new Background" from "new Merit"
+        # from the trait name alone without duplicating the character-app's
+        # full background-name catalog here (a maintenance/drift risk), so
+        # default to merits, matching this function's original behavior.
+        data.setdefault('merits', []).append({
             'name': trait_name,
             'level': new_dots,
             'summary': '',
