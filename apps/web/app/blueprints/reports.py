@@ -344,17 +344,25 @@ def health():
 
     report = build_health_report(rows, prev_rows, active_characters, display_names, start, end)
 
-    # ── New PCs approved (date_added is 'YYYYMMDD HH:MM:SS' — parse rather
-    # than string-compare against the '%Y-%m-%d' window bounds; a raw string
-    # comparison between those two formats silently breaks, as it already
-    # has elsewhere in this codebase). ─────────────────────────────────────
+    # ── New PCs approved. date_added has two formats in the wild, parsed
+    # rather than string-compared against the '%Y-%m-%d' window bounds (a
+    # raw string comparison between mismatched formats silently breaks, as
+    # it already has elsewhere in this codebase):
+    #   - 'YYYYMMDD HH:MM:SS' — every live approval path (db_service.py's
+    #     _now_str() fallback in add_character).
+    #   - 'YYYY-MM-DD' — rows created by the one-time CSV migration
+    #     (migrate_csv_to_sheets.py), which predates the live approval flow.
+    # ─────────────────────────────────────────────────────────────────────
     def _parse_date_added(raw: str):
         if not raw:
             return None
-        try:
-            return datetime.strptime(raw.strip(), '%Y%m%d %H:%M:%S').date()
-        except ValueError:
-            return None
+        raw = raw.strip()
+        for fmt in ('%Y%m%d %H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(raw, fmt).date()
+            except ValueError:
+                continue
+        return None
 
     all_chars_dated = [
         (c, parsed) for c in DbCharacter.query.all()

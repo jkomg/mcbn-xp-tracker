@@ -65,8 +65,15 @@ def _days_ago(n: int) -> str:
 
 
 def _date_added_days_ago(n: int) -> str:
-    """DbCharacter.date_added's actual on-disk format: 'YYYYMMDD HH:MM:SS'."""
+    """DbCharacter.date_added's on-disk format for live approvals: 'YYYYMMDD HH:MM:SS'."""
     return (datetime.now(timezone.utc) - timedelta(days=n)).strftime('%Y%m%d %H:%M:%S')
+
+
+def _migrated_date_added_days_ago(n: int) -> str:
+    """The other on-disk format: 'YYYY-MM-DD', written by the one-time CSV
+    migration (migrate_csv_to_sheets.py) for characters that predate the
+    live approval flow."""
+    return (datetime.now(timezone.utc) - timedelta(days=n)).strftime('%Y-%m-%d')
 
 
 def test_delta_suppressed_when_prior_window_would_be_truncated():
@@ -169,3 +176,24 @@ def test_member_growth_stat_tiles_reflect_seeded_events():
         assert 'Verified (Kindred/Ghoul/Mortal)' in html
         assert '2 Kindred' not in html  # sanity: role breakdown should read "1 Kindred", not double-count
         assert '1 Kindred' in html
+
+
+def test_new_characters_recognizes_migrated_date_added_format():
+    """Regression test: characters created via the one-time CSV migration
+    have date_added stored as 'YYYY-MM-DD' instead of the live approval
+    flow's 'YYYYMMDD HH:MM:SS' — both formats must be recognized, or
+    migrated rows silently vanish from the new-PCs-approved report."""
+    app = _app()
+    with app.app_context():
+        db.session.add(DbCharacter(
+            character_name='MigratedCharacter', clan='Ventrue', active=True,
+            date_added=_migrated_date_added_days_ago(5),
+        ))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client)
+        resp = client.get('/reports/health?range=30')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'MigratedCharacter' in html
