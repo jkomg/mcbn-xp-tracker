@@ -160,6 +160,27 @@
                 </div>
             </div>
 
+            <!-- Trait name mismatch warning -->
+            {% if sheet_match and not sheet_match.exact and sheet_match.close_matches %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> No exact sheet match for "{{ spend.trait_name }}"</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        This character's sheet has no entry named exactly "{{ spend.trait_name }}". Approving as-is
+                        will create a <strong>new, separate</strong> entry rather than raising an existing one.
+                        Did they mean one of these?
+                    </p>
+                    <ul class="mb-0 small">
+                        {% for m in sheet_match.close_matches %}
+                        <li><strong>{{ m.name }}</strong> (currently {{ m.level }})</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Approve -->
             <div class="card mb-3 border-success">
                 <div class="card-header bg-success bg-opacity-25">
