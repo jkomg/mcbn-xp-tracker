@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 
-from app.activity_health import build_health_report, shift_window
+from app.activity_health import build_health_report, build_new_characters_report, shift_window
 from app.auth import require_staff
 from app.db import (
     DbCharacter,
@@ -337,9 +337,60 @@ def health():
 
     report = build_health_report(rows, prev_rows, active_characters, display_names, start, end)
 
+    # ── New PCs approved. date_added has two formats in the wild, parsed
+    # rather than string-compared against the '%Y-%m-%d' window bounds (a
+    # raw string comparison between mismatched formats silently breaks, as
+    # it already has elsewhere in this codebase):
+    #   - 'YYYYMMDD HH:MM:SS' — every live approval path (db_service.py's
+    #     _now_str() fallback in add_character).
+    #   - 'YYYY-MM-DD' — rows created by the one-time CSV migration
+    #     (migrate_csv_to_sheets.py), which predates the live approval flow.
+    # ─────────────────────────────────────────────────────────────────────
+    def _parse_date_added(raw: str):
+        if not raw:
+            return None
+        raw = raw.strip()
+        for fmt in ('%Y%m%d %H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(raw, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    all_chars_dated = [
+        (c, parsed) for c in DbCharacter.query.all()
+        if (parsed := _parse_date_added(c.date_added)) is not None
+    ]
+    earliest_char_date = min((d for _, d in all_chars_dated), default=None)
+    earliest_char_date_str = earliest_char_date.isoformat() if earliest_char_date else None
+
+    start_d = datetime.strptime(start, '%Y-%m-%d').date()
+    end_d = datetime.strptime(end, '%Y-%m-%d').date()
+    prev_start_d = datetime.strptime(prev_start, '%Y-%m-%d').date()
+    prev_end_d = datetime.strptime(prev_end, '%Y-%m-%d').date()
+
+    def _char_dict(c, d):
+        return {
+            'character_name': c.character_name,
+            'clan': c.clan or '',
+            'sect': c.sect or '',
+            'age_category': c.age_category or '',
+            'date_added': d.isoformat(),
+        }
+
+    new_chars_current = [_char_dict(c, d) for c, d in all_chars_dated if start_d <= d <= end_d]
+    new_chars_prev = (
+        []
+        if (earliest_char_date and prev_start_d < earliest_char_date)
+        else [_char_dict(c, d) for c, d in all_chars_dated if prev_start_d <= d <= prev_end_d]
+    )
+    new_characters_report = build_new_characters_report(new_chars_current, new_chars_prev)
+
     return render_template(
         'reports/health.html',
         report=report,
+        new_characters=new_characters_report,
+        earliest_char_date=earliest_char_date_str,
         range_days=range_days,
         range_options=HEALTH_RANGE_OPTIONS,
         start=start,

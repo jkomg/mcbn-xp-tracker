@@ -136,3 +136,25 @@ def build_health_report(
         'not_posting': not_posting,
         'unlinked_character_count': len(unlinked_characters),
     }
+
+
+def build_new_characters_report(characters: list[dict], prev_characters: list[dict]) -> dict:
+    """characters/prev_characters: [{'character_name', 'clan', 'sect',
+    'age_category', 'date_added'}, ...] — already filtered by the caller to
+    the current/prior windows respectively. date_added is only used for
+    sort order here; the caller owns date parsing and windowing.
+    """
+    count = len(characters)
+    prev_count = len(prev_characters)
+    if prev_count > 0:
+        delta_pct = round((count - prev_count) / prev_count * 100)
+    elif count > 0:
+        delta_pct = None  # no prior baseline to compare against
+    else:
+        delta_pct = 0
+
+    return {
+        'count': count,
+        'delta_pct': delta_pct,
+        'characters': sorted(characters, key=lambda c: c['date_added']),
+    }
