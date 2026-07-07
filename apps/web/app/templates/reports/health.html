@@ -79,6 +79,55 @@
     </div>
   </div>
 
+  {# ── Growth ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100">
+        <span class="stat-label">New PCs Approved</span>
+        <span class="stat-value">{{ new_characters.count }}</span>
+        <span class="stat-sub">
+          {% if new_characters.delta_pct is none %}
+            no prior baseline
+          {% elif new_characters.delta_pct > 0 %}
+            <span style="color:#0ca30c;"><i class="bi bi-arrow-up-short"></i>{{ new_characters.delta_pct }}%</span> vs prior period
+          {% elif new_characters.delta_pct < 0 %}
+            <span style="color:var(--accent-soft);"><i class="bi bi-arrow-down-short"></i>{{ -new_characters.delta_pct }}%</span> vs prior period
+          {% else %}
+            flat vs prior period
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {% if new_characters.characters %}
+  <div class="card mb-4">
+    <div class="card-header py-2 fw-semibold">
+      <i class="bi bi-person-plus me-1"></i> New Characters ({{ start }}–{{ end }})
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover table-sm align-middle mb-0">
+          <thead>
+            <tr><th>Character</th><th>Clan</th><th>Sect</th><th>Age</th><th>Approved</th></tr>
+          </thead>
+          <tbody>
+            {% for c in new_characters.characters %}
+            <tr>
+              <td class="fw-semibold">{{ c.character_name }}</td>
+              <td>{{ c.clan or '—' }}</td>
+              <td>{{ c.sect or '—' }}</td>
+              <td class="text-capitalize">{{ c.age_category or '—' }}</td>
+              <td class="font-monospace text-muted small">{{ c.date_added }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {# ── Daily activity by category ── #}
   <div class="card mb-4">
     <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">

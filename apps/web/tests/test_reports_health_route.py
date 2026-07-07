@@ -64,6 +64,11 @@ def _days_ago(n: int) -> str:
     return (datetime.now(timezone.utc).date() - timedelta(days=n)).isoformat()
 
 
+def _date_added_days_ago(n: int) -> str:
+    """DbCharacter.date_added's actual on-disk format: 'YYYYMMDD HH:MM:SS'."""
+    return (datetime.now(timezone.utc) - timedelta(days=n)).strftime('%Y%m%d %H:%M:%S')
+
+
 def test_delta_suppressed_when_prior_window_would_be_truncated():
     """A full 30-day current window compared against a prior 30-day window
     that's truncated (tracking only started partway through it) must not
@@ -122,3 +127,26 @@ def test_not_posting_shows_roster_name_for_a_never_posted_active_player():
         assert resp.status_code == 200
         html = resp.data.decode()
         assert 'ZaraPlayer' in html
+
+
+def test_new_characters_within_window_appear_and_outside_window_excluded():
+    app = _app()
+    with app.app_context():
+        db.session.add(DbCharacter(
+            character_name='Marcus', clan='Tremere', active=True,
+            date_added=_date_added_days_ago(5),  # inside a 30-day window
+        ))
+        db.session.add(DbCharacter(
+            character_name='OldTimer', clan='Ventrue', active=True,
+            date_added=_date_added_days_ago(90),  # well outside a 30-day window
+        ))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client)
+        resp = client.get('/reports/health?range=30')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'Marcus' in html
+        assert 'Tremere' in html
+        assert 'OldTimer' not in html

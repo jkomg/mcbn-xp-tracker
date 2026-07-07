@@ -1,4 +1,4 @@
-from app.activity_health import build_health_report, daterange, shift_window
+from app.activity_health import build_health_report, build_new_characters_report, daterange, shift_window
 
 
 def test_daterange_inclusive():
@@ -175,3 +175,38 @@ def test_not_posting_blank_display_name_when_neither_source_available():
     active_characters = [{'character_name': 'Zara', 'player_discord': 'p2'}]
     report = build_health_report([], [], active_characters, {}, '2026-06-01', '2026-06-01')
     assert report['not_posting'][0]['display_name'] == ''
+
+
+def _char(name, date_added='20260601 12:00:00', **overrides):
+    return {
+        'character_name': name, 'clan': '', 'sect': '', 'age_category': '',
+        'date_added': date_added, **overrides,
+    }
+
+
+def test_new_characters_count_and_sorted_by_date_added():
+    characters = [
+        _char('Zara', date_added='20260603 10:00:00'),
+        _char('Marcus', date_added='20260601 09:00:00'),
+    ]
+    report = build_new_characters_report(characters, [])
+
+    assert report['count'] == 2
+    assert [c['character_name'] for c in report['characters']] == ['Marcus', 'Zara']
+
+
+def test_new_characters_delta_pct_against_prior_window():
+    report = build_new_characters_report([_char('A'), _char('B')], [_char('C')])
+    assert report['delta_pct'] == 100
+
+
+def test_new_characters_delta_none_when_no_prior_baseline():
+    report = build_new_characters_report([_char('A')], [])
+    assert report['delta_pct'] is None
+
+
+def test_new_characters_delta_zero_when_both_windows_empty():
+    report = build_new_characters_report([], [])
+    assert report['delta_pct'] == 0
+    assert report['count'] == 0
+    assert report['characters'] == []
