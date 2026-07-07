@@ -152,6 +152,7 @@ export interface TrackerAdapter {
   recordDiscordActivity(
     entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
     names?: Record<string, string>,
+    mode?: 'increment' | 'replace',
   ): Promise<void>;
   getRecentPeriods(count?: number): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>>;
   syncStaff(
@@ -1338,11 +1339,12 @@ export class WebAppAdapter implements TrackerAdapter {
   async recordDiscordActivity(
     entries: Array<{ discord_id: string; date: string; category: 'ic' | 'ooc' | 'rolls' | 'cubby'; count: number }>,
     names?: Record<string, string>,
+    mode?: 'increment' | 'replace',
   ): Promise<void> {
     const res = await this.fetchWithTimeout(`${this.baseUrl}/api/discord-activity/record`, {
       method: 'POST',
       headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries, ...(names ? { names } : {}) }),
+      body: JSON.stringify({ entries, ...(names ? { names } : {}), ...(mode ? { mode } : {}) }),
     });
     if (!res.ok) throw new Error(`discord-activity/record POST failed: ${res.status}`);
   }
