@@ -41,6 +41,11 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((s) =>
     s
+      .setName('retainer-update')
+      .setDescription('Post a retainer sheet update to #player-retainer-sheets. Run in the character\'s channel.'),
+  )
+  .addSubcommand((s) =>
+    s
       .setName('edit')
       .setDescription('Edit a character\'s clan, sect, or age (and move cubby if age changes). Run in their channel.'),
   )
@@ -176,11 +181,15 @@ export const data = new SlashCommandBuilder()
 
 const BROADCAST_MODAL_ID = 'lasombra:broadcast:modal';
 const UPDATE_MODAL_ID = 'lasombra:update:modal';
+const RETAINER_UPDATE_MODAL_ID = 'lasombra:retainer-update:modal';
 export const DELETE_CONFIRM_ID = 'lasombra:delete:confirm';
 export const DELETE_CANCEL_ID = 'lasombra:delete:cancel';
 
 // Keyed by staffUserId → channel ID where /lasombra update was run
 const pendingUpdates = new Map<string, string>();
+
+// Keyed by staffUserId → channel ID where /lasombra retainer-update was run
+const pendingRetainerUpdates = new Map<string, string>();
 
 // Keyed by confirmation message ID → character name pending deletion
 const pendingDeletes = new Map<string, string>();
@@ -236,6 +245,30 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
       .setLabel('What is the update?')
       .setStyle(TextInputStyle.Paragraph)
       .setPlaceholder('e.g. 15 xp spent Presence 3')
+      .setMaxLength(1000)
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(updateInput));
+    await interaction.showModal(modal);
+    return;
+  }
+
+  if (sub === 'retainer-update') {
+    if (!config.testerDiscordIds.has(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to staff.', ephemeral: true });
+      return;
+    }
+    if (!interaction.channel || interaction.channel.type !== ChannelType.GuildText) {
+      await interaction.reply({ content: 'Run this inside the character\'s channel.', ephemeral: true });
+      return;
+    }
+    pendingRetainerUpdates.set(interaction.user.id, interaction.channel.id);
+
+    const modal = new ModalBuilder().setCustomId(RETAINER_UPDATE_MODAL_ID).setTitle('Retainer Sheet Update');
+    const updateInput = new TextInputBuilder()
+      .setCustomId('update_message')
+      .setLabel('What is the update?')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('e.g. new retainer sheet uploaded')
       .setMaxLength(1000)
       .setRequired(true);
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(updateInput));
@@ -889,21 +922,33 @@ export async function handleBroadcastModal(
   return true;
 }
 
-// ── Update modal handler ────────────────────────────────────────────────────
+// ── Update modal handlers ───────────────────────────────────────────────────
 
-export async function handleUpdateModal(
+type SheetUpdateFlavor = {
+  /** e.g. 'update' — used in the "session expired" retry hint. */
+  subcommandName: string;
+  targetChannelId: string;
+  targetChannelEnvVarName: string;
+  /** e.g. '#player-character-sheets' — used in error/confirmation text. */
+  targetChannelLabel: string;
+  /** e.g. 'Character sheet uploaded.' */
+  publicConfirmMessage: string;
+  logEventName: string;
+};
+
+async function handleSheetUpdateModal(
   interaction: import('discord.js').ModalSubmitInteraction,
-): Promise<boolean> {
-  if (interaction.customId !== UPDATE_MODAL_ID) return false;
-
+  pendingChannels: Map<string, string>,
+  flavor: SheetUpdateFlavor,
+): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
-  const channelId = pendingUpdates.get(interaction.user.id);
-  pendingUpdates.delete(interaction.user.id);
+  const channelId = pendingChannels.get(interaction.user.id);
+  pendingChannels.delete(interaction.user.id);
 
   if (!channelId) {
-    await interaction.editReply(`Session expired — run \`/${config.lasombraCommandName} update\` again.`);
-    return true;
+    await interaction.editReply(`Session expired — run \`/${config.lasombraCommandName} ${flavor.subcommandName}\` again.`);
+    return;
   }
 
   const updateMessage = interaction.fields.getTextInputValue('update_message').trim();
@@ -911,7 +956,7 @@ export async function handleUpdateModal(
   const guild = interaction.guild;
   if (!guild) {
     await interaction.editReply('Could not resolve server. Please try again.');
-    return true;
+    return;
   }
 
   let channel: import('discord.js').TextChannel;
@@ -919,12 +964,12 @@ export async function handleUpdateModal(
     const fetched = await guild.channels.fetch(channelId);
     if (!fetched || !fetched.isTextBased() || !('messages' in fetched)) {
       await interaction.editReply('Could not find the original channel.');
-      return true;
+      return;
     }
     channel = fetched as import('discord.js').TextChannel;
   } catch (err) {
     await interaction.editReply(`Could not fetch channel: ${errorToMessage(err)}`);
-    return true;
+    return;
   }
 
   const characterName = channel.name;
@@ -933,17 +978,17 @@ export async function handleUpdateModal(
     findLatestPdf(channel),
   ]);
 
-  const sheetsChannelId = config.approvePlayerSheetsChannelId;
+  const sheetsChannelId = flavor.targetChannelId;
   if (!sheetsChannelId) {
-    await interaction.editReply('`APPROVE_PLAYER_SHEETS_CHANNEL_ID` is not configured.');
-    return true;
+    await interaction.editReply(`\`${flavor.targetChannelEnvVarName}\` is not configured.`);
+    return;
   }
 
   try {
     const sheetsChannel = await guild.channels.fetch(sheetsChannelId);
     if (!sheetsChannel || !sheetsChannel.isTextBased() || !('send' in sheetsChannel)) {
-      await interaction.editReply('#player-character-sheets channel not found or not sendable.');
-      return true;
+      await interaction.editReply(`${flavor.targetChannelLabel} channel not found or not sendable.`);
+      return;
     }
 
     const playerMention = playerId ? `<@${playerId}>` : characterName;
@@ -971,11 +1016,11 @@ export async function handleUpdateModal(
       await (sheetsChannel as import('discord.js').TextChannel).send({ content });
     }
   } catch (err) {
-    await interaction.editReply(`Failed to post to #player-character-sheets: ${errorToMessage(err)}`);
-    return true;
+    await interaction.editReply(`Failed to post to ${flavor.targetChannelLabel}: ${errorToMessage(err)}`);
+    return;
   }
 
-  logEvent('info', 'sheet_update_posted', {
+  logEvent('info', flavor.logEventName, {
     characterName,
     playerId,
     staffId: interaction.user.id,
@@ -984,13 +1029,42 @@ export async function handleUpdateModal(
 
   // Post public confirmation in the character's channel
   try {
-    await channel.send({ content: 'Character sheet uploaded.' });
+    await channel.send({ content: flavor.publicConfirmMessage });
   } catch (err) {
-    logEvent('warn', 'sheet_update_channel_confirm_failed', { characterName, error: errorToMessage(err) });
+    logEvent('warn', `${flavor.logEventName}_channel_confirm_failed`, { characterName, error: errorToMessage(err) });
   }
 
   const pdfNote = pdf ? '' : ' *(no PDF found in channel)*';
   await interaction.editReply(`✅ Posted update for **${characterName}** to <#${sheetsChannelId}>${pdfNote}.`);
+}
+
+export async function handleUpdateModal(
+  interaction: import('discord.js').ModalSubmitInteraction,
+): Promise<boolean> {
+  if (interaction.customId !== UPDATE_MODAL_ID) return false;
+  await handleSheetUpdateModal(interaction, pendingUpdates, {
+    subcommandName: 'update',
+    targetChannelId: config.approvePlayerSheetsChannelId,
+    targetChannelEnvVarName: 'APPROVE_PLAYER_SHEETS_CHANNEL_ID',
+    targetChannelLabel: '#player-character-sheets',
+    publicConfirmMessage: 'Character sheet uploaded.',
+    logEventName: 'sheet_update_posted',
+  });
+  return true;
+}
+
+export async function handleRetainerUpdateModal(
+  interaction: import('discord.js').ModalSubmitInteraction,
+): Promise<boolean> {
+  if (interaction.customId !== RETAINER_UPDATE_MODAL_ID) return false;
+  await handleSheetUpdateModal(interaction, pendingRetainerUpdates, {
+    subcommandName: 'retainer-update',
+    targetChannelId: config.retainerSheetsChannelId,
+    targetChannelEnvVarName: 'RETAINER_SHEETS_CHANNEL_ID',
+    targetChannelLabel: '#player-retainer-sheets',
+    publicConfirmMessage: 'Retainer sheet uploaded.',
+    logEventName: 'retainer_sheet_update_posted',
+  });
   return true;
 }
 
