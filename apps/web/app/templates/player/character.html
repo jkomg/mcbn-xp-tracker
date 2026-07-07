@@ -1318,7 +1318,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return null;
         }
         if (cat === 'Advantage (Merit/Background)') {
-            const merits = SHEET_DATA.merits || [];
+            // Schema v7+ keeps Backgrounds in a separate array from Merits.
+            const merits = (SHEET_DATA.backgrounds || []).concat(SHEET_DATA.merits || []);
             const m = merits.find(m => m.name && m.name.toLowerCase() === traitName.trim().toLowerCase());
             return m ? (m.level || 0) : null;
         }

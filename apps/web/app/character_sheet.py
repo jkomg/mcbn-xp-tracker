@@ -42,21 +42,80 @@ def patch_character_draft(spend) -> bool:
         return False
 
 
-def _do_patch(spend) -> bool:
-    from app.db import db, CharacterDraft, DbCharacter, WikiPage
+def _find_approved_draft(character_name: str):
+    """Return the roster character's approved CharacterDraft row, or None."""
+    from app.db import CharacterDraft, DbCharacter
     from sqlalchemy import func
 
-    # Resolve roster character → draft
     char_row = DbCharacter.query.filter(
-        func.lower(DbCharacter.character_name) == spend.character_name.lower()
+        func.lower(DbCharacter.character_name) == character_name.lower()
     ).first()
     if not char_row:
-        return False
+        return None
 
-    draft = CharacterDraft.query.filter_by(
+    return CharacterDraft.query.filter_by(
         roster_character_id=char_row.id,
         status='approved',
     ).first()
+
+
+def _load_approved_sheet_data(character_name: str) -> dict | None:
+    """Load the character_data JSON off the roster character's approved draft.
+
+    Returns None if there's no roster character, no approved draft, or the
+    stored JSON doesn't parse — any of which just means there's nothing to
+    check/patch against.
+    """
+    draft = _find_approved_draft(character_name)
+    if not draft or not draft.character_data:
+        return None
+
+    try:
+        return json.loads(draft.character_data)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def find_trait_sheet_match(character_name: str, category: str, trait_name: str) -> dict | None:
+    """Check a pending spend's trait name against the character's current sheet.
+
+    Only meaningful for 'Advantage (Merit/Background)': these are the traits
+    that can carry a parenthetical source (e.g. "Status (Tremere)"), so a
+    spend submitted as plain "Status" can silently miss an existing entry and
+    create a stray duplicate instead of raising it — the bug that hit Marcus.
+
+    Returns None if there's nothing to check (wrong category, no sheet, blank
+    trait name). Otherwise returns {'exact': bool, 'close_matches': [...]} —
+    close_matches lists existing entries whose name starts with trait_name
+    but isn't an exact match, e.g. trait_name="Status" surfaces an existing
+    "Status (Tremere)" entry as a likely-intended match.
+    """
+    if category != 'Advantage (Merit/Background)':
+        return None
+    trait_name = (trait_name or '').strip()
+    if not trait_name:
+        return None
+
+    data = _load_approved_sheet_data(character_name)
+    if data is None:
+        return None
+
+    key = trait_name.lower()
+    entries = list(data.get('backgrounds') or []) + list(data.get('merits') or [])
+    exact = any((e.get('name') or '').lower() == key for e in entries)
+    close_matches = [
+        {'name': e.get('name', ''), 'level': e.get('level', 0)}
+        for e in entries
+        if (e.get('name') or '').lower() != key and (e.get('name') or '').lower().startswith(key)
+    ]
+    return {'exact': exact, 'close_matches': close_matches}
+
+
+def _do_patch(spend) -> bool:
+    from app.db import db, WikiPage
+    from sqlalchemy import func
+
+    draft = _find_approved_draft(spend.character_name)
     if not draft or not draft.character_data:
         return False
 
@@ -156,12 +215,23 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         return True
 
     if category == 'Advantage (Merit/Background)':
-        merits = data.setdefault('merits', [])
-        for m in merits:
-            if m.get('name', '').lower() == trait_name.lower():
-                m['level'] = new_dots
-                return True
-        merits.append({
+        key = trait_name.lower()
+        # Schema v7+ splits Backgrounds (Status, Resources, Contacts, Haven,
+        # etc.) into their own array, separate from Merits — but both use the
+        # same entry shape (`type` is always 'merit', it's just stored under
+        # a different top-level key). Check both arrays for an existing entry
+        # before appending a new one, so raising an existing background
+        # doesn't create a stray duplicate in the wrong array.
+        for array_name in ('backgrounds', 'merits'):
+            items = data.get(array_name)
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if item.get('name', '').lower() == key:
+                    item['level'] = new_dots
+                    return True
+        target_array = 'backgrounds' if isinstance(data.get('backgrounds'), list) else 'merits'
+        data.setdefault(target_array, []).append({
             'name': trait_name,
             'level': new_dots,
             'summary': '',
@@ -259,8 +329,8 @@ def _generate_stats_markdown(data: dict) -> str:
         lines.append(', '.join(f'{r["name"]} (L{r.get("level", "?")})' for r in sorted(other_rituals, key=lambda r: r.get('level', 0))))
         lines.append('')
 
-    # Merits & Flaws
-    merits = data.get('merits', [])
+    # Merits & Flaws (schema v7+ keeps Backgrounds in a separate array)
+    merits = data.get('merits', []) + data.get('backgrounds', [])
     flaws = data.get('flaws', [])
     if merits:
         lines.append('**Merits & Backgrounds:** ' + ', '.join(f'{m["name"]} {_dots_str(m.get("level", 0))}' for m in merits))

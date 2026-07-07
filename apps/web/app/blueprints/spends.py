@@ -6,7 +6,7 @@ from flask import (
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
-from app.character_sheet import patch_character_draft
+from app.character_sheet import patch_character_draft, find_trait_sheet_match
 
 bp = Blueprint('spends', __name__)
 
@@ -48,6 +48,11 @@ def review(row_id):
     depends_on_spend = db_service.get_spend_by_row(spend.depends_on) if spend.depends_on else None
     dependents = db_service.get_spend_dependents(spend.row_index)
 
+    # Warn staff if the trait name doesn't exactly match an existing sheet
+    # entry — e.g. "Status" submitted when the sheet has "Status (Tremere)" —
+    # since approving as-is creates a stray duplicate instead of raising it.
+    sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+
     return render_template(
         'spends/review.html',
         spend=spend,
@@ -55,6 +60,7 @@ def review(row_id):
         available_xp=available_xp,
         depends_on_spend=depends_on_spend,
         dependents=dependents,
+        sheet_match=sheet_match,
     )
 
 
