@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Server Health — Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+  <div class="mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h2 class="mb-0">Server Health</h2>
+      <small class="text-muted">Posting activity — {{ start }} to {{ end }}.</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <div class="btn-group" role="group" aria-label="Date range">
+        {% for opt in range_options %}
+        <a href="{{ url_for('reports.health', range=opt) }}"
+           class="btn btn-sm {% if opt == range_days %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          {{ opt }}d
+        </a>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Reports
+      </a>
+    </div>
+  </div>
+
+  {% if data_capped %}
+  <div class="alert alert-warning py-2 small mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    Activity tracking only has clean data back to <strong>{{ earliest_data_date }}</strong> —
+    this {{ range_days }}-day view is showing what's actually available ({{ report.days | length }} days),
+    not the full {{ range_days }}.
+  </div>
+  {% endif %}
+
+  {# ── Stat tiles ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100">
+        <span class="stat-label">Total Posts</span>
+        <span class="stat-value">{{ report.period_total }}</span>
+        <span class="stat-sub">
+          {% if report.delta_pct is none %}
+            no prior baseline
+          {% elif report.delta_pct > 0 %}
+            <span style="color:#0ca30c;"><i class="bi bi-arrow-up-short"></i>{{ report.delta_pct }}%</span> vs prior period
+          {% elif report.delta_pct < 0 %}
+            <span style="color:var(--accent-soft);"><i class="bi bi-arrow-down-short"></i>{{ -report.delta_pct }}%</span> vs prior period
+          {% else %}
+            flat vs prior period
+          {% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100">
+        <span class="stat-label">Active Posters</span>
+        <span class="stat-value">{{ report.unique_posters }}</span>
+        <span class="stat-sub">distinct people who posted</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100 stat-card--accent">
+        <span class="stat-label">Roster Participation</span>
+        <span class="stat-value">{{ report.participation_pct }}%</span>
+        <span class="stat-sub">{{ report.posted_player_count }} / {{ report.active_player_count }} active players posted</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100">
+        <span class="stat-label">Not Posting</span>
+        <span class="stat-value">{{ report.not_posting | length }}</span>
+        <span class="stat-sub">
+          active players, zero posts
+          {% if report.unlinked_character_count %}· {{ report.unlinked_character_count }} unlinked{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Daily activity by category ── #}
+  <div class="card mb-4">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <span class="fw-semibold"><i class="bi bi-bar-chart-line me-1"></i> Daily Activity by Category</span>
+      <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#daily-table">
+        Table view
+      </button>
+    </div>
+    <div class="card-body">
+      <canvas id="categoryChart" height="90" role="img" aria-label="Stacked bar chart of daily posts by category"></canvas>
+    </div>
+    <div class="collapse" id="daily-table">
+      <div class="table-responsive">
+        <table class="table table-dark table-sm align-middle mb-0">
+          <thead>
+            <tr><th>Date</th><th>IC</th><th>OOC</th><th>Rolls</th><th>Cubby</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            {% for d in report.days %}
+            {% set i = loop.index0 %}
+            <tr>
+              <td class="font-monospace">{{ d }}</td>
+              <td>{{ report.daily_by_category.ic[i] }}</td>
+              <td>{{ report.daily_by_category.ooc[i] }}</td>
+              <td>{{ report.daily_by_category.rolls[i] }}</td>
+              <td>{{ report.daily_by_category.cubby[i] }}</td>
+              <td class="fw-semibold">{{ report.daily_totals[i] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    {# ── Unique posters trend ── #}
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">
+          <i class="bi bi-graph-up me-1"></i> Daily Unique Posters
+        </div>
+        <div class="card-body">
+          <canvas id="postersChart" height="140" role="img" aria-label="Line chart of distinct posters per day"></canvas>
+        </div>
+      </div>
+    </div>
+
+    {# ── Top posters ── #}
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">
+          <i class="bi bi-trophy me-1"></i> Top Posters ({{ start }}–{{ end }})
+        </div>
+        <div class="card-body">
+          {% if report.leaderboard %}
+          <canvas id="leaderboardChart" height="140" role="img" aria-label="Bar chart of the top 15 posters by total post count"></canvas>
+          {% else %}
+          <p class="text-muted mb-0">No posts recorded in this window.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Not posting ── #}
+  <div class="card mb-4">
+    <div class="card-header py-2 fw-semibold">
+      <i class="bi bi-person-dash me-1"></i> Not Posting
+      <span class="badge bg-secondary ms-1">{{ report.not_posting | length }}</span>
+      <span class="text-muted small fw-normal ms-2">active players with zero posts in this window</span>
+    </div>
+    <div class="card-body p-0">
+      {% if not report.not_posting %}
+        <p class="text-muted p-3 mb-0">Everyone active posted at least once in this window.</p>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr><th>Player</th><th>Discord ID</th><th>Characters</th></tr>
+            </thead>
+            <tbody>
+              {% for p in report.not_posting %}
+              <tr>
+                <td class="fw-semibold">{{ p.display_name or '—' }}</td>
+                <td class="text-muted small font-monospace">{{ p.discord_id }}</td>
+                <td>{{ p.characters | join(', ') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="text-end mb-4">
+    <a href="{{ url_for('reports.activity_csv', since=start, until=end) }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-download"></i> Export raw CSV for this range
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const days = {{ report.days | tojson }};
+  const dailyByCategory = {{ report.daily_by_category | tojson }};
+  const dailyPosters = {{ report.daily_unique_posters | tojson }};
+  const leaderboard = {{ report.leaderboard | tojson }};
+
+  // Validated categorical palette (dark mode, 4 slots) — see dataviz skill.
+  const CATEGORY_COLORS = {
+    ic:    { bg: '#3987e5', label: 'IC' },
+    ooc:   { bg: '#199e70', label: 'OOC' },
+    rolls: { bg: '#c98500', label: 'Rolls' },
+    cubby: { bg: '#008300', label: 'Cubby' },
+  };
+  const INK_MUTED = '#8b94a3';
+  const GRIDLINE = 'rgba(255,255,255,0.07)';
+
+  Chart.defaults.color = INK_MUTED;
+  Chart.defaults.font.family = "'Space Grotesk', system-ui, -apple-system, sans-serif";
+  Chart.defaults.borderColor = GRIDLINE;
+
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'bar',
+    data: {
+      labels: days,
+      datasets: Object.entries(CATEGORY_COLORS).map(([key, meta]) => ({
+        label: meta.label,
+        data: dailyByCategory[key],
+        backgroundColor: meta.bg,
+        borderRadius: 2,
+        borderSkipped: false,
+      })),
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, grid: { color: GRIDLINE } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10 } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+    },
+  });
+
+  new Chart(document.getElementById('postersChart'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{
+        label: 'Unique posters',
+        data: dailyPosters,
+        borderColor: '#3987e5',
+        backgroundColor: 'rgba(57,135,229,0.12)',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.15,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: GRIDLINE }, ticks: { precision: 0 } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false },
+      },
+    },
+  });
+
+  if (leaderboard.length) {
+    new Chart(document.getElementById('leaderboardChart'), {
+      type: 'bar',
+      data: {
+        labels: leaderboard.map((r) => r.display_name || r.discord_id),
+        datasets: [{
+          label: 'Posts',
+          data: leaderboard.map((r) => r.total),
+          backgroundColor: '#3987e5',
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: {
+          x: { beginAtZero: true, grid: { color: GRIDLINE }, ticks: { precision: 0 } },
+          y: { grid: { display: false } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { intersect: false },
+        },
+      },
+    });
+  }
+})();
+</script>
+{% endblock %}

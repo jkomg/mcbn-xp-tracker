@@ -5,10 +5,11 @@ from __future__ import annotations
 import csv
 import io
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 
+from app.activity_health import build_health_report, shift_window
 from app.auth import require_staff
 from app.db import (
     DbCharacter,
@@ -269,4 +270,73 @@ def activity_csv():
         buf.getvalue(),
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename="discord_activity.csv"'},
+    )
+
+
+HEALTH_RANGE_OPTIONS = (30, 60, 90)
+
+
+@bp.route('/reports/health')
+@require_staff
+def health():
+    """Server-health dashboard: posting trend, participation, and a
+    "who hasn't posted" list over a rolling 30/60/90-day window."""
+    try:
+        range_days = int(request.args.get('range', 30))
+    except (TypeError, ValueError):
+        range_days = 30
+    if range_days not in HEALTH_RANGE_OPTIONS:
+        range_days = 30
+
+    earliest_row = (
+        DiscordPostCount.query.order_by(DiscordPostCount.date.asc()).first()
+    )
+    earliest_date = earliest_row.date if earliest_row else None
+
+    end = datetime.now(timezone.utc).date().isoformat()
+    requested_start = (
+        datetime.strptime(end, '%Y-%m-%d').date() - timedelta(days=range_days - 1)
+    ).isoformat()
+    start = max(requested_start, earliest_date) if earliest_date else requested_start
+    data_capped = bool(earliest_date) and requested_start < earliest_date
+
+    prev_start, prev_end = shift_window(start, end)
+    if earliest_date:
+        prev_start = max(prev_start, earliest_date)
+
+    def _rows_for(since: str, until: str) -> list[dict]:
+        if since > until:
+            return []
+        q = DiscordPostCount.query.filter(
+            DiscordPostCount.date >= since,
+            DiscordPostCount.date <= until,
+        )
+        return [
+            {'discord_id': r.discord_id, 'date': r.date, 'category': r.category, 'count': r.count}
+            for r in q.all()
+        ]
+
+    rows = _rows_for(start, end)
+    prev_rows = _rows_for(prev_start, prev_end)
+
+    discord_ids = {r['discord_id'] for r in rows} | {r['discord_id'] for r in prev_rows}
+    name_rows = DiscordDisplayName.query.filter(DiscordDisplayName.discord_id.in_(discord_ids)).all()
+    display_names = {r.discord_id: r.display_name for r in name_rows}
+
+    active_characters = [
+        {'character_name': c.character_name, 'player_discord': c.player_discord}
+        for c in DbCharacter.query.filter_by(active=True).all()
+    ]
+
+    report = build_health_report(rows, prev_rows, active_characters, display_names, start, end)
+
+    return render_template(
+        'reports/health.html',
+        report=report,
+        range_days=range_days,
+        range_options=HEALTH_RANGE_OPTIONS,
+        start=start,
+        end=end,
+        data_capped=data_capped,
+        earliest_data_date=earliest_date,
     )
