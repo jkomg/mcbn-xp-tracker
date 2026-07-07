@@ -64,7 +64,7 @@ async function fetchBatch(
   throw new Error('unreachable');
 }
 
-type ActivityEntry = { discord_id: string; date: string; category: ActivityCategory; count: number };
+export type ActivityEntry = { discord_id: string; date: string; category: ActivityCategory; count: number };
 
 function utcDateOf(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -142,6 +142,40 @@ function countMapToEntries(countMap: Map<string, Map<string, number>>): Activity
     }
   }
   return entries;
+}
+
+/**
+ * Flush accumulated entries, using replace/increment mode per-entry based on
+ * whether this run has already touched that (discord_id, date, category)
+ * key. The shared countMap is periodically flushed and cleared *within* a
+ * single run as more channels are scanned, so the same key can legitimately
+ * split across two flush calls in one run (e.g. two different IC channels
+ * both posted-in by the same person on the same day). The first flush of a
+ * key must fully replace whatever a *prior run* left there — that's the fix
+ * for the corruption incident, where re-running a backfill compounded on
+ * top of stale numbers. Every later flush of that same key *within this
+ * run* must increment on top of this run's own earlier contribution,
+ * not replace it away.
+ */
+export async function flushEntries(
+  adapter: TrackerAdapter,
+  entries: ActivityEntry[],
+  names: Record<string, string>,
+  seenKeysThisRun: Set<string>,
+): Promise<void> {
+  const fresh: ActivityEntry[] = [];
+  const seenAgain: ActivityEntry[] = [];
+  for (const e of entries) {
+    const key = `${e.discord_id}|${e.date}|${e.category}`;
+    if (seenKeysThisRun.has(key)) {
+      seenAgain.push(e);
+    } else {
+      seenKeysThisRun.add(key);
+      fresh.push(e);
+    }
+  }
+  if (fresh.length > 0) await adapter.recordDiscordActivity(fresh, names, 'replace');
+  if (seenAgain.length > 0) await adapter.recordDiscordActivity(seenAgain, names, 'increment');
 }
 
 export async function runActivityBackfill(
@@ -232,6 +266,8 @@ async function _runActivityBackfillInner(
   const countMap = new Map<string, Map<string, number>>();
   const nameMap = new Map<string, string>();
   const allDiscordIds = new Set<string>();
+  // (discord_id|date|category) keys already flushed during this run — see flushEntries().
+  const seenKeysThisRun = new Set<string>();
   let totalMessages = 0;
   let channelsScanned = 0;
 
@@ -263,7 +299,7 @@ async function _runActivityBackfillInner(
       const entries = countMapToEntries(countMap);
       if (entries.length >= FLUSH_THRESHOLD) {
         for (const e of entries) allDiscordIds.add(e.discord_id);
-        await adapter.recordDiscordActivity(entries, Object.fromEntries(nameMap));
+        await flushEntries(adapter, entries, Object.fromEntries(nameMap), seenKeysThisRun);
         countMap.clear();
         nameMap.clear();
         log(`  Flushed ${entries.length} entries`);
@@ -318,7 +354,7 @@ async function _runActivityBackfillInner(
   const finalEntries = countMapToEntries(countMap);
   if (finalEntries.length > 0) {
     for (const e of finalEntries) allDiscordIds.add(e.discord_id);
-    await adapter.recordDiscordActivity(finalEntries, Object.fromEntries(nameMap));
+    await flushEntries(adapter, finalEntries, Object.fromEntries(nameMap), seenKeysThisRun);
     if (cancelled) log(`Flushed ${finalEntries.length} partial entries before stopping.`);
   }
 

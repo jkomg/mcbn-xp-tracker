@@ -1989,11 +1989,24 @@ def cc_approved_drafts():
 @require_bot_scope('write')
 @_limit('120 per minute')
 def discord_activity_record():
-    """Accept batched Discord post count increments from the bot.
+    """Accept batched Discord post counts from the bot.
 
     Body: { "entries": [{ "discord_id": "...", "date": "YYYY-MM-DD",
-                          "category": "ic|ooc|rolls|cubby", "count": N }] }
-    Each entry is upserted: existing counts are incremented, not replaced.
+                          "category": "ic|ooc|rolls|cubby", "count": N }],
+            "mode": "increment" | "replace" }
+
+    mode="increment" (default): existing counts are incremented — for the
+    live tracker, which only ever reports a small delta of new messages
+    seen since its last flush.
+
+    mode="replace": existing counts are overwritten with the given value —
+    for the historical backfill scanner, which recomputes the true total
+    for whatever (discord_id, date, category) triples it scans each run.
+    Re-running a backfill over the same window must be idempotent; treating
+    a fresh full recount as an *increment* on top of a prior run's numbers
+    is what silently inflated historical counts by orders of magnitude
+    (one day hit 2.3M "posts") before this was caught and the corrupted
+    rows purged. See docs/RELEASE notes / audit_log for the incident.
     """
     from app.db import db
     from sqlalchemy import text
@@ -2004,10 +2017,20 @@ def discord_activity_record():
     if len(entries) > 2000:
         return jsonify({'error': 'too many entries'}), 400
 
+    mode = str(body.get('mode', 'increment')).strip().lower()
+    if mode not in ('increment', 'replace'):
+        mode = 'increment'
+
     _valid_categories = {'ic', 'ooc', 'rolls', 'cubby'}
+    # Generous per-entry ceiling — no legitimate human posts anywhere near
+    # this many times in one channel category in one day. Catches the next
+    # scanning/flush bug before it can silently inflate the table again,
+    # rather than only ever finding out by eyeballing totals after the fact.
+    _max_reasonable_count = 1000
 
     # Validate and collect entries
     valid: list[dict] = []
+    rejected_implausible = 0
     for entry in entries:
         discord_id = str(entry.get('discord_id', '')).strip()
         date = str(entry.get('date', '')).strip()
@@ -2017,6 +2040,13 @@ def discord_activity_record():
         except (TypeError, ValueError):
             continue
         if not discord_id or not date or category not in _valid_categories or count <= 0:
+            continue
+        if count > _max_reasonable_count:
+            rejected_implausible += 1
+            current_app.logger.warning(
+                'discord_activity_record: rejected implausible count %s for discord_id=%s date=%s category=%s (mode=%s)',
+                count, discord_id, date, category, mode,
+            )
             continue
         valid.append({'did': discord_id, 'dt': date, 'cat': category, 'cnt': count})
 
@@ -2030,12 +2060,17 @@ def discord_activity_record():
             params[f'dt_{i}'] = row['dt']
             params[f'cat_{i}'] = row['cat']
             params[f'cnt_{i}'] = row['cnt']
+        conflict_update = (
+            'count = excluded.count'
+            if mode == 'replace'
+            else 'count = discord_post_counts.count + excluded.count'
+        )
         db.session.execute(
             text(
                 f"INSERT INTO discord_post_counts (discord_id, date, category, count)"
                 f" VALUES {placeholders}"
                 f" ON CONFLICT(discord_id, date, category)"
-                f" DO UPDATE SET count = discord_post_counts.count + excluded.count"
+                f" DO UPDATE SET {conflict_update}"
             ),
             params,
         )
@@ -2067,7 +2102,7 @@ def discord_activity_record():
             )
 
     db.session.commit()
-    return jsonify({'ok': True, 'flushed': len(valid)})
+    return jsonify({'ok': True, 'flushed': len(valid), 'rejected': rejected_implausible})
 
 
 @bp.route('/periods/recent', methods=['GET'])
