@@ -62,6 +62,7 @@ BOT_COMMAND_CATALOG = [
         'subcommands': [
             {'name': 'approve', 'label': 'approve', 'description': 'Approve a character ticket.'},
             {'name': 'update', 'label': 'update', 'description': 'Post a sheet update to #player-character-sheets.'},
+            {'name': 'retainer-update', 'label': 'retainer-update', 'description': 'Post a retainer sheet update to #player-retainer-sheets.'},
             {'name': 'edit', 'label': 'edit', 'description': "Edit a character's clan/sect/age."},
             {'name': 'delete', 'label': 'delete', 'description': 'Hard-delete a character with no history.'},
             {'name': 'broadcast', 'label': 'broadcast', 'description': 'Send a staff message to cubbies/announcements/a channel.'},
