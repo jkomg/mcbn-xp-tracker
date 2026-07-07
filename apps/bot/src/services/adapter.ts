@@ -154,6 +154,10 @@ export interface TrackerAdapter {
     names?: Record<string, string>,
     mode?: 'increment' | 'replace',
   ): Promise<void>;
+  recordMemberEvents(
+    events: Array<{ discord_id: string; event_type: 'join' | 'role_gain'; role: string; date: string }>,
+    names?: Record<string, string>,
+  ): Promise<void>;
   getRecentPeriods(count?: number): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>>;
   syncStaff(
     operations: Array<{ action: 'upsert' | 'remove'; discord_id: string; display_name: string; role: string }>,
@@ -1347,6 +1351,18 @@ export class WebAppAdapter implements TrackerAdapter {
       body: JSON.stringify({ entries, ...(names ? { names } : {}), ...(mode ? { mode } : {}) }),
     });
     if (!res.ok) throw new Error(`discord-activity/record POST failed: ${res.status}`);
+  }
+
+  async recordMemberEvents(
+    events: Array<{ discord_id: string; event_type: 'join' | 'role_gain'; role: string; date: string }>,
+    names?: Record<string, string>,
+  ): Promise<void> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/api/discord-member-events/record`, {
+      method: 'POST',
+      headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events, ...(names ? { names } : {}) }),
+    });
+    if (!res.ok) throw new Error(`discord-member-events/record POST failed: ${res.status}`);
   }
 
   async getRecentPeriods(count = 2): Promise<Array<{ label: string; nightNumber: number; startDate: string; endDate: string }>> {
