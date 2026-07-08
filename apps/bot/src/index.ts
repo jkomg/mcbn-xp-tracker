@@ -130,17 +130,21 @@ if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled) {
 
 const client = new Client({ intents: baseIntents }) as BotClient;
 
-// Defense-in-depth: an unhandled rejection or a Client 'error' event
-// otherwise crashes the entire Node process (Node's default behavior for
-// an unhandled EventEmitter 'error' event), taking the whole bot offline
-// for every user until the container restarts — even if the root cause was
-// scoped to a single interaction. Every known interaction failure path is
-// already wrapped in try/catch (see the interactionCreate handler below);
-// these are a backstop against whatever the next unwrapped one turns out
-// to be, not a substitute for fixing the actual failure at its source.
-process.on('unhandledRejection', (reason) => {
-  logEvent('error', 'unhandled_rejection', { error: errorToMessage(reason) });
-});
+// discord.js's Client is an EventEmitter; an unhandled 'error' event on it
+// (gateway/websocket hiccups, which discord.js reconnects from on its own)
+// otherwise crashes the whole process by Node's default EventEmitter
+// behavior. This is the standard discord.js pattern — log and let the
+// client's own reconnection logic handle it, rather than taking the whole
+// bot down for a transient connection issue.
+//
+// Deliberately NOT a process-wide `unhandledRejection` handler: that would
+// also swallow a genuinely fatal failure during startup (e.g. registerCommands
+// throwing before workers/heartbeat ever start), leaving the container alive
+// but half-initialized with no automatic recovery — worse than crashing and
+// letting Docker's restart policy actually fix it. The interaction-specific
+// crash this was guarding against is already fixed at its source (see the
+// try/catch around the fallback reply in the interactionCreate handler
+// below), so no such backstop is needed here.
 client.on('error', (error) => {
   logEvent('error', 'client_error', { error: errorToMessage(error) });
 });
