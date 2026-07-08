@@ -35,11 +35,12 @@
  *   - `fetchAllNonThreadChannels`/`forEachRateLimited` (discordHelpers.ts).
  *
  * Usage (from apps/bot/):
- *   npm run ops:migrate-channel-access                 # dry-run report only
- *   npm run ops:migrate-channel-access -- --apply       # snapshot, then apply
+ *   npm run ops:migrate-channel-access                              # dry-run against .env
+ *   npm run ops:migrate-channel-access -- --apply                   # snapshot, then apply
+ *   npm run ops:migrate-channel-access -- --env-file .env.dev       # target the dev/test guild instead
  *
- * Required env vars (apps/bot/.env): BOT_TOKEN, DISCORD_GUILD_ID (or
- * TEST_GUILD_ID — point this at the dev/test guild to validate first).
+ * Required env vars: BOT_TOKEN, DISCORD_GUILD_ID (or TEST_GUILD_ID —
+ * point this at the dev/test guild to validate first).
  */
 
 import path from 'node:path';
@@ -49,7 +50,12 @@ import { auditVisibility } from '../permissionRemediation/visibilityAudit';
 import { captureSnapshot, defaultSnapshotDir, writeSnapshot } from '../permissionRemediation/snapshot';
 import { forEachRateLimited } from '../permissionRemediation/discordHelpers';
 
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
+function envFileArg(): string {
+  const i = process.argv.indexOf('--env-file');
+  return i >= 0 ? (process.argv[i + 1] ?? '.env') : '.env';
+}
+
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', envFileArg()) });
 
 const { ViewChannel, SendMessages, EmbedLinks, AttachFiles, ReadMessageHistory, AddReactions } = PermissionsBitField.Flags;
 
