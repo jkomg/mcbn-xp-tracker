@@ -1,4 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client, type Message } from 'discord.js';
+import { liveConfig } from '../liveConfig';
 import { errorToMessage, logEvent } from '../logger';
 
 /**
@@ -15,6 +16,12 @@ import { errorToMessage, logEvent } from '../logger';
  * the one-time migration in scripts/newMemberGate/migrateChannelAccess.ts —
  * this service only handles the live prompt-and-grant flow after that
  * migration is in place.
+ *
+ * All config is read live from liveConfig on every event — dashboard
+ * changes (Settings → Bot — Feature Flags / Channel IDs) apply within ~1
+ * minute, no bot restart needed (same convention as honeypotMonitor.ts).
+ * The verified-role id reuses liveConfig.verifiedMemberRoleId, already
+ * dashboard-configurable for the honeypot's permissions audit.
  */
 
 const BUTTON_PREFIX = 'new-member-gate:';
@@ -51,12 +58,22 @@ export function isNewMemberGateButton(customId: string | undefined): boolean {
   return customId != null && parseButtonId(customId) != null;
 }
 
+/** Snapshot shape consumed by the pure helpers below — built fresh from liveConfig on every event. */
 export interface NewMemberGateConfig {
   welcomeChannelId: string;
   /** "The Washed Masses" — granted either way; this is what the migration's channel overwrites key off of. */
   verifiedRoleId: string;
   sheetInProgressRoleId: string;
   lurkerRoleId: string;
+}
+
+function currentConfig(): NewMemberGateConfig {
+  return {
+    welcomeChannelId: liveConfig.newMemberGateWelcomeChannelId,
+    verifiedRoleId: liveConfig.verifiedMemberRoleId,
+    sheetInProgressRoleId: liveConfig.newMemberGateSheetInProgressRoleId,
+    lurkerRoleId: liveConfig.newMemberGateLurkerRoleId,
+  };
 }
 
 /** Discord user IDs already shown the prompt, awaiting a button click — avoids re-prompting on every message they send before clicking. */
@@ -73,15 +90,15 @@ export function rolesForChoice(
   return roleIds.filter(Boolean);
 }
 
-export function startNewMemberGate(client: Client, config: NewMemberGateConfig): void {
+export function startNewMemberGate(client: Client): void {
   client.on('guildMemberAdd', (member) => {
-    handleMemberJoin(member, config).catch((error) =>
+    handleMemberJoin(member).catch((error) =>
       logEvent('error', 'new_member_gate_join_error', { error: errorToMessage(error) }),
     );
   });
 
   client.on('messageCreate', (message) => {
-    handleMessage(message, config).catch((error) =>
+    handleMessage(message).catch((error) =>
       logEvent('error', 'new_member_gate_message_error', { error: errorToMessage(error) }),
     );
   });
@@ -89,7 +106,7 @@ export function startNewMemberGate(client: Client, config: NewMemberGateConfig):
   client.on('interactionCreate', (interaction) => {
     if (!interaction.isButton()) return;
     if (!parseButtonId(interaction.customId)) return;
-    handleButton(interaction, config).catch((error) =>
+    handleButton(interaction).catch((error) =>
       logEvent('error', 'new_member_gate_button_error', { error: errorToMessage(error) }),
     );
   });
@@ -97,10 +114,9 @@ export function startNewMemberGate(client: Client, config: NewMemberGateConfig):
   logEvent('info', 'new_member_gate_started', {});
 }
 
-async function handleMemberJoin(
-  member: import('discord.js').GuildMember,
-  config: NewMemberGateConfig,
-): Promise<void> {
+async function handleMemberJoin(member: import('discord.js').GuildMember): Promise<void> {
+  if (!liveConfig.newMemberGateEnabled) return;
+  const config = currentConfig();
   if (!config.welcomeChannelId) return;
   if (member.roles.cache.has(config.verifiedRoleId)) return; // shouldn't happen on a fresh join, but defensive
 
@@ -137,7 +153,9 @@ export function shouldPrompt(
   return true;
 }
 
-async function handleMessage(message: Message, config: NewMemberGateConfig): Promise<void> {
+async function handleMessage(message: Message): Promise<void> {
+  if (!liveConfig.newMemberGateEnabled) return;
+  const config = currentConfig();
   const member = message.member;
   const eligible = shouldPrompt(
     {
@@ -176,10 +194,8 @@ async function handleMessage(message: Message, config: NewMemberGateConfig): Pro
   }
 }
 
-async function handleButton(
-  interaction: import('discord.js').ButtonInteraction,
-  config: NewMemberGateConfig,
-): Promise<void> {
+async function handleButton(interaction: import('discord.js').ButtonInteraction): Promise<void> {
+  if (!liveConfig.newMemberGateEnabled) return;
   const parsed = parseButtonId(interaction.customId);
   if (!parsed) return;
 
@@ -201,7 +217,7 @@ async function handleButton(
   }
 
   const isPlayerChoice = parsed.choice === 'player';
-  const roleIds = rolesForChoice(isPlayerChoice, config);
+  const roleIds = rolesForChoice(isPlayerChoice, currentConfig());
 
   await member.roles.add(roleIds, 'New-member gate: completed welcome check-in');
   alreadyPrompted.delete(interaction.user.id);

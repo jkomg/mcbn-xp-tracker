@@ -100,6 +100,10 @@ liveConfig.mentionBreakerTimeoutMinutes = config.mentionBreakerTimeoutMinutes;
 liveConfig.mentionBreakerExemptRoleIds = new Set(config.mentionBreakerExemptRoleIds);
 liveConfig.mentionBreakerModLogChannelId = config.mentionBreakerModLogChannelId;
 liveConfig.verifiedMemberRoleId = config.verifiedMemberRoleId ?? '';
+liveConfig.newMemberGateEnabled = config.newMemberGateEnabled;
+liveConfig.newMemberGateWelcomeChannelId = config.newMemberGateWelcomeChannelId;
+liveConfig.newMemberGateSheetInProgressRoleId = config.newMemberGateSheetInProgressRoleId;
+liveConfig.newMemberGateLurkerRoleId = config.newMemberGateLurkerRoleId;
 liveConfig.correspondenceDeliveryChannelId = config.correspondenceDeliveryChannelId;
 liveConfig.correspondenceContactChannelId = config.correspondenceContactChannelId;
 liveConfig.correspondencePrestationChannelId = config.correspondencePrestationChannelId;
@@ -123,8 +127,16 @@ const baseIntents = [
   GatewayIntentBits.MessageContent,
 ];
 // GuildMembers is a privileged intent that must be enabled in the Discord
-// Developer Portal. Only request it when staff role sync, member-event
-// tracking, or the new-member gate's join greeting actually needs it.
+// Developer Portal. Only requested when a deployment actually opts into a
+// feature that needs it — kept opt-in rather than unconditional so a fresh
+// install (see docs/INSTALL_*.md) that never enables the portal toggle
+// doesn't hard-crash with "disallowed intents" on startup.
+//
+// config.newMemberGateEnabled is a one-time startup decision, not the live
+// on/off switch: set NEW_MEMBER_GATE_ENABLED=true once during rollout (this
+// is what actually secures the intent), then staff fully control whether
+// the feature is live via the Settings dashboard (liveConfig.newMemberGateEnabled,
+// synced by configSyncWorker) with no further restarts needed.
 if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled || config.newMemberGateEnabled) {
   baseIntents.push(GatewayIntentBits.GuildMembers);
 }
@@ -415,14 +427,13 @@ void applyStartupConfigOverrides().then(() => {
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
     startHoneypotMonitor(client);
     startMentionSpamBreaker(client);
-    if (config.newMemberGateEnabled) {
-      startNewMemberGate(client, {
-        welcomeChannelId: config.newMemberGateWelcomeChannelId,
-        verifiedRoleId: config.newMemberGateVerifiedRoleId,
-        sheetInProgressRoleId: config.newMemberGateSheetInProgressRoleId,
-        lurkerRoleId: config.newMemberGateLurkerRoleId,
-      });
-    }
+    // Always started, like honeypot/mention-breaker — internally gated on
+    // liveConfig.newMemberGateEnabled so the dashboard toggle takes effect
+    // live. Only fully functional if NEW_MEMBER_GATE_ENABLED was set at
+    // startup (secures the GuildMembers intent above); if not, the
+    // guildMemberAdd-driven join greeting silently won't fire, but the
+    // message-gate and button flow still work fine either way.
+    startNewMemberGate(client);
   });
 
   const accessRoleIds = requiredRoleIds(config);

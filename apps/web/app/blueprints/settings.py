@@ -358,6 +358,15 @@ def index():
             'editable': True,
             **_bot_flag_status('BOT_MENTION_BREAKER_ENABLED', overrides),
         },
+        {
+            'label': 'New Member Gate',
+            'key': 'BOT_NEW_MEMBER_GATE_ENABLED',
+            'env': 'NEW_MEMBER_GATE_ENABLED',
+            'interval_env': None,
+            'description': 'Requires new members to post a hello in the welcome channel before offering player/lurker roles. See Channel IDs below to configure the welcome channel and roles. Only takes effect if NEW_MEMBER_GATE_ENABLED=true was also set in the bot\'s .env at least once (secures the privileged Discord intent this needs) — ask staff with server access if this toggle doesn\'t seem to do anything.',
+            'editable': True,
+            **_bot_flag_status('BOT_NEW_MEMBER_GATE_ENABLED', overrides),
+        },
     ]
 
     # ── Bot command kill switches (DB-backed CSV; polled by bot via /api/bot-config) ──
@@ -478,7 +487,40 @@ def index():
             'input_pattern': r'\d{17,20}',
             'overridden': 'BOT_VERIFIED_MEMBER_ROLE_ID' in overrides,
             'editable': True,
-            'description': 'Base/verified member role. Used by /lasombra permissions audit to assert the honeypot channel stays hidden from real members.',
+            'description': 'Base/verified member role ("The Washed Masses") — used by /lasombra permissions audit to assert the honeypot channel stays hidden from real members, and granted to anyone who completes the New Member Gate below.',
+        },
+        {
+            'label': 'New Member Gate: welcome channel',
+            'key': 'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
+            'env': 'NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
+            'value': _eff_str('BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID'),
+            'placeholder': 'Discord channel ID (18–19 digits)',
+            'input_pattern': r'\d{17,20}',
+            'overridden': 'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID' in overrides,
+            'editable': True,
+            'description': 'New members are greeted here on join and must post a message here to be offered player/lurker roles.',
+        },
+        {
+            'label': 'New Member Gate: player role (Sheet in Progress)',
+            'key': 'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
+            'env': 'NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
+            'value': _eff_str('BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID'),
+            'placeholder': 'Discord role ID (18–19 digits)',
+            'input_pattern': r'\d{17,20}',
+            'overridden': 'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID' in overrides,
+            'editable': True,
+            'description': 'Granted (alongside the verified member role above) to a new member who chooses "work towards making a character."',
+        },
+        {
+            'label': 'New Member Gate: lurker role',
+            'key': 'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID',
+            'env': 'NEW_MEMBER_GATE_LURKER_ROLE_ID',
+            'value': _eff_str('BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID'),
+            'placeholder': 'Discord role ID (18–19 digits)',
+            'input_pattern': r'\d{17,20}',
+            'overridden': 'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID' in overrides,
+            'editable': True,
+            'description': 'Granted (alongside the verified member role above) to a new member who chooses "just lurk for now."',
         },
         {
             'label': 'Correspondence: Deliver channel',
@@ -931,6 +973,9 @@ def update():
         'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS',
         'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID',
         'BOT_VERIFIED_MEMBER_ROLE_ID',
+        'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
+        'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
+        'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID',
         'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID',
         'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID',
         'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID',
@@ -956,6 +1001,7 @@ def update():
         'BOT_HONEYPOT_ENABLED',
         'BOT_HONEYPOT_REQUIRE_YOUNG_ACCOUNT',
         'BOT_MENTION_BREAKER_ENABLED',
+        'BOT_NEW_MEMBER_GATE_ENABLED',
     }
 
     if action == 'reset':

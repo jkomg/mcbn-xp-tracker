@@ -45,6 +45,10 @@ export interface BotConfigResponse {
   mentionBreakerExemptRoleIds: string | null;
   mentionBreakerModLogChannelId: string | null;
   verifiedMemberRoleId: string | null;
+  newMemberGateEnabled: boolean | null;
+  newMemberGateWelcomeChannelId: string | null;
+  newMemberGateSheetInProgressRoleId: string | null;
+  newMemberGateLurkerRoleId: string | null;
   staffDiscordIds: string[] | null;
   disabledCommands: string | null;
   correspondenceDeliveryChannelId: string | null;

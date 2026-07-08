@@ -183,7 +183,6 @@ const envSchema = z.object({
   MEMBER_EVENT_TRACKER_ENABLED: z.string().optional(),
   NEW_MEMBER_GATE_ENABLED: z.string().optional(),
   NEW_MEMBER_GATE_WELCOME_CHANNEL_ID: z.string().optional(),
-  NEW_MEMBER_GATE_VERIFIED_ROLE_ID: z.string().optional(),
   NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
   NEW_MEMBER_GATE_LURKER_ROLE_ID: z.string().optional(),
   STAFF_ROLE_SYSTEM_HELPER_ID: z.string().optional(),
@@ -480,7 +479,6 @@ export const config = {
   memberEventTrackerEnabled: (env.MEMBER_EVENT_TRACKER_ENABLED ?? 'false').toLowerCase() === 'true',
   newMemberGateEnabled: (env.NEW_MEMBER_GATE_ENABLED ?? 'false').toLowerCase() === 'true',
   newMemberGateWelcomeChannelId: env.NEW_MEMBER_GATE_WELCOME_CHANNEL_ID ?? '1168641906356518962',
-  newMemberGateVerifiedRoleId: env.NEW_MEMBER_GATE_VERIFIED_ROLE_ID ?? '1193292818484052029',
   newMemberGateSheetInProgressRoleId: env.NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID ?? '1374158816740118528',
   newMemberGateLurkerRoleId: env.NEW_MEMBER_GATE_LURKER_ROLE_ID ?? '1341485754576011325',
   staffRoleSystemHelperId: env.STAFF_ROLE_SYSTEM_HELPER_ID ?? '1168649906324520992',
@@ -511,7 +509,8 @@ export const config = {
   mentionBreakerExemptRoleIds: parseCsvIds(env.MENTION_BREAKER_EXEMPT_ROLE_IDS),
   mentionBreakerModLogChannelId:
     env.MENTION_BREAKER_MOD_LOG_CHANNEL_ID ?? env.HONEYPOT_MOD_LOG_CHANNEL_ID ?? '',
-  verifiedMemberRoleId: env.VERIFIED_MEMBER_ROLE_ID,
+  // "The Washed Masses" — also the new-member gate's access-grant role (see newMemberGate.ts).
+  verifiedMemberRoleId: env.VERIFIED_MEMBER_ROLE_ID ?? '1193292818484052029',
   permissionSnapshotDir: env.PERMISSION_SNAPSHOT_DIR ?? '',
   correspondenceDeliveryChannelId: env.CORRESPONDENCE_DELIVERY_CHANNEL_ID ?? '',
   correspondenceContactChannelId: env.CORRESPONDENCE_CONTACT_CHANNEL_ID ?? '',

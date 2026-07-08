@@ -100,7 +100,7 @@ async function main(): Promise<void> {
     console.log('Paste these into apps/bot/.env.dev:\n');
     console.log(`NEW_MEMBER_GATE_ENABLED=true`);
     console.log(`NEW_MEMBER_GATE_WELCOME_CHANNEL_ID=${welcomeId}`);
-    console.log(`NEW_MEMBER_GATE_VERIFIED_ROLE_ID=${verifiedRoleId}`);
+    console.log(`VERIFIED_MEMBER_ROLE_ID=${verifiedRoleId}`);
     console.log(`NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID=${sheetInProgressRoleId}`);
     console.log(`NEW_MEMBER_GATE_LURKER_ROLE_ID=${lurkerRoleId}`);
     console.log(`NEW_MEMBER_GATE_READONLY_CHANNEL_IDS=${rulesId},${announcementsId},${gettingStartedId}`);

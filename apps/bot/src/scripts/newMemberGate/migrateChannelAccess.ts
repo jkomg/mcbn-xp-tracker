@@ -59,8 +59,14 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', envFileArg()) })
 
 const { ViewChannel, SendMessages, EmbedLinks, AttachFiles, ReadMessageHistory, AddReactions } = PermissionsBitField.Flags;
 
-/** "The Washed Masses" — already granted to everyone who completes onboarding today; repurposed as the real access gate. */
-export const VERIFIED_ROLE_ID = process.env.NEW_MEMBER_GATE_VERIFIED_ROLE_ID || '1193292818484052029';
+/**
+ * "The Washed Masses" — already granted to everyone who completes onboarding
+ * today; repurposed as the real access gate. Reuses VERIFIED_MEMBER_ROLE_ID
+ * (the same dashboard-configurable field the honeypot's permissions audit
+ * already uses), rather than a separate new-member-gate-specific env var —
+ * it's the same concept either way.
+ */
+export const VERIFIED_ROLE_ID = process.env.VERIFIED_MEMBER_ROLE_ID || '1193292818484052029';
 
 /** The jail channel: bare @everyone can post plain text here, nowhere else. */
 export const WELCOME_CHANNEL_ID = process.env.NEW_MEMBER_GATE_WELCOME_CHANNEL_ID || '1168641906356518962';
