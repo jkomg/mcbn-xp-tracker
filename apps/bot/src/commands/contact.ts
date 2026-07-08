@@ -32,7 +32,9 @@ const REPLY_MODAL_ID = 'contact:reply';
 const REPLY_BUTTON_PREFIX = 'contact:reply-btn:';
 
 type PendingSend = { senderCharacterName: string; recipientNames: string[] };
-type PendingReply = { senderCharacterName: string; threadId: number };
+type PendingReply =
+  | { senderCharacterName: string; threadId: number }
+  | { error: string };
 const pendingSends = new Map<string, PendingSend>();
 const pendingReplies = new Map<string, PendingReply>();
 
@@ -259,13 +261,20 @@ async function resolveThreadParticipantCharacter(
     return { ok: true, characterName: owned[0].name };
   }
 
-  const matches: string[] = [];
-  for (const character of owned) {
-    const result = await ctx.adapter.getContactThreadsForCharacter(discordUserId, character.name).catch(() => null);
-    if (result?.threads.some((t) => t.id === threadId)) {
-      matches.push(character.name);
-    }
-  }
+  // Run per-character lookups concurrently, not sequentially — this whole
+  // function runs before the button handler's first Discord response, which
+  // must land within Discord's ~3s interaction-ack deadline. A multi-
+  // character owner awaiting N round-trips one at a time has no safety
+  // margin left by the time the last one resolves; running them in parallel
+  // keeps total latency close to a single round-trip regardless of N.
+  const results = await Promise.all(
+    owned.map((character) =>
+      ctx.adapter.getContactThreadsForCharacter(discordUserId, character.name).catch(() => null),
+    ),
+  );
+  const matches = owned
+    .filter((_character, i) => results[i]?.threads.some((t) => t.id === threadId))
+    .map((character) => character.name);
 
   if (matches.length === 1) {
     return { ok: true, characterName: matches[0] };
@@ -289,17 +298,28 @@ export async function handleContactReplyButton(interaction: ButtonInteraction, c
     return true;
   }
 
+  // Open the modal FIRST, before any network calls — Discord's ~3s ack
+  // deadline applies to this first response, and a button can't
+  // deferReply() before showModal() (Discord disallows that combination).
+  // Which character is replying gets resolved afterward, in the
+  // background; the modal-submit handler below already defers with a
+  // 15-minute budget, so it can safely wait on this result once the player
+  // actually finishes typing and submits — always well after this resolves.
+  // A player with several characters (e.g. two owned, one not in this
+  // thread) used to pay for that resolution — one network round-trip per
+  // owned character, sequentially — before Discord ever saw a response,
+  // which is exactly what expired real interactions in practice.
+  await interaction.showModal(buildReplyModal());
+
   const ownership = await resolveThreadParticipantCharacter(ctx, interaction.user.id, threadId);
   if (!ownership.ok) {
-    await interaction.reply({
-      content: `${ownership.errorMessage} Or use \`/contact reply\` and pass the \`character\` option directly.`,
-      ephemeral: true,
+    pendingReplies.set(interaction.user.id, {
+      error: `${ownership.errorMessage} Or use \`/contact reply\` and pass the \`character\` option directly.`,
     });
     return true;
   }
 
   pendingReplies.set(interaction.user.id, { senderCharacterName: ownership.characterName, threadId });
-  await interaction.showModal(buildReplyModal());
   return true;
 }
 
@@ -414,6 +434,10 @@ export async function handleContactReplyModal(
   pendingReplies.delete(interaction.user.id);
   if (!pending) {
     await interaction.editReply('Session expired — run `/contact reply` again.');
+    return true;
+  }
+  if ('error' in pending) {
+    await interaction.editReply(pending.error);
     return true;
   }
 
