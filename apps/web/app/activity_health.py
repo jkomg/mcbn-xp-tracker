@@ -158,3 +158,59 @@ def build_new_characters_report(characters: list[dict], prev_characters: list[di
         'delta_pct': delta_pct,
         'characters': sorted(characters, key=lambda c: c['date_added']),
     }
+
+
+MEMBER_ROLES = ('kindred', 'ghoul', 'mortal')
+
+
+def _period_delta_pct(count: int, prev_count: int) -> int | None:
+    if prev_count > 0:
+        return round((count - prev_count) / prev_count * 100)
+    if count > 0:
+        return None  # no prior baseline to compare against
+    return 0
+
+
+def build_member_growth_report(
+    join_events: list[dict],
+    role_gain_events: list[dict],
+    prev_join_events: list[dict],
+    prev_role_gain_events: list[dict],
+    days: list[str],
+) -> dict:
+    """join_events/prev_join_events: [{'discord_id', 'date'}, ...]
+    role_gain_events/prev_role_gain_events: [{'discord_id', 'role', 'date'}, ...]
+    days: the same zero-filled date list used for the posting-activity
+    charts (daterange(start, end)), so both trends share one x-axis.
+    """
+    new_members_count = len(join_events)
+    members_delta_pct = _period_delta_pct(new_members_count, len(prev_join_events))
+
+    verified_ids = {e['discord_id'] for e in role_gain_events}
+    prev_verified_ids = {e['discord_id'] for e in prev_role_gain_events}
+    verified_delta_pct = _period_delta_pct(len(verified_ids), len(prev_verified_ids))
+
+    verified_by_role = dict.fromkeys(MEMBER_ROLES, 0)
+    for e in role_gain_events:
+        if e['role'] in verified_by_role:
+            verified_by_role[e['role']] += 1
+
+    daily_joins = dict.fromkeys(days, 0)
+    for e in join_events:
+        if e['date'] in daily_joins:
+            daily_joins[e['date']] += 1
+
+    daily_verified_ids: dict[str, set] = {d: set() for d in days}
+    for e in role_gain_events:
+        if e['date'] in daily_verified_ids:
+            daily_verified_ids[e['date']].add(e['discord_id'])
+
+    return {
+        'new_members_count': new_members_count,
+        'members_delta_pct': members_delta_pct,
+        'verified_count': len(verified_ids),
+        'verified_delta_pct': verified_delta_pct,
+        'verified_by_role': verified_by_role,
+        'daily_joins': [daily_joins[d] for d in days],
+        'daily_verified': [len(daily_verified_ids[d]) for d in days],
+    }

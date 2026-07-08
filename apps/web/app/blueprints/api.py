@@ -2105,6 +2105,96 @@ def discord_activity_record():
     return jsonify({'ok': True, 'flushed': len(valid), 'rejected': rejected_implausible})
 
 
+@bp.route('/discord-member-events/record', methods=['POST'])
+@require_bot_scope('write')
+@_limit('60 per minute')
+def discord_member_events_record():
+    """Accept batched member-growth events from the bot: server joins and
+    first-time Kindred/Ghoul/Mortal role gains.
+
+    Body: { "events": [{ "discord_id": "...", "event_type": "join"|"role_gain",
+                         "role": ""|"kindred"|"ghoul"|"mortal", "date": "YYYY-MM-DD" }],
+            "names": { "discord_id": "display_name", ... } }
+
+    These are discrete events, not running counts — deliberately, so a
+    duplicate report (e.g. a full member sweep re-run on every bot restart)
+    is a plain idempotent no-op via ON CONFLICT DO NOTHING, rather than
+    needing increment/replace mode semantics at all. See discord_activity_record
+    above for the corruption incident this design avoids repeating.
+    """
+    from app.db import db
+    from sqlalchemy import text
+    body = request.get_json(silent=True) or {}
+    events = body.get('events', [])
+    if not isinstance(events, list):
+        return jsonify({'error': 'events must be a list'}), 400
+    if len(events) > 500:
+        return jsonify({'error': 'too many events'}), 400
+
+    _valid_event_types = {'join', 'role_gain'}
+    _valid_roles = {'', 'kindred', 'ghoul', 'mortal'}
+
+    valid: list[dict] = []
+    for event in events:
+        discord_id = str(event.get('discord_id', '')).strip()
+        event_type = str(event.get('event_type', '')).strip()
+        role = str(event.get('role', '')).strip().lower()
+        date = str(event.get('date', '')).strip()
+        if not discord_id or event_type not in _valid_event_types or role not in _valid_roles or not date:
+            continue
+        if event_type == 'role_gain' and not role:
+            continue  # role_gain must name which role was gained
+        if event_type == 'join' and role:
+            continue  # join events don't carry a role
+        valid.append({'did': discord_id, 'etype': event_type, 'role': role, 'dt': date})
+
+    if valid:
+        placeholders = ', '.join(f'(:did_{i}, :etype_{i}, :role_{i}, :dt_{i})' for i in range(len(valid)))
+        params = {}
+        for i, row in enumerate(valid):
+            params[f'did_{i}'] = row['did']
+            params[f'etype_{i}'] = row['etype']
+            params[f'role_{i}'] = row['role']
+            params[f'dt_{i}'] = row['dt']
+        db.session.execute(
+            text(
+                f"INSERT INTO discord_member_events (discord_id, event_type, role, date)"
+                f" VALUES {placeholders}"
+                f" ON CONFLICT(discord_id, event_type, role, date) DO NOTHING"
+            ),
+            params,
+        )
+
+    # Optional names dict — same shape/upsert as discord_activity_record
+    from datetime import datetime, timezone
+    names = body.get('names', {})
+    if isinstance(names, dict):
+        ts = datetime.now(timezone.utc).isoformat()
+        valid_names = [
+            (str(did).strip(), str(name).strip()[:200])
+            for did, name in names.items()
+            if str(did).strip() and str(name).strip()
+        ]
+        if valid_names:
+            name_placeholders = ', '.join(f'(:did_{i}, :name_{i}, :ts)' for i in range(len(valid_names)))
+            name_params: dict = {'ts': ts}
+            for i, (did, name) in enumerate(valid_names):
+                name_params[f'did_{i}'] = did
+                name_params[f'name_{i}'] = name
+            db.session.execute(
+                text(
+                    f"INSERT INTO discord_display_names (discord_id, display_name, updated_at)"
+                    f" VALUES {name_placeholders}"
+                    f" ON CONFLICT(discord_id)"
+                    f" DO UPDATE SET display_name=excluded.display_name, updated_at=excluded.updated_at"
+                ),
+                name_params,
+            )
+
+    db.session.commit()
+    return jsonify({'ok': True, 'inserted': len(valid)})
+
+
 @bp.route('/periods/recent', methods=['GET'])
 @require_bot_scope('read')
 @_limit('60 per minute')
