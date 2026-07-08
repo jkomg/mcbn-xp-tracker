@@ -1,4 +1,10 @@
-from app.activity_health import build_health_report, build_new_characters_report, daterange, shift_window
+from app.activity_health import (
+    build_health_report,
+    build_member_growth_report,
+    build_new_characters_report,
+    daterange,
+    shift_window,
+)
 
 
 def test_daterange_inclusive():
@@ -210,3 +216,65 @@ def test_new_characters_delta_zero_when_both_windows_empty():
     assert report['delta_pct'] == 0
     assert report['count'] == 0
     assert report['characters'] == []
+
+
+def _join(discord_id, date='2026-06-01'):
+    return {'discord_id': discord_id, 'date': date}
+
+
+def _gain(discord_id, role, date='2026-06-01'):
+    return {'discord_id': discord_id, 'role': role, 'date': date}
+
+
+def test_member_growth_counts_and_zero_baseline_delta():
+    days = daterange('2026-06-01', '2026-06-01')
+    report = build_member_growth_report([_join('u1'), _join('u2')], [], [], [], days)
+    assert report['new_members_count'] == 2
+    assert report['members_delta_pct'] is None
+    assert report['verified_count'] == 0
+    assert report['verified_delta_pct'] == 0
+
+
+def test_member_growth_delta_against_prior_window():
+    days = daterange('2026-06-01', '2026-06-01')
+    report = build_member_growth_report(
+        [_join('u1'), _join('u2')], [], [_join('u3')], [], days,
+    )
+    assert report['members_delta_pct'] == 100
+
+
+def test_verified_count_dedupes_multiple_role_gains_by_same_person():
+    days = daterange('2026-06-01', '2026-06-01')
+    report = build_member_growth_report(
+        [], [_gain('u1', 'kindred'), _gain('u1', 'ghoul')], [], [], days,
+    )
+    assert report['verified_count'] == 1
+    assert report['verified_by_role'] == {'kindred': 1, 'ghoul': 1, 'mortal': 0}
+
+
+def test_daily_joins_and_verified_zero_filled_across_range():
+    days = daterange('2026-06-01', '2026-06-03')
+    report = build_member_growth_report(
+        [_join('u1', '2026-06-02')], [_gain('u2', 'mortal', '2026-06-03')], [], [], days,
+    )
+    assert report['daily_joins'] == [0, 1, 0]
+    assert report['daily_verified'] == [0, 0, 1]
+
+
+def test_daily_verified_dedupes_within_a_day():
+    days = daterange('2026-06-01', '2026-06-01')
+    report = build_member_growth_report(
+        [], [_gain('u1', 'kindred'), _gain('u1', 'ghoul')], [], [], days,
+    )
+    assert report['daily_verified'] == [1]
+
+
+def test_events_outside_window_ignored_in_daily_series():
+    days = daterange('2026-06-01', '2026-06-01')
+    report = build_member_growth_report(
+        [_join('u1', '2026-05-01')], [], [], [], days,
+    )
+    # Still counted in the total (caller is responsible for windowing which
+    # events are passed in at all) but not attributed to a day outside `days`.
+    assert report['new_members_count'] == 1
+    assert report['daily_joins'] == [0]

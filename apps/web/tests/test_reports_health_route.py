@@ -8,7 +8,7 @@ from flask import Blueprint, Flask
 from flask_wtf import CSRFProtect
 
 from app.blueprints.reports import bp as reports_bp
-from app.db import DbCharacter, DiscordPostCount, db
+from app.db import DbCharacter, DiscordMemberEvent, DiscordPostCount, db
 
 _TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
 _STATIC_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
@@ -157,6 +157,25 @@ def test_new_characters_within_window_appear_and_outside_window_excluded():
         assert 'Marcus' in html
         assert 'Tremere' in html
         assert 'OldTimer' not in html
+
+
+def test_member_growth_stat_tiles_reflect_seeded_events():
+    app = _app()
+    with app.app_context():
+        db.session.add(DiscordMemberEvent(discord_id='m1', event_type='join', role='', date=_days_ago(5)))
+        db.session.add(DiscordMemberEvent(discord_id='m2', event_type='join', role='', date=_days_ago(3)))
+        db.session.add(DiscordMemberEvent(discord_id='m1', event_type='role_gain', role='kindred', date=_days_ago(4)))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client)
+        resp = client.get('/reports/health?range=30')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'New Members' in html
+        assert 'Verified (Kindred/Ghoul/Mortal)' in html
+        assert '2 Kindred' not in html  # sanity: role breakdown should read "1 Kindred", not double-count
+        assert '1 Kindred' in html
 
 
 def test_new_characters_recognizes_migrated_date_added_format():

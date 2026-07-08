@@ -76,6 +76,7 @@ import { liveConfig } from './liveConfig';
 import { BackgroundBlankReleaseService } from './services/backgroundBlankReleaseService';
 import { DiscordActivityTracker } from './services/discordActivityTracker';
 import { StaffRoleSyncService } from './services/staffRoleSyncService';
+import { MemberEventTracker } from './services/memberEventTracker';
 import { RetirementAutomationWorker } from './services/retirementAutomationWorker';
 
 // Seed liveConfig from .env values so services start with the correct initial state.
@@ -121,8 +122,9 @@ const baseIntents = [
   GatewayIntentBits.MessageContent,
 ];
 // GuildMembers is a privileged intent that must be enabled in the Discord
-// Developer Portal. Only request it when staff role sync actually needs it.
-if (config.staffRoleSyncEnabled) {
+// Developer Portal. Only request it when staff role sync or member-event
+// tracking actually needs it.
+if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled) {
   baseIntents.push(GatewayIntentBits.GuildMembers);
 }
 
@@ -329,6 +331,18 @@ void applyStartupConfigOverrides().then(() => {
       })
     : null;
 
+  const memberEventTrackerGuildId = config.discordGuildId ?? config.reviewNotifierGuildId ?? '';
+  const memberEventTracker = config.memberEventTrackerEnabled && memberEventTrackerGuildId
+    ? new MemberEventTracker(client, adapter, {
+        guildId: memberEventTrackerGuildId,
+        roleIds: {
+          kindred: config.passageOfTimeKindredRoleId ?? '',
+          ghoul: config.passageOfTimeGhoulRoleId ?? '',
+          mortal: config.passageOfTimeMortalRoleId ?? '',
+        },
+      })
+    : null;
+
   const configSyncWorker = new ConfigSyncWorker(adapter, config.configSyncIntervalMs);
   const wikiSyncCapable = Boolean(config.discordGuildId);
   const botHeartbeatService = new BotHeartbeatService(
@@ -387,6 +401,7 @@ void applyStartupConfigOverrides().then(() => {
     // Notifiers start immediately so their cursor bootstrap isn't delayed.
     setTimeout(() => botHeartbeatService.start(), 15_000);
     staffRoleSync?.start();
+    memberEventTracker?.start();
     startCubbyChannelMonitor(client);
     startCharacterTicketMonitor(client, {
       webBaseUrl: config.webAppBaseUrl,
