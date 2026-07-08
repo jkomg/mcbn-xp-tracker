@@ -110,9 +110,8 @@ async function handleMemberJoin(
   try {
     await channel.send({
       content:
-        `Welcome to MCBN, ${member}! Due to the increased prevalence of bots invading servers, you currently have ` +
-        `limited access to the server. Just post a quick hello right here in <#${config.welcomeChannelId}> and ` +
-        `we'll get you setup with the proper roles.`,
+        `${member} Due to the increased prevalence of bots invading servers, you currently have limited access; ` +
+        `just post a quick hello right here in <#${config.welcomeChannelId}> and we'll get you setup with the proper roles.`,
     });
     logEvent('info', 'new_member_gate_join_greeted', { userId: member.id });
   } catch (error) {
