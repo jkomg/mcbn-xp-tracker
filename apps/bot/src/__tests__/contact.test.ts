@@ -70,6 +70,19 @@ function makeAutocompleteInteraction(focusedName: string, value: string, extraOp
   };
 }
 
+function makeModalInteraction(customId: string, userId = 'user-1') {
+  const channel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
+  return {
+    customId,
+    user: { id: userId, username: `user-${userId}` },
+    deferReply: vi.fn().mockResolvedValue(undefined),
+    editReply: vi.fn().mockResolvedValue(undefined),
+    fields: { getTextInputValue: () => 'Meet me tonight.' },
+    client: { channels: { fetch: vi.fn().mockResolvedValue(channel) } },
+    _channel: channel,
+  };
+}
+
 beforeEach(() => {
   mockConfig.correspondenceContactChannelId = 'contact-channel-1';
 });
@@ -133,19 +146,6 @@ describe('/contact autocomplete', () => {
 });
 
 describe('/contact modal submits', () => {
-  function makeModalInteraction(customId: string, userId = 'user-1') {
-    const channel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
-    return {
-      customId,
-      user: { id: userId, username: `user-${userId}` },
-      deferReply: vi.fn().mockResolvedValue(undefined),
-      editReply: vi.fn().mockResolvedValue(undefined),
-      fields: { getTextInputValue: () => 'Meet me tonight.' },
-      client: { channels: { fetch: vi.fn().mockResolvedValue(channel) } },
-      _channel: channel,
-    };
-  }
-
   it('send: posts an embed mentioning only the recipients, not the sender', async () => {
     const sendInteraction = makeChatInteraction('send', { to: 'Marcus' }, 'user-1');
     const adapter = makeAdapter();
@@ -243,7 +243,11 @@ describe('/contact reply button', () => {
     expect(interaction.reply).not.toHaveBeenCalled();
   });
 
-  it('asks for the character option when more than one owned character is in this thread', async () => {
+  it('opens the modal immediately even when ownership is still ambiguous, then reports it on submit', async () => {
+    // The modal must open before any network calls — Discord's ack deadline
+    // applies to the button click, not to the (potentially multi-call)
+    // ownership resolution. The ambiguous-character error only surfaces
+    // later, when the player actually submits the modal.
     const roster = {
       characters: [
         { name: 'Marcus', discordId: 'user-multi' },
@@ -262,10 +266,43 @@ describe('/contact reply button', () => {
     const handled = await handleContactReplyButton(interaction as never, { adapter } as never);
 
     expect(handled).toBe(true);
-    expect(interaction.showModal).not.toHaveBeenCalled();
-    expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining('More than one of your characters') }),
+    expect(interaction.showModal).toHaveBeenCalledTimes(1);
+    expect(interaction.reply).not.toHaveBeenCalled();
+
+    const modalInteraction = makeModalInteraction('contact:reply', 'user-multi');
+    await handleContactReplyModal(modalInteraction as never, { adapter } as never);
+    expect(modalInteraction.editReply).toHaveBeenCalledWith(
+      expect.stringContaining('More than one of your characters'),
     );
+    expect(modalInteraction._channel.send).not.toHaveBeenCalled();
+  });
+
+  it('queries owned characters concurrently rather than one at a time', async () => {
+    const roster = {
+      characters: [
+        { name: 'Argento', discordId: 'user-multi' },
+        { name: 'Constance', discordId: 'user-multi' },
+      ],
+    };
+    const inFlight: string[] = [];
+    const adapter = makeAdapter({
+      getActiveRosterWithIds: vi.fn().mockResolvedValue(roster),
+      getContactThreadsForCharacter: vi.fn().mockImplementation((_discordId: string, characterName?: string) => {
+        inFlight.push(characterName ?? '');
+        return Promise.resolve({
+          character_name: characterName,
+          threads: characterName === 'Argento' ? [{ id: 7, participant_names: [], last_message_at: null, message_count: 1 }] : [],
+        });
+      }),
+    });
+
+    const interaction = makeButtonInteraction('contact:reply-btn:7', 'user-multi');
+    await handleContactReplyButton(interaction as never, { adapter } as never);
+
+    // Both lookups must have been issued before either resolved — proof
+    // they ran concurrently, not sequentially.
+    expect(inFlight.sort()).toEqual(['Argento', 'Constance']);
+    expect(adapter.getContactThreadsForCharacter).toHaveBeenCalledTimes(2);
   });
 
   it('ignores button clicks for other custom ids', async () => {

@@ -32,7 +32,9 @@ const REPLY_MODAL_ID = 'contact:reply';
 const REPLY_BUTTON_PREFIX = 'contact:reply-btn:';
 
 type PendingSend = { senderCharacterName: string; recipientNames: string[] };
-type PendingReply = { senderCharacterName: string; threadId: number };
+type PendingReply =
+  | { senderCharacterName: string; threadId: number }
+  | { error: string };
 const pendingSends = new Map<string, PendingSend>();
 const pendingReplies = new Map<string, PendingReply>();
 
@@ -296,17 +298,28 @@ export async function handleContactReplyButton(interaction: ButtonInteraction, c
     return true;
   }
 
+  // Open the modal FIRST, before any network calls — Discord's ~3s ack
+  // deadline applies to this first response, and a button can't
+  // deferReply() before showModal() (Discord disallows that combination).
+  // Which character is replying gets resolved afterward, in the
+  // background; the modal-submit handler below already defers with a
+  // 15-minute budget, so it can safely wait on this result once the player
+  // actually finishes typing and submits — always well after this resolves.
+  // A player with several characters (e.g. two owned, one not in this
+  // thread) used to pay for that resolution — one network round-trip per
+  // owned character, sequentially — before Discord ever saw a response,
+  // which is exactly what expired real interactions in practice.
+  await interaction.showModal(buildReplyModal());
+
   const ownership = await resolveThreadParticipantCharacter(ctx, interaction.user.id, threadId);
   if (!ownership.ok) {
-    await interaction.reply({
-      content: `${ownership.errorMessage} Or use \`/contact reply\` and pass the \`character\` option directly.`,
-      ephemeral: true,
+    pendingReplies.set(interaction.user.id, {
+      error: `${ownership.errorMessage} Or use \`/contact reply\` and pass the \`character\` option directly.`,
     });
     return true;
   }
 
   pendingReplies.set(interaction.user.id, { senderCharacterName: ownership.characterName, threadId });
-  await interaction.showModal(buildReplyModal());
   return true;
 }
 
@@ -421,6 +434,10 @@ export async function handleContactReplyModal(
   pendingReplies.delete(interaction.user.id);
   if (!pending) {
     await interaction.editReply('Session expired — run `/contact reply` again.');
+    return true;
+  }
+  if ('error' in pending) {
+    await interaction.editReply(pending.error);
     return true;
   }
 
