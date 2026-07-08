@@ -123,9 +123,9 @@ const baseIntents = [
   GatewayIntentBits.MessageContent,
 ];
 // GuildMembers is a privileged intent that must be enabled in the Discord
-// Developer Portal. Only request it when staff role sync or member-event
-// tracking actually needs it.
-if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled) {
+// Developer Portal. Only request it when staff role sync, member-event
+// tracking, or the new-member gate's join greeting actually needs it.
+if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled || config.newMemberGateEnabled) {
   baseIntents.push(GatewayIntentBits.GuildMembers);
 }
 

@@ -74,6 +74,12 @@ export function rolesForChoice(
 }
 
 export function startNewMemberGate(client: Client, config: NewMemberGateConfig): void {
+  client.on('guildMemberAdd', (member) => {
+    handleMemberJoin(member, config).catch((error) =>
+      logEvent('error', 'new_member_gate_join_error', { error: errorToMessage(error) }),
+    );
+  });
+
   client.on('messageCreate', (message) => {
     handleMessage(message, config).catch((error) =>
       logEvent('error', 'new_member_gate_message_error', { error: errorToMessage(error) }),
@@ -89,6 +95,28 @@ export function startNewMemberGate(client: Client, config: NewMemberGateConfig):
   });
 
   logEvent('info', 'new_member_gate_started', {});
+}
+
+async function handleMemberJoin(
+  member: import('discord.js').GuildMember,
+  config: NewMemberGateConfig,
+): Promise<void> {
+  if (!config.welcomeChannelId) return;
+  if (member.roles.cache.has(config.verifiedRoleId)) return; // shouldn't happen on a fresh join, but defensive
+
+  const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  try {
+    await channel.send({
+      content:
+        `Welcome, ${member}! You currently have limited access to the server — ` +
+        `post a quick hello right here in <#${config.welcomeChannelId}> and we'll get you set up with the right roles.`,
+    });
+    logEvent('info', 'new_member_gate_join_greeted', { userId: member.id });
+  } catch (error) {
+    logEvent('warn', 'new_member_gate_join_greet_failed', { userId: member.id, error: errorToMessage(error) });
+  }
 }
 
 /**
