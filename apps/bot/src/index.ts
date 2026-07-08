@@ -50,7 +50,7 @@ import {
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startHoneypotMonitor } from './services/honeypotMonitor';
-import { startNewMemberGate } from './services/newMemberGate';
+import { isNewMemberGateButton, startNewMemberGate } from './services/newMemberGate';
 import { startMentionSpamBreaker } from './services/mentionSpamBreaker';
 import {
   isPermissionsApplyButton,
@@ -442,7 +442,12 @@ void applyStartupConfigOverrides().then(() => {
     // interaction.member is null for DM-context interactions — denied by
     // memberHasAnyRole, which is intentional: correspondence/RP commands
     // are guild-only, so DM usage has no legitimate case here.
-    if (!config.testerDiscordIds.has(interaction.user.id) && !memberHasAnyRole(interaction.member, accessRoleIds)) {
+    const customId = 'customId' in interaction ? interaction.customId : undefined;
+    if (
+      !config.testerDiscordIds.has(interaction.user.id) &&
+      !isNewMemberGateButton(customId) &&
+      !memberHasAnyRole(interaction.member, accessRoleIds)
+    ) {
       logEvent('info', 'interaction_blocked_unverified_role', baseMeta);
       if (interaction.isAutocomplete()) {
         await interaction.respond([]);

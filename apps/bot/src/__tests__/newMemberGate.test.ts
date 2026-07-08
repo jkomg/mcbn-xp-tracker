@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rolesForChoice, shouldPrompt } from '../services/newMemberGate';
+import { buildButtonId, isNewMemberGateButton, parseButtonId, rolesForChoice, shouldPrompt } from '../services/newMemberGate';
 
 const CONFIG = {
   verifiedRoleId: 'washed-masses-id',
@@ -62,5 +62,39 @@ describe('rolesForChoice', () => {
     const partial = { verifiedRoleId: 'washed-masses-id', sheetInProgressRoleId: '', lurkerRoleId: 'lurkers-id' };
     expect(rolesForChoice(true, partial)).toEqual(['washed-masses-id']);
     expect(rolesForChoice(false, partial)).toEqual(['lurkers-id', 'washed-masses-id']);
+  });
+});
+
+describe('buildButtonId / parseButtonId', () => {
+  it('round-trips the choice and target user id', () => {
+    const id = buildButtonId('player', 'user-42');
+    expect(parseButtonId(id)).toEqual({ choice: 'player', targetUserId: 'user-42' });
+  });
+
+  it('round-trips the lurker choice too', () => {
+    const id = buildButtonId('lurker', 'user-99');
+    expect(parseButtonId(id)).toEqual({ choice: 'lurker', targetUserId: 'user-99' });
+  });
+
+  it('rejects a customId from an unrelated feature', () => {
+    expect(parseButtonId('contact:reply-btn:7')).toBeNull();
+  });
+
+  it('rejects a malformed new-member-gate customId with no target user', () => {
+    expect(parseButtonId('new-member-gate:player:')).toBeNull();
+  });
+});
+
+describe('isNewMemberGateButton', () => {
+  it('recognizes a valid new-member-gate button', () => {
+    expect(isNewMemberGateButton(buildButtonId('player', 'user-1'))).toBe(true);
+  });
+
+  it('rejects an unrelated customId', () => {
+    expect(isNewMemberGateButton('contact:reply-btn:7')).toBe(false);
+  });
+
+  it('rejects undefined (non-component interactions have no customId)', () => {
+    expect(isNewMemberGateButton(undefined)).toBe(false);
   });
 });

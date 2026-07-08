@@ -18,8 +18,38 @@ import { errorToMessage, logEvent } from '../logger';
  */
 
 const BUTTON_PREFIX = 'new-member-gate:';
-const PLAYER_BUTTON_ID = `${BUTTON_PREFIX}player`;
-const LURKER_BUTTON_ID = `${BUTTON_PREFIX}lurker`;
+
+/**
+ * The target user's ID is encoded directly in the customId (matching
+ * claimReminderInteractions.ts's pattern) — confirmed live that without
+ * this, ANY member who can see #welcome (including another brand-new,
+ * unverified account) could click a button attached to someone else's
+ * greeting and grant themselves roles without ever posting a message
+ * themselves, defeating the entire point of the message-gate.
+ */
+export function buildButtonId(choice: 'player' | 'lurker', targetUserId: string): string {
+  return `${BUTTON_PREFIX}${choice}:${targetUserId}`;
+}
+
+export function parseButtonId(customId: string): { choice: 'player' | 'lurker'; targetUserId: string } | null {
+  if (!customId.startsWith(BUTTON_PREFIX)) return null;
+  const [choice, targetUserId] = customId.slice(BUTTON_PREFIX.length).split(':', 2);
+  if (choice !== 'player' && choice !== 'lurker') return null;
+  if (!targetUserId) return null;
+  return { choice, targetUserId };
+}
+
+/**
+ * Must be exempted from the bot-wide role gate (roleGate.ts) in index.ts —
+ * these buttons are how a brand-new member earns their first role in the
+ * first place, so requiring Mortal/Ghoul/Kindred/staff to click them is a
+ * chicken-and-egg lockout. Confirmed live: the gate intercepted the click
+ * and replied first, then this service's own reply failed with "already
+ * been sent."
+ */
+export function isNewMemberGateButton(customId: string | undefined): boolean {
+  return customId != null && parseButtonId(customId) != null;
+}
 
 export interface NewMemberGateConfig {
   welcomeChannelId: string;
@@ -52,7 +82,7 @@ export function startNewMemberGate(client: Client, config: NewMemberGateConfig):
 
   client.on('interactionCreate', (interaction) => {
     if (!interaction.isButton()) return;
-    if (interaction.customId !== PLAYER_BUTTON_ID && interaction.customId !== LURKER_BUTTON_ID) return;
+    if (!parseButtonId(interaction.customId)) return;
     handleButton(interaction, config).catch((error) =>
       logEvent('error', 'new_member_gate_button_error', { error: errorToMessage(error) }),
     );
@@ -96,11 +126,11 @@ async function handleMessage(message: Message, config: NewMemberGateConfig): Pro
   alreadyPrompted.add(member.id);
 
   const playerButton = new ButtonBuilder()
-    .setCustomId(PLAYER_BUTTON_ID)
+    .setCustomId(buildButtonId('player', member.id))
     .setLabel("I'd like to work towards making a character!")
     .setStyle(ButtonStyle.Primary);
   const lurkerButton = new ButtonBuilder()
-    .setCustomId(LURKER_BUTTON_ID)
+    .setCustomId(buildButtonId('lurker', member.id))
     .setLabel("I'd prefer to just lurk for now!")
     .setStyle(ButtonStyle.Secondary);
 
@@ -121,6 +151,14 @@ async function handleButton(
   interaction: import('discord.js').ButtonInteraction,
   config: NewMemberGateConfig,
 ): Promise<void> {
+  const parsed = parseButtonId(interaction.customId);
+  if (!parsed) return;
+
+  if (interaction.user.id !== parsed.targetUserId) {
+    await interaction.reply({ content: 'This prompt is for a different member — post in the welcome channel yourself to get your own.', ephemeral: true });
+    return;
+  }
+
   const guild = interaction.guild;
   if (!guild) {
     await interaction.reply({ content: 'This only works in the server, not in DMs.', ephemeral: true });
@@ -133,7 +171,7 @@ async function handleButton(
     return;
   }
 
-  const isPlayerChoice = interaction.customId === PLAYER_BUTTON_ID;
+  const isPlayerChoice = parsed.choice === 'player';
   const roleIds = rolesForChoice(isPlayerChoice, config);
 
   await member.roles.add(roleIds, 'New-member gate: completed welcome check-in');
