@@ -128,6 +128,21 @@ if (config.staffRoleSyncEnabled) {
 
 const client = new Client({ intents: baseIntents }) as BotClient;
 
+// Defense-in-depth: an unhandled rejection or a Client 'error' event
+// otherwise crashes the entire Node process (Node's default behavior for
+// an unhandled EventEmitter 'error' event), taking the whole bot offline
+// for every user until the container restarts — even if the root cause was
+// scoped to a single interaction. Every known interaction failure path is
+// already wrapped in try/catch (see the interactionCreate handler below);
+// these are a backstop against whatever the next unwrapped one turns out
+// to be, not a substitute for fixing the actual failure at its source.
+process.on('unhandledRejection', (reason) => {
+  logEvent('error', 'unhandled_rejection', { error: errorToMessage(reason) });
+});
+client.on('error', (error) => {
+  logEvent('error', 'client_error', { error: errorToMessage(error) });
+});
+
 initClientCommandCollection(client);
 
 // Fetch DB-backed config overrides before constructing services so interval
@@ -628,18 +643,35 @@ void applyStartupConfigOverrides().then(() => {
       logEvent('warn', 'interaction_acknowledged_elsewhere', { ...baseMeta, code });
       return;
     }
+    // 10062 means the interaction expired before we produced a first
+    // response (Discord's ack deadline is ~3s) — recoverable under latency,
+    // not a bug worth alerting on. Any reply/followUp attempt on an expired
+    // interaction throws this same code again, so there's nothing useful to
+    // send back; just record it and stop.
+    if (code === 10062) {
+      logEvent('warn', 'interaction_expired', { ...baseMeta, code });
+      return;
+    }
 
     logEvent('error', 'command_failure', { ...baseMeta, code, error: errorToMessage(error) });
     if (!interaction.isRepliable()) {
       return;
     }
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'Command failed.', ephemeral: true });
-      return;
+    // This fallback reply can itself fail (e.g. the interaction expired for
+    // a different reason than the ones already handled above). An uncaught
+    // rejection here previously crashed the entire bot process — for every
+    // user, not just the one whose interaction failed — since nothing
+    // wrapped it. It must never propagate past this handler.
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: 'Command failed.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'Command failed.', ephemeral: true });
+      }
+    } catch (fallbackError) {
+      logEvent('warn', 'command_failure_fallback_reply_failed', { ...baseMeta, error: errorToMessage(fallbackError) });
     }
-
-    await interaction.reply({ content: 'Command failed.', ephemeral: true });
   }
   });
 

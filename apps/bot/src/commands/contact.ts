@@ -259,13 +259,20 @@ async function resolveThreadParticipantCharacter(
     return { ok: true, characterName: owned[0].name };
   }
 
-  const matches: string[] = [];
-  for (const character of owned) {
-    const result = await ctx.adapter.getContactThreadsForCharacter(discordUserId, character.name).catch(() => null);
-    if (result?.threads.some((t) => t.id === threadId)) {
-      matches.push(character.name);
-    }
-  }
+  // Run per-character lookups concurrently, not sequentially — this whole
+  // function runs before the button handler's first Discord response, which
+  // must land within Discord's ~3s interaction-ack deadline. A multi-
+  // character owner awaiting N round-trips one at a time has no safety
+  // margin left by the time the last one resolves; running them in parallel
+  // keeps total latency close to a single round-trip regardless of N.
+  const results = await Promise.all(
+    owned.map((character) =>
+      ctx.adapter.getContactThreadsForCharacter(discordUserId, character.name).catch(() => null),
+    ),
+  );
+  const matches = owned
+    .filter((_character, i) => results[i]?.threads.some((t) => t.id === threadId))
+    .map((character) => character.name);
 
   if (matches.length === 1) {
     return { ok: true, characterName: matches[0] };
