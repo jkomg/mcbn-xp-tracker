@@ -59,8 +59,13 @@ export const VERIFIED_ROLE_ID = process.env.NEW_MEMBER_GATE_VERIFIED_ROLE_ID || 
 /** The jail channel: bare @everyone can post plain text here, nowhere else. */
 export const WELCOME_CHANNEL_ID = process.env.NEW_MEMBER_GATE_WELCOME_CHANNEL_ID || '1168641906356518962';
 
+function parseCsvIds(value: string | undefined, fallback: string[]): Set<string> {
+  if (!value) return new Set(fallback);
+  return new Set(value.split(',').map((s) => s.trim()).filter(Boolean));
+}
+
 /** Read-only for bare @everyone — informational, no posting needed pre-verification. */
-const READ_ONLY_ALLOWLIST_IDS = new Set([
+const READ_ONLY_ALLOWLIST_IDS = parseCsvIds(process.env.NEW_MEMBER_GATE_READONLY_CHANNEL_IDS, [
   '1168639288250998785', // server-rules
   '1168639654501814273', // announcements
   '1169724738814349523', // getting-started
@@ -69,8 +74,10 @@ const READ_ONLY_ALLOWLIST_IDS = new Set([
 /** Postable for bare @everyone, but never links/images — same policy as #welcome. */
 const POSTABLE_ALLOWLIST_IDS = new Set([
   WELCOME_CHANNEL_ID,
-  '1170106212453453834', // server-questions
-  '1168654464308228217', // help-desk
+  ...parseCsvIds(process.env.NEW_MEMBER_GATE_POSTABLE_CHANNEL_IDS, [
+    '1170106212453453834', // server-questions
+    '1168654464308228217', // help-desk
+  ]),
 ]);
 
 function staffRoleIds(): string[] {
