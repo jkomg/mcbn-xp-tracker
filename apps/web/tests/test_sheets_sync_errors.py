@@ -56,3 +56,32 @@ def test_log_sync_error_with_details():
         svc.log_sheets_sync_error('reconcile', 'ok', details='{"claims_appended": 1}')
         errors = svc.get_recent_sync_errors()
     assert errors[0]['details'] == '{"claims_appended": 1}'
+
+
+def test_new_errors_default_to_not_dismissed():
+    app = _app()
+    svc = DBService(sheets_client=None)
+    with app.app_context():
+        svc.log_sheets_sync_error('op', 'err')
+        errors = svc.get_recent_sync_errors()
+    assert errors[0]['dismissed'] is False
+    assert errors[0]['id'] is not None
+
+
+def test_dismissed_errors_excluded_by_default():
+    from app.db import DbSheetsSyncError
+
+    app = _app()
+    svc = DBService(sheets_client=None)
+    with app.app_context():
+        svc.log_sheets_sync_error('op_a', 'err_a')
+        svc.log_sheets_sync_error('op_b', 'err_b')
+        row = DbSheetsSyncError.query.filter_by(operation='op_a').first()
+        row.dismissed = True
+        db.session.commit()
+
+        errors = svc.get_recent_sync_errors()
+        assert [e['operation'] for e in errors] == ['op_b']
+
+        errors_with_dismissed = svc.get_recent_sync_errors(show_dismissed=True)
+        assert {e['operation'] for e in errors_with_dismissed} == {'op_a', 'op_b'}

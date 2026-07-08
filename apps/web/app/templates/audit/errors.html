@@ -26,7 +26,14 @@
 <div class="card mb-4 border-warning">
     <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
         <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong></span>
-        <span class="badge bg-dark">{{ sync_errors|length }}</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-dark">{{ sync_errors|length }}</span>
+            {% if sync_errors | selectattr('id') | list %}
+            <button id="sync-dismiss-all-btn" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-check2-all"></i> Dismiss all
+            </button>
+            {% endif %}
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-sm table-dark mb-0">
@@ -35,14 +42,25 @@
                     <th>Time (Eastern)</th>
                     <th>Operation</th>
                     <th>Error</th>
+                    <th style="width: 40px;"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for e in sync_errors %}
-                <tr>
+                <tr id="sync-error-row-{{ e.id }}">
                     <td class="text-muted small text-nowrap">{{ e.timestamp | to_eastern }}</td>
                     <td><code>{{ e.operation }}</code></td>
                     <td class="text-warning small">{{ e.error }}</td>
+                    <td class="text-center">
+                        {% if e.id %}
+                        <button class="btn btn-sm btn-outline-secondary sync-dismiss-btn" title="Dismiss"
+                                data-id="{{ e.id }}" data-url="{{ url_for('audit.dismiss_sync_error', entry_id=e.id) }}">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-muted small" title="Real-time entry — clears automatically on next process restart">—</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -187,6 +205,51 @@
       })
       .catch(() => { btn.disabled = false; });
   });
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.sync-dismiss-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const url = btn.dataset.url;
+    btn.disabled = true;
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          const row = document.getElementById('sync-error-row-' + id);
+          if (row) row.remove();
+        } else {
+          btn.disabled = false;
+        }
+      })
+      .catch(() => { btn.disabled = false; });
+  });
+
+  (function () {
+    const dismissAllBtn = document.getElementById('sync-dismiss-all-btn');
+    if (!dismissAllBtn) return;
+    dismissAllBtn.addEventListener('click', function () {
+      const ids = Array.from(document.querySelectorAll('.sync-dismiss-btn')).map((b) => parseInt(b.dataset.id, 10));
+      if (ids.length === 0) return;
+      dismissAllBtn.disabled = true;
+      fetch('{{ url_for("audit.bulk_dismiss_sync_errors") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ ids: ids }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            ids.forEach((id) => {
+              const row = document.getElementById('sync-error-row-' + id);
+              if (row) row.remove();
+            });
+          }
+          dismissAllBtn.disabled = false;
+        })
+        .catch(() => { dismissAllBtn.disabled = false; });
+    });
+  })();
 
   (function () {
     const selectAll = document.getElementById('select-all-errors');
