@@ -80,6 +80,13 @@
   </div>
 
   {# ── Growth ── #}
+  {% if member_events_capped %}
+  <div class="alert alert-warning py-2 small mb-3">
+    <i class="bi bi-info-circle me-1"></i>
+    Member-event tracking only has data back to <strong>{{ earliest_member_event_date }}</strong> —
+    new-member and verification counts below reflect what's actually available for this window.
+  </div>
+  {% endif %}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="stat-card h-100">
@@ -95,6 +102,34 @@
           {% else %}
             flat vs prior period
           {% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100">
+        <span class="stat-label">New Members</span>
+        <span class="stat-value">{{ member_growth.new_members_count }}</span>
+        <span class="stat-sub">
+          {% if member_growth.members_delta_pct is none %}
+            no prior baseline
+          {% elif member_growth.members_delta_pct > 0 %}
+            <span style="color:#0ca30c;"><i class="bi bi-arrow-up-short"></i>{{ member_growth.members_delta_pct }}%</span> vs prior period
+          {% elif member_growth.members_delta_pct < 0 %}
+            <span style="color:var(--accent-soft);"><i class="bi bi-arrow-down-short"></i>{{ -member_growth.members_delta_pct }}%</span> vs prior period
+          {% else %}
+            flat vs prior period
+          {% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card h-100 stat-card--accent">
+        <span class="stat-label">Verified (Kindred/Ghoul/Mortal)</span>
+        <span class="stat-value">{{ member_growth.verified_count }}</span>
+        <span class="stat-sub">
+          {{ member_growth.verified_by_role.kindred }} Kindred ·
+          {{ member_growth.verified_by_role.ghoul }} Ghoul ·
+          {{ member_growth.verified_by_role.mortal }} Mortal
         </span>
       </div>
     </div>
@@ -193,6 +228,16 @@
     </div>
   </div>
 
+  {# ── Member growth trend ── #}
+  <div class="card mb-4">
+    <div class="card-header py-2 fw-semibold">
+      <i class="bi bi-person-check me-1"></i> New Members vs. Verified
+    </div>
+    <div class="card-body">
+      <canvas id="memberGrowthChart" height="90" role="img" aria-label="Line chart of daily new members and daily verified members"></canvas>
+    </div>
+  </div>
+
   {# ── Not posting ── #}
   <div class="card mb-4">
     <div class="card-header py-2 fw-semibold">
@@ -241,6 +286,8 @@
   const dailyByCategory = {{ report.daily_by_category | tojson }};
   const dailyPosters = {{ report.daily_unique_posters | tojson }};
   const leaderboard = {{ report.leaderboard | tojson }};
+  const dailyJoins = {{ member_growth.daily_joins | tojson }};
+  const dailyVerified = {{ member_growth.daily_verified | tojson }};
 
   // Validated categorical palette (dark mode, 4 slots) — see dataviz skill.
   const CATEGORY_COLORS = {
@@ -305,6 +352,46 @@
       },
       plugins: {
         legend: { display: false },
+        tooltip: { mode: 'index', intersect: false },
+      },
+    },
+  });
+
+  new Chart(document.getElementById('memberGrowthChart'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        {
+          label: 'New members',
+          data: dailyJoins,
+          borderColor: '#9085e9',
+          backgroundColor: 'rgba(144,133,233,0.12)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.15,
+        },
+        {
+          label: 'Verified (Kindred/Ghoul/Mortal)',
+          data: dailyVerified,
+          borderColor: '#e66767',
+          backgroundColor: 'rgba(230,103,103,0.12)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.15,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: GRIDLINE }, ticks: { precision: 0 } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10 } },
         tooltip: { mode: 'index', intersect: false },
       },
     },

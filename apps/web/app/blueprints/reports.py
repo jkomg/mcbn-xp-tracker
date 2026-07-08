@@ -9,7 +9,13 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 
-from app.activity_health import build_health_report, build_new_characters_report, shift_window
+from app.activity_health import (
+    build_health_report,
+    build_member_growth_report,
+    build_new_characters_report,
+    daterange,
+    shift_window,
+)
 from app.auth import require_staff
 from app.db import (
     DbCharacter,
@@ -17,6 +23,7 @@ from app.db import (
     DbSpendRequest,
     DbXPClaim,
     DiscordDisplayName,
+    DiscordMemberEvent,
     DiscordPostCount,
     RetirementAutomationJob,
     db,
@@ -386,11 +393,46 @@ def health():
     )
     new_characters_report = build_new_characters_report(new_chars_current, new_chars_prev)
 
+    # ── Member growth: new joins + first-time Kindred/Ghoul/Mortal role gains ──
+    earliest_member_event_row = (
+        DiscordMemberEvent.query.order_by(DiscordMemberEvent.date.asc()).first()
+    )
+    earliest_member_event_date = earliest_member_event_row.date if earliest_member_event_row else None
+
+    def _member_events_for(since: str, until: str, event_type: str) -> list[dict]:
+        if since > until:
+            return []
+        q = DiscordMemberEvent.query.filter(
+            DiscordMemberEvent.event_type == event_type,
+            DiscordMemberEvent.date >= since,
+            DiscordMemberEvent.date <= until,
+        )
+        return [{'discord_id': r.discord_id, 'role': r.role, 'date': r.date} for r in q.all()]
+
+    join_events = _member_events_for(start, end, 'join')
+    role_gain_events = _member_events_for(start, end, 'role_gain')
+    member_events_capped = (
+        bool(earliest_member_event_date) and requested_start < earliest_member_event_date
+    )
+    if earliest_member_event_date and prev_start_d < datetime.strptime(earliest_member_event_date, '%Y-%m-%d').date():
+        prev_join_events: list[dict] = []
+        prev_role_gain_events: list[dict] = []
+    else:
+        prev_join_events = _member_events_for(prev_start, prev_end, 'join')
+        prev_role_gain_events = _member_events_for(prev_start, prev_end, 'role_gain')
+
+    member_growth = build_member_growth_report(
+        join_events, role_gain_events, prev_join_events, prev_role_gain_events, daterange(start, end),
+    )
+
     return render_template(
         'reports/health.html',
         report=report,
         new_characters=new_characters_report,
         earliest_char_date=earliest_char_date_str,
+        member_growth=member_growth,
+        member_events_capped=member_events_capped,
+        earliest_member_event_date=earliest_member_event_date,
         range_days=range_days,
         range_options=HEALTH_RANGE_OPTIONS,
         start=start,

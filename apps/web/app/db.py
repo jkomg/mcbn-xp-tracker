@@ -251,6 +251,31 @@ class DiscordPostCount(db.Model):
     count = db.Column(Integer, nullable=False, default=0)
 
 
+class DiscordMemberEvent(db.Model):
+    """Discrete member-growth events: server joins and first-time role gains
+    (Kindred/Ghoul/Mortal — the "lurker became an active player" signal).
+
+    Deliberately event rows, not running counts: the discord_post_counts
+    corruption incident happened because that table stored counts that had
+    to be incremented, and re-running the backfill scanner compounded them.
+    Events are idempotent by construction (INSERT ... ON CONFLICT DO
+    NOTHING against the unique constraint below), so re-running a full
+    member sweep on every bot restart can never double-count.
+    """
+    __tablename__ = 'discord_member_events'
+    __table_args__ = (
+        db.UniqueConstraint('discord_id', 'event_type', 'role', 'date', name='uq_discord_member_event'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    discord_id = db.Column(String(30), nullable=False, index=True)
+    event_type = db.Column(String(20), nullable=False)  # join | role_gain
+    # '' for join; 'kindred' | 'ghoul' | 'mortal' for role_gain. Never NULL —
+    # NULL is distinct from NULL in a unique constraint, which would silently
+    # defeat dedup for join rows.
+    role = db.Column(String(20), nullable=False, default='')
+    date = db.Column(String(10), nullable=False)  # YYYY-MM-DD (UTC)
+
+
 class CharacterDraft(db.Model):
     """In-progress and submitted character creation drafts."""
     __tablename__ = 'character_drafts'
