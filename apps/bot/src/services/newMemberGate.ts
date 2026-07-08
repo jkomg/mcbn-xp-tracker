@@ -110,8 +110,9 @@ async function handleMemberJoin(
   try {
     await channel.send({
       content:
-        `Welcome, ${member}! You currently have limited access to the server — ` +
-        `post a quick hello right here in <#${config.welcomeChannelId}> and we'll get you set up with the right roles.`,
+        `Welcome to MCBN, ${member}! Due to the increased prevalence of bots invading servers, you currently have ` +
+        `limited access to the server. Just post a quick hello right here in <#${config.welcomeChannelId}> and ` +
+        `we'll get you setup with the proper roles.`,
     });
     logEvent('info', 'new_member_gate_join_greeted', { userId: member.id });
   } catch (error) {
@@ -165,7 +166,8 @@ async function handleMessage(message: Message, config: NewMemberGateConfig): Pro
   try {
     await message.reply({
       content:
-        "Thanks for saying hi! Would you like to join Music City by Night as a player, or would you prefer to just lurk for now?",
+        "Thanks for confirming that you're a human! Would you like to join Music City by Night as an active player " +
+        "(this would give you the sheet-in-progress role) or just lurk for now (giving you the lurker role)? Both grant access to most channels.",
       components: [new ActionRowBuilder<ButtonBuilder>().addComponents(playerButton, lurkerButton)],
     });
     logEvent('info', 'new_member_gate_prompted', { userId: member.id });
