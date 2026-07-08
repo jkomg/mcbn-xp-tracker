@@ -157,6 +157,38 @@ def bulk_dismiss_errors():
     return jsonify({'ok': True, 'count': updated})
 
 
+@bp.route('/errors/sync/<int:entry_id>/dismiss', methods=['POST'])
+@require_staff
+def dismiss_sync_error(entry_id: int):
+    from app.db import DbSheetsSyncError, db
+    entry = DbSheetsSyncError.query.get_or_404(entry_id)
+    entry.dismissed = True
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/errors/sync/bulk-dismiss', methods=['POST'])
+@require_staff
+def bulk_dismiss_sync_errors():
+    """Dismiss many Sheets sync error entries at once (checkbox selection on /audit/errors)."""
+    from app.db import DbSheetsSyncError, db
+    body = request.get_json(silent=True) or {}
+    raw_ids = body.get('ids')
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({'error': 'ids must be a non-empty array'}), 400
+    try:
+        entry_ids = [int(i) for i in raw_ids]
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ids must be integers'}), 400
+    updated = (
+        DbSheetsSyncError.query
+        .filter(DbSheetsSyncError.id.in_(entry_ids))
+        .update({'dismissed': True}, synchronize_session=False)
+    )
+    db.session.commit()
+    return jsonify({'ok': True, 'count': updated})
+
+
 @bp.route('/errors')
 @require_staff
 def errors():
@@ -197,9 +229,12 @@ def errors():
     for e in entries:
         event_counts[e['event']] = event_counts.get(e['event'], 0) + 1
 
-    # Merge in-memory (real-time, current session) and DB (historical) sync errors
+    # Merge in-memory (real-time, current session — never dismissable, since
+    # it's cleared on process restart anyway) and DB (historical, dismissable)
+    # sync errors. show_dismissed also governs the DB-backed ones here so
+    # there's a single toggle for the whole page.
     rt_errors = _get_recent_sync_errors()
-    db_sync_errors = db_service.get_recent_sync_errors(limit=100)
+    db_sync_errors = db_service.get_recent_sync_errors(limit=100, show_dismissed=show_dismissed)
     db_keys = {(e['timestamp'], e['operation'], e['error']) for e in db_sync_errors}
     rt_only = [e for e in rt_errors
                if (e['timestamp'], e['operation'], e['error']) not in db_keys]

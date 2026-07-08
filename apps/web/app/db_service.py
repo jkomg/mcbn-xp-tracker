@@ -1411,9 +1411,19 @@ class DBService:
         db.session.add(row)
         db.session.commit()
 
-    def get_recent_sync_errors(self, limit: int = 100) -> list[dict]:
-        rows = DbSheetsSyncError.query.order_by(DbSheetsSyncError.id.desc()).limit(limit).all()
+    def get_recent_sync_errors(self, limit: int = 100, show_dismissed: bool = False) -> list[dict]:
+        query = DbSheetsSyncError.query
+        if not show_dismissed:
+            query = query.filter(DbSheetsSyncError.dismissed == False)  # noqa: E712
+        rows = query.order_by(DbSheetsSyncError.id.desc()).limit(limit).all()
         return [
-            {'timestamp': r.timestamp, 'operation': r.operation, 'error': r.error, 'details': r.details}
+            {
+                'id': r.id,
+                'timestamp': r.timestamp,
+                'operation': r.operation,
+                'error': r.error,
+                'details': r.details,
+                'dismissed': r.dismissed,
+            }
             for r in rows
         ]

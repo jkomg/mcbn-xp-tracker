@@ -191,6 +191,7 @@ class DbSheetsSyncError(db.Model):
     operation = db.Column(String(100), default='')
     error = db.Column(Text, default='')
     details = db.Column(Text, default='')
+    dismissed = db.Column(Boolean, default=False, nullable=False, index=True)
 
 
 class WikiPage(db.Model):
