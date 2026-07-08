@@ -1,0 +1,152 @@
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Client, type Message } from 'discord.js';
+import { errorToMessage, logEvent } from '../logger';
+
+/**
+ * New-member "jail" gate: a raid/spam account that joins and instantly
+ * clicks through Discord's native onboarding UI (a real incident — see
+ * docs/RELEASE notes) can self-grant onboarding roles in milliseconds,
+ * something a genuine new player can't be distinguished from by click speed
+ * alone. This service replaces that with a message-gate — a member must
+ * actually post real text in the welcome channel before being offered real
+ * server access, which a scripted click-through can't fake as cheaply.
+ *
+ * The channel-permission side of this (closing off ~90 previously-open
+ * channels, restricting the welcome channel to plain text) is handled by
+ * the one-time migration in scripts/newMemberGate/migrateChannelAccess.ts —
+ * this service only handles the live prompt-and-grant flow after that
+ * migration is in place.
+ */
+
+const BUTTON_PREFIX = 'new-member-gate:';
+const PLAYER_BUTTON_ID = `${BUTTON_PREFIX}player`;
+const LURKER_BUTTON_ID = `${BUTTON_PREFIX}lurker`;
+
+export interface NewMemberGateConfig {
+  welcomeChannelId: string;
+  /** "The Washed Masses" — granted either way; this is what the migration's channel overwrites key off of. */
+  verifiedRoleId: string;
+  sheetInProgressRoleId: string;
+  lurkerRoleId: string;
+}
+
+/** Discord user IDs already shown the prompt, awaiting a button click — avoids re-prompting on every message they send before clicking. */
+const alreadyPrompted = new Set<string>();
+
+/** Pure mapping from a button choice to the role pair it grants — exported for unit testing without discord.js mocks. */
+export function rolesForChoice(
+  isPlayerChoice: boolean,
+  config: Pick<NewMemberGateConfig, 'verifiedRoleId' | 'sheetInProgressRoleId' | 'lurkerRoleId'>,
+): string[] {
+  const roleIds = isPlayerChoice
+    ? [config.sheetInProgressRoleId, config.verifiedRoleId]
+    : [config.lurkerRoleId, config.verifiedRoleId];
+  return roleIds.filter(Boolean);
+}
+
+export function startNewMemberGate(client: Client, config: NewMemberGateConfig): void {
+  client.on('messageCreate', (message) => {
+    handleMessage(message, config).catch((error) =>
+      logEvent('error', 'new_member_gate_message_error', { error: errorToMessage(error) }),
+    );
+  });
+
+  client.on('interactionCreate', (interaction) => {
+    if (!interaction.isButton()) return;
+    if (interaction.customId !== PLAYER_BUTTON_ID && interaction.customId !== LURKER_BUTTON_ID) return;
+    handleButton(interaction, config).catch((error) =>
+      logEvent('error', 'new_member_gate_button_error', { error: errorToMessage(error) }),
+    );
+  });
+
+  logEvent('info', 'new_member_gate_started', {});
+}
+
+/**
+ * Whether a message in the configured channel should trigger the
+ * player/lurker prompt. Pure and exported so the skip conditions are unit
+ * testable without constructing full discord.js Message/Member mocks.
+ */
+export function shouldPrompt(
+  message: { channelId: string; authorIsBot: boolean; memberId: string | null; memberRoleIds: string[] },
+  config: Pick<NewMemberGateConfig, 'welcomeChannelId' | 'verifiedRoleId'>,
+  alreadyPromptedIds: ReadonlySet<string>,
+): boolean {
+  if (!config.welcomeChannelId || message.channelId !== config.welcomeChannelId) return false;
+  if (message.authorIsBot) return false;
+  if (!message.memberId) return false;
+  if (message.memberRoleIds.includes(config.verifiedRoleId)) return false; // already verified
+  if (alreadyPromptedIds.has(message.memberId)) return false;
+  return true;
+}
+
+async function handleMessage(message: Message, config: NewMemberGateConfig): Promise<void> {
+  const member = message.member;
+  const eligible = shouldPrompt(
+    {
+      channelId: message.channelId,
+      authorIsBot: message.author.bot,
+      memberId: member?.id ?? null,
+      memberRoleIds: member ? [...member.roles.cache.keys()] : [],
+    },
+    config,
+    alreadyPrompted,
+  );
+  if (!eligible || !member) return;
+
+  alreadyPrompted.add(member.id);
+
+  const playerButton = new ButtonBuilder()
+    .setCustomId(PLAYER_BUTTON_ID)
+    .setLabel("I'd like to work towards making a character!")
+    .setStyle(ButtonStyle.Primary);
+  const lurkerButton = new ButtonBuilder()
+    .setCustomId(LURKER_BUTTON_ID)
+    .setLabel("I'd prefer to just lurk for now!")
+    .setStyle(ButtonStyle.Secondary);
+
+  try {
+    await message.reply({
+      content:
+        "Thanks for saying hi! Would you like to join Music City by Night as a player, or would you prefer to just lurk for now?",
+      components: [new ActionRowBuilder<ButtonBuilder>().addComponents(playerButton, lurkerButton)],
+    });
+    logEvent('info', 'new_member_gate_prompted', { userId: member.id });
+  } catch (error) {
+    alreadyPrompted.delete(member.id); // let them retry on their next message if the prompt failed to send
+    logEvent('warn', 'new_member_gate_prompt_failed', { userId: member.id, error: errorToMessage(error) });
+  }
+}
+
+async function handleButton(
+  interaction: import('discord.js').ButtonInteraction,
+  config: NewMemberGateConfig,
+): Promise<void> {
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({ content: 'This only works in the server, not in DMs.', ephemeral: true });
+    return;
+  }
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member) {
+    await interaction.reply({ content: 'Something went wrong — try posting in the welcome channel again.', ephemeral: true });
+    return;
+  }
+
+  const isPlayerChoice = interaction.customId === PLAYER_BUTTON_ID;
+  const roleIds = rolesForChoice(isPlayerChoice, config);
+
+  await member.roles.add(roleIds, 'New-member gate: completed welcome check-in');
+  alreadyPrompted.delete(interaction.user.id);
+
+  await interaction.reply({
+    content: isPlayerChoice
+      ? "Welcome! You're all set — check out #getting-started to work on your character sheet."
+      : "Welcome! You're all set to lurk and explore the server.",
+    ephemeral: true,
+  });
+  logEvent('info', 'new_member_gate_verified', {
+    userId: interaction.user.id,
+    choice: isPlayerChoice ? 'player' : 'lurker',
+  });
+}

@@ -10,6 +10,7 @@
     "lint": "node scripts/lint.mjs",
     "format:check": "node scripts/format-check.mjs",
     "ops:permissions": "tsx src/scripts/permissionRemediation/cli.ts",
+    "ops:migrate-channel-access": "tsx src/scripts/newMemberGate/migrateChannelAccess.ts",
     "ops:setup-test-channels": "tsx src/scripts/setupTestChannels.ts",
     "dev:test-guild": "DOTENV_CONFIG_PATH=.env.dev tsx src/index.ts",
     "ops:check-adapter": "bash scripts/check-adapter.sh",

@@ -50,6 +50,7 @@ import {
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startHoneypotMonitor } from './services/honeypotMonitor';
+import { startNewMemberGate } from './services/newMemberGate';
 import { startMentionSpamBreaker } from './services/mentionSpamBreaker';
 import {
   isPermissionsApplyButton,
@@ -414,6 +415,14 @@ void applyStartupConfigOverrides().then(() => {
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
     startHoneypotMonitor(client);
     startMentionSpamBreaker(client);
+    if (config.newMemberGateEnabled) {
+      startNewMemberGate(client, {
+        welcomeChannelId: config.newMemberGateWelcomeChannelId,
+        verifiedRoleId: config.newMemberGateVerifiedRoleId,
+        sheetInProgressRoleId: config.newMemberGateSheetInProgressRoleId,
+        lurkerRoleId: config.newMemberGateLurkerRoleId,
+      });
+    }
   });
 
   const accessRoleIds = requiredRoleIds(config);
