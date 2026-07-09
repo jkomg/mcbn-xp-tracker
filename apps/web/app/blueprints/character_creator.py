@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, send_from_directory, session
 
 from app.auth import is_staff, require_login, require_character_owner, require_staff
+from app.date_utils import parse_date_added
 from app.db import CharacterDraft, DbCharacter, db
 
 bp = Blueprint('character_creator', __name__)
@@ -213,19 +214,21 @@ def cc_eligibility():
     directly via the bot's /lasombra approve command.
     """
     discord_id = _discord_id()
-    cutoff_str = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
-    oldest = (
-        DbCharacter.query
-        .filter(
-            DbCharacter.player_discord == discord_id,
-            DbCharacter.active == True,  # noqa: E712
-            DbCharacter.date_added != '',
-            DbCharacter.date_added <= cutoff_str,
-        )
-        .order_by(DbCharacter.date_added.asc())
-        .first()
-    )
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=60)).date()
+
+    # date_added has two formats in the wild ('YYYYMMDD HH:MM:SS' from live
+    # approvals, 'YYYY-MM-DD' from the one-time CSV migration) that don't
+    # sort consistently against each other as raw strings — a prior version
+    # of this check string-compared date_added directly against a
+    # '%Y-%m-%d' cutoff, which silently failed for every live-approved
+    # character regardless of actual age. See app/date_utils.py.
+    candidates = [
+        (c, parsed) for c in DbCharacter.query.filter_by(player_discord=discord_id, active=True).all()
+        if (parsed := parse_date_added(c.date_added)) is not None and parsed <= cutoff
+    ]
+    oldest = min(candidates, key=lambda pair: pair[1], default=None)
+
     return jsonify({
         'eligible': oldest is not None,
-        'earliest_approved_at': oldest.date_added if oldest else None,
+        'earliest_approved_at': oldest[0].date_added if oldest else None,
     })
