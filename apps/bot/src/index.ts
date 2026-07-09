@@ -104,6 +104,7 @@ liveConfig.newMemberGateEnabled = config.newMemberGateEnabled;
 liveConfig.newMemberGateWelcomeChannelId = config.newMemberGateWelcomeChannelId;
 liveConfig.newMemberGateSheetInProgressRoleId = config.newMemberGateSheetInProgressRoleId;
 liveConfig.newMemberGateLurkerRoleId = config.newMemberGateLurkerRoleId;
+liveConfig.newMemberGatePostableChannelIds = config.newMemberGatePostableChannelIds;
 liveConfig.correspondenceDeliveryChannelId = config.correspondenceDeliveryChannelId;
 liveConfig.correspondenceContactChannelId = config.correspondenceContactChannelId;
 liveConfig.correspondencePrestationChannelId = config.correspondencePrestationChannelId;

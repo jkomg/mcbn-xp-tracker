@@ -259,4 +259,10 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+// Guard against running the CLI as a side effect of import — this module is
+// also imported by newMemberGateMigration.test.ts for computePlan and the
+// exported constants, which would otherwise execute a live Discord login
+// (or exit(1) from missing env) on every test run.
+if (require.main === module) {
+  void main();
+}

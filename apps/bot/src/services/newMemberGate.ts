@@ -101,6 +101,9 @@ export function startNewMemberGate(client: Client): void {
     handleMessage(message).catch((error) =>
       logEvent('error', 'new_member_gate_message_error', { error: errorToMessage(error) }),
     );
+    handleLinkAttempt(message).catch((error) =>
+      logEvent('error', 'new_member_gate_link_check_error', { error: errorToMessage(error) }),
+    );
   });
 
   client.on('interactionCreate', (interaction) => {
@@ -132,6 +135,40 @@ async function handleMemberJoin(member: import('discord.js').GuildMember): Promi
     logEvent('info', 'new_member_gate_join_greeted', { userId: member.id });
   } catch (error) {
     logEvent('warn', 'new_member_gate_join_greet_failed', { userId: member.id, error: errorToMessage(error) });
+  }
+}
+
+const URL_PATTERN = /https?:\/\/\S+|www\.\S+/i;
+
+/** Pure and exported for unit testing — Discord auto-hyperlinks a raw URL in plain text regardless of the EmbedLinks permission. */
+export function messageContainsUrl(content: string): boolean {
+  return URL_PATTERN.test(content);
+}
+
+/**
+ * The postable pre-verification channels (welcome + whatever
+ * NEW_MEMBER_GATE_POSTABLE_CHANNEL_IDS resolves to) only have EmbedLinks/
+ * AttachFiles denied for @everyone — that stops embed previews and file
+ * uploads, but Discord still renders a raw URL in plain message text as a
+ * clickable link regardless of that permission. Deletes any link posted by
+ * a not-yet-verified member in those channels; verified members can post
+ * links there freely.
+ */
+async function handleLinkAttempt(message: Message): Promise<void> {
+  if (!liveConfig.newMemberGateEnabled) return;
+  const noLinksChannelIds = [liveConfig.newMemberGateWelcomeChannelId, ...liveConfig.newMemberGatePostableChannelIds];
+  if (!noLinksChannelIds.includes(message.channelId)) return;
+  if (message.author.bot) return;
+  const member = message.member;
+  if (!member) return;
+  if (member.roles.cache.has(liveConfig.verifiedMemberRoleId)) return;
+  if (!messageContainsUrl(message.content)) return;
+
+  try {
+    await message.delete();
+    logEvent('info', 'new_member_gate_link_removed', { userId: member.id, channelId: message.channelId });
+  } catch (error) {
+    logEvent('warn', 'new_member_gate_link_removal_failed', { userId: member.id, error: errorToMessage(error) });
   }
 }
 

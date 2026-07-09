@@ -185,6 +185,7 @@ const envSchema = z.object({
   NEW_MEMBER_GATE_WELCOME_CHANNEL_ID: z.string().optional(),
   NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
   NEW_MEMBER_GATE_LURKER_ROLE_ID: z.string().optional(),
+  NEW_MEMBER_GATE_POSTABLE_CHANNEL_IDS: z.string().optional(),
   STAFF_ROLE_SYSTEM_HELPER_ID: z.string().optional(),
   STAFF_ROLE_STORYTELLER_ID: z.string().optional(),
   STAFF_ROLE_MODERATOR_ID: z.string().optional(),
@@ -481,6 +482,14 @@ export const config = {
   newMemberGateWelcomeChannelId: env.NEW_MEMBER_GATE_WELCOME_CHANNEL_ID ?? '1168641906356518962',
   newMemberGateSheetInProgressRoleId: env.NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID ?? '1374158816740118528',
   newMemberGateLurkerRoleId: env.NEW_MEMBER_GATE_LURKER_ROLE_ID ?? '1341485754576011325',
+  // Must match POSTABLE_ALLOWLIST_IDS's non-welcome entries in
+  // scripts/newMemberGate/migrateChannelAccess.ts — those channels deny
+  // EmbedLinks/AttachFiles for @everyone, but Discord still auto-hyperlinks
+  // a raw URL in plain message text regardless of that permission, so the
+  // bot deletes any link posted by an unverified member in these channels.
+  newMemberGatePostableChannelIds: env.NEW_MEMBER_GATE_POSTABLE_CHANNEL_IDS
+    ? env.NEW_MEMBER_GATE_POSTABLE_CHANNEL_IDS.split(',').map((s) => s.trim()).filter(Boolean)
+    : ['1170106212453453834', '1168654464308228217'], // server-questions, help-desk
   staffRoleSystemHelperId: env.STAFF_ROLE_SYSTEM_HELPER_ID ?? '1168649906324520992',
   staffRoleStorytellerId: env.STAFF_ROLE_STORYTELLER_ID ?? '1168649373731790948',
   staffRoleModeratorId: env.STAFF_ROLE_MODERATOR_ID ?? '1168650352132890794',

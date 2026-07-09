@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildButtonId, isNewMemberGateButton, parseButtonId, rolesForChoice, shouldPrompt } from '../services/newMemberGate';
+import {
+  buildButtonId,
+  isNewMemberGateButton,
+  messageContainsUrl,
+  parseButtonId,
+  rolesForChoice,
+  shouldPrompt,
+} from '../services/newMemberGate';
 
 const CONFIG = {
   verifiedRoleId: 'washed-masses-id',
@@ -96,5 +103,25 @@ describe('isNewMemberGateButton', () => {
 
   it('rejects undefined (non-component interactions have no customId)', () => {
     expect(isNewMemberGateButton(undefined)).toBe(false);
+  });
+});
+
+describe('messageContainsUrl', () => {
+  it('detects an http(s) URL', () => {
+    expect(messageContainsUrl('check this out https://evil.example/free-nitro')).toBe(true);
+    expect(messageContainsUrl('http://also-a-link.example')).toBe(true);
+  });
+
+  it('detects a bare www. URL with no scheme', () => {
+    // Discord still auto-hyperlinks these even without http(s):// — the exact gap EmbedLinks:false doesn't cover.
+    expect(messageContainsUrl('go to www.evil.example now')).toBe(true);
+  });
+
+  it('does not flag plain text with no link', () => {
+    expect(messageContainsUrl('hello everyone, excited to be here!')).toBe(false);
+  });
+
+  it('does not flag an empty message', () => {
+    expect(messageContainsUrl('')).toBe(false);
   });
 });
