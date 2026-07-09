@@ -51,6 +51,10 @@ export class ConfigSyncWorker {
         : new Set(config.mentionBreakerExemptRoleIds);
       liveConfig.mentionBreakerModLogChannelId = cfg.mentionBreakerModLogChannelId ?? config.mentionBreakerModLogChannelId;
       liveConfig.verifiedMemberRoleId = cfg.verifiedMemberRoleId ?? config.verifiedMemberRoleId ?? '';
+      if (cfg.newMemberGateEnabled !== null) liveConfig.newMemberGateEnabled = cfg.newMemberGateEnabled;
+      liveConfig.newMemberGateWelcomeChannelId = cfg.newMemberGateWelcomeChannelId ?? config.newMemberGateWelcomeChannelId;
+      liveConfig.newMemberGateSheetInProgressRoleId = cfg.newMemberGateSheetInProgressRoleId ?? config.newMemberGateSheetInProgressRoleId;
+      liveConfig.newMemberGateLurkerRoleId = cfg.newMemberGateLurkerRoleId ?? config.newMemberGateLurkerRoleId;
       liveConfig.disabledCommands = cfg.disabledCommands != null
         ? new Set(cfg.disabledCommands.split(',').map(s => s.trim()).filter(Boolean))
         : new Set();

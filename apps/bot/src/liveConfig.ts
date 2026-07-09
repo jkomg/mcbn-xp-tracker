@@ -33,6 +33,13 @@ export const liveConfig = {
   mentionBreakerExemptRoleIds: new Set<string>(),
   mentionBreakerModLogChannelId: '',
   verifiedMemberRoleId: '',
+  /** New-member gate — fully live (checked per-message/join, no restart needed). Reuses verifiedMemberRoleId above. */
+  newMemberGateEnabled: false,
+  newMemberGateWelcomeChannelId: '',
+  newMemberGateSheetInProgressRoleId: '',
+  newMemberGateLurkerRoleId: '',
+  /** Postable pre-verification channels (besides welcome) where a raw link from an unverified member gets deleted. Env-only, not dashboard-editable. */
+  newMemberGatePostableChannelIds: [] as string[],
   /** Per-command/subcommand kill switches, e.g. "xp.submit", "cobweb". Set-membership check, no restart needed. */
   disabledCommands: new Set<string>(),
   /** Correspondence command channel IDs — fully live (read per-invocation, no restart needed). */

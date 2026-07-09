@@ -50,6 +50,7 @@ import {
 } from './editWizard';
 import { startCubbyChannelMonitor } from './services/cubbyChannelMonitor';
 import { startHoneypotMonitor } from './services/honeypotMonitor';
+import { isNewMemberGateButton, startNewMemberGate } from './services/newMemberGate';
 import { startMentionSpamBreaker } from './services/mentionSpamBreaker';
 import {
   isPermissionsApplyButton,
@@ -99,6 +100,11 @@ liveConfig.mentionBreakerTimeoutMinutes = config.mentionBreakerTimeoutMinutes;
 liveConfig.mentionBreakerExemptRoleIds = new Set(config.mentionBreakerExemptRoleIds);
 liveConfig.mentionBreakerModLogChannelId = config.mentionBreakerModLogChannelId;
 liveConfig.verifiedMemberRoleId = config.verifiedMemberRoleId ?? '';
+liveConfig.newMemberGateEnabled = config.newMemberGateEnabled;
+liveConfig.newMemberGateWelcomeChannelId = config.newMemberGateWelcomeChannelId;
+liveConfig.newMemberGateSheetInProgressRoleId = config.newMemberGateSheetInProgressRoleId;
+liveConfig.newMemberGateLurkerRoleId = config.newMemberGateLurkerRoleId;
+liveConfig.newMemberGatePostableChannelIds = config.newMemberGatePostableChannelIds;
 liveConfig.correspondenceDeliveryChannelId = config.correspondenceDeliveryChannelId;
 liveConfig.correspondenceContactChannelId = config.correspondenceContactChannelId;
 liveConfig.correspondencePrestationChannelId = config.correspondencePrestationChannelId;
@@ -122,9 +128,17 @@ const baseIntents = [
   GatewayIntentBits.MessageContent,
 ];
 // GuildMembers is a privileged intent that must be enabled in the Discord
-// Developer Portal. Only request it when staff role sync or member-event
-// tracking actually needs it.
-if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled) {
+// Developer Portal. Only requested when a deployment actually opts into a
+// feature that needs it — kept opt-in rather than unconditional so a fresh
+// install (see docs/INSTALL_*.md) that never enables the portal toggle
+// doesn't hard-crash with "disallowed intents" on startup.
+//
+// config.newMemberGateEnabled is a one-time startup decision, not the live
+// on/off switch: set NEW_MEMBER_GATE_ENABLED=true once during rollout (this
+// is what actually secures the intent), then staff fully control whether
+// the feature is live via the Settings dashboard (liveConfig.newMemberGateEnabled,
+// synced by configSyncWorker) with no further restarts needed.
+if (config.staffRoleSyncEnabled || config.memberEventTrackerEnabled || config.newMemberGateEnabled) {
   baseIntents.push(GatewayIntentBits.GuildMembers);
 }
 
@@ -414,6 +428,13 @@ void applyStartupConfigOverrides().then(() => {
     startHuntConsequenceMonitor(client, huntConsequenceCfg);
     startHoneypotMonitor(client);
     startMentionSpamBreaker(client);
+    // Always started, like honeypot/mention-breaker — internally gated on
+    // liveConfig.newMemberGateEnabled so the dashboard toggle takes effect
+    // live. Only fully functional if NEW_MEMBER_GATE_ENABLED was set at
+    // startup (secures the GuildMembers intent above); if not, the
+    // guildMemberAdd-driven join greeting silently won't fire, but the
+    // message-gate and button flow still work fine either way.
+    startNewMemberGate(client);
   });
 
   const accessRoleIds = requiredRoleIds(config);
@@ -433,7 +454,12 @@ void applyStartupConfigOverrides().then(() => {
     // interaction.member is null for DM-context interactions — denied by
     // memberHasAnyRole, which is intentional: correspondence/RP commands
     // are guild-only, so DM usage has no legitimate case here.
-    if (!config.testerDiscordIds.has(interaction.user.id) && !memberHasAnyRole(interaction.member, accessRoleIds)) {
+    const customId = 'customId' in interaction ? interaction.customId : undefined;
+    if (
+      !config.testerDiscordIds.has(interaction.user.id) &&
+      !isNewMemberGateButton(customId) &&
+      !memberHasAnyRole(interaction.member, accessRoleIds)
+    ) {
       logEvent('info', 'interaction_blocked_unverified_role', baseMeta);
       if (interaction.isAutocomplete()) {
         await interaction.respond([]);
