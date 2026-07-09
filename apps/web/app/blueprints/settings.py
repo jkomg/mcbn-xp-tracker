@@ -367,6 +367,15 @@ def index():
             'editable': True,
             **_bot_flag_status('BOT_NEW_MEMBER_GATE_ENABLED', overrides),
         },
+        {
+            'label': 'New Night Broadcast',
+            'key': 'BOT_NEW_NIGHT_BROADCAST_ENABLED',
+            'env': 'PASSAGE_NEW_NIGHT_BROADCAST_ENABLED',
+            'interval_env': None,
+            'description': 'Posts a short message (see Channel IDs below) to every channel in the City of Nashville, Elysium, Event Locations, and Active Coteries categories when the sunset event fires — separate from the full announcement in #passage-of-time.',
+            'editable': True,
+            **_bot_flag_status('BOT_NEW_NIGHT_BROADCAST_ENABLED', overrides),
+        },
     ]
 
     # ── Bot command kill switches (DB-backed CSV; polled by bot via /api/bot-config) ──
@@ -521,6 +530,17 @@ def index():
             'overridden': 'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID' in overrides,
             'editable': True,
             'description': 'Granted (alongside the verified member role above) to a new member who chooses "just lurk for now."',
+        },
+        {
+            'label': 'New Night Broadcast: message',
+            'key': 'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
+            'env': 'PASSAGE_NEW_NIGHT_BROADCAST_MESSAGE',
+            'value': _eff_str('BOT_NEW_NIGHT_BROADCAST_MESSAGE'),
+            'placeholder': 'A GIF link or short message, e.g. https://klipy.com/gifs/africa-sunset',
+            'input_pattern': None,
+            'overridden': 'BOT_NEW_NIGHT_BROADCAST_MESSAGE' in overrides,
+            'editable': True,
+            'description': 'Posted to every channel in the new-night broadcast categories when the sunset event fires (see New Night Broadcast above). A bare link works — Discord auto-embeds it.',
         },
         {
             'label': 'Correspondence: Deliver channel',
@@ -976,6 +996,7 @@ def update():
         'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
         'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
         'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID',
+        'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
         'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID',
         'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID',
         'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID',
@@ -1002,6 +1023,7 @@ def update():
         'BOT_HONEYPOT_REQUIRE_YOUNG_ACCOUNT',
         'BOT_MENTION_BREAKER_ENABLED',
         'BOT_NEW_MEMBER_GATE_ENABLED',
+        'BOT_NEW_NIGHT_BROADCAST_ENABLED',
     }
 
     if action == 'reset':

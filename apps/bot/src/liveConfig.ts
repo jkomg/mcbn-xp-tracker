@@ -6,6 +6,9 @@ export const liveConfig = {
   autoPeriodCloserEnabled: false,
   claimReminderEnabled: false,
   passageOfTimeEnabled: false,
+  /** Broadcasts a short message (default: a sunset gif link) to every channel in the new-night category list when the sunset event fires. */
+  newNightBroadcastEnabled: false,
+  newNightBroadcastMessage: '',
   huntConsequenceEnabled: false,
   /** DB-override intervals (null = use .env default). Applied on next bot restart. */
   passageOfTimeIntervalMs: null as number | null,

@@ -118,6 +118,9 @@ const envSchema = z.object({
   PASSAGE_SUNSET_MINUTE_LOCAL: z.string().optional(),
   PASSAGE_SUNSET_WEEKDAY_LOCAL: z.string().optional(),
   PASSAGE_SUNSET_ANCHOR_DATE: z.string().optional(),
+  PASSAGE_NEW_NIGHT_BROADCAST_ENABLED: z.string().optional(),
+  PASSAGE_NEW_NIGHT_BROADCAST_CATEGORY_IDS: z.string().optional(),
+  PASSAGE_NEW_NIGHT_BROADCAST_MESSAGE: z.string().optional(),
   PASSAGE_DOWNTIME_HOUR_LOCAL: z.string().optional(),
   PASSAGE_DOWNTIME_MINUTE_LOCAL: z.string().optional(),
   PASSAGE_DOWNTIME_WEEKDAY_LOCAL: z.string().optional(),
@@ -351,6 +354,12 @@ export const config = {
     'PASSAGE_SUNSET_WEEKDAY_LOCAL',
   ),
   passageSunsetAnchorDate: env.PASSAGE_SUNSET_ANCHOR_DATE ?? '',
+  passageNewNightBroadcastEnabled: (env.PASSAGE_NEW_NIGHT_BROADCAST_ENABLED ?? 'false').toLowerCase() === 'true',
+  // City of Nashville, Elysium, Event Locations, Active Coteries categories.
+  passageNewNightBroadcastCategoryIds: env.PASSAGE_NEW_NIGHT_BROADCAST_CATEGORY_IDS
+    ? env.PASSAGE_NEW_NIGHT_BROADCAST_CATEGORY_IDS.split(',').map((s) => s.trim()).filter(Boolean)
+    : ['1168840134347726849', '1170109891747270746', '1170109944494825692', '1169723188264046612'],
+  passageNewNightBroadcastMessage: env.PASSAGE_NEW_NIGHT_BROADCAST_MESSAGE ?? 'https://klipy.com/gifs/africa-sunset',
   passageDowntimeHourLocal: parseHour(
     env.PASSAGE_DOWNTIME_HOUR_LOCAL,
     12,

@@ -25,6 +25,8 @@ export class ConfigSyncWorker {
       if (cfg.autoPeriodCloserEnabled !== null) liveConfig.autoPeriodCloserEnabled = cfg.autoPeriodCloserEnabled;
       if (cfg.claimReminderEnabled !== null) liveConfig.claimReminderEnabled = cfg.claimReminderEnabled;
       if (cfg.passageOfTimeEnabled !== null) liveConfig.passageOfTimeEnabled = cfg.passageOfTimeEnabled;
+      if (cfg.newNightBroadcastEnabled !== null) liveConfig.newNightBroadcastEnabled = cfg.newNightBroadcastEnabled;
+      liveConfig.newNightBroadcastMessage = cfg.newNightBroadcastMessage ?? config.passageNewNightBroadcastMessage;
       if (cfg.huntConsequenceEnabled !== null) liveConfig.huntConsequenceEnabled = cfg.huntConsequenceEnabled;
       liveConfig.passageOfTimeIntervalMs = cfg.passageOfTimeIntervalMs ?? null;
       liveConfig.reviewNotifierIntervalMs = cfg.reviewNotifierIntervalMs ?? null;

@@ -23,6 +23,8 @@ export interface BotConfigResponse {
   autoPeriodCloserEnabled: boolean | null;
   claimReminderEnabled: boolean | null;
   passageOfTimeEnabled: boolean | null;
+  newNightBroadcastEnabled: boolean | null;
+  newNightBroadcastMessage: string | null;
   huntConsequenceEnabled: boolean | null;
   restartRequested: boolean | null;
   wikiSyncRequested: boolean | null;

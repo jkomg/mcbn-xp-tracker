@@ -45,6 +45,8 @@ type PassageOfTimeConfig = {
   timezone: string;
   mentionRoleIds: string[];
   events: ScheduledEventConfig[];
+  /** Category IDs whose channels get a lightweight "new night" broadcast when the sunset event fires. */
+  newNightBroadcastCategoryIds: string[];
 };
 
 type ServiceState = {
@@ -147,6 +149,22 @@ function isSendableChannelType(type: ChannelType): boolean {
     type === ChannelType.GuildAnnouncement ||
     type === ChannelType.PublicThread ||
     type === ChannelType.PrivateThread
+  );
+}
+
+/**
+ * Which channels the new-night broadcast should post to: sendable channel
+ * types whose parent category is in the configured list. Pure and exported
+ * so this selection logic is unit testable without mocking a full
+ * discord.js Guild/channel collection.
+ */
+export function filterNewNightTargets<T extends { type: ChannelType; parentId?: string | null }>(
+  channels: T[],
+  categoryIds: string[],
+): T[] {
+  const categoryIdSet = new Set(categoryIds);
+  return channels.filter(
+    (c) => isSendableChannelType(c.type) && 'parentId' in c && categoryIdSet.has(c.parentId ?? ''),
   );
 }
 
@@ -325,6 +343,10 @@ export class PassageOfTimeService {
           channelId: channel.id,
           testMode: this.config.testMode,
         });
+
+        if (event.name === 'sunset' && !this.config.testMode) {
+          await this.broadcastNewNight(guildId);
+        }
       }
 
       if (postedCount > 0) {
@@ -335,5 +357,48 @@ export class PassageOfTimeService {
     } finally {
       this.running = false;
     }
+  }
+
+  /**
+   * Lightweight "a new night has begun" indicator posted to every channel
+   * in the configured categories (city locations, Elysium, event locations,
+   * active coteries) — distinct from the full sunset announcement in
+   * #passage-of-time, which stays a single post. Gated live on
+   * liveConfig.newNightBroadcastEnabled so staff can toggle it from the
+   * dashboard without a restart; the category list itself is set at
+   * construction (env-only).
+   */
+  private async broadcastNewNight(guildId: string): Promise<void> {
+    if (!liveConfig.newNightBroadcastEnabled) return;
+    if (this.config.newNightBroadcastCategoryIds.length === 0) return;
+    const content = liveConfig.newNightBroadcastMessage;
+    if (!content) return;
+
+    const guild = await this.client.guilds.fetch(guildId).catch((err) => {
+      logEvent('warn', 'passage_new_night_broadcast_guild_failed', { error: errorToMessage(err) });
+      return null;
+    });
+    if (!guild) return;
+
+    const channels = await guild.channels.fetch();
+    const targets = filterNewNightTargets(
+      [...channels.values()].filter((c): c is NonNullable<typeof c> => c != null),
+      this.config.newNightBroadcastCategoryIds,
+    ) as TextChannel[];
+
+    let sent = 0;
+    for (const channel of targets) {
+      try {
+        await channel.send({ content });
+        sent += 1;
+      } catch (err) {
+        logEvent('warn', 'passage_new_night_broadcast_channel_failed', {
+          channelId: channel.id,
+          error: errorToMessage(err),
+        });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    logEvent('info', 'passage_new_night_broadcast_done', { guildId, targetCount: targets.length, sent });
   }
 }
