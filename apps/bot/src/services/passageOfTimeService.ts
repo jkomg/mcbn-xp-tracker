@@ -370,9 +370,15 @@ export class PassageOfTimeService {
    */
   private async broadcastNewNight(guildId: string): Promise<void> {
     if (!liveConfig.newNightBroadcastEnabled) return;
-    if (this.config.newNightBroadcastCategoryIds.length === 0) return;
     const content = liveConfig.newNightBroadcastMessage;
-    if (!content) return;
+    const missing: string[] = [];
+    if (this.config.newNightBroadcastCategoryIds.length === 0) missing.push('category IDs (PASSAGE_NEW_NIGHT_BROADCAST_CATEGORY_IDS, env-only)');
+    if (!content) missing.push('broadcast message');
+    if (missing.length > 0) {
+      // Fires at most once per sunset event (biweekly) — no rate-limiting needed, unlike the new-member gate's per-message checks.
+      logEvent('warn', 'passage_new_night_broadcast_misconfigured', { missing });
+      return;
+    }
 
     const guild = await this.client.guilds.fetch(guildId).catch((err) => {
       logEvent('warn', 'passage_new_night_broadcast_guild_failed', { error: errorToMessage(err) });
