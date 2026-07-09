@@ -784,6 +784,7 @@ def bot_config():
         'BOT_HONEYPOT_REQUIRE_YOUNG_ACCOUNT': 'honeypotRequireYoungAccount',
         'BOT_MENTION_BREAKER_ENABLED': 'mentionBreakerEnabled',
         'BOT_NEW_MEMBER_GATE_ENABLED': 'newMemberGateEnabled',
+        'BOT_NEW_NIGHT_BROADCAST_ENABLED': 'newNightBroadcastEnabled',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -806,6 +807,7 @@ def bot_config():
         'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID': 'newMemberGateWelcomeChannelId',
         'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID': 'newMemberGateSheetInProgressRoleId',
         'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID': 'newMemberGateLurkerRoleId',
+        'BOT_NEW_NIGHT_BROADCAST_MESSAGE': 'newNightBroadcastMessage',
         'BOT_DISABLED_COMMANDS': 'disabledCommands',
         'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID': 'correspondenceDeliveryChannelId',
         'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID': 'correspondenceContactChannelId',

@@ -76,6 +76,38 @@ function currentConfig(): NewMemberGateConfig {
   };
 }
 
+/** Pure and exported for unit testing — which required fields are missing, if any. */
+export function missingConfigFields(config: NewMemberGateConfig): string[] {
+  const missing: string[] = [];
+  if (!config.welcomeChannelId) missing.push('welcome channel ID');
+  if (!config.verifiedRoleId) missing.push('verified member role ID');
+  if (!config.sheetInProgressRoleId) missing.push('sheet-in-progress role ID');
+  if (!config.lurkerRoleId) missing.push('lurker role ID');
+  return missing;
+}
+
+/**
+ * Enabling the gate with a required field left blank was previously a
+ * silent no-op — the toggle would flip on in the dashboard and appear to
+ * do nothing, with no indication why. Warns once (not per-event, to avoid
+ * flooding the log on a busy #welcome channel) whenever misconfigured;
+ * re-warns if it becomes misconfigured again after being fixed. Surfaces
+ * on /audit/errors via the bot's warn-log forwarder.
+ */
+let warnedMisconfigured = false;
+function warnIfMisconfigured(config: NewMemberGateConfig): boolean {
+  const missing = missingConfigFields(config);
+  if (missing.length === 0) {
+    warnedMisconfigured = false;
+    return false;
+  }
+  if (!warnedMisconfigured) {
+    warnedMisconfigured = true;
+    logEvent('warn', 'new_member_gate_misconfigured', { missing });
+  }
+  return true;
+}
+
 /** Discord user IDs already shown the prompt, awaiting a button click — avoids re-prompting on every message they send before clicking. */
 const alreadyPrompted = new Set<string>();
 
@@ -120,7 +152,7 @@ export function startNewMemberGate(client: Client): void {
 async function handleMemberJoin(member: import('discord.js').GuildMember): Promise<void> {
   if (!liveConfig.newMemberGateEnabled) return;
   const config = currentConfig();
-  if (!config.welcomeChannelId) return;
+  if (warnIfMisconfigured(config)) return;
   if (member.roles.cache.has(config.verifiedRoleId)) return; // shouldn't happen on a fresh join, but defensive
 
   const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
@@ -193,6 +225,7 @@ export function shouldPrompt(
 async function handleMessage(message: Message): Promise<void> {
   if (!liveConfig.newMemberGateEnabled) return;
   const config = currentConfig();
+  if (warnIfMisconfigured(config)) return;
   const member = message.member;
   const eligible = shouldPrompt(
     {
@@ -238,6 +271,14 @@ async function handleButton(interaction: import('discord.js').ButtonInteraction)
 
   if (interaction.user.id !== parsed.targetUserId) {
     await interaction.reply({ content: 'This prompt is for a different member — post in the welcome channel yourself to get your own.', ephemeral: true });
+    return;
+  }
+
+  if (warnIfMisconfigured(currentConfig())) {
+    await interaction.reply({
+      content: "Something's misconfigured on our end — a staff member has been notified. Please try again in a bit.",
+      ephemeral: true,
+    });
     return;
   }
 

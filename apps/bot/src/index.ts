@@ -87,6 +87,8 @@ liveConfig.autoPeriodCreatorEnabled = config.autoPeriodCreatorEnabled;
 liveConfig.autoPeriodCloserEnabled = config.autoPeriodCloserEnabled;
 liveConfig.claimReminderEnabled = config.claimReminderEnabled;
 liveConfig.passageOfTimeEnabled = config.passageOfTimeEnabled;
+liveConfig.newNightBroadcastEnabled = config.passageNewNightBroadcastEnabled;
+liveConfig.newNightBroadcastMessage = config.passageNewNightBroadcastMessage;
 liveConfig.huntConsequenceEnabled = config.huntConsequenceEnabled;
 liveConfig.honeypotEnabled = config.honeypotEnabled;
 liveConfig.honeypotRequireYoungAccount = config.honeypotRequireYoungAccount;
@@ -292,6 +294,7 @@ void applyStartupConfigOverrides().then(() => {
         body: PASSAGE_DOWNTIME_MESSAGE,
       },
     ],
+    newNightBroadcastCategoryIds: config.passageNewNightBroadcastCategoryIds,
   });
 
   const sheetsReconcileService = new SheetsReconcileService(adapter, {

@@ -3,6 +3,7 @@ import {
   buildButtonId,
   isNewMemberGateButton,
   messageContainsUrl,
+  missingConfigFields,
   parseButtonId,
   rolesForChoice,
   shouldPrompt,
@@ -123,5 +124,27 @@ describe('messageContainsUrl', () => {
 
   it('does not flag an empty message', () => {
     expect(messageContainsUrl('')).toBe(false);
+  });
+});
+
+describe('missingConfigFields', () => {
+  const FULL_CONFIG = { welcomeChannelId: 'welcome-channel-id', ...CONFIG };
+
+  it('returns nothing when every field is set', () => {
+    expect(missingConfigFields(FULL_CONFIG)).toEqual([]);
+  });
+
+  it('flags a blank welcome channel ID', () => {
+    expect(missingConfigFields({ ...FULL_CONFIG, welcomeChannelId: '' })).toEqual(['welcome channel ID']);
+  });
+
+  it('flags a blank verified role ID', () => {
+    expect(missingConfigFields({ ...FULL_CONFIG, verifiedRoleId: '' })).toEqual(['verified member role ID']);
+  });
+
+  it('flags every blank field at once', () => {
+    expect(
+      missingConfigFields({ welcomeChannelId: '', verifiedRoleId: '', sheetInProgressRoleId: '', lurkerRoleId: '' }),
+    ).toEqual(['welcome channel ID', 'verified member role ID', 'sheet-in-progress role ID', 'lurker role ID']);
   });
 });
