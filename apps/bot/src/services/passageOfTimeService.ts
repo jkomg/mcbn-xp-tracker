@@ -386,25 +386,36 @@ export class PassageOfTimeService {
     });
     if (!guild) return;
 
-    const channels = await guild.channels.fetch();
-    const targets = filterNewNightTargets(
-      [...channels.values()].filter((c): c is NonNullable<typeof c> => c != null),
-      this.config.newNightBroadcastCategoryIds,
-    ) as TextChannel[];
+    // Everything below is best-effort and must never throw out of this
+    // method: broadcastNewNight() runs after the main sunset post already
+    // succeeded, inside tick()'s event loop, before writeState() persists
+    // the "already posted today" dedup key. An uncaught rejection here
+    // (e.g. a transient channels.fetch() hiccup) would propagate up through
+    // tick()'s outer catch, skip writeState(), and cause the full sunset
+    // announcement in #passage-of-time to be resent on the next poll.
+    try {
+      const channels = await guild.channels.fetch();
+      const targets = filterNewNightTargets(
+        [...channels.values()].filter((c): c is NonNullable<typeof c> => c != null),
+        this.config.newNightBroadcastCategoryIds,
+      ) as TextChannel[];
 
-    let sent = 0;
-    for (const channel of targets) {
-      try {
-        await channel.send({ content });
-        sent += 1;
-      } catch (err) {
-        logEvent('warn', 'passage_new_night_broadcast_channel_failed', {
-          channelId: channel.id,
-          error: errorToMessage(err),
-        });
+      let sent = 0;
+      for (const channel of targets) {
+        try {
+          await channel.send({ content });
+          sent += 1;
+        } catch (err) {
+          logEvent('warn', 'passage_new_night_broadcast_channel_failed', {
+            channelId: channel.id,
+            error: errorToMessage(err),
+          });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      logEvent('info', 'passage_new_night_broadcast_done', { guildId, targetCount: targets.length, sent });
+    } catch (err) {
+      logEvent('warn', 'passage_new_night_broadcast_failed', { guildId, error: errorToMessage(err) });
     }
-    logEvent('info', 'passage_new_night_broadcast_done', { guildId, targetCount: targets.length, sent });
   }
 }
