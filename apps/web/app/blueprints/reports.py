@@ -17,6 +17,7 @@ from app.activity_health import (
     shift_window,
 )
 from app.auth import require_staff
+from app.date_utils import parse_date_added
 from app.db import (
     DbCharacter,
     DbPlayPeriod,
@@ -344,29 +345,12 @@ def health():
 
     report = build_health_report(rows, prev_rows, active_characters, display_names, start, end)
 
-    # ── New PCs approved. date_added has two formats in the wild, parsed
-    # rather than string-compared against the '%Y-%m-%d' window bounds (a
-    # raw string comparison between mismatched formats silently breaks, as
-    # it already has elsewhere in this codebase):
-    #   - 'YYYYMMDD HH:MM:SS' — every live approval path (db_service.py's
-    #     _now_str() fallback in add_character).
-    #   - 'YYYY-MM-DD' — rows created by the one-time CSV migration
-    #     (migrate_csv_to_sheets.py), which predates the live approval flow.
-    # ─────────────────────────────────────────────────────────────────────
-    def _parse_date_added(raw: str):
-        if not raw:
-            return None
-        raw = raw.strip()
-        for fmt in ('%Y%m%d %H:%M:%S', '%Y-%m-%d'):
-            try:
-                return datetime.strptime(raw, fmt).date()
-            except ValueError:
-                continue
-        return None
-
+    # ── New PCs approved. date_added has two formats in the wild — parsed
+    # via parse_date_added rather than string-compared against the
+    # '%Y-%m-%d' window bounds. See app/date_utils.py for why.
     all_chars_dated = [
         (c, parsed) for c in DbCharacter.query.all()
-        if (parsed := _parse_date_added(c.date_added)) is not None
+        if (parsed := parse_date_added(c.date_added)) is not None
     ]
     earliest_char_date = min((d for _, d in all_chars_dated), default=None)
     earliest_char_date_str = earliest_char_date.isoformat() if earliest_char_date else None
