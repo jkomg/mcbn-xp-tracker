@@ -139,4 +139,5 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - `docs/RELEASE_2026-04-21_BACKGROUNDS_GHOUL_DISCIPLINE_WIKI_OPS.md` — background blanking, Ghoul Discipline spend, error dismissal, wiki bulk delete + sync block tombstones, migration safety fixes
 - `docs/RELEASE_2026-05-20_CHARACTER_APPROVAL_WORKFLOW.md` — character approval workflow: /lasombra approve, edit, update, delete; full roster API
 - `docs/RELEASE_2026-06-18_COTERIE_SYSTEM.md` — full coterie lifecycle: player proposal/formation, background donation, XP spend donation, domain ratings, /coterie status bot command, CC schema v7 backgrounds field
-- `docs/RELEASE_2026-07-10_SETTINGS_CONTROL_PANEL.md` — **latest release notes** (Settings page control-panel redesign: left sub-nav, cross-section search, grouped channel IDs with "used by" badges, Integrations values + why-change copy)
+- `docs/RELEASE_2026-07-10_SETTINGS_CONTROL_PANEL.md` — Settings page control-panel redesign: left sub-nav, cross-section search, grouped channel IDs with "used by" badges, Integrations values + why-change copy
+- `docs/RELEASE_2026-07-10_SCENE_REQUESTS.md` — **latest release notes** (`/scene request` queue: player asks for a scene with an SPC, ST Claim/Reject buttons with atomic claim + cubby-channel outcome notification)

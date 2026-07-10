@@ -98,6 +98,7 @@ CHANNEL_GROUPS = [
         'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID', 'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID',
         'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID', 'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID',
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID', 'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
+        'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
     ]),
     ('Announcements & Events', [
         'BOT_ANNOUNCEMENTS_CHANNEL_ID', 'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
@@ -122,6 +123,7 @@ USED_BY = {
     'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID': '/post',
     'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': '/cobweb',
     'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': '/rumor',
+    'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID': '/scene request · claim/reject buttons',
 }
 
 
@@ -724,6 +726,18 @@ def index():
             'editable': True,
             'description': '/rumor posts using the standard staff template here. Leave blank to disable the command.',
         },
+        {
+            'label': 'Correspondence: Scene Request channel',
+            'key': 'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
+            'used_by': '/scene request · claim/reject buttons',
+            'env': 'CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
+            'value': _eff_str('BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID'),
+            'placeholder': 'Discord channel ID (18–19 digits)',
+            'input_pattern': r'\d{17,20}',
+            'overridden': 'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID' in overrides,
+            'editable': True,
+            'description': '/scene request posts the ST queue (with Claim/Reject buttons) here. Leave blank to disable the command.',
+        },
     ]
     _channels_by_key = {c['key']: c for c in bot_channels}
     bot_channel_groups = [
@@ -1168,6 +1182,7 @@ def update():
         'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID',
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID',
         'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
+        'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.
