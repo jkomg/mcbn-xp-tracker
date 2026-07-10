@@ -1,0 +1,45 @@
+{# Shared two-pane shell for the Character Creation admin area (Drafts / Sheet
+   Imports / Loresheet Restrictions) — mirrors the Settings redesign shell.
+   Usage:
+     {% import "cc_admin/_shell.html" as ccshell %}
+     {% call ccshell.shell('drafts') %}...page content...{% endcall %} #}
+
+{% macro shell(active) %}
+<div class="settings-topbar">
+  <a href="{{ url_for('dashboard.index') }}" class="settings-topbar-back"><span>&larr;</span> Dashboard</a>
+  <div class="settings-topbar-divider"></div>
+  <h1 class="settings-topbar-title">Character Creation</h1>
+</div>
+
+<div class="settings-shell">
+  <nav class="settings-nav">
+    <div class="settings-nav-group">
+      <div class="settings-nav-group-label">Character Creation</div>
+      <a href="{{ url_for('cc_admin.draft_list') }}"
+         class="settings-nav-link {{ 'is-active' if active == 'drafts' }}">
+        <span class="ccadmin-nav-icon">&#128100;</span>
+        <span>Drafts</span>
+      </a>
+      <a href="{{ url_for('cc_admin.sheet_import_list') }}"
+         class="settings-nav-link {{ 'is-active' if active == 'imports' }}">
+        <span class="ccadmin-nav-icon">&#128196;</span>
+        <span>Sheet Imports</span>
+        <span class="ccadmin-nav-badge">New</span>
+      </a>
+      <a href="{{ url_for('cc_admin.loresheet_list') }}"
+         class="settings-nav-link {{ 'is-active' if active == 'loresheets' }}">
+        <span class="ccadmin-nav-icon">&#9940;</span>
+        <span>Loresheet Restrictions</span>
+      </a>
+    </div>
+    <div class="ccadmin-callout">
+      <div class="ccadmin-callout-title">&#128679; Going live soon</div>
+      <div class="ccadmin-callout-body">Character sheets now live on-server. These 3 tools are the last thing to shape up before launch.</div>
+    </div>
+  </nav>
+
+  <main class="settings-main">
+    {{ caller() }}
+  </main>
+</div>
+{% endmacro %}

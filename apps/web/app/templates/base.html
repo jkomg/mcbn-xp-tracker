@@ -127,24 +127,9 @@
                     </li>
                     {% if is_staff %}
                     <li class="nav-item">
-                        <span class="nav-link text-muted small text-uppercase ps-3" style="font-size:0.7rem;letter-spacing:.05em;pointer-events:none;">Char. Creator</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link ps-4 {% if request.endpoint == 'cc_admin.draft_list' or request.endpoint == 'cc_admin.draft_review' %}active{% endif %}"
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('cc_admin.') and request.endpoint != 'cc_admin.cc_restrictions' %}active{% endif %}"
                            href="{{ url_for('cc_admin.draft_list') }}">
-                            <i class="bi bi-person-check"></i> <span>Drafts</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link ps-4 {% if request.endpoint == 'cc_admin.sheet_import_list' or request.endpoint == 'cc_admin.sheet_import_review' %}active{% endif %}"
-                           href="{{ url_for('cc_admin.sheet_import_list') }}">
-                            <i class="bi bi-file-earmark-diff"></i> <span>Sheet Imports</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link ps-4 {% if request.endpoint == 'cc_admin.loresheet_list' %}active{% endif %}"
-                           href="{{ url_for('cc_admin.loresheet_list') }}">
-                            <i class="bi bi-slash-circle"></i> <span>Loresheet Restrictions</span>
+                            <i class="bi bi-person-video2"></i> <span>Character Creation</span>
                         </a>
                     </li>
                     {% endif %}
