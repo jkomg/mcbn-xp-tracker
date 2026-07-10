@@ -43,6 +43,7 @@ def mirror_to_gcs(
     bucket_name: str,
     credentials_json: str = '',
     credentials_file: str = '',
+    object_prefix: str = 'wiki-covers',
 ) -> str:
     """Download *url* from Discord CDN and upload to GCS. Returns the public GCS URL.
 
@@ -79,7 +80,7 @@ def mirror_to_gcs(
         ext = _ext_from_url(url)
         # Sanitize slug for use as an object name
         safe_slug = re.sub(r'[^a-z0-9\-_]', '-', slug.lower())
-        object_name = f'wiki-covers/{safe_slug}{ext}'
+        object_name = f'{object_prefix}/{safe_slug}{ext}'
 
         blob = bucket.blob(object_name)
         blob.upload_from_string(resp.content, content_type=content_type)
@@ -91,6 +92,52 @@ def mirror_to_gcs(
     except Exception as exc:
         logger.warning('GCS mirror failed for slug=%s: %s', slug, exc)
         return url
+
+
+_MARKDOWN_IMAGE_RE = re.compile(r'!\[([^\]]*)\]\((https?://[^)\s]+)\)')
+
+
+def _stable_image_key(url: str) -> str:
+    """Hash the URL path (stable) rather than the full URL (its signature
+    query params rotate on every re-fetch), so re-syncing the same Discord
+    attachment reuses the same GCS object instead of re-uploading it."""
+    import hashlib
+
+    path = urlparse(url).path
+    return hashlib.sha1(path.encode()).hexdigest()[:16]
+
+
+def mirror_markdown_images(markdown: str, slug: str, config) -> str:
+    """Mirror any Discord CDN image links embedded in markdown image syntax
+    (`![](url)`) to permanent GCS storage, rewriting the markdown in place.
+
+    Synced wiki pages embed Discord message attachments this way (see
+    apps/bot/src/scripts/notionSync/wikiSyncHelpers.ts), and those signed
+    CDN URLs expire in ~24-48h just like cover images — this covers the
+    same failure mode for inline body images.
+    """
+    if not markdown or not _MARKDOWN_IMAGE_RE.search(markdown):
+        return markdown
+
+    bucket_name = config.get('GCS_BUCKET_NAME', 'mcbn-wiki-images')
+    credentials_json = config.get('GOOGLE_CREDENTIALS_JSON', '')
+    credentials_file = config.get('GOOGLE_CREDENTIALS_FILE', '')
+
+    def _replace(match: 're.Match[str]') -> str:
+        alt, url = match.group(1), match.group(2)
+        if not is_discord_cdn_url(url):
+            return match.group(0)
+        mirrored = mirror_to_gcs(
+            url=url,
+            slug=_stable_image_key(url),
+            bucket_name=bucket_name,
+            credentials_json=credentials_json,
+            credentials_file=credentials_file,
+            object_prefix=f'wiki-body/{re.sub(r"[^a-z0-9\-_]", "-", slug.lower())}',
+        )
+        return f'![{alt}]({mirrored})'
+
+    return _MARKDOWN_IMAGE_RE.sub(_replace, markdown)
 
 
 def resolve_cover_url(url: str, slug: str, config) -> str:

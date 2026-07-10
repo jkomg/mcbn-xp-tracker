@@ -15,7 +15,7 @@ from flask import (
 )
 from app.auth import require_staff, get_staff_user, is_staff as _is_staff
 from app.db import db, WikiPage, WikiSyncBlock, DbCharacter, DbSpendRequest
-from app.gcs import resolve_cover_url, is_discord_cdn_url
+from app.gcs import resolve_cover_url, mirror_markdown_images, is_discord_cdn_url
 
 bp = Blueprint('wiki', __name__)
 
@@ -400,7 +400,7 @@ def new_page():
             slug=slug,
             title=title,
             summary=request.form.get('summary', '').strip(),
-            body_markdown=request.form.get('body_markdown', ''),
+            body_markdown=mirror_markdown_images(request.form.get('body_markdown', ''), slug, current_app.config),
             category=request.form.get('category', '').strip(),
             cover_image_url=cover_url,
             status=new_status,
@@ -426,7 +426,7 @@ def edit_page(slug):
         p.title = request.form.get('title', p.title).strip() or p.title
         p.summary = request.form.get('summary', '').strip()
         p.category = request.form.get('category', p.category).strip()
-        p.body_markdown = request.form.get('body_markdown', '')
+        p.body_markdown = mirror_markdown_images(request.form.get('body_markdown', ''), p.slug, current_app.config)
         raw_cover = request.form.get('cover_image_url', '').strip()
         p.cover_image_url = resolve_cover_url(raw_cover, p.slug, current_app.config)
         new_status = request.form.get('status', p.status).strip()
