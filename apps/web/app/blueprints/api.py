@@ -1400,11 +1400,14 @@ def upsert_wiki_page():
     if not slug or not title:
         return jsonify({'error': 'slug and title are required'}), 400
 
-    from app.gcs import resolve_cover_url
+    from app.gcs import resolve_cover_url, mirror_markdown_images
     from flask import current_app as _app
 
     def _resolve_cover(url: str, page_slug: str) -> str:
         return resolve_cover_url(url, page_slug, _app.config)
+
+    def _resolve_body(body: str, page_slug: str) -> str:
+        return mirror_markdown_images(body, page_slug, _app.config)
 
     from app.db import WikiSyncBlock
     p = WikiPage.query.filter_by(slug=slug).first()
@@ -1419,7 +1422,7 @@ def upsert_wiki_page():
             }), 423
         p.title = title
         if 'body_markdown' in data:
-            p.body_markdown = data['body_markdown']
+            p.body_markdown = _resolve_body(data['body_markdown'], slug)
         if 'category' in data:
             p.category = data['category']
         if 'cover_image_url' in data:
@@ -1439,7 +1442,7 @@ def upsert_wiki_page():
     p = WikiPage(
         slug=slug,
         title=title,
-        body_markdown=data.get('body_markdown', ''),
+        body_markdown=_resolve_body(data.get('body_markdown', ''), slug),
         category=data.get('category', ''),
         cover_image_url=_resolve_cover(data.get('cover_image_url', ''), slug),
         source=data.get('source', 'api-sync'),
