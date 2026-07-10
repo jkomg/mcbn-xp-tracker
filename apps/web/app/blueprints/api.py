@@ -815,6 +815,7 @@ def bot_config():
         'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID': 'correspondenceSocialChannelId',
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': 'correspondenceCobwebChannelId',
         'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': 'correspondenceRumorChannelId',
+        'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID': 'correspondenceSceneRequestChannelId',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting
@@ -2633,6 +2634,173 @@ def boon_repay_action(boon_id: int):
         return jsonify({'ok': True, 'boon': _boon_to_dict(boon, boon.creditor, boon.debtor)})
 
     return jsonify({'error': f'Boon is already {boon.status} — nothing to do'}), 409
+
+
+# --- Scene Request API ---
+
+def _scene_request_to_dict(req, requester) -> dict:
+    return {
+        'id': req.id,
+        'requester_character_name': requester.character_name,
+        'requester_discord_id': req.created_by_discord_id or '',
+        'spc_name': req.spc_name,
+        'play_period': req.play_period or '',
+        'justification': req.justification or '',
+        'status': req.status,
+        'claimed_by_discord_id': req.claimed_by_discord_id or '',
+        'claimed_by_name': req.claimed_by_name or '',
+        'rejected_reason': req.rejected_reason or '',
+        'queue_channel_id': req.queue_channel_id,
+        'queue_message_id': req.queue_message_id,
+        'created_at': req.created_at.isoformat() if req.created_at else None,
+        'resolved_at': req.resolved_at.isoformat() if req.resolved_at else None,
+    }
+
+
+@bp.route('/scene-requests', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def create_scene_request():
+    """Queue a player's request for a scene with an SPC.
+
+    Body: { characterName, spcName, playPeriod, justification, requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbCharacter, SceneRequest, db
+    from sqlalchemy import func as _func
+
+    character_name = str(payload.get('characterName', '')).strip()
+    spc_name = str(payload.get('spcName', '')).strip()
+    play_period = str(payload.get('playPeriod', '')).strip()
+    justification = str(payload.get('justification', '')).strip()
+
+    if not character_name or not spc_name or not justification:
+        return jsonify({'error': 'characterName, spcName, and justification are required'}), 400
+
+    character = DbCharacter.query.filter(
+        _func.lower(DbCharacter.character_name) == character_name.lower()
+    ).first()
+    if not character or not character.active:
+        return jsonify({'error': f'No active character found named "{character_name}"'}), 404
+
+    if not _requester_can_access_character(character, effective_discord_id):
+        return _forbidden('You can only request a scene for your own character')
+
+    scene_request = SceneRequest(
+        requester_character_id=character.id,
+        spc_name=spc_name,
+        play_period=play_period,
+        justification=justification,
+        created_by_discord_id=effective_discord_id,
+    )
+    db.session.add(scene_request)
+    db.session.commit()
+
+    return jsonify({'ok': True, 'request': _scene_request_to_dict(scene_request, character)}), 201
+
+
+@bp.route('/scene-requests/<int:request_id>/queue-message', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def set_scene_request_queue_message(request_id: int):
+    """Record where the queue embed was posted, so it can be edited later.
+
+    Body: { channelId, messageId }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    from app.db import SceneRequest, db
+
+    scene_request = SceneRequest.query.get(request_id)
+    if not scene_request:
+        return jsonify({'error': 'Scene request not found'}), 404
+
+    scene_request.queue_channel_id = str(payload.get('channelId', '')).strip() or None
+    scene_request.queue_message_id = str(payload.get('messageId', '')).strip() or None
+    db.session.commit()
+
+    return jsonify({'ok': True})
+
+
+def _scene_request_action(request_id: int, resolve):
+    """Shared atomic-claim/reject plumbing: 404 if missing, 409 if already resolved."""
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, requester_discord_name, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import DbCharacter, SceneRequest, db
+
+    scene_request = SceneRequest.query.get(request_id)
+    if not scene_request:
+        return jsonify({'error': 'Scene request not found'}), 404
+
+    if scene_request.status != 'pending':
+        requester = DbCharacter.query.get(scene_request.requester_character_id)
+        return jsonify({
+            'error': f'Scene request is already {scene_request.status} — nothing to do',
+            'request': _scene_request_to_dict(scene_request, requester),
+        }), 409
+
+    resolve(scene_request, effective_discord_id, requester_discord_name, payload)
+    db.session.commit()
+
+    requester = DbCharacter.query.get(scene_request.requester_character_id)
+    return jsonify({'ok': True, 'request': _scene_request_to_dict(scene_request, requester)})
+
+
+@bp.route('/scene-requests/<int:request_id>/claim-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def scene_request_claim_action(request_id: int):
+    """An ST claims a pending scene request.
+
+    Body: { requesterDiscordId, requesterDiscordName }
+    """
+    def _claim(scene_request, effective_discord_id, requester_discord_name, _payload):
+        scene_request.status = 'claimed'
+        scene_request.claimed_by_discord_id = effective_discord_id
+        scene_request.claimed_by_name = requester_discord_name or effective_discord_id
+        scene_request.resolved_at = datetime.now(timezone.utc)
+
+    return _scene_request_action(request_id, _claim)
+
+
+@bp.route('/scene-requests/<int:request_id>/reject-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def scene_request_reject_action(request_id: int):
+    """An ST rejects a pending scene request.
+
+    Body: { requesterDiscordId, requesterDiscordName, reason }
+    """
+    def _reject(scene_request, effective_discord_id, requester_discord_name, payload):
+        scene_request.status = 'rejected'
+        scene_request.claimed_by_discord_id = effective_discord_id
+        scene_request.claimed_by_name = requester_discord_name or effective_discord_id
+        scene_request.rejected_reason = str(payload.get('reason', '')).strip()
+        scene_request.resolved_at = datetime.now(timezone.utc)
+
+    return _scene_request_action(request_id, _reject)
 
 
 # --- Contact Thread API ---

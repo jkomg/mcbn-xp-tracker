@@ -210,6 +210,7 @@ const envSchema = z.object({
   CORRESPONDENCE_SOCIAL_CHANNEL_ID: z.string().optional(),
   CORRESPONDENCE_COBWEB_CHANNEL_ID: z.string().optional(),
   CORRESPONDENCE_RUMOR_CHANNEL_ID: z.string().optional(),
+  CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID: z.string().optional(),
   VERIFIED_MEMBER_ROLE_ID: z.string().optional(),
   PERMISSION_SNAPSHOT_DIR: z.string().optional(),
 });
@@ -536,6 +537,7 @@ export const config = {
   correspondenceSocialChannelId: env.CORRESPONDENCE_SOCIAL_CHANNEL_ID ?? '',
   correspondenceCobwebChannelId: env.CORRESPONDENCE_COBWEB_CHANNEL_ID ?? '',
   correspondenceRumorChannelId: env.CORRESPONDENCE_RUMOR_CHANNEL_ID ?? '',
+  correspondenceSceneRequestChannelId: env.CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID ?? '',
 };
 
 if (config.testRequesterDiscordId) {
