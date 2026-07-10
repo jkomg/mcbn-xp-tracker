@@ -135,6 +135,31 @@ def test_wiki_index_empty():
         assert b'Chronicle Wiki' in res.data
 
 
+def test_wiki_index_uses_chronicle_background_cover():
+    app = _app()
+    with app.app_context():
+        db.session.add(WikiPage(
+            slug='chronicle-background',
+            title='Chronicle Background',
+            body_markdown='Nashville by night.',
+            cover_image_url='https://storage.googleapis.com/mcbn-wiki-images/wiki-covers/chronicle-background.jpg',
+            status='active',
+        ))
+        db.session.commit()
+    with app.test_client() as client:
+        res = client.get('/wiki/')
+        assert res.status_code == 200
+        assert b"--cover-url: url('https://storage.googleapis.com/mcbn-wiki-images/wiki-covers/chronicle-background.jpg')" in res.data
+
+
+def test_wiki_index_no_cover_when_chronicle_background_missing():
+    app = _app()
+    with app.test_client() as client:
+        res = client.get('/wiki/')
+        assert res.status_code == 200
+        assert b'--cover-url' not in res.data
+
+
 def test_wiki_category_valid():
     app = _app()
     with app.test_client() as client:
