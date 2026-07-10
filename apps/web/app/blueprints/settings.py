@@ -52,6 +52,86 @@ def _is_truthy(value: str | None) -> bool:
     return str(value or '').strip().lower() in ('true', '1', 'yes')
 
 
+def _sheet_url(spreadsheet_id: str | None) -> str | None:
+    return f'https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit' if spreadsheet_id else None
+
+
+def _mask_token(token: str | None, keep: int = 4) -> str | None:
+    token = str(token or '')
+    if not token:
+        return None
+    return ('•' * max(0, len(token) - keep)) + token[-keep:]
+
+
+# ── Settings sub-nav (control-panel layout) ────────────────────────────────
+SETTINGS_NAV = [
+    {'group': 'Daily Ops', 'links': [
+        {'id': 'overview', 'label': 'Overview'},
+        {'id': 'staff', 'label': 'Staff & Access'},
+    ]},
+    {'group': 'Bot', 'links': [
+        {'id': 'bot-channels', 'label': 'Channel IDs', 'count_key': 'bot_channels'},
+        {'id': 'bot-flags', 'label': 'Feature Flags', 'count_key': 'bot_flags'},
+        {'id': 'bot-commands', 'label': 'Commands', 'count_key': 'bot_commands'},
+        {'id': 'bot-tuning', 'label': 'Tuning', 'count_key': 'bot_tuning'},
+    ]},
+    {'group': 'Web App', 'links': [
+        {'id': 'web-flags-tuning', 'label': 'Flags & Tuning', 'count_key': 'web_flags_tuning'},
+        {'id': 'web-integrations', 'label': 'Integrations', 'count_key': 'web_integrations'},
+        {'id': 'web-chronicle', 'label': 'Chronicle'},
+    ]},
+]
+VALID_SECTIONS = {item['id'] for group in SETTINGS_NAV for item in group['links']}
+
+# ── Channel ID grouping + "used by" labels for the Bot · Channel IDs pane ──
+CHANNEL_GROUPS = [
+    ('Moderation & Safety', [
+        'BOT_HONEYPOT_CHANNEL_ID', 'BOT_HONEYPOT_MOD_LOG_CHANNEL_ID',
+        'BOT_HONEYPOT_WHITELISTED_ROLE_IDS', 'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS',
+        'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID', 'BOT_VERIFIED_MEMBER_ROLE_ID',
+    ]),
+    ('New Member Onboarding', [
+        'BOT_CC_TICKET_CATEGORY_IDS', 'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
+        'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID', 'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID',
+    ]),
+    ('In-Character Correspondence', [
+        'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID', 'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID',
+        'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID', 'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID',
+        'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID', 'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
+    ]),
+    ('Announcements & Events', [
+        'BOT_ANNOUNCEMENTS_CHANNEL_ID', 'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
+    ]),
+]
+USED_BY = {
+    'BOT_ANNOUNCEMENTS_CHANNEL_ID': '/lasombra broadcast',
+    'BOT_CC_TICKET_CATEGORY_IDS': 'CC Ticket Monitor',
+    'BOT_HONEYPOT_CHANNEL_ID': 'Honeypot Moderation',
+    'BOT_HONEYPOT_MOD_LOG_CHANNEL_ID': 'Honeypot Moderation',
+    'BOT_HONEYPOT_WHITELISTED_ROLE_IDS': 'Honeypot Moderation',
+    'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS': 'Mention-Spam Circuit Breaker',
+    'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID': 'Mention-Spam Circuit Breaker',
+    'BOT_VERIFIED_MEMBER_ROLE_ID': '/lasombra permissions audit · New Member Gate',
+    'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID': 'New Member Gate',
+    'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID': 'New Member Gate',
+    'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID': 'New Member Gate',
+    'BOT_NEW_NIGHT_BROADCAST_MESSAGE': 'New Night Broadcast',
+    'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID': '/deliver',
+    'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID': '/contact send · /contact reply',
+    'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID': '/prestation owe · status · repay',
+    'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID': '/post',
+    'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': '/cobweb',
+    'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': '/rumor',
+}
+
+
+def _redirect_to_section():
+    section = request.form.get('section', 'overview')
+    if section not in VALID_SECTIONS:
+        section = 'overview'
+    return redirect(url_for('settings.index', section=section))
+
+
 @bp.route('/')
 @require_staff
 def index():
@@ -61,6 +141,9 @@ def index():
     cfg = current_app.config
     overrides = get_all_overrides()
     can_edit = True
+    active_section = request.args.get('section', 'overview')
+    if active_section not in VALID_SECTIONS:
+        active_section = 'overview'
 
     def _eff_bool(key, env_default):
         return get_app_setting(key, env_default)
@@ -198,27 +281,42 @@ def index():
         {
             'label': 'Google Sheets backup',
             'configured': bool(cfg.get('SPREADSHEET_ID')),
+            'value_label': 'Sheet URL',
+            'value': _sheet_url(cfg.get('SPREADSHEET_ID')),
             'description': 'Mirrors writes to a Google Sheet as a backup.',
+            'why_change': "Change if you're moving to a new backup sheet or handing this off to a new spreadsheet owner.",
         },
         {
             'label': 'Bot API (legacy token)',
             'configured': bool(cfg.get('WEB_APP_API_TOKEN')),
-            'description': 'Single all-scope token for bot API access.',
+            'value_label': 'Token (masked)',
+            'value': _mask_token(cfg.get('WEB_APP_API_TOKEN')),
+            'description': 'Older single all-scope token, kept only for backward compatibility with a pre-split bot build.',
+            'why_change': 'Rotate immediately if this leaks — it grants full read+write API access with no scope limits. Otherwise, leave unset and prefer the read/write tokens below.',
         },
         {
             'label': 'Bot API read token',
             'configured': bool(cfg.get('WEB_APP_API_READ_TOKEN')),
-            'description': 'Read-scoped token for bot API access.',
+            'value_label': 'Token (masked)',
+            'value': _mask_token(cfg.get('WEB_APP_API_READ_TOKEN')),
+            'description': 'Lets the Discord bot read XP totals, characters, and periods from the web app.',
+            'why_change': 'Rotate if the token leaks (e.g. pasted in a public channel) or when swapping bot hosts.',
         },
         {
             'label': 'Bot API write token',
             'configured': bool(cfg.get('WEB_APP_API_WRITE_TOKEN')),
-            'description': 'Write-scoped token for bot API access.',
+            'value_label': 'Token (masked)',
+            'value': _mask_token(cfg.get('WEB_APP_API_WRITE_TOKEN')),
+            'description': 'Lets the bot submit claims/spends and open/close periods on behalf of players.',
+            'why_change': 'Rotate on the same schedule as the read token — treat it as more sensitive since it can write data.',
         },
         {
             'label': 'Turso (cloud database)',
             'configured': bool(cfg.get('TURSO_CONNECT_URL')),
-            'description': 'libSQL/Turso remote database (production). SQLite used when not configured.',
+            'value_label': 'Database URL',
+            'value': cfg.get('TURSO_CONNECT_URL') or None,
+            'description': 'Production database endpoint. Without this set, the app falls back to a local SQLite file (fine for dev, not for the live server). The paired auth token is never shown here.',
+            'why_change': "Change only when migrating to a new Turso database or region — this isn't something you'd rotate casually.",
         },
     ]
 
@@ -413,6 +511,7 @@ def index():
         {
             'label': 'Announcements channel',
             'key': 'BOT_ANNOUNCEMENTS_CHANNEL_ID',
+            'used_by': '/lasombra broadcast',
             'env': 'ANNOUNCEMENTS_CHANNEL_ID',
             'value': _eff_str('BOT_ANNOUNCEMENTS_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -424,6 +523,7 @@ def index():
         {
             'label': 'CC ticket category IDs',
             'key': 'BOT_CC_TICKET_CATEGORY_IDS',
+            'used_by': 'CC Ticket Monitor',
             'env': 'CC_TICKET_CATEGORY_IDS',
             'value': _eff_str('BOT_CC_TICKET_CATEGORY_IDS'),
             'placeholder': 'e.g. 123456789012345678,987654321098765432',
@@ -435,6 +535,7 @@ def index():
         {
             'label': 'Honeypot bait channel',
             'key': 'BOT_HONEYPOT_CHANNEL_ID',
+            'used_by': 'Honeypot Moderation',
             'env': 'HONEYPOT_CHANNEL_ID',
             'value': _eff_str('BOT_HONEYPOT_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -446,6 +547,7 @@ def index():
         {
             'label': 'Honeypot mod-log channel',
             'key': 'BOT_HONEYPOT_MOD_LOG_CHANNEL_ID',
+            'used_by': 'Honeypot Moderation',
             'env': 'HONEYPOT_MOD_LOG_CHANNEL_ID',
             'value': _eff_str('BOT_HONEYPOT_MOD_LOG_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -457,6 +559,7 @@ def index():
         {
             'label': 'Honeypot whitelisted role IDs',
             'key': 'BOT_HONEYPOT_WHITELISTED_ROLE_IDS',
+            'used_by': 'Honeypot Moderation',
             'env': 'HONEYPOT_WHITELISTED_ROLE_IDS',
             'value': _eff_str('BOT_HONEYPOT_WHITELISTED_ROLE_IDS'),
             'placeholder': 'e.g. 123456789012345678,987654321098765432',
@@ -468,6 +571,7 @@ def index():
         {
             'label': 'Mention breaker exempt role IDs',
             'key': 'BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS',
+            'used_by': 'Mention-Spam Circuit Breaker',
             'env': 'MENTION_BREAKER_EXEMPT_ROLE_IDS',
             'value': _eff_str('BOT_MENTION_BREAKER_EXEMPT_ROLE_IDS'),
             'placeholder': 'e.g. 123456789012345678,987654321098765432',
@@ -479,6 +583,7 @@ def index():
         {
             'label': 'Mention breaker mod-log channel',
             'key': 'BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID',
+            'used_by': 'Mention-Spam Circuit Breaker',
             'env': 'MENTION_BREAKER_MOD_LOG_CHANNEL_ID',
             'value': _eff_str('BOT_MENTION_BREAKER_MOD_LOG_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -490,6 +595,7 @@ def index():
         {
             'label': 'Verified member role',
             'key': 'BOT_VERIFIED_MEMBER_ROLE_ID',
+            'used_by': '/lasombra permissions audit · New Member Gate',
             'env': 'VERIFIED_MEMBER_ROLE_ID',
             'value': _eff_str('BOT_VERIFIED_MEMBER_ROLE_ID'),
             'placeholder': 'Discord role ID (18–19 digits)',
@@ -501,6 +607,7 @@ def index():
         {
             'label': 'New Member Gate: welcome channel',
             'key': 'BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
+            'used_by': 'New Member Gate',
             'env': 'NEW_MEMBER_GATE_WELCOME_CHANNEL_ID',
             'value': _eff_str('BOT_NEW_MEMBER_GATE_WELCOME_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -512,6 +619,7 @@ def index():
         {
             'label': 'New Member Gate: player role (Sheet in Progress)',
             'key': 'BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
+            'used_by': 'New Member Gate',
             'env': 'NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID',
             'value': _eff_str('BOT_NEW_MEMBER_GATE_SHEET_IN_PROGRESS_ROLE_ID'),
             'placeholder': 'Discord role ID (18–19 digits)',
@@ -523,6 +631,7 @@ def index():
         {
             'label': 'New Member Gate: lurker role',
             'key': 'BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID',
+            'used_by': 'New Member Gate',
             'env': 'NEW_MEMBER_GATE_LURKER_ROLE_ID',
             'value': _eff_str('BOT_NEW_MEMBER_GATE_LURKER_ROLE_ID'),
             'placeholder': 'Discord role ID (18–19 digits)',
@@ -534,6 +643,7 @@ def index():
         {
             'label': 'New Night Broadcast: message',
             'key': 'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
+            'used_by': 'New Night Broadcast',
             'env': 'PASSAGE_NEW_NIGHT_BROADCAST_MESSAGE',
             'value': _eff_str('BOT_NEW_NIGHT_BROADCAST_MESSAGE'),
             'placeholder': 'A GIF link or short message, e.g. https://klipy.com/gifs/africa-sunset',
@@ -545,6 +655,7 @@ def index():
         {
             'label': 'Correspondence: Deliver channel',
             'key': 'BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID',
+            'used_by': '/deliver',
             'env': 'CORRESPONDENCE_DELIVERY_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_DELIVERY_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -556,6 +667,7 @@ def index():
         {
             'label': 'Correspondence: Contact channel',
             'key': 'BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID',
+            'used_by': '/contact send · /contact reply',
             'env': 'CORRESPONDENCE_CONTACT_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_CONTACT_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -567,6 +679,7 @@ def index():
         {
             'label': 'Correspondence: Prestation channel',
             'key': 'BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID',
+            'used_by': '/prestation owe · status · repay',
             'env': 'CORRESPONDENCE_PRESTATION_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_PRESTATION_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -578,6 +691,7 @@ def index():
         {
             'label': 'Correspondence: Social channel',
             'key': 'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID',
+            'used_by': '/post',
             'env': 'CORRESPONDENCE_SOCIAL_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -589,6 +703,7 @@ def index():
         {
             'label': 'Correspondence: Cobweb channel',
             'key': 'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID',
+            'used_by': '/cobweb',
             'env': 'CORRESPONDENCE_COBWEB_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -600,6 +715,7 @@ def index():
         {
             'label': 'Correspondence: Rumor channel',
             'key': 'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
+            'used_by': '/rumor',
             'env': 'CORRESPONDENCE_RUMOR_CHANNEL_ID',
             'value': _eff_str('BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID'),
             'placeholder': 'Discord channel ID (18–19 digits)',
@@ -608,6 +724,11 @@ def index():
             'editable': True,
             'description': '/rumor posts using the standard staff template here. Leave blank to disable the command.',
         },
+    ]
+    _channels_by_key = {c['key']: c for c in bot_channels}
+    bot_channel_groups = [
+        {'name': group_name, 'channels': [_channels_by_key[k] for k in keys]}
+        for group_name, keys in CHANNEL_GROUPS
     ]
 
     # ── Bot tuning (DB-backed; take effect after bot restart) ─────────────
@@ -700,6 +821,15 @@ def index():
             pass
 
     _restart_pending = 'BOT_RESTART_REQUESTED' in overrides and overrides['BOT_RESTART_REQUESTED'].value.lower() in ('true', '1', 'yes')
+
+    if bot_heartbeat_ts is None:
+        bot_status_level = 'unknown'
+    elif bot_heartbeat_age is not None and bot_heartbeat_age < 180:
+        bot_status_level = 'online'
+    elif bot_heartbeat_age is not None and bot_heartbeat_age < 600:
+        bot_status_level = 'delayed'
+    else:
+        bot_status_level = 'offline'
 
     # ── Wiki sync status ────────────────────────────────────────────────────
     _wiki_sync_requested = 'BOT_WIKI_SYNC_REQUESTED' in overrides and overrides['BOT_WIKI_SYNC_REQUESTED'].value.lower() in ('true', '1', 'yes')
@@ -849,8 +979,43 @@ def index():
         'tenets_overridden': 'CHRONICLE_TENETS' in overrides,
     }
 
+    # ── Nav counts + search index ──────────────────────────────────────────
+    nav_counts = {
+        'bot_channels': len(bot_channels),
+        'bot_flags': len(bot_flags),
+        'bot_commands': len(bot_commands),
+        'bot_tuning': len(bot_tuning),
+        'web_flags_tuning': len(web_flags) + len(web_tuning),
+        'web_integrations': len(integrations),
+    }
+
+    search_index = []
+    for f in web_flags:
+        search_index.append({'label': f['label'], 'description': f['description'], 'section': 'web-flags-tuning', 'section_label': 'Web App · Flags & Tuning'})
+    for t in web_tuning:
+        search_index.append({'label': t['label'], 'description': t['description'], 'section': 'web-flags-tuning', 'section_label': 'Web App · Flags & Tuning'})
+    for i in integrations:
+        search_index.append({'label': i['label'], 'description': i['description'], 'section': 'web-integrations', 'section_label': 'Web App · Integrations'})
+    search_index.append({'label': 'Chronicle Tenets', 'description': 'Chronicle-wide tenets shown on player sheets.', 'section': 'web-chronicle', 'section_label': 'Web App · Chronicle'})
+    for f in bot_flags:
+        search_index.append({'label': f['label'], 'description': f['description'], 'section': 'bot-flags', 'section_label': 'Bot · Feature Flags'})
+    for t in bot_tuning:
+        search_index.append({'label': t['label'], 'description': t['description'], 'section': 'bot-tuning', 'section_label': 'Bot · Tuning'})
+    for c in bot_channels:
+        search_index.append({'label': c['label'], 'description': c['description'], 'section': 'bot-channels', 'section_label': 'Bot · Channel IDs'})
+    for cmd in bot_commands:
+        search_index.append({'label': cmd['label'], 'description': cmd['description'], 'section': 'bot-commands', 'section_label': 'Bot · Commands'})
+        for sub in cmd['subcommands']:
+            search_index.append({'label': f"{cmd['label']} {sub['label']}", 'description': sub['description'], 'section': 'bot-commands', 'section_label': 'Bot · Commands'})
+
     return render_template(
         'settings/index.html',
+        active_section=active_section,
+        settings_nav=SETTINGS_NAV,
+        nav_counts=nav_counts,
+        search_index=search_index,
+        bot_channel_groups=bot_channel_groups,
+        bot_status_level=bot_status_level,
         web_flags=web_flags,
         web_tuning=web_tuning,
         integrations=integrations,
@@ -877,7 +1042,7 @@ def index():
 def request_wiki_sync():
     if not is_settings_admin():
         flash('You do not have permission to run the Wiki sync.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     from app.db import AppSetting, db
     wiki_capability = db.session.get(AppSetting, 'BOT_LIVE_WIKI_SYNC_CAPABLE')
@@ -887,7 +1052,7 @@ def request_wiki_sync():
             'Update bot .env and restart the bot before running sync.',
             'danger',
         )
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     updated_by = (
         session.get('discord_name')
@@ -896,7 +1061,7 @@ def request_wiki_sync():
     )
     set_app_setting('BOT_WIKI_SYNC_REQUESTED', 'true', updated_by)
     flash('Wiki sync queued. The bot will start it within ~60 seconds.', 'success')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/reset-wiki-sync', methods=['POST'])
@@ -904,7 +1069,7 @@ def request_wiki_sync():
 def reset_wiki_sync():
     if not is_settings_admin():
         flash('You do not have permission to reset Wiki sync status.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     from app.db import AppSetting, db
     reset_keys = (
@@ -925,7 +1090,7 @@ def reset_wiki_sync():
     if deleted:
         db.session.commit()
     flash('Wiki sync state reset. You can safely queue a fresh run.', 'success')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/request-restart', methods=['POST'])
@@ -933,7 +1098,7 @@ def reset_wiki_sync():
 def request_restart():
     if not is_settings_admin():
         flash('You do not have permission to restart the bot.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     updated_by = (
         session.get('discord_name')
@@ -942,7 +1107,7 @@ def request_restart():
     )
     set_app_setting('BOT_RESTART_REQUESTED', 'true', updated_by)
     flash('Restart requested. The bot will exit cleanly within ~60 seconds and Docker will restart it.', 'success')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/request-rebuild', methods=['POST'])
@@ -950,7 +1115,7 @@ def request_restart():
 def request_rebuild():
     if not is_settings_admin():
         flash('You do not have permission to restart the bot.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     updated_by = (
         session.get('discord_name')
@@ -959,7 +1124,7 @@ def request_rebuild():
     )
     set_app_setting('BOT_RESTART_REQUESTED', 'true', updated_by)
     flash('Bot will exit within ~60s. Run the rebuild command shown below to bring it back up with the latest code.', 'info')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/update', methods=['POST'])
@@ -967,14 +1132,14 @@ def request_rebuild():
 def update():
     if not is_settings_admin():
         flash('You do not have permission to change settings.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     key = request.form.get('key', '').strip()
     action = request.form.get('action', '').strip()  # 'set' or 'reset'
 
     if key not in EDITABLE_KEYS:
         flash(f'Unknown or non-editable setting: {key}', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     updated_by = (
         session.get('discord_name')
@@ -1042,11 +1207,11 @@ def update():
                 int(raw_value)
             except (ValueError, TypeError):
                 flash(f'Invalid value for {key}: must be an integer.', 'danger')
-                return redirect(url_for('settings.index'))
+                return _redirect_to_section()
             set_app_setting(key, raw_value, updated_by)
         flash(f'{key} updated.', 'success')
 
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/commands/toggle', methods=['POST'])
@@ -1054,17 +1219,17 @@ def update():
 def toggle_bot_command():
     if not is_settings_admin():
         flash('You do not have permission to change settings.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     token = request.form.get('token', '').strip()
     action = request.form.get('action', '').strip()  # 'disable' or 'enable'
 
     if token not in flattened_tokens():
         flash(f'Unknown command: {token}', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
     if action not in ('disable', 'enable'):
         flash('Invalid action.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
 
     updated_by = (
         session.get('discord_name')
@@ -1081,7 +1246,7 @@ def toggle_bot_command():
         flash(f'`{token}` re-enabled.', 'success')
 
     set_app_setting('BOT_DISABLED_COMMANDS', ','.join(sorted(current)), updated_by)
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/staff/add', methods=['POST'])
@@ -1089,17 +1254,17 @@ def toggle_bot_command():
 def staff_add():
     if not is_settings_admin():
         flash('Only Administrators can manage staff.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
     from app.db import AppSetting, db
     discord_id = request.form.get('discord_id', '').strip()
     role = request.form.get('role', '').strip()
     name = request.form.get('name', '').strip()
     if not discord_id or not discord_id.isdigit():
         flash('Invalid Discord ID — must be numeric.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
     if role not in ('system_helper', 'storyteller', 'moderator', 'administrator'):
         flash('Invalid role.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
     updated_by = session.get('discord_name', 'admin')
     key = f'STAFF_MEMBER_{discord_id}'
     row = AppSetting.query.get(key)
@@ -1122,7 +1287,7 @@ def staff_add():
     db.session.commit()
     display = f'{name} ({discord_id})' if name else discord_id
     flash(f'{role.capitalize()} {display} added.', 'success')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()
 
 
 @bp.route('/staff/remove', methods=['POST'])
@@ -1130,7 +1295,7 @@ def staff_add():
 def staff_remove():
     if not is_settings_admin():
         flash('Only Administrators can manage staff.', 'danger')
-        return redirect(url_for('settings.index'))
+        return _redirect_to_section()
     from app.db import AppSetting, db
     discord_id = request.form.get('discord_id', '').strip()
     key = f'STAFF_MEMBER_{discord_id}'
@@ -1144,4 +1309,4 @@ def staff_remove():
         flash(f'Staff member {discord_id} removed.', 'success')
     else:
         flash('Staff member not found.', 'warning')
-    return redirect(url_for('settings.index'))
+    return _redirect_to_section()

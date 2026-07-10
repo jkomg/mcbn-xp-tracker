@@ -1,878 +1,555 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
 
-  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-    <h2 class="mb-0">Settings</h2>
-    {% if can_edit %}
-      <span class="badge bg-warning text-dark"><i class="bi bi-pencil-square"></i> Edit mode</span>
-    {% else %}
-      <span class="text-muted small">Read-only — change values in the server environment and redeploy.</span>
-    {% endif %}
+{% macro toggle_row(item, section) %}
+{% set is_overridden = item.overridden if item.overridden is defined else item.db_set %}
+<div class="settings-row">
+  <div class="settings-row-label">
+    {{ item.label }}
+    {% if is_overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+    {% if item.db_set is defined and not item.db_set and item.live_known %}<span class="settings-override-badge" title="No DB override — bot is using its .env value">ENV</span>{% endif %}
+    {% if item.db_set is defined and item.using_env %}<span class="settings-override-badge" title="Bot has not reported its state yet">?</span>{% endif %}
   </div>
-
-  {# ═══ Bot — Status ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Bot — Status</h5>
-  <div class="card bg-dark border-secondary mb-4">
-    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
-      <h6 class="mb-0 text-light"><i class="bi bi-heart-pulse"></i> Bot Status</h6>
-      {% if can_edit %}
-        <div class="d-flex gap-2">
-          <form method="POST" action="{{ url_for('settings.request_restart') }}" class="mb-0">
-            {% if bot_restart_pending %}
-              <button type="submit" class="btn btn-sm btn-warning" disabled>
-                <i class="bi bi-arrow-clockwise"></i> Pending…
-              </button>
-            {% else %}
-              <button type="submit" class="btn btn-sm btn-outline-warning"
-                onclick="return confirm('Request bot restart? It will exit cleanly within ~60s and Docker will restart it.')">
-                <i class="bi bi-arrow-clockwise"></i> Restart
-              </button>
-            {% endif %}
-          </form>
-          <form method="POST" action="{{ url_for('settings.request_rebuild') }}" class="mb-0">
-            <button type="submit" class="btn btn-sm btn-outline-info"
-              onclick="return confirm('This will exit the bot within ~60s. Copy the rebuild command from the card, then run it in your terminal.')">
-              <i class="bi bi-hammer"></i> Rebuild
-            </button>
-          </form>
-        </div>
-      {% endif %}
-    </div>
-    <div class="card-body">
-      {% if bot_heartbeat_ts is none %}
-        <span class="badge bg-secondary">No heartbeat received yet</span>
-        <small class="text-muted ms-2">Bot has not connected since last web restart.</small>
-      {% elif bot_heartbeat_age is not none and bot_heartbeat_age < 180 %}
-        <span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size:0.6rem"></i>Online</span>
-        <small class="text-muted ms-2">Last seen {{ bot_heartbeat_age }}s ago</small>
-      {% elif bot_heartbeat_age is not none and bot_heartbeat_age < 600 %}
-        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Delayed</span>
-        <small class="text-muted ms-2">Last seen {{ (bot_heartbeat_age // 60) }}m ago — may be slow or restarting</small>
-      {% else %}
-        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Offline</span>
-        <small class="text-muted ms-2">Last seen {{ (bot_heartbeat_age // 60) if bot_heartbeat_age else '?' }}m ago</small>
-      {% endif %}
-
-      <div class="mt-3 pt-3 border-top border-secondary">
-        <small class="text-muted d-block mb-1">
-          <i class="bi bi-hammer me-1"></i>Rebuild command — paste into terminal:
-        </small>
-        <div class="d-flex align-items-center gap-2">
-          <code class="flex-grow-1 px-2 py-1 rounded small"
-                style="background:#111; color:#adb5bd; word-break:break-all;">
-            cd ~/Projects/mcbn-xp-tracker/apps/bot &amp;&amp; npm run ops:docker:down &amp;&amp; npm run ops:docker:up
-          </code>
-          <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button"
-                  id="rebuild-copy-btn"
-                  onclick="navigator.clipboard.writeText('cd ~/Projects/mcbn-xp-tracker/apps/bot && npm run ops:docker:down && npm run ops:docker:up'); var b=document.getElementById('rebuild-copy-btn'); b.textContent='Copied!'; setTimeout(function(){b.textContent='Copy'},2000);">
-            Copy
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ═══ Bot — Wiki Sync ═══ #}
-  <div class="card bg-dark border-secondary mb-4">
-    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
-      <h6 class="mb-0 text-light"><i class="bi bi-database-up"></i> Wiki Sync</h6>
-      {% if can_edit %}
-        <div class="d-flex align-items-center gap-2">
-        <form method="POST" action="{{ url_for('settings.request_wiki_sync') }}" class="mb-0">
-          {% if wiki_sync.capable is sameas false %}
-            <button type="submit" class="btn btn-sm btn-outline-secondary" disabled
-              title="Bot reports missing DISCORD_GUILD_ID">
-              <i class="bi bi-slash-circle"></i> Missing Prereqs
-            </button>
-          {% elif wiki_sync.requested or (wiki_sync.status == 'running' and not wiki_sync.is_stale) %}
-            <button type="submit" class="btn btn-sm btn-info" disabled>
-              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-              {% if wiki_sync.status == 'running' %}Running…{% else %}Queued…{% endif %}
-            </button>
-          {% else %}
-            <button type="submit" class="btn btn-sm btn-outline-info"
-              onclick="return confirm('Run Discord → Wiki sync? This may take several minutes.')">
-              <i class="bi bi-arrow-repeat"></i> Run Wiki Sync
-            </button>
-          {% endif %}
-        </form>
-        {% if wiki_sync.is_stale %}
-          <form method="POST" action="{{ url_for('settings.reset_wiki_sync') }}" class="mb-0">
-            <button type="submit" class="btn btn-sm btn-outline-warning"
-              onclick="return confirm('Reset stale Wiki sync state? Use this if the bot crashed during a run.')">
-              <i class="bi bi-arrow-counterclockwise"></i> Reset Stale
-            </button>
-          </form>
-        {% endif %}
-        </div>
-      {% endif %}
-    </div>
-    <div class="card-body">
-      <p class="text-muted small mb-2">
-        Reads Discord channels and populates the Chronicle Wiki
-        (PC profiles, SPC pages, Location pages, Hunting Sites, Lore archives, Coteries, Factions).
-        Requires <code>DISCORD_GUILD_ID</code> and <code>WEB_APP_API_WRITE_TOKEN</code> in the bot's <code>.env</code>.
-      </p>
-      {% if wiki_sync.capable is sameas false %}
-        <small class="text-warning d-block mb-2">
-          <i class="bi bi-exclamation-triangle me-1"></i>
-          Bot currently reports missing sync prerequisites. Update bot <code>.env</code> and restart the bot to re-enable manual sync.
-        </small>
-      {% endif %}
-      {% if wiki_sync.status == 'running' and wiki_sync.is_stale %}
-        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Stale</span>
-        {% if wiki_sync.started_at %}
-          <small class="text-muted ms-2">
-            Started {{ wiki_sync.started_at[:19] | replace('T', ' ') }} UTC and appears stuck.
-          </small>
-        {% endif %}
-        <small class="text-muted d-block mt-1">
-          Running for {{ wiki_sync.running_age_seconds or '?' }}s (stale threshold: {{ wiki_sync.stale_after_seconds }}s).
-        </small>
-      {% elif wiki_sync.status == 'running' %}
-        <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Running</span>
-        {% if wiki_sync.started_at %}
-          <small class="text-muted ms-2">Started {{ wiki_sync.started_at[:19] | replace('T', ' ') }} UTC</small>
-        {% endif %}
-        {% if wiki_sync.run_id %}
-          <small class="text-muted d-block mt-1">Run ID: <code>{{ wiki_sync.run_id }}</code></small>
-        {% endif %}
-      {% elif wiki_sync.status == 'success' %}
-        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Success</span>
-        {% if wiki_sync.finished_at %}
-          <small class="text-muted ms-2">Completed {{ wiki_sync.finished_at[:19] | replace('T', ' ') }} UTC</small>
-        {% endif %}
-        {% if wiki_sync.run_id %}
-          <small class="text-muted d-block mt-1">Run ID: <code>{{ wiki_sync.run_id }}</code></small>
-        {% endif %}
-      {% elif wiki_sync.status == 'error' %}
-        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Error</span>
-        {% if wiki_sync.error %}
-          <small class="text-danger ms-2">{{ wiki_sync.error }}</small>
-        {% endif %}
-        {% if wiki_sync.started_at %}
-          <small class="text-muted ms-2">(started {{ wiki_sync.started_at[:19] | replace('T', ' ') }} UTC)</small>
-        {% endif %}
-        {% if wiki_sync.run_id %}
-          <small class="text-muted d-block mt-1">Run ID: <code>{{ wiki_sync.run_id }}</code></small>
-        {% endif %}
-      {% elif wiki_sync.requested %}
-        <span class="badge bg-secondary">Queued</span>
-        <small class="text-muted ms-2">Waiting for the bot to pick it up…</small>
-      {% else %}
-        <span class="badge bg-secondary">Never run</span>
-        <small class="text-muted ms-2">Click <strong>Run Wiki Sync</strong> to sync Discord channels to the Chronicle Wiki.</small>
-      {% endif %}
-
-      {% if wiki_sync_runs %}
-      <div class="mt-3 pt-3 border-top border-secondary">
-        <small class="text-muted d-block mb-2">Recent sync runs</small>
-        <div class="table-responsive">
-          <table class="table table-dark table-sm mb-0 align-middle">
-            <thead>
-              <tr>
-                <th style="width:220px">Run ID</th>
-                <th style="width:180px">Started (UTC)</th>
-                <th style="width:180px">Finished (UTC)</th>
-                <th style="width:120px">Duration</th>
-                <th style="width:100px">Source</th>
-                <th style="width:120px">Final Status</th>
-                <th>Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for run in wiki_sync_runs %}
-              <tr>
-                <td class="small font-monospace text-muted">{{ run.run_id if run.run_id else run.run_key }}</td>
-                <td class="small text-muted">{{ run.started_at[:19] | replace('T', ' ') if run.started_at else '—' }}</td>
-                <td class="small text-muted">{{ run.finished_at[:19] | replace('T', ' ') if run.finished_at else '—' }}</td>
-                <td class="small text-muted">{{ run.duration_display }}</td>
-                <td>
-                  {% if run.source == 'scheduled' %}
-                    <span class="badge bg-secondary">Scheduled</span>
-                  {% else %}
-                    <span class="badge bg-dark border border-secondary">Manual</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if run.status == 'success' %}
-                    <span class="badge bg-success">Success</span>
-                  {% elif run.status == 'error' %}
-                    <span class="badge bg-danger">Error</span>
-                  {% else %}
-                    <span class="badge bg-info text-dark">Running</span>
-                  {% endif %}
-                </td>
-                <td class="small {% if run.status == 'error' and run.error %}text-danger{% else %}text-muted{% endif %}">
-                  {{ run.error if run.error else '—' }}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-
-  {# ═══ Bot — Retirement Automation ═══ #}
-  <div class="card bg-dark border-secondary mb-4">
-    <div class="card-header border-secondary d-flex align-items-center justify-content-between">
-      <h6 class="mb-0 text-light"><i class="bi bi-person-workspace"></i> Retirement Automation</h6>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="badge bg-secondary">Pending Discord: {{ retirement_summary.pending_discord }}</span>
-        <span class="badge bg-info text-dark">Pending Wiki: {{ retirement_summary.pending_wiki }}</span>
-        <span class="badge bg-warning text-dark">Backoff: {{ retirement_summary.backoff }}</span>
-        {% if retirement_summary.errored %}
-          <span class="badge bg-danger">Errors: {{ retirement_summary.errored }}</span>
-        {% else %}
-          <span class="badge bg-success">Errors: 0</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="card-body">
-      <p class="text-muted small mb-3">
-        Moving cubby channels happens immediately after a character is marked retired. Wiki updates are deferred until the next successful Wiki sync batch.
-      </p>
-      {% if retirement_jobs %}
-      <div class="table-responsive">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th>Character</th>
-              <th>Requested (UTC)</th>
-              <th>Discord</th>
-              <th>Wiki</th>
-              <th>Attempts</th>
-              <th>Next Retry (UTC)</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for job in retirement_jobs %}
-            {% set next_retry_at = retirement_next_retry_at(job) %}
-            <tr>
-              <td class="small">{{ job.character_name }}</td>
-              <td class="small text-muted">{{ job.requested_at.strftime('%Y-%m-%d %H:%M') if job.requested_at else '—' }}</td>
-              <td>
-                {% if job.discord_completed_at %}
-                  <span class="badge bg-success">Complete</span>
-                {% elif next_retry_at %}
-                  <span class="badge bg-warning text-dark">Backoff</span>
-                {% else %}
-                  <span class="badge bg-secondary">Pending</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if job.wiki_synced_at %}
-                  <span class="badge bg-success">Synced</span>
-                {% elif job.discord_completed_at %}
-                  <span class="badge bg-info text-dark">Queued</span>
-                {% else %}
-                  <span class="badge bg-dark border border-secondary">Waiting</span>
-                {% endif %}
-              </td>
-              <td class="small text-muted">{{ job.attempt_count }}</td>
-              <td class="small text-muted">{{ next_retry_at.strftime('%Y-%m-%d %H:%M') if next_retry_at else '—' }}</td>
-              <td class="small {% if job.last_error %}text-danger{% else %}text-muted{% endif %}">
-                {{ job.last_error if job.last_error else '—' }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-        <span class="badge bg-secondary">No retirement jobs yet</span>
-      {% endif %}
-    </div>
-  </div>
-
-  {# ═══ Staff Management ═══ #}
-  <h5 class="text-muted text-uppercase small mb-2 mt-4">Staff Management</h5>
-  <div class="card bg-dark border-secondary mb-4">
-    <div class="card-body">
-      <p class="text-muted small mb-3">
-        Staff added here are stored in the database and take effect immediately — no redeploy needed.
-        Env-var entries (<code>ALLOWED_DISCORD_IDS</code>, <code>SETTINGS_ADMIN_DISCORD_IDS</code>) are always active as a baseline and cannot be removed here.
-      </p>
-
-      {% if staff_members %}
-      <table class="table table-dark table-sm mb-3 align-middle">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Discord ID</th>
-            <th>Role</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in staff_members %}
-          <tr>
-            <td>{% if m.name %}{{ m.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-            <td><code>{{ m.discord_id }}</code></td>
-            <td>
-              <span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% elif m.role == 'moderator' %}bg-info text-dark{% elif m.role == 'storyteller' %}bg-primary{% else %}bg-secondary{% endif %}">
-                {{ m.label }}
-              </span>
-              {% if m.source == 'env' or m.has_env_access %}
-                <span class="badge bg-dark border border-secondary text-muted ms-1" title="Granted via environment variable — manage in server config">Env</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if m.source == 'db' and not m.has_env_access %}
-              <form method="POST" action="{{ url_for('settings.staff_remove') }}" class="mb-0">
-                <input type="hidden" name="discord_id" value="{{ m.discord_id }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger"
-                  onclick="return confirm('Remove {{ m.discord_id }} from staff?')">Remove</button>
-              </form>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="text-muted small">No staff members found.</p>
-      {% endif %}
-
-      <form method="POST" action="{{ url_for('settings.staff_add') }}" class="row g-2 align-items-end">
-        <div class="col-auto">
-          <label class="form-label small text-muted mb-1">Display Name</label>
-          <input type="text" name="name" class="form-control form-control-sm bg-dark text-light border-secondary"
-            placeholder="e.g. Jason" style="width:160px" maxlength="80">
-        </div>
-        <div class="col-auto">
-          <label class="form-label small text-muted mb-1">Discord ID</label>
-          <input type="text" name="discord_id" class="form-control form-control-sm bg-dark text-light border-secondary"
-            placeholder="e.g. 123456789012345678" style="width:220px" required pattern="\d+">
-        </div>
-        <div class="col-auto">
-          <label class="form-label small text-muted mb-1">Role</label>
-          <select name="role" class="form-select form-select-sm bg-dark text-light border-secondary">
-            <option value="system_helper">System Helper</option>
-            <option value="storyteller">Storyteller</option>
-            <option value="moderator">Moderator</option>
-            <option value="administrator">Administrator</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-outline-primary">Add Staff</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ═══ Collapsible config sections ═══ #}
-
-  {# Web App — Feature Flags #}
-  <h5 class="mb-2 mt-4">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-web-flags" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Web App — Feature Flags
+  {% if can_edit and item.editable %}
+  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap mb-0">
+    <input type="hidden" name="key" value="{{ item.key }}">
+    <input type="hidden" name="action" value="set">
+    <input type="hidden" name="value" value="{{ 'false' if item.enabled else 'true' }}">
+    <input type="hidden" name="section" value="{{ section }}">
+    <button type="submit" class="settings-pill {% if item.enabled %}settings-pill--on{% endif %}">
+      {{ '● Enabled' if item.enabled else '○ Disabled' }}
     </button>
-  </h5>
-  <div class="collapse mb-4" id="section-web-flags">
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:200px">Feature</th>
-              <th style="width:160px">Status</th>
-              <th>Description</th>
-              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for f in web_flags %}
-            <tr>
-              <td class="fw-semibold">
-                {{ f.label }}
-                {% if f.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit and f.editable %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
-                    <input type="hidden" name="key" value="{{ f.key }}">
-                    <input type="hidden" name="action" value="set">
-                    <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
-                    <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
-                      {% if f.enabled %}<i class="bi bi-toggle-on"></i> Enabled{% else %}<i class="bi bi-toggle-off"></i> Disabled{% endif %}
-                    </button>
-                    {% if f.overridden %}
-                    </form>
-                    <form method="POST" action="{{ url_for('settings.update') }}">
-                      <input type="hidden" name="key" value="{{ f.key }}">
-                      <input type="hidden" name="action" value="reset">
-                      <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to env default" style="font-size:.75rem">reset</button>
-                    {% endif %}
-                  </form>
-                {% else %}
-                  {% if f.enabled %}
-                    <span class="badge bg-success">Enabled</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Disabled</span>
-                  {% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ f.description }}</td>
-              <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Web App — Integrations #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-web-integrations" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Web App — Integrations
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-web-integrations">
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0">
-          <thead>
-            <tr>
-              <th style="width:200px">Integration</th>
-              <th style="width:120px">Status</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for i in integrations %}
-            <tr>
-              <td class="fw-semibold">{{ i.label }}</td>
-              <td>
-                {% if i.configured %}
-                  <span class="badge bg-success">Configured</span>
-                {% else %}
-                  <span class="badge bg-secondary">Not set</span>
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ i.description }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Web App — Tuning #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-web-tuning" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Web App — Tuning
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-web-tuning">
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:220px">Parameter</th>
-              <th style="width:{% if can_edit %}200{% else %}100{% endif %}px">Value</th>
-              <th>Description</th>
-              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in web_tuning %}
-            <tr>
-              <td class="fw-semibold">
-                {{ t.label }}
-                {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit and t.editable %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                    <input type="hidden" name="key" value="{{ t.key }}">
-                    <input type="hidden" name="action" value="set">
-                    <input type="number" name="value" value="{{ t.value }}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:80px">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                  </form>
-                  {% if t.overridden %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                    <input type="hidden" name="key" value="{{ t.key }}">
-                    <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Reset to env default" style="font-size:.75rem">reset to env</button>
-                  </form>
-                  {% endif %}
-                {% else %}
-                  <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ t.description }}</td>
-              <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Chronicle #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-chronicle" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Chronicle
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-chronicle">
-    <p class="text-muted small mb-2">
-      Chronicle-wide settings displayed on player sheets. One tenet per line.
-    </p>
-    <div class="card border-secondary bg-transparent">
-      <div class="card-body p-2">
-        <table class="table table-sm table-dark mb-0">
-          <thead>
-            <tr>
-              <th style="width:160px">Setting</th>
-              <th>Value</th>
-              <th class="text-muted small">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="fw-semibold">
-                Chronicle Tenets
-                {% if chronicle_settings.tenets_overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit %}
-                <form method="POST" action="{{ url_for('settings.update') }}">
-                  <input type="hidden" name="key" value="CHRONICLE_TENETS">
-                  <input type="hidden" name="action" value="set">
-                  <textarea name="value" rows="4"
-                    class="form-control form-control-sm bg-dark text-light border-secondary font-monospace mb-1"
-                    style="width:340px; resize:vertical;">{{ chronicle_settings.tenets or '' }}</textarea>
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                </form>
-                {% if chronicle_settings.tenets_overridden %}
-                <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                  <input type="hidden" name="key" value="CHRONICLE_TENETS">
-                  <input type="hidden" name="action" value="reset">
-                  <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
-                </form>
-                {% endif %}
-                {% else %}
-                <pre class="small text-muted mb-0">{{ chronicle_settings.tenets or '(not set)' }}</pre>
-                {% endif %}
-              </td>
-              <td class="text-muted small">Displayed on player sheets and inline character view. One tenet per line.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Bot — Channel IDs #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-bot-channels" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Bot — Channel IDs
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-bot-channels">
-    <p class="text-muted small mb-2">
-      Stored in the database. Click <strong>Restart Bot</strong> above to apply. Leave blank to use the bot's <code>.env</code> value.
-    </p>
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:220px">Channel</th>
-              <th style="width:{% if can_edit %}280px{% else %}180px{% endif %}">ID</th>
-              <th>Description</th>
-              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for c in bot_channels %}
-            <tr>
-              <td class="fw-semibold">
-                {{ c.label }}
-                {% if c.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit and c.editable %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                    <input type="hidden" name="key" value="{{ c.key }}">
-                    <input type="hidden" name="action" value="set">
-                    <input type="text" name="value" value="{{ c.value or '' }}"
-                      placeholder="{{ c.placeholder }}"
-                      {% if c.input_pattern %}pattern="{{ c.input_pattern }}" title="Discord snowflake (17–20 digits)"{% endif %}
-                      class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" style="width:{% if c.input_pattern %}160{% else %}280{% endif %}px">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                  </form>
-                  {% if c.overridden %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                    <input type="hidden" name="key" value="{{ c.key }}">
-                    <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
-                  </form>
-                  {% endif %}
-                {% else %}
-                  {% if c.value %}
-                    <span class="badge bg-dark border border-secondary font-monospace">{{ c.value }}</span>
-                  {% else %}
-                    <span class="text-muted small">env default</span>
-                  {% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ c.description }}</td>
-              <td class="d-none d-md-table-cell"><code class="small text-info">{{ c.env }}</code></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Bot — Tuning #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-bot-tuning" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Bot — Tuning
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-bot-tuning">
-    <p class="text-muted small mb-2">
-      Interval overrides are stored in the database. Click <strong>Restart Bot</strong> above to apply them.
-      Leave blank to use the value from the bot's <code>.env</code> file.
-    </p>
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:220px">Parameter</th>
-              <th style="width:{% if can_edit %}220px{% else %}120px{% endif %}">Value</th>
-              <th>Description</th>
-              <th class="d-none d-md-table-cell text-muted" style="width:280px">Env var</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in bot_tuning %}
-            <tr>
-              <td class="fw-semibold">
-                {{ t.label }}
-                {% if t.overridden %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit and t.editable %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1">
-                    <input type="hidden" name="key" value="{{ t.key }}">
-                    <input type="hidden" name="action" value="set">
-                    <input type="number" name="value" value="{{ t.value if t.value is not none else '' }}"
-                      placeholder="{{ t.placeholder }}"
-                      class="form-control form-control-sm bg-dark text-light border-secondary" style="width:100px">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                  </form>
-                  {% if t.overridden %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
-                    <input type="hidden" name="key" value="{{ t.key }}">
-                    <input type="hidden" name="action" value="reset">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" style="font-size:.75rem">reset to env</button>
-                  </form>
-                  {% endif %}
-                {% else %}
-                  {% if t.value is not none %}
-                    <span class="badge bg-dark border border-secondary font-monospace">{{ t.value }}</span>
-                  {% else %}
-                    <span class="text-muted small">env default</span>
-                  {% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ t.description }}</td>
-              <td class="d-none d-md-table-cell"><code class="small text-info">{{ t.env }}</code></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Bot — Feature Flags #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-bot-flags" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Bot — Feature Flags
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-bot-flags">
-    <p class="text-muted small mb-2">
-      Changes apply to the bot within 1 minute. If a flag has never been set here, the bot uses its own configuration file.
-    </p>
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:200px">Feature</th>
-              <th style="width:160px">Status</th>
-              <th>Description</th>
-              <th class="d-none d-md-table-cell text-muted" style="width:220px">Enable env var</th>
-              <th class="d-none d-lg-table-cell text-muted" style="width:220px">Interval env var</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for f in bot_flags %}
-            <tr>
-              <td class="fw-semibold">
-                {{ f.label }}
-                {% if f.db_set %}<span class="badge bg-warning text-dark ms-1" title="Runtime override active">DB</span>{% endif %}
-              </td>
-              <td>
-                {% if can_edit and f.editable %}
-                  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 flex-wrap">
-                    <input type="hidden" name="key" value="{{ f.key }}">
-                    <input type="hidden" name="action" value="set">
-                    <input type="hidden" name="value" value="{{ 'false' if f.enabled else 'true' }}">
-                    <button type="submit" class="btn btn-sm {% if f.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" style="min-width:90px">
-                      {% if f.enabled %}<i class="bi bi-toggle-on"></i> ON{% else %}<i class="bi bi-toggle-off"></i> OFF{% endif %}
-                    </button>
-                    {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1" title="No DB override — bot is using its .env value">ENV</span>{% endif %}
-                    {% if f.using_env %}<span class="badge bg-warning text-dark ms-1" title="Bot has not reported its state yet">?</span>{% endif %}
-                    {% if f.db_set %}
-                    </form>
-                    <form method="POST" action="{{ url_for('settings.update') }}">
-                      <input type="hidden" name="key" value="{{ f.key }}">
-                      <input type="hidden" name="action" value="reset">
-                      <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Reset to bot .env default" style="font-size:.75rem">reset</button>
-                    {% endif %}
-                  </form>
-                {% else %}
-                  {% if f.enabled %}
-                    <span class="badge bg-success">Enabled</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Disabled</span>
-                  {% endif %}
-                  {% if not f.db_set and f.live_known %}<span class="badge bg-secondary ms-1">ENV</span>{% endif %}
-                  {% if f.using_env %}<span class="badge bg-warning text-dark ms-1">?</span>{% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ f.description }}</td>
-              <td class="d-none d-md-table-cell"><code class="small text-info">{{ f.env }}</code></td>
-              <td class="d-none d-lg-table-cell">
-                {% if f.interval_env %}
-                  <code class="small text-secondary">{{ f.interval_env }}</code>
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# Bot — Commands #}
-  <h5 class="mb-2 mt-2">
-    <button class="btn btn-link text-muted text-uppercase text-decoration-none p-0 collapsed d-flex align-items-center gap-1"
-            style="font-size:0.75rem; letter-spacing:0.05em;"
-            data-bs-toggle="collapse" data-bs-target="#section-bot-commands" aria-expanded="false">
-      <i class="bi bi-chevron-right collapse-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
-      Bot — Commands
-    </button>
-  </h5>
-  <div class="collapse mb-4" id="section-bot-commands">
-    <p class="text-muted small mb-2">
-      Turn any Discord command (or individual subcommand) off without a redeploy. Staff (BOT_TESTER_IDS) can still
-      run a disabled command themselves; everyone else gets a polite "disabled" reply. Disabling a whole command
-      disables all of its subcommands too. Changes apply to the bot within 1 minute — the command still appears
-      in Discord's picker either way, it just won't run for non-staff users while off.
-    </p>
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-dark table-sm mb-0 align-middle">
-          <thead>
-            <tr>
-              <th style="width:260px">Command</th>
-              <th style="width:140px">Status</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for cmd in bot_commands %}
-            <tr>
-              <td class="fw-semibold">{{ cmd.label }}</td>
-              <td>
-                {% if can_edit %}
-                <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="mb-0">
-                  <input type="hidden" name="token" value="{{ cmd.token }}">
-                  <input type="hidden" name="action" value="{{ 'enable' if cmd.disabled else 'disable' }}">
-                  <button type="submit" class="btn btn-sm {% if cmd.disabled %}btn-outline-secondary{% else %}btn-success{% endif %}" style="min-width:90px">
-                    {% if cmd.disabled %}<i class="bi bi-toggle-off"></i> OFF{% else %}<i class="bi bi-toggle-on"></i> ON{% endif %}
-                  </button>
-                </form>
-                {% else %}
-                  {% if cmd.disabled %}<span class="badge bg-secondary">Disabled</span>{% else %}<span class="badge bg-success">Enabled</span>{% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ cmd.description }}</td>
-            </tr>
-            {% for sub in cmd.subcommands %}
-            <tr>
-              <td class="text-muted small ps-4">↳ {{ sub.label }}</td>
-              <td>
-                {% if can_edit %}
-                <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="d-flex align-items-center gap-1 mb-0">
-                  <input type="hidden" name="token" value="{{ sub.token }}">
-                  <input type="hidden" name="action" value="{{ 'enable' if sub.own_disabled else 'disable' }}">
-                  <button type="submit" class="btn btn-sm {% if sub.disabled %}btn-outline-secondary{% else %}btn-success{% endif %}"
-                          style="min-width:90px" {% if cmd.disabled and not sub.own_disabled %}disabled{% endif %}>
-                    {% if sub.disabled %}<i class="bi bi-toggle-off"></i> OFF{% else %}<i class="bi bi-toggle-on"></i> ON{% endif %}
-                  </button>
-                  {% if sub.inherited %}<span class="badge bg-secondary ms-1" title="Disabled via the master switch above">via master</span>{% endif %}
-                </form>
-                {% else %}
-                  {% if sub.disabled %}<span class="badge bg-secondary">Disabled</span>{% else %}<span class="badge bg-success">Enabled</span>{% endif %}
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ sub.description }}</td>
-            </tr>
-            {% endfor %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
+  </form>
+  {% if is_overridden %}
+  <form method="POST" action="{{ url_for('settings.update') }}" class="mb-0">
+    <input type="hidden" name="key" value="{{ item.key }}">
+    <input type="hidden" name="action" value="reset">
+    <input type="hidden" name="section" value="{{ section }}">
+    <button type="submit" class="settings-reset-link" title="Reset to default">reset</button>
+  </form>
+  {% endif %}
+  {% else %}
+    <span class="settings-pill {% if item.enabled %}settings-pill--on{% endif %}" style="cursor:default">{{ '● Enabled' if item.enabled else '○ Disabled' }}</span>
+  {% endif %}
+  <div class="settings-row-desc">{{ item.description }}</div>
 </div>
+{% endmacro %}
+
+{% macro tuning_row(item, section) %}
+<div class="settings-row">
+  <div class="settings-row-label">
+    {{ item.label }}
+    {% if item.overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+  </div>
+  {% if can_edit and item.editable %}
+  <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 mb-0">
+    <input type="hidden" name="key" value="{{ item.key }}">
+    <input type="hidden" name="action" value="set">
+    <input type="hidden" name="section" value="{{ section }}">
+    <input type="number" name="value" value="{{ item.value if item.value is not none else '' }}" placeholder="{{ item.placeholder }}"
+      class="form-control form-control-sm" style="width:100px;flex-shrink:0;">
+    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+  </form>
+  {% if item.overridden %}
+  <form method="POST" action="{{ url_for('settings.update') }}" class="mb-0">
+    <input type="hidden" name="key" value="{{ item.key }}">
+    <input type="hidden" name="action" value="reset">
+    <input type="hidden" name="section" value="{{ section }}">
+    <button type="submit" class="settings-reset-link">reset to env</button>
+  </form>
+  {% endif %}
+  {% else %}
+    <span class="badge bg-dark border border-secondary font-monospace">{{ item.value if item.value is not none else 'env default' }}</span>
+  {% endif %}
+  <div class="settings-row-desc">{{ item.description }}</div>
+</div>
+{% endmacro %}
+
+{% macro channel_row(item) %}
+<div class="settings-channel-row">
+  <div class="settings-channel-row-top">
+    <div class="settings-row-label" style="width:220px;">
+      {{ item.label }}
+      {% if item.overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+    </div>
+    {% if can_edit and item.editable %}
+    <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 mb-0">
+      <input type="hidden" name="key" value="{{ item.key }}">
+      <input type="hidden" name="action" value="set">
+      <input type="hidden" name="section" value="bot-channels">
+      <input type="text" name="value" value="{{ item.value or '' }}" placeholder="{{ item.placeholder }}"
+        {% if item.input_pattern %}pattern="{{ item.input_pattern }}" title="Discord snowflake (17–20 digits)"{% endif %}
+        class="form-control form-control-sm settings-channel-input">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+    </form>
+    {% if item.overridden %}
+    <form method="POST" action="{{ url_for('settings.update') }}" class="mb-0">
+      <input type="hidden" name="key" value="{{ item.key }}">
+      <input type="hidden" name="action" value="reset">
+      <input type="hidden" name="section" value="bot-channels">
+      <button type="submit" class="settings-reset-link">reset</button>
+    </form>
+    {% endif %}
+    {% else %}
+      <span class="badge bg-dark border border-secondary font-monospace">{{ item.value or 'env default' }}</span>
+    {% endif %}
+    <span class="settings-used-by-badge">{{ item.used_by }}</span>
+  </div>
+  <div class="settings-row-desc">{{ item.description }}</div>
+</div>
+{% endmacro %}
+
+{% macro command_row(cmd) %}
+<div class="settings-row">
+  <div class="settings-row-label" style="width:150px;font-family:monospace;">{{ cmd.label }}</div>
+  {% if can_edit %}
+  <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="d-flex align-items-center gap-1 mb-0">
+    <input type="hidden" name="token" value="{{ cmd.token }}">
+    <input type="hidden" name="action" value="{{ 'enable' if cmd.disabled else 'disable' }}">
+    <input type="hidden" name="section" value="bot-commands">
+    <button type="submit" class="settings-pill {% if not cmd.disabled %}settings-pill--on{% endif %}" style="min-width:70px">
+      {{ 'OFF' if cmd.disabled else 'ON' }}
+    </button>
+  </form>
+  {% else %}
+    <span class="settings-pill {% if not cmd.disabled %}settings-pill--on{% endif %}">{{ 'OFF' if cmd.disabled else 'ON' }}</span>
+  {% endif %}
+  <div class="settings-row-desc">{{ cmd.description }}</div>
+</div>
+{% for sub in cmd.subcommands %}
+<div class="settings-row settings-row--sub">
+  <div class="settings-row-label" style="width:120px;font-family:monospace;font-size:12px;color:var(--text-muted);font-weight:400;">↳ {{ sub.label }}</div>
+  {% if can_edit %}
+  <form method="POST" action="{{ url_for('settings.toggle_bot_command') }}" class="d-flex align-items-center gap-1 mb-0">
+    <input type="hidden" name="token" value="{{ sub.token }}">
+    <input type="hidden" name="action" value="{{ 'enable' if sub.own_disabled else 'disable' }}">
+    <input type="hidden" name="section" value="bot-commands">
+    <button type="submit" class="settings-pill {% if not sub.disabled %}settings-pill--on{% endif %}" style="min-width:70px"
+      {% if cmd.disabled and not sub.own_disabled %}disabled{% endif %}>
+      {{ 'OFF' if sub.disabled else 'ON' }}
+    </button>
+    {% if sub.inherited %}<span class="settings-override-badge" title="Disabled via the master switch above">via master</span>{% endif %}
+  </form>
+  {% else %}
+    <span class="settings-pill {% if not sub.disabled %}settings-pill--on{% endif %}">{{ 'OFF' if sub.disabled else 'ON' }}</span>
+  {% endif %}
+  <div class="settings-row-desc">{{ sub.description }}</div>
+</div>
+{% endfor %}
+{% endmacro %}
+
+<div class="settings-topbar">
+  <a href="{{ url_for('dashboard.index') }}" class="settings-topbar-back"><span>←</span> Dashboard</a>
+  <div class="settings-topbar-divider"></div>
+  <span class="settings-status-dot settings-status-dot--{{ bot_status_level }}" title="Bot status: {{ bot_status_level }}"></span>
+  <h1 class="settings-topbar-title">Settings</h1>
+</div>
+
+<div class="settings-shell">
+
+  <nav class="settings-nav" id="settings-nav">
+    <div class="settings-search">
+      <input type="search" id="settings-search-input" autocomplete="off" placeholder="search any setting…">
+    </div>
+    {% for group in settings_nav %}
+    <div class="settings-nav-group">
+      <div class="settings-nav-group-label">{{ group.group }}</div>
+      {% for item in group.links %}
+      <a href="{{ url_for('settings.index', section=item.id) }}"
+         class="settings-nav-link {{ 'is-active' if active_section == item.id }}"
+         data-section="{{ item.id }}">
+        <span>{{ item.label }}</span>
+        {% if item.count_key %}<span class="settings-nav-count">{{ nav_counts[item.count_key] }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </nav>
+
+  <main class="settings-main">
+
+    <div id="settings-search-results" hidden></div>
+
+    {# ═══ OVERVIEW ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'overview' }}" data-section="overview">
+      <h3 class="settings-pane-title">Overview</h3>
+      <p class="settings-pane-subtitle">Daily operations — the stuff you actually touch most weeks.</p>
+
+      <div class="settings-overview-grid">
+
+        <div class="settings-overview-card">
+          <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">Bot Status</div>
+          {% if bot_heartbeat_ts is none %}
+            <span class="badge bg-secondary">No heartbeat received yet</span>
+          {% elif bot_heartbeat_age is not none and bot_heartbeat_age < 180 %}
+            <span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size:0.6rem"></i>Online</span>
+            <small class="text-muted ms-1">seen {{ bot_heartbeat_age }}s ago</small>
+          {% elif bot_heartbeat_age is not none and bot_heartbeat_age < 600 %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Delayed</span>
+            <small class="text-muted ms-1">seen {{ (bot_heartbeat_age // 60) }}m ago</small>
+          {% else %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Offline</span>
+            <small class="text-muted ms-1">seen {{ (bot_heartbeat_age // 60) if bot_heartbeat_age else '?' }}m ago</small>
+          {% endif %}
+          {% if can_edit %}
+          <div class="d-flex gap-2 mt-3">
+            <form method="POST" action="{{ url_for('settings.request_restart') }}" class="mb-0">
+              <input type="hidden" name="section" value="overview">
+              {% if bot_restart_pending %}
+                <button type="submit" class="btn btn-sm btn-warning" disabled><i class="bi bi-arrow-clockwise"></i> Pending…</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-warning"
+                  onclick="return confirm('Request bot restart? It will exit cleanly within ~60s and Docker will restart it.')">
+                  <i class="bi bi-arrow-clockwise"></i> Restart
+                </button>
+              {% endif %}
+            </form>
+            <form method="POST" action="{{ url_for('settings.request_rebuild') }}" class="mb-0">
+              <input type="hidden" name="section" value="overview">
+              <button type="submit" class="btn btn-sm btn-outline-info"
+                onclick="return confirm('This will exit the bot within ~60s. Copy the rebuild command from the card, then run it in your terminal.')">
+                <i class="bi bi-hammer"></i> Rebuild
+              </button>
+            </form>
+          </div>
+          <details class="mt-2">
+            <summary class="text-muted small" style="cursor:pointer;">Rebuild command</summary>
+            <div class="d-flex align-items-center gap-2 mt-2">
+              <code class="flex-grow-1 px-2 py-1 rounded small" style="background:#111; color:#adb5bd; word-break:break-all;">
+                cd ~/Projects/mcbn-xp-tracker/apps/bot &amp;&amp; npm run ops:docker:down &amp;&amp; npm run ops:docker:up
+              </code>
+              <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" id="rebuild-copy-btn"
+                      onclick="navigator.clipboard.writeText('cd ~/Projects/mcbn-xp-tracker/apps/bot && npm run ops:docker:down && npm run ops:docker:up'); var b=document.getElementById('rebuild-copy-btn'); b.textContent='Copied!'; setTimeout(function(){b.textContent='Copy'},2000);">
+                Copy
+              </button>
+            </div>
+          </details>
+          {% endif %}
+        </div>
+
+        <div class="settings-overview-card">
+          <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">Wiki Sync</div>
+          {% if wiki_sync.status == 'running' and wiki_sync.is_stale %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Stale</span>
+          {% elif wiki_sync.status == 'running' %}
+            <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Running</span>
+          {% elif wiki_sync.status == 'success' %}
+            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Success</span>
+            {% if wiki_sync.finished_at %}<small class="text-muted ms-1">{{ wiki_sync.finished_at[:19] | replace('T', ' ') }} UTC</small>{% endif %}
+          {% elif wiki_sync.status == 'error' %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Error</span>
+          {% elif wiki_sync.requested %}
+            <span class="badge bg-secondary">Queued</span>
+          {% else %}
+            <span class="badge bg-secondary">Never run</span>
+          {% endif %}
+          {% if wiki_sync.capable is sameas false %}
+            <small class="text-warning d-block mt-2"><i class="bi bi-exclamation-triangle me-1"></i>Bot reports missing sync prerequisites.</small>
+          {% endif %}
+          {% if wiki_sync.status == 'error' and wiki_sync.error %}
+            <small class="text-danger d-block mt-2">{{ wiki_sync.error }}</small>
+          {% endif %}
+          {% if can_edit %}
+          <div class="d-flex align-items-center gap-2 mt-3">
+            <form method="POST" action="{{ url_for('settings.request_wiki_sync') }}" class="mb-0">
+              <input type="hidden" name="section" value="overview">
+              {% if wiki_sync.capable is sameas false %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary" disabled title="Bot reports missing DISCORD_GUILD_ID">
+                  <i class="bi bi-slash-circle"></i> Missing Prereqs
+                </button>
+              {% elif wiki_sync.requested or (wiki_sync.status == 'running' and not wiki_sync.is_stale) %}
+                <button type="submit" class="btn btn-sm btn-info" disabled>
+                  <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  {% if wiki_sync.status == 'running' %}Running…{% else %}Queued…{% endif %}
+                </button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-info"
+                  onclick="return confirm('Run Discord → Wiki sync? This may take several minutes.')">
+                  <i class="bi bi-arrow-repeat"></i> Run Wiki Sync
+                </button>
+              {% endif %}
+            </form>
+            {% if wiki_sync.is_stale %}
+            <form method="POST" action="{{ url_for('settings.reset_wiki_sync') }}" class="mb-0">
+              <input type="hidden" name="section" value="overview">
+              <button type="submit" class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Reset stale Wiki sync state? Use this if the bot crashed during a run.')">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset Stale
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% if wiki_sync_runs %}
+          <details class="mt-2">
+            <summary class="text-muted small" style="cursor:pointer;">Recent runs</summary>
+            <div class="table-responsive mt-2">
+              <table class="table table-dark table-sm mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>Run ID</th><th>Started</th><th>Finished</th><th>Duration</th><th>Source</th><th>Status</th><th>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for run in wiki_sync_runs %}
+                  <tr>
+                    <td class="small font-monospace text-muted">{{ run.run_id if run.run_id else run.run_key }}</td>
+                    <td class="small text-muted">{{ run.started_at[:19] | replace('T', ' ') if run.started_at else '—' }}</td>
+                    <td class="small text-muted">{{ run.finished_at[:19] | replace('T', ' ') if run.finished_at else '—' }}</td>
+                    <td class="small text-muted">{{ run.duration_display }}</td>
+                    <td>{% if run.source == 'scheduled' %}<span class="badge bg-secondary">Scheduled</span>{% else %}<span class="badge bg-dark border border-secondary">Manual</span>{% endif %}</td>
+                    <td>
+                      {% if run.status == 'success' %}<span class="badge bg-success">Success</span>
+                      {% elif run.status == 'error' %}<span class="badge bg-danger">Error</span>
+                      {% else %}<span class="badge bg-info text-dark">Running</span>{% endif %}
+                    </td>
+                    <td class="small {% if run.status == 'error' and run.error %}text-danger{% else %}text-muted{% endif %}">{{ run.error if run.error else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% endif %}
+        </div>
+
+        <div class="settings-overview-card">
+          <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">Retirement Jobs</div>
+          <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-secondary">Discord: {{ retirement_summary.pending_discord }} pending</span>
+            <span class="badge bg-info text-dark">Wiki: {{ retirement_summary.pending_wiki }} queued</span>
+            <span class="badge bg-warning text-dark">Backoff: {{ retirement_summary.backoff }}</span>
+            {% if retirement_summary.errored %}
+              <span class="badge bg-danger">Errors: {{ retirement_summary.errored }}</span>
+            {% else %}
+              <span class="badge bg-success">Errors: 0</span>
+            {% endif %}
+          </div>
+          <p class="text-muted small mt-2 mb-0">Cubby channels move immediately; wiki updates wait for the next successful sync.</p>
+          {% if retirement_jobs %}
+          <details class="mt-2">
+            <summary class="text-muted small" style="cursor:pointer;">Recent jobs</summary>
+            <div class="table-responsive mt-2">
+              <table class="table table-dark table-sm mb-0 align-middle">
+                <thead>
+                  <tr><th>Character</th><th>Requested</th><th>Discord</th><th>Wiki</th><th>Attempts</th><th>Next Retry</th><th>Error</th></tr>
+                </thead>
+                <tbody>
+                  {% for job in retirement_jobs %}
+                  {% set next_retry_at = retirement_next_retry_at(job) %}
+                  <tr>
+                    <td class="small">{{ job.character_name }}</td>
+                    <td class="small text-muted">{{ job.requested_at.strftime('%Y-%m-%d %H:%M') if job.requested_at else '—' }}</td>
+                    <td>
+                      {% if job.discord_completed_at %}<span class="badge bg-success">Complete</span>
+                      {% elif next_retry_at %}<span class="badge bg-warning text-dark">Backoff</span>
+                      {% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
+                    </td>
+                    <td>
+                      {% if job.wiki_synced_at %}<span class="badge bg-success">Synced</span>
+                      {% elif job.discord_completed_at %}<span class="badge bg-info text-dark">Queued</span>
+                      {% else %}<span class="badge bg-dark border border-secondary">Waiting</span>{% endif %}
+                    </td>
+                    <td class="small text-muted">{{ job.attempt_count }}</td>
+                    <td class="small text-muted">{{ next_retry_at.strftime('%Y-%m-%d %H:%M') if next_retry_at else '—' }}</td>
+                    <td class="small {% if job.last_error %}text-danger{% else %}text-muted{% endif %}">{{ job.last_error if job.last_error else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% endif %}
+        </div>
+
+      </div>
+    </section>
+
+    {# ═══ STAFF & ACCESS ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'staff' }}" data-section="staff">
+      <h3 class="settings-pane-title">Staff &amp; Access</h3>
+      <p class="settings-pane-subtitle">Added here, they can sign in immediately — no redeploy. Env-var entries are always active and can't be removed here.</p>
+
+      <div class="settings-card">
+        {% if staff_members %}
+        <table class="table table-dark table-sm mb-0 align-middle">
+          <thead>
+            <tr><th>Name</th><th>Discord ID</th><th>Role</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for m in staff_members %}
+            <tr>
+              <td>{% if m.name %}{{ m.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td><code>{{ m.discord_id }}</code></td>
+              <td>
+                <span class="badge {% if m.role == 'administrator' %}bg-warning text-dark{% elif m.role == 'moderator' %}bg-info text-dark{% elif m.role == 'storyteller' %}bg-primary{% else %}bg-secondary{% endif %}">{{ m.label }}</span>
+                {% if m.source == 'env' or m.has_env_access %}
+                  <span class="badge bg-dark border border-secondary text-muted ms-1" title="Granted via environment variable — manage in server config">Env</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if m.source == 'db' and not m.has_env_access %}
+                <form method="POST" action="{{ url_for('settings.staff_remove') }}" class="mb-0">
+                  <input type="hidden" name="discord_id" value="{{ m.discord_id }}">
+                  <input type="hidden" name="section" value="staff">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove {{ m.discord_id }} from staff?')">Remove</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small p-3 mb-0">No staff members found.</p>
+        {% endif %}
+      </div>
+
+      <div class="settings-card" style="padding:16px 18px;">
+        <div class="settings-card-header" style="border:none;padding:0;margin-bottom:12px;">Add Staff</div>
+        <form method="POST" action="{{ url_for('settings.staff_add') }}" class="row g-2 align-items-end">
+          <input type="hidden" name="section" value="staff">
+          <div class="col-auto">
+            <label class="form-label small text-muted mb-1">Display Name</label>
+            <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Jason" style="width:160px" maxlength="80">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small text-muted mb-1">Discord ID</label>
+            <input type="text" name="discord_id" class="form-control form-control-sm" placeholder="e.g. 123456789012345678" style="width:220px" required pattern="\d+">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small text-muted mb-1">Role</label>
+            <select name="role" class="form-select form-select-sm">
+              <option value="system_helper">System Helper</option>
+              <option value="storyteller">Storyteller</option>
+              <option value="moderator">Moderator</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Add Staff</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {# ═══ BOT · CHANNEL IDS ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'bot-channels' }}" data-section="bot-channels">
+      <h3 class="settings-pane-title">Bot — Channel IDs</h3>
+      <p class="settings-pane-subtitle">Stored in the database. Restart the bot to apply. Leave blank to use the bot's <code>.env</code> value. Grouped by the feature that uses them.</p>
+      {% for grp in bot_channel_groups %}
+      <div class="settings-group-label">{{ grp.name }}</div>
+      <div class="settings-card">
+        {% for c in grp.channels %}{{ channel_row(c) }}{% endfor %}
+      </div>
+      {% endfor %}
+    </section>
+
+    {# ═══ BOT · FEATURE FLAGS ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'bot-flags' }}" data-section="bot-flags">
+      <h3 class="settings-pane-title">Bot — Feature Flags</h3>
+      <p class="settings-pane-subtitle">Changes apply to the bot within ~1 minute. If a flag has never been set here, the bot uses its own configuration file.</p>
+      <div class="settings-card">
+        {% for f in bot_flags %}{{ toggle_row(f, 'bot-flags') }}{% endfor %}
+      </div>
+    </section>
+
+    {# ═══ BOT · COMMANDS ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'bot-commands' }}" data-section="bot-commands">
+      <h3 class="settings-pane-title">Bot — Commands</h3>
+      <p class="settings-pane-subtitle">Turn any command or subcommand off without a redeploy. Staff can still run a disabled command themselves.</p>
+      <div class="settings-card">
+        {% for cmd in bot_commands %}{{ command_row(cmd) }}{% endfor %}
+      </div>
+    </section>
+
+    {# ═══ BOT · TUNING ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'bot-tuning' }}" data-section="bot-tuning">
+      <h3 class="settings-pane-title">Bot — Tuning</h3>
+      <p class="settings-pane-subtitle">Interval overrides apply after the bot restarts.</p>
+      <div class="settings-card">
+        {% for t in bot_tuning %}{{ tuning_row(t, 'bot-tuning') }}{% endfor %}
+      </div>
+    </section>
+
+    {# ═══ WEB APP · FLAGS & TUNING ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'web-flags-tuning' }}" data-section="web-flags-tuning">
+      <h3 class="settings-pane-title">Web App — Flags &amp; Tuning</h3>
+      <p class="settings-pane-subtitle">Runtime overrides for the admin/API app — no redeploy needed unless noted.</p>
+
+      <div class="settings-group-label">Feature Flags</div>
+      <div class="settings-card">
+        {% for f in web_flags %}{{ toggle_row(f, 'web-flags-tuning') }}{% endfor %}
+      </div>
+
+      <div class="settings-group-label">Tuning</div>
+      <div class="settings-card">
+        {% for t in web_tuning %}{{ tuning_row(t, 'web-flags-tuning') }}{% endfor %}
+      </div>
+    </section>
+
+    {# ═══ WEB APP · INTEGRATIONS ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'web-integrations' }}" data-section="web-integrations">
+      <h3 class="settings-pane-title">Web App — Integrations</h3>
+      <p class="settings-pane-subtitle">Configured via environment secrets — values shown read-only. Each card explains what it's for and when you'd actually need to touch it.</p>
+      {% for i in integrations %}
+      <div class="settings-integration-card">
+        <div class="settings-integration-header">
+          <div class="settings-integration-name">{{ i.label }}</div>
+          {% if i.configured %}
+            <span class="badge bg-success">Configured</span>
+          {% else %}
+            <span class="badge bg-secondary">Not set</span>
+          {% endif %}
+        </div>
+        <div class="settings-integration-desc">{{ i.description }}</div>
+        {% if i.value %}
+        <div class="settings-integration-value-row">
+          <div class="settings-integration-value-label">{{ i.value_label }}</div>
+          <div class="settings-integration-value">{{ i.value }}</div>
+        </div>
+        {% endif %}
+        <div class="settings-integration-why">Why change it: {{ i.why_change }}</div>
+      </div>
+      {% endfor %}
+    </section>
+
+    {# ═══ WEB APP · CHRONICLE ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'web-chronicle' }}" data-section="web-chronicle">
+      <h3 class="settings-pane-title">Web App — Chronicle</h3>
+      <p class="settings-pane-subtitle">Chronicle-wide tenets, displayed on every player sheet.</p>
+      <div class="settings-card" style="padding:16px 18px;">
+        <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">
+          Chronicle Tenets
+          {% if chronicle_settings.tenets_overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+        </div>
+        {% if can_edit %}
+        <form method="POST" action="{{ url_for('settings.update') }}">
+          <input type="hidden" name="key" value="CHRONICLE_TENETS">
+          <input type="hidden" name="action" value="set">
+          <input type="hidden" name="section" value="web-chronicle">
+          <textarea name="value" rows="5" class="form-control form-control-sm font-monospace mb-2" style="resize:vertical;">{{ chronicle_settings.tenets or '' }}</textarea>
+          <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+        </form>
+        {% if chronicle_settings.tenets_overridden %}
+        <form method="POST" action="{{ url_for('settings.update') }}" class="mt-1">
+          <input type="hidden" name="key" value="CHRONICLE_TENETS">
+          <input type="hidden" name="action" value="reset">
+          <input type="hidden" name="section" value="web-chronicle">
+          <button type="submit" class="settings-reset-link">reset to env</button>
+        </form>
+        {% endif %}
+        {% else %}
+        <pre class="small text-muted mb-0">{{ chronicle_settings.tenets or '(not set)' }}</pre>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script type="application/json" id="settings-search-data">{{ search_index | tojson }}</script>
 
 {% if wiki_sync.requested or (wiki_sync.status == 'running' and not wiki_sync.is_stale) %}
 <script>setTimeout(() => location.reload(), 10000);</script>
@@ -881,16 +558,84 @@
 
 {% block scripts %}
 <script>
-document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(btn) {
-  var target = document.querySelector(btn.dataset.bsTarget);
-  if (!target) return;
-  var chevron = btn.querySelector('.collapse-chevron');
-  target.addEventListener('show.bs.collapse', function() {
-    if (chevron) chevron.style.transform = 'rotate(90deg)';
+(function () {
+  var searchDataEl = document.getElementById('settings-search-data');
+  var searchIndex = [];
+  try { searchIndex = JSON.parse(searchDataEl.textContent || '[]'); } catch (e) {}
+
+  var searchInput = document.getElementById('settings-search-input');
+  var resultsPane = document.getElementById('settings-search-results');
+  var panes = document.querySelectorAll('.settings-pane[data-section]');
+  var navLinks = document.querySelectorAll('.settings-nav-link[data-section]');
+
+  function showSection(id) {
+    panes.forEach(function (p) { p.classList.toggle('is-active', p.dataset.section === id); });
+    navLinks.forEach(function (l) { l.classList.toggle('is-active', l.dataset.section === id); });
+    resultsPane.hidden = true;
+  }
+
+  function renderResults(query) {
+    var q = query.trim().toLowerCase();
+    var matches = searchIndex.filter(function (r) {
+      return (r.label + ' ' + r.description).toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 40);
+
+    resultsPane.innerHTML = '';
+
+    var count = document.createElement('div');
+    count.className = 'settings-search-results-count';
+    count.textContent = matches.length + ' result(s) — click one to jump to its section';
+    resultsPane.appendChild(count);
+
+    var list = document.createElement('div');
+    list.className = 'settings-card';
+    matches.forEach(function (r) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'settings-search-result-row';
+      row.innerHTML =
+        '<div class="settings-search-result-top">' +
+          '<span class="settings-search-result-label"></span>' +
+          '<span class="settings-search-result-section"></span>' +
+        '</div>' +
+        '<div class="settings-search-result-desc"></div>';
+      row.querySelector('.settings-search-result-label').textContent = r.label;
+      row.querySelector('.settings-search-result-section').textContent = r.section_label;
+      row.querySelector('.settings-search-result-desc').textContent = r.description;
+      row.addEventListener('click', function () {
+        searchInput.value = '';
+        history.replaceState(null, '', '?section=' + r.section);
+        showSection(r.section);
+      });
+      list.appendChild(row);
+    });
+    resultsPane.appendChild(list);
+
+    panes.forEach(function (p) { p.classList.remove('is-active'); });
+    navLinks.forEach(function (l) { l.classList.remove('is-active'); });
+    resultsPane.hidden = false;
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      var q = searchInput.value.trim();
+      if (!q) {
+        var active = document.querySelector('.settings-nav-link.is-active') || navLinks[0];
+        showSection(active ? active.dataset.section : 'overview');
+        return;
+      }
+      renderResults(q);
+    });
+  }
+
+  navLinks.forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (searchInput) searchInput.value = '';
+      history.pushState(null, '', link.getAttribute('href'));
+      showSection(link.dataset.section);
+    });
   });
-  target.addEventListener('hide.bs.collapse', function() {
-    if (chevron) chevron.style.transform = 'rotate(0deg)';
-  });
-});
+})();
 </script>
 {% endblock %}
