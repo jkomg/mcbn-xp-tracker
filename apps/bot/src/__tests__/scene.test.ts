@@ -8,7 +8,15 @@ const mockConfig = vi.hoisted(() => ({
   staffRoleAdministratorId: 'admin-role',
 }));
 
+// Mirrors production: liveConfig (not config) is what scene.ts actually reads
+// for the channel ID, since it's already fully resolved (env default, DB
+// override, or explicit blank-to-disable) by boot-time seeding / ConfigSyncWorker.
+const mockLiveConfig = vi.hoisted(() => ({
+  correspondenceSceneRequestChannelId: 'scene-channel-1',
+}));
+
 vi.mock('../config', () => ({ config: mockConfig }));
+vi.mock('../liveConfig', () => ({ liveConfig: mockLiveConfig }));
 
 import {
   autocomplete,
@@ -148,11 +156,12 @@ const playerMember = { roles: ['player-role'] };
 
 beforeEach(() => {
   mockConfig.correspondenceSceneRequestChannelId = 'scene-channel-1';
+  mockLiveConfig.correspondenceSceneRequestChannelId = 'scene-channel-1';
 });
 
 describe('/scene request', () => {
   it('rejects when the channel is not configured', async () => {
-    mockConfig.correspondenceSceneRequestChannelId = '';
+    mockLiveConfig.correspondenceSceneRequestChannelId = '';
     const client = makeClient(null, null);
     const interaction = makeChatInteraction('request', { spc: 'Prince Voss', night: 'Night 14', justification: 'x' }, client);
     const adapter = makeAdapter();

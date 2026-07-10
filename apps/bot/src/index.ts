@@ -114,6 +114,7 @@ liveConfig.correspondencePrestationChannelId = config.correspondencePrestationCh
 liveConfig.correspondenceSocialChannelId = config.correspondenceSocialChannelId;
 liveConfig.correspondenceCobwebChannelId = config.correspondenceCobwebChannelId;
 liveConfig.correspondenceRumorChannelId = config.correspondenceRumorChannelId;
+liveConfig.correspondenceSceneRequestChannelId = config.correspondenceSceneRequestChannelId;
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   readToken: config.webAppApiReadToken,

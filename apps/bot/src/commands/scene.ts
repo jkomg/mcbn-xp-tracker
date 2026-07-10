@@ -155,7 +155,11 @@ async function notifyRequester(
 }
 
 async function fetchSceneRequestChannel(interaction: ChatInputCommandInteraction): Promise<TextChannel | null> {
-  const channelId = liveConfig.correspondenceSceneRequestChannelId || config.correspondenceSceneRequestChannelId;
+  // liveConfig is already fully resolved (env default, DB override, or explicit
+  // blank-to-disable) by index.ts's boot-time seed and ConfigSyncWorker — do not
+  // re-apply the env fallback here, or a staff-set blank override (documented in
+  // Settings as "leave blank to disable the command") would be silently ignored.
+  const channelId = liveConfig.correspondenceSceneRequestChannelId;
   if (!channelId) return null;
   const fetched = await interaction.client.channels.fetch(channelId).catch(() => null);
   if (!fetched || !fetched.isTextBased() || !('send' in fetched)) return null;
@@ -206,7 +210,7 @@ export async function execute(interaction: ChatInputCommandInteraction, ctx: Com
 }
 
 async function handleRequest(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void> {
-  if (!(liveConfig.correspondenceSceneRequestChannelId || config.correspondenceSceneRequestChannelId)) {
+  if (!liveConfig.correspondenceSceneRequestChannelId) {
     await interaction.reply({
       content:
         'The scene request channel is not configured yet — ask a staff member to set `CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID`.',
