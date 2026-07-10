@@ -206,13 +206,15 @@ def index():
     counts = {s: WikiPage.query.filter_by(category=s).filter(
                   WikiPage.status.in_(WIKI_PUBLIC_STATUSES)).count()
               for s, _, _ in CATEGORIES}
-    chronicle_background = _get_featured_page('chronicle-background')
+    chronicle_page = WikiPage.query.filter_by(slug='chronicle-background', status='active').first()
+    chronicle_background = _render_md(chronicle_page.body_markdown) if chronicle_page and chronicle_page.body_markdown else None
     state_of_domain = _get_featured_page('state-of-the-domain')
     return render_template(
         'wiki/index.html',
         counts=counts,
         chronicle_background=chronicle_background,
         state_of_domain=state_of_domain,
+        wiki_cover_url=chronicle_page.cover_image_url if chronicle_page else None,
     )
 
 

@@ -3,7 +3,7 @@
 {% block title %}Chronicle Wiki — Music City by Night{% endblock %}
 
 {% block wiki_hero %}
-<div class="wiki-index-hero">
+<div class="wiki-index-hero"{% if wiki_cover_url %} style="--cover-url: url('{{ wiki_cover_url }}');"{% endif %}>
     <div class="container-xl px-3 px-md-4">
         <h1 class="wiki-index-title">Chronicle Wiki</h1>
         <p class="wiki-index-subtitle">The Requiem of Music City — Lore, Locations &amp; Kindred</p>
