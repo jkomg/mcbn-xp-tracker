@@ -195,7 +195,17 @@ async function handleSend(interaction: ChatInputCommandInteraction, ctx: Command
     .setPlaceholder('Type your text...')
     .setMaxLength(1500)
     .setRequired(true);
-  modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
+  const aliasInput = new TextInputBuilder()
+    .setCustomId('alias')
+    .setLabel('Nickname/Alias (optional)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('How this character signs this text, if not their real name')
+    .setMaxLength(50)
+    .setRequired(false);
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(aliasInput),
+  );
   await interaction.showModal(modal);
 }
 
@@ -235,7 +245,17 @@ function buildReplyModal(): ModalBuilder {
     .setPlaceholder('Type your reply...')
     .setMaxLength(1500)
     .setRequired(true);
-  modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput));
+  const aliasInput = new TextInputBuilder()
+    .setCustomId('alias')
+    .setLabel('Nickname/Alias (optional)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('How this character signs this text, if not their real name')
+    .setMaxLength(50)
+    .setRequired(false);
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(messageInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(aliasInput),
+  );
   return modal;
 }
 
@@ -383,6 +403,7 @@ export async function handleContactSendModal(
   }
 
   const message = interaction.fields.getTextInputValue('message').trim();
+  const alias = interaction.fields.getTextInputValue('alias').trim();
 
   const result = await ctx.adapter.createContactThread(
     { requesterDiscordId: interaction.user.id, requesterDiscordName: interaction.user.username },
@@ -404,7 +425,7 @@ export async function handleContactSendModal(
   );
   const { embed, content, components } = buildContactEmbed(
     '📲 New Text Message',
-    pending.senderCharacterName,
+    alias || pending.senderCharacterName,
     otherParticipants.map((p) => p.character_name),
     message,
     otherParticipants,
@@ -442,6 +463,7 @@ export async function handleContactReplyModal(
   }
 
   const message = interaction.fields.getTextInputValue('message').trim();
+  const alias = interaction.fields.getTextInputValue('alias').trim();
 
   const result = await ctx.adapter.replyToContactThread(
     pending.threadId,
@@ -461,7 +483,7 @@ export async function handleContactReplyModal(
 
   const { embed, content, components } = buildContactEmbed(
     '📲 Reply',
-    pending.senderCharacterName,
+    alias || pending.senderCharacterName,
     result.otherParticipants.map((p) => p.character_name),
     message,
     result.otherParticipants,
