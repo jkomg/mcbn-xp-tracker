@@ -1182,6 +1182,7 @@ def update():
         'BOT_CORRESPONDENCE_SOCIAL_CHANNEL_ID',
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID',
         'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
+        'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.

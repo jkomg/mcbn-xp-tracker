@@ -2735,8 +2735,15 @@ def set_scene_request_queue_message(request_id: int):
     return jsonify({'ok': True})
 
 
-def _scene_request_action(request_id: int, resolve):
-    """Shared atomic-claim/reject plumbing: 404 if missing, 409 if already resolved."""
+def _scene_request_action(request_id: int, build_updates):
+    """Shared atomic-claim/reject plumbing: 404 if missing, 409 if already resolved.
+
+    *build_updates* returns the column values to apply; they're written via a
+    single `UPDATE ... WHERE status = 'pending'` so two concurrent
+    claim/reject calls can't both pass a status check before either commits
+    and overwrite each other — only the request that actually flips the row
+    wins, the other reliably gets the 409.
+    """
     backend = _require_db()
     if backend:
         return backend
@@ -2746,21 +2753,30 @@ def _scene_request_action(request_id: int, resolve):
     if error:
         return error
 
+    from sqlalchemy import update as sa_update
     from app.db import DbCharacter, SceneRequest, db
 
     scene_request = SceneRequest.query.get(request_id)
     if not scene_request:
         return jsonify({'error': 'Scene request not found'}), 404
 
-    if scene_request.status != 'pending':
+    updates = build_updates(effective_discord_id, requester_discord_name, payload)
+    result = db.session.execute(
+        sa_update(SceneRequest)
+        .where(SceneRequest.id == request_id, SceneRequest.status == 'pending')
+        .values(**updates)
+    )
+    if result.rowcount == 0:
+        db.session.rollback()
+        db.session.refresh(scene_request)
         requester = DbCharacter.query.get(scene_request.requester_character_id)
         return jsonify({
             'error': f'Scene request is already {scene_request.status} — nothing to do',
             'request': _scene_request_to_dict(scene_request, requester),
         }), 409
 
-    resolve(scene_request, effective_discord_id, requester_discord_name, payload)
     db.session.commit()
+    db.session.refresh(scene_request)
 
     requester = DbCharacter.query.get(scene_request.requester_character_id)
     return jsonify({'ok': True, 'request': _scene_request_to_dict(scene_request, requester)})
@@ -2775,11 +2791,13 @@ def scene_request_claim_action(request_id: int):
 
     Body: { requesterDiscordId, requesterDiscordName }
     """
-    def _claim(scene_request, effective_discord_id, requester_discord_name, _payload):
-        scene_request.status = 'claimed'
-        scene_request.claimed_by_discord_id = effective_discord_id
-        scene_request.claimed_by_name = requester_discord_name or effective_discord_id
-        scene_request.resolved_at = datetime.now(timezone.utc)
+    def _claim(effective_discord_id, requester_discord_name, _payload):
+        return {
+            'status': 'claimed',
+            'claimed_by_discord_id': effective_discord_id,
+            'claimed_by_name': requester_discord_name or effective_discord_id,
+            'resolved_at': datetime.now(timezone.utc),
+        }
 
     return _scene_request_action(request_id, _claim)
 
@@ -2793,12 +2811,14 @@ def scene_request_reject_action(request_id: int):
 
     Body: { requesterDiscordId, requesterDiscordName, reason }
     """
-    def _reject(scene_request, effective_discord_id, requester_discord_name, payload):
-        scene_request.status = 'rejected'
-        scene_request.claimed_by_discord_id = effective_discord_id
-        scene_request.claimed_by_name = requester_discord_name or effective_discord_id
-        scene_request.rejected_reason = str(payload.get('reason', '')).strip()
-        scene_request.resolved_at = datetime.now(timezone.utc)
+    def _reject(effective_discord_id, requester_discord_name, payload):
+        return {
+            'status': 'rejected',
+            'claimed_by_discord_id': effective_discord_id,
+            'claimed_by_name': requester_discord_name or effective_discord_id,
+            'rejected_reason': str(payload.get('reason', '')).strip(),
+            'resolved_at': datetime.now(timezone.utc),
+        }
 
     return _scene_request_action(request_id, _reject)
 
