@@ -29,6 +29,10 @@ class Config:
     SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '')
     DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL', '')
 
+    # GCP project the Cloud Run web service deploys to (see deploy.sh) — used
+    # only to build "View in Cloud Logs" deep links from Error Alerts.
+    GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'mcbn-xp-tracker')
+
     # Discord OAuth2
     DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID', '')
     DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET', '')

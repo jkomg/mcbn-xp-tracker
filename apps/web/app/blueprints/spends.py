@@ -1,5 +1,7 @@
 """XP spend request review and approval routes."""
 
+from datetime import datetime, timezone
+
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort
 )
@@ -11,12 +13,47 @@ from app.character_sheet import patch_character_draft, find_trait_sheet_match
 bp = Blueprint('spends', __name__)
 
 
+def _days_waiting(timestamp: str) -> int:
+    """Days since a spend was submitted, from the '%Y-%m-%d %H:%M:%S UTC' timestamp."""
+    try:
+        submitted = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return 0
+    return max(0, (datetime.now(timezone.utc) - submitted).days)
+
+
 @bp.route('/')
 @require_staff
 def pending():
-    """List all pending spend requests."""
+    """List all pending spend requests, enriched for the expandable-queue view."""
     spends = db_service.get_pending_spends()
-    return render_template('spends/pending.html', spends=spends)
+    dashboard_data = {c['character_name'].lower(): c for c in db_service.get_dashboard_data()}
+    by_row = {s.row_index: s for s in spends}
+
+    rows = []
+    for spend in spends:
+        validation = validate_spend_request(
+            category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            player_cost=spend.xp_cost,
+        )
+        char_data = dashboard_data.get(spend.character_name.lower())
+        depends_on_spend = by_row.get(spend.depends_on) if spend.depends_on else None
+        sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+        days = _days_waiting(spend.timestamp)
+        rows.append({
+            'spend': spend,
+            'validation': validation,
+            'available_xp': char_data['available_xp'] if char_data else 0,
+            'depends_on_spend': depends_on_spend,
+            'sheet_match': sheet_match,
+            'days': days,
+        })
+
+    # Oldest-first, matching the design's "sorted oldest-first" note.
+    rows.sort(key=lambda r: r['days'], reverse=True)
+    return render_template('spends/pending.html', rows=rows, pending_count=len(rows))
 
 
 @bp.route('/<int:row_id>')
@@ -274,6 +311,7 @@ def bulk_approve():
 @bp.route('/history')
 @require_staff
 def history():
-    """View all spend requests (approved, denied, pending)."""
-    all_spends = db_service.get_all_spends()
-    return render_template('spends/history.html', spends=all_spends)
+    """View reviewed spend requests (approved/denied), most recent first."""
+    reviewed = [s for s in db_service.get_all_spends() if s.status.lower() != 'pending']
+    reviewed.sort(key=lambda s: s.review_date, reverse=True)
+    return render_template('spends/history.html', spends=reviewed)

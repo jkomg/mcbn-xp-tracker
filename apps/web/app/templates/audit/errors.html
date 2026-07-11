@@ -3,181 +3,135 @@
 {% block title %}Error Alerts — MCbN XP Tracker{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-  <h2 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Error Alerts</h2>
-  <div class="d-flex gap-2 align-items-center">
-    <small class="text-muted">Updated {{ now }}</small>
-    <a href="{{ request.url }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-clockwise"></i> Refresh
-    </a>
-    <a href="https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20severity%3E%3DWARNING?project=mcbn-xp-tracker"
-       target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">
-      <i class="bi bi-cloud"></i> Cloud Logs
-    </a>
+<div class="dp-head">
+  <h2>⚠ Error Alerts</h2>
+  <div class="dp-head-actions">
+    <span style="font-size:11.5px;color:var(--text-faint);">Updated {{ now }}</span>
+    <a href="{{ request.url }}" class="dp-btn">↻ Refresh</a>
+    <a href="https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20severity%3E%3DWARNING?project={{ config.GCP_PROJECT_ID }}"
+       target="_blank" rel="noopener" class="dp-btn" style="color:#7cb8f0;border-color:rgba(124,184,240,.35);">☁ Cloud Logs</a>
     {% if show_dismissed %}
-    <a href="{{ request.path }}" class="btn btn-sm btn-outline-secondary">Hide dismissed</a>
+    <a href="{{ request.path }}" class="dp-btn">Hide dismissed</a>
     {% else %}
-    <a href="?show_dismissed=1{% if source_filter %}&source={{ source_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if event_filter %}&event={{ event_filter }}{% endif %}" class="btn btn-sm btn-outline-secondary">Show dismissed</a>
+    <a href="?show_dismissed=1{% if source_filter %}&source={{ source_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if event_filter %}&event={{ event_filter }}{% endif %}" class="dp-btn">Show dismissed</a>
     {% endif %}
   </div>
 </div>
+<p class="dp-subtitle">Warnings and errors from the bot and web app. Auto-refreshes every 30s (pauses while you have rows selected).</p>
 
 {% if sync_errors %}
-<div class="card mb-4 border-warning">
-    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-cloud-slash"></i> <strong>Sheets Sync Errors</strong></span>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-dark">{{ sync_errors|length }}</span>
-            {% if sync_errors | selectattr('id') | list %}
-            <button id="sync-dismiss-all-btn" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-check2-all"></i> Dismiss all
-            </button>
-            {% endif %}
-        </div>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-sm table-dark mb-0">
-            <thead>
-                <tr>
-                    <th>Time (Eastern)</th>
-                    <th>Operation</th>
-                    <th>Error</th>
-                    <th style="width: 40px;"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for e in sync_errors %}
-                <tr id="sync-error-row-{{ e.id }}">
-                    <td class="text-muted small text-nowrap">{{ e.timestamp | to_eastern }}</td>
-                    <td><code>{{ e.operation }}</code></td>
-                    <td class="text-warning small">{{ e.error }}</td>
-                    <td class="text-center">
-                        {% if e.id %}
-                        <button class="btn btn-sm btn-outline-secondary sync-dismiss-btn" title="Dismiss"
-                                data-id="{{ e.id }}" data-url="{{ url_for('audit.dismiss_sync_error', entry_id=e.id) }}">
-                            <i class="bi bi-check-lg"></i>
-                        </button>
-                        {% else %}
-                        <span class="text-muted small" title="Real-time entry — clears automatically on next process restart">—</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div style="background:rgba(226,165,61,.08);border:1px solid rgba(226,165,61,.3);border-radius:var(--r-card);overflow:hidden;margin-bottom:18px;">
+  <div style="display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid rgba(226,165,61,.2);">
+    <span style="font-size:12.5px;font-weight:700;color:#e2a53d;">☁✕ Sheets Sync Errors</span>
+    <span class="dp-pill dp-pill--amber">{{ sync_errors|length }}</span>
+    <div style="flex:1;"></div>
+    {% if sync_errors | selectattr('id') | list %}
+    <button id="sync-dismiss-all-btn" class="dp-btn" style="color:#e2a53d;border-color:rgba(226,165,61,.4);">✓✓ Dismiss all</button>
+    {% endif %}
+  </div>
+  {% for e in sync_errors %}
+  <div id="sync-error-row-{{ e.id }}" style="display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid rgba(226,165,61,.12);">
+    <div style="width:140px;flex-shrink:0;font-size:11.5px;color:var(--text-muted);font-family:monospace;">{{ e.timestamp | to_eastern }}</div>
+    <div style="width:170px;flex-shrink:0;font-size:12px;color:var(--text-body);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.operation }}</div>
+    <div style="flex:1;min-width:0;font-size:12px;color:#e2a53d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.error }}</div>
+    {% if e.id %}
+    <button class="dp-btn sync-dismiss-btn" style="padding:4px 10px;" title="Dismiss" data-id="{{ e.id }}" data-url="{{ url_for('audit.dismiss_sync_error', entry_id=e.id) }}">✓ dismiss</button>
+    {% else %}
+    <span style="flex-shrink:0;white-space:nowrap;font-size:10.5px;color:var(--text-faintest);" title="Real-time entry — clears on next process restart">live</span>
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 {% endif %}
 
-<div class="card bg-dark border-secondary mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label for="source" class="form-label">Source</label>
-                <select class="form-select" id="source" name="source">
-                    <option value="">All</option>
-                    <option value="bot" {% if source_filter == 'bot' %}selected{% endif %}>bot</option>
-                    <option value="web" {% if source_filter == 'web' %}selected{% endif %}>web</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="level" class="form-label">Level</label>
-                <select class="form-select" id="level" name="level">
-                    <option value="">All</option>
-                    <option value="warn" {% if level_filter == 'warn' %}selected{% endif %}>warn</option>
-                    <option value="error" {% if level_filter == 'error' %}selected{% endif %}>error</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="event" class="form-label">Event contains</label>
-                <input type="text" class="form-control" id="event" name="event" value="{{ event_filter }}" placeholder="notion_sync_error">
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-outline-light w-100">
-                    <i class="bi bi-funnel"></i> Filter
-                </button>
-            </div>
-        </form>
+<form method="GET" id="error-filter-form">
+  <div class="dp-toolbar">
+    <select name="source" class="dp-select" onchange="this.form.submit()">
+      <option value="">All Sources</option>
+      <option value="bot" {% if source_filter == 'bot' %}selected{% endif %}>bot</option>
+      <option value="web" {% if source_filter == 'web' %}selected{% endif %}>web</option>
+    </select>
+    <select name="level" class="dp-select" onchange="this.form.submit()">
+      <option value="">All Levels</option>
+      <option value="warn" {% if level_filter == 'warn' %}selected{% endif %}>warn</option>
+      <option value="error" {% if level_filter == 'error' %}selected{% endif %}>error</option>
+    </select>
+    <div class="dp-search">
+      <span class="dp-search-icon">⌕</span>
+      <input type="text" name="event" value="{{ event_filter }}" placeholder="event contains…">
     </div>
-</div>
+    <button type="submit" class="dp-btn">Filter</button>
+    {% if show_dismissed %}<input type="hidden" name="show_dismissed" value="1">{% endif %}
+  </div>
+</form>
 
 {% if event_counts %}
-<div class="card bg-dark border-secondary mb-4">
-    <div class="card-header">Top Events</div>
-    <div class="card-body">
-        {% for event_name, count in event_counts %}
-        <a href="?event={{ event_name | urlencode }}" class="badge bg-secondary text-decoration-none me-2 mb-2">{{ event_name }}: {{ count }}</a>
-        {% endfor %}
-    </div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
+  {% for event_name, count in event_counts %}
+  <a href="?event={{ event_name | urlencode }}{% if show_dismissed %}&show_dismissed=1{% endif %}" class="dp-pill dp-pill--neutral" style="text-decoration:none;">{{ event_name }}: {{ count }}</a>
+  {% endfor %}
 </div>
 {% endif %}
 
 {% if entries %}
-<div id="bulk-dismiss-bar" class="d-none align-items-center gap-2 mb-2">
-    <span id="bulk-dismiss-count" class="text-muted small"></span>
-    <button id="bulk-dismiss-btn" class="btn btn-sm btn-outline-danger">
-        <i class="bi bi-check2-all"></i> Dismiss selected
-    </button>
-    <button id="bulk-clear-btn" class="btn btn-sm btn-outline-secondary">Clear selection</button>
+<div id="bulk-dismiss-bar" class="dp-bulk-bar" style="display:none;">
+  <span class="dp-bulk-count" id="bulk-dismiss-count"></span>
+  <div style="flex:1;"></div>
+  <button id="bulk-dismiss-btn" class="dp-btn" style="color:#ff8a96;border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.1);">✓✓ Dismiss selected</button>
+  <button id="bulk-clear-btn" class="dp-btn" style="border:none;">clear</button>
 </div>
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th style="width: 34px;">
-                    <input type="checkbox" class="form-check-input" id="select-all-errors" title="Select all">
-                </th>
-                <th style="width: 160px;">Time (Eastern)</th>
-                <th style="width: 55px;">Src</th>
-                <th style="width: 60px;">Level</th>
-                <th style="width: 200px;">Event</th>
-                <th>Message / Details</th>
-                <th style="width: 40px;"></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-            <tr id="log-row-{{ entry.id }}">
-                <td>
-                    <input type="checkbox" class="form-check-input error-select" value="{{ entry.id }}">
-                </td>
-                <td class="text-muted small text-nowrap">{{ entry.timestamp | to_eastern }}</td>
-                <td><span class="badge bg-secondary">{{ entry.source }}</span></td>
-                <td>
-                    <span class="badge {% if entry.level == 'error' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                        {{ entry.level }}
-                    </span>
-                </td>
-                <td><code class="small">{{ entry.event }}</code></td>
-                <td>
-                    {% if entry.message %}
-                    <div class="small" style="white-space: pre-wrap; word-break: break-word;">{{ entry.message }}</div>
-                    {% endif %}
-                    {% if entry.details %}
-                    <details class="mt-1">
-                        <summary class="text-muted small" style="cursor:pointer;">Details</summary>
-                        <pre class="mt-1 small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto;">{{ entry.details }}</pre>
-                    </details>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-secondary dismiss-btn" title="Dismiss"
-                            data-id="{{ entry.id }}" data-url="{{ url_for('audit.dismiss_error', entry_id=entry.id) }}">
-                        <i class="bi bi-check-lg"></i>
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<div class="dp-table">
+  <div class="dp-table-head">
+    <div style="width:20px;flex-shrink:0;"></div>
+    <div style="width:135px;flex-shrink:0;">Time</div>
+    <div style="width:55px;flex-shrink:0;">Src</div>
+    <div style="width:65px;flex-shrink:0;">Level</div>
+    <div style="width:170px;flex-shrink:0;">Event</div>
+    <div style="flex:1;">Message</div>
+    <div style="width:130px;flex-shrink:0;"></div>
+  </div>
+  {% for entry in entries %}
+  <div id="log-row-{{ entry.id }}">
+    <div style="display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);">
+      <input type="checkbox" class="dp-checkbox error-select" value="{{ entry.id }}" style="accent-color:var(--accent);">
+      <div style="width:135px;flex-shrink:0;font-size:11.5px;color:var(--text-muted);font-family:monospace;">{{ entry.timestamp | to_eastern }}</div>
+      <div style="width:55px;flex-shrink:0;"><span class="dp-pill dp-pill--neutral">{{ entry.source }}</span></div>
+      <div style="width:65px;flex-shrink:0;"><span class="dp-pill {{ 'dp-pill--red' if entry.level == 'error' else 'dp-pill--amber' }}">{{ entry.level }}</span></div>
+      <div style="width:170px;flex-shrink:0;font-size:11.5px;color:#7cb8f0;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ entry.event }}</div>
+      <div style="flex:1;min-width:0;font-size:12px;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ entry.message }}">{{ entry.message }}</div>
+      {% if entry.occurrence_count > 1 %}
+      <span class="dp-pill dp-pill--amber">×{{ entry.occurrence_count }}</span>
+      {% endif %}
+      <button type="button" class="dp-btn error-expand-toggle" style="color:#7cb8f0;border-color:rgba(124,184,240,.3);" data-target="error-detail-{{ entry.id }}">Details ▼</button>
+      <button type="button" class="dp-btn dismiss-btn" title="Dismiss" data-id="{{ entry.id }}" data-url="{{ url_for('audit.dismiss_error', entry_id=entry.id) }}">✓ dismiss</button>
+    </div>
+    <div id="error-detail-{{ entry.id }}" class="dp-detail" style="display:none;padding-left:55px;">
+      <div class="dp-detail-grid">
+        <div><div class="dp-detail-label">First Seen</div><div class="dp-detail-value">{{ entry.first_seen | to_eastern }}</div></div>
+        <div><div class="dp-detail-label">Last Seen</div><div class="dp-detail-value">{{ entry.last_seen | to_eastern }}</div></div>
+        <div><div class="dp-detail-label">Occurrences (24h)</div><div class="dp-detail-value">{{ entry.occurrence_24h }}</div></div>
+      </div>
+      {% if entry.details %}
+      <div class="dp-detail-label" style="margin-bottom:6px;">Context</div>
+      <pre class="dp-detail-pre">{{ entry.details }}</pre>
+      {% endif %}
+      {% if entry.cloud_logs_link %}
+      <a href="{{ entry.cloud_logs_link }}" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:#7cb8f0;text-decoration:none;">☁ View this event in Cloud Logs →</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
 </div>
 {% else %}
-<div class="text-center text-muted py-5">
-    <i class="bi bi-check-circle" style="font-size: 3rem;"></i>
-    <p class="mt-2">No warn/error entries{% if source_filter or level_filter or event_filter %} matching your filters{% endif %}.</p>
+<div class="dp-empty">
+  <div class="dp-empty-icon">✓</div>
+  <div class="dp-empty-text">No warn/error entries{% if source_filter or level_filter or event_filter %} matching your filters{% endif %}.</div>
 </div>
 {% endif %}
+{% endblock %}
 
+{% block scripts %}
 <script>
   // Auto-refresh every 30s so new bot log entries appear without manual
   // reload — but not while the user has rows checked, mid-review.
@@ -186,6 +140,15 @@
   }, 30000);
 
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+  document.querySelectorAll('.error-expand-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const panel = document.getElementById(btn.dataset.target);
+      const isOpen = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      btn.textContent = isOpen ? 'Details ▼' : 'Collapse ▲';
+    });
+  });
 
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.dismiss-btn');
@@ -252,12 +215,11 @@
   })();
 
   (function () {
-    const selectAll = document.getElementById('select-all-errors');
     const bar = document.getElementById('bulk-dismiss-bar');
     const countEl = document.getElementById('bulk-dismiss-count');
     const dismissBtn = document.getElementById('bulk-dismiss-btn');
     const clearBtn = document.getElementById('bulk-clear-btn');
-    if (!selectAll || !bar) return;  // no rows on this page
+    if (!bar) return;  // no rows on this page
 
     function checkboxes() {
       return Array.from(document.querySelectorAll('.error-select'));
@@ -265,22 +227,9 @@
 
     function updateBar() {
       const checked = checkboxes().filter((c) => c.checked);
-      if (checked.length > 0) {
-        bar.classList.remove('d-none');
-        bar.classList.add('d-flex');
-        countEl.textContent = checked.length + ' selected';
-      } else {
-        bar.classList.add('d-none');
-        bar.classList.remove('d-flex');
-      }
-      selectAll.checked = checked.length > 0 && checked.length === checkboxes().length;
-      selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes().length;
+      bar.style.display = checked.length > 0 ? 'flex' : 'none';
+      countEl.textContent = checked.length + ' selected';
     }
-
-    selectAll.addEventListener('change', function () {
-      checkboxes().forEach((c) => { c.checked = selectAll.checked; });
-      updateBar();
-    });
 
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('error-select')) updateBar();

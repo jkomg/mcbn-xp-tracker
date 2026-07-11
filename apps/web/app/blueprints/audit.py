@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, current_app
 from app import db_service
 from app.sheets_sync import get_recent_sync_errors as _get_recent_sync_errors
 from app.auth import require_staff
@@ -29,36 +30,15 @@ ERROR_LOG_FILES = ('bot.err.log', 'web.err.log')
 @bp.route('/')
 @require_staff
 def log():
-    """View the audit log with optional filters."""
-    action_filter = request.args.get('action', '')
-    character_filter = request.args.get('character', '')
-    staff_filter = request.args.get('staff', '')
+    """View the audit log. Filtering happens client-side over the fetched page."""
+    entries = db_service.get_audit_log(limit=500)
 
-    all_entries = db_service.get_audit_log(limit=500)
-    entries = list(all_entries)
-
-    if action_filter:
-        entries = [e for e in entries
-                   if e.action_type == action_filter]
-    if character_filter:
-        entries = [e for e in entries
-                   if character_filter.lower() in e.target_character.lower()]
-    if staff_filter:
-        entries = [e for e in entries
-                   if staff_filter.lower() in e.staff_user.lower()]
-
-    # Collect unique values for filter dropdowns
-    action_types = sorted(set(e.action_type for e in all_entries
-                              if e.action_type))
-    staff_users = sorted(set(e.staff_user for e in all_entries
-                             if e.staff_user))
+    action_types = sorted(set(e.action_type for e in entries if e.action_type))
+    staff_users = sorted(set(e.staff_user for e in entries if e.staff_user))
 
     return render_template(
         'audit/log.html',
         entries=entries,
-        action_filter=action_filter,
-        character_filter=character_filter,
-        staff_filter=staff_filter,
         action_types=action_types,
         staff_users=staff_users,
     )
@@ -211,8 +191,55 @@ def errors():
         query = query.filter(AppLogEntry.event.ilike(f'%{event_filter}%'))
     db_entries = query.limit(200).all()
 
-    entries = [
-        {
+    # Occurrence tracking: group by dedupe_key (the same grouping key used
+    # for Discord escalation, see discord_alert.py) rather than adding a new
+    # column. First/last-seen and 24h count come from a GROUP BY over ALL
+    # rows sharing a key, not just the currently-filtered page, so the count
+    # reflects the issue's real history even if older occurrences were
+    # dismissed or filtered out.
+    from sqlalchemy import func
+    from app.db import db as _db
+
+    occurrence_rows = (
+        _db.session.query(
+            AppLogEntry.dedupe_key,
+            func.count(AppLogEntry.id),
+            func.min(AppLogEntry.created_at),
+            func.max(AppLogEntry.created_at),
+        )
+        .filter(AppLogEntry.dedupe_key != '')
+        .group_by(AppLogEntry.dedupe_key)
+        .all()
+    )
+    occurrence_by_key = {key: (count, first, last) for key, count, first, last in occurrence_rows}
+
+    cutoff_24h = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
+    count_24h_by_key = dict(
+        _db.session.query(AppLogEntry.dedupe_key, func.count(AppLogEntry.id))
+        .filter(AppLogEntry.dedupe_key != '', AppLogEntry.created_at >= cutoff_24h)
+        .group_by(AppLogEntry.dedupe_key)
+        .all()
+    )
+
+    project_id = current_app.config.get('GCP_PROJECT_ID', '')
+
+    entries = []
+    for e in db_entries:
+        occ = occurrence_by_key.get(e.dedupe_key)
+        occurrence_count, first_seen, last_seen = occ if occ else (1, e.created_at, e.created_at)
+        cloud_logs_link = ''
+        if project_id:
+            query_parts = [f'resource.type="cloud_run_revision"', f'jsonPayload.event="{e.event}"']
+            log_query = '\n'.join(query_parts)
+            window_start = (first_seen or e.created_at).strftime('%Y-%m-%dT%H:%M:%SZ')
+            window_end = ((last_seen or e.created_at) + timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            cloud_logs_link = (
+                'https://console.cloud.google.com/logs/query;query='
+                + quote(log_query)
+                + f';timeRange={window_start}%2F{window_end}'
+                + f'?project={project_id}'
+            )
+        entries.append({
             'id': e.id,
             'timestamp': e.ts,
             'source': e.source,
@@ -221,9 +248,12 @@ def errors():
             'message': e.message,
             'details': e.details,
             'dismissed': e.dismissed,
-        }
-        for e in db_entries
-    ]
+            'occurrence_count': occurrence_count,
+            'first_seen': first_seen.isoformat() if first_seen else '',
+            'last_seen': last_seen.isoformat() if last_seen else '',
+            'occurrence_24h': count_24h_by_key.get(e.dedupe_key, 1),
+            'cloud_logs_link': cloud_logs_link,
+        })
 
     event_counts: dict[str, int] = {}
     for e in entries:

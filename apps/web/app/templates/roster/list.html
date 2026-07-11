@@ -1,189 +1,126 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Character Roster</h2>
-    <div>
-      <a href="{{ url_for('roster.import_csv') }}" class="btn btn-outline-secondary me-1">
-        <i class="bi bi-upload"></i> Import CSV
-      </a>
-      <a href="{{ url_for('roster.add_form') }}" class="btn btn-danger">Add Character</a>
-    </div>
-  </div>
-
-  <!-- Filter Row -->
-  <form method="GET" action="{{ url_for('roster.list_characters') }}" class="mb-3">
-    <div class="row g-3">
-      <div class="col-md-3">
-        <label for="search" class="form-label">Search</label>
-        <input type="text" id="search" class="form-control" placeholder="Type a name..."
-               autocomplete="off" autofocus>
-      </div>
-      <div class="col-md-3">
-        <label for="show" class="form-label">Show</label>
-        <select name="show" id="show" class="form-select" onchange="this.form.submit()">
-          <option value="active" {% if show == 'active' %}selected{% endif %}>Active</option>
-          <option value="inactive" {% if show == 'inactive' %}selected{% endif %}>Inactive</option>
-          <option value="all" {% if show == 'all' %}selected{% endif %}>All</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label for="clan_filter" class="form-label">Clan</label>
-        <select name="clan" id="clan_filter" class="form-select" onchange="this.form.submit()">
-          <option value="">All Clans</option>
-          {% for clan in clans %}
-          <option value="{{ clan }}" {% if clan_filter == clan %}selected{% endif %}>{{ clan }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label for="sect_filter" class="form-label">Sect</label>
-        <select name="sect" id="sect_filter" class="form-select" onchange="this.form.submit()">
-          <option value="">All Sects</option>
-          {% for sect in sects %}
-          <option value="{{ sect }}" {% if sect_filter == sect %}selected{% endif %}>{{ sect }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label for="portrait_filter" class="form-label">Portrait</label>
-        <select name="portrait" id="portrait_filter" class="form-select" onchange="this.form.submit()">
-          <option value="" {% if portrait_filter == '' %}selected{% endif %}>All</option>
-          <option value="missing" {% if portrait_filter == 'missing' %}selected{% endif %}>Missing</option>
-        </select>
-      </div>
-    </div>
-  </form>
-
-  <!-- Character Table -->
-  <div class="table-responsive">
-    <table class="table table-dark table-striped table-hover" id="roster-table">
-      <thead>
-        <tr>
-          <th class="sortable" data-col="0" role="button" tabindex="0" aria-sort="ascending">Name <span class="sort-arrow">▲</span></th>
-          <th class="sortable d-none d-sm-table-cell" data-col="1" role="button" tabindex="0" aria-sort="none">Clan <span class="sort-arrow"></span></th>
-          <th class="sortable d-none d-md-table-cell" data-col="2" role="button" tabindex="0" aria-sort="none">Age <span class="sort-arrow"></span></th>
-          <th class="sortable d-none d-md-table-cell" data-col="3" role="button" tabindex="0" aria-sort="none">Sect <span class="sort-arrow"></span></th>
-          <th class="d-none d-sm-table-cell">Active</th>
-          <th class="d-none d-sm-table-cell" title="Wiki portrait status">Portrait</th>
-          <th class="sortable" data-col="6" role="button" tabindex="0" aria-sort="none">Available XP <span class="sort-arrow"></span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in char_data %}
-        <tr class="has-clan-color clan-{{ item.char.clan | lower | replace(' ', '-') }}{% if not item.char.active %} opacity-50{% endif %}"
-            data-href="{{ url_for('roster.detail', name=item.char.character_name) }}">
-          <td>
-            <a href="{{ url_for('roster.detail', name=item.char.character_name) }}" onclick="event.stopPropagation()">
-              {{ item.char.character_name }}
-            </a>
-          </td>
-          <td class="d-none d-sm-table-cell">
-            {% if item.char.clan %}
-            <span class="clan-badge clan-{{ item.char.clan | lower | replace(' ', '-') }}">{{ item.char.clan }}</span>
-            {% endif %}
-          </td>
-          <td class="d-none d-md-table-cell">{{ item.char.age_category }}</td>
-          <td class="d-none d-md-table-cell">{{ item.char.sect }}</td>
-          <td class="d-none d-sm-table-cell">
-            {% if item.char.active %}
-              <span class="badge bg-success">Yes</span>
-            {% else %}
-              <span class="badge bg-secondary">No</span>
-            {% endif %}
-          </td>
-          <td class="d-none d-sm-table-cell">
-            {% if item.portrait == 'yes' %}
-              <i class="bi bi-person-bounding-box text-success" title="Has portrait"></i>
-            {% elif item.portrait == 'no' %}
-              <i class="bi bi-journal-text text-warning" title="Wiki page exists but no portrait"></i>
-            {% else %}
-              <i class="bi bi-person-x text-secondary" title="No wiki page"></i>
-            {% endif %}
-          </td>
-          <td class="{% if item.available_xp < 0 %}text-danger{% elif item.available_xp > 0 %}text-success{% endif %}">
-            {{ item.available_xp }}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="dp-head">
+  <h2>Character Roster</h2>
+  <span class="dp-count-badge" style="background:rgba(255,255,255,.06);color:var(--text-muted);">{{ char_data|length }} shown</span>
+  <div class="dp-head-actions">
+    <a href="{{ url_for('roster.import_csv') }}" class="dp-btn">Import CSV</a>
+    <a href="{{ url_for('roster.add_form') }}" class="dp-btn dp-btn--accent" style="border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.12);">+ Add Character</a>
   </div>
 </div>
+<p class="dp-subtitle">Click a character to view their full sheet, XP ledger, and spend history.</p>
 
-<style>
-  .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
-  .sortable:hover { color: #dc3545; }
-  .sort-arrow { font-size: 0.75em; margin-left: 4px; }
-</style>
+<form method="GET" action="{{ url_for('roster.list_characters') }}" id="roster-filter-form">
+  <div class="dp-toolbar">
+    <div class="dp-search">
+      <span class="dp-search-icon">⌕</span>
+      <input type="text" id="table-search" placeholder="search by name…">
+    </div>
+    <div class="dp-chip-tabs">
+      <a href="{{ url_for('roster.list_characters', show='active', clan=clan_filter, sect=sect_filter, portrait=portrait_filter) }}" class="dp-chip-tab {{ 'is-active' if show == 'active' }}">Active</a>
+      <a href="{{ url_for('roster.list_characters', show='inactive', clan=clan_filter, sect=sect_filter, portrait=portrait_filter) }}" class="dp-chip-tab {{ 'is-active' if show == 'inactive' }}">Inactive</a>
+      <a href="{{ url_for('roster.list_characters', show='all', clan=clan_filter, sect=sect_filter, portrait=portrait_filter) }}" class="dp-chip-tab {{ 'is-active' if show == 'all' }}">All</a>
+    </div>
+    <input type="hidden" name="show" value="{{ show }}">
+    <select name="clan" class="dp-select" onchange="this.form.submit()">
+      <option value="">All Clans</option>
+      {% for clan in clans %}
+      <option value="{{ clan }}" {% if clan_filter == clan %}selected{% endif %}>{{ clan }}</option>
+      {% endfor %}
+    </select>
+    <select name="sect" class="dp-select" onchange="this.form.submit()">
+      <option value="">All Sects</option>
+      {% for sect in sects %}
+      <option value="{{ sect }}" {% if sect_filter == sect %}selected{% endif %}>{{ sect }}</option>
+      {% endfor %}
+    </select>
+    <a href="{{ url_for('roster.list_characters', show=show, clan=clan_filter, sect=sect_filter, portrait='' if portrait_filter == 'missing' else 'missing') }}"
+       class="dp-chip-tab {{ 'is-active' if portrait_filter == 'missing' }}" style="border:1px solid var(--border-strong);white-space:nowrap;">
+      🖼 Missing Portrait Only
+    </a>
+  </div>
+</form>
 
+<div class="dp-table" id="roster-table">
+  <div class="dp-table-head">
+    <div class="sortable" data-col="name" style="width:190px;flex-shrink:0;cursor:pointer;">Name</div>
+    <div class="sortable d-none d-sm-block" data-col="clan" style="width:110px;flex-shrink:0;cursor:pointer;">Clan</div>
+    <div class="d-none d-md-block" style="width:90px;flex-shrink:0;">Age</div>
+    <div class="d-none d-md-block" style="width:100px;flex-shrink:0;">Sect</div>
+    <div class="d-none d-sm-block" style="width:70px;flex-shrink:0;">Status</div>
+    <div class="d-none d-sm-block" style="width:60px;flex-shrink:0;">Portrait</div>
+    <div class="sortable" data-col="xp" style="width:90px;flex-shrink:0;text-align:right;cursor:pointer;">Available XP</div>
+  </div>
+  {% for item in char_data %}
+  {% set c = item.char %}
+  <a href="{{ url_for('roster.detail', name=c.character_name) }}"
+     class="dp-row roster-row has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}{% if not c.active %} is-inactive{% endif %}"
+     data-name="{{ c.character_name | lower }}" data-xp="{{ item.available_xp }}">
+    <div class="dp-cell-name" style="width:190px;flex-shrink:0;">{{ c.character_name }}</div>
+    <div class="d-none d-sm-block" style="width:110px;flex-shrink:0;">
+      {% if c.clan %}<span class="clan-badge clan-{{ c.clan | lower | replace(' ', '-') }}">{{ c.clan }}</span>{% endif %}
+    </div>
+    <div class="dp-cell-muted d-none d-md-block" style="width:90px;flex-shrink:0;text-transform:capitalize;">{{ c.age_category }}</div>
+    <div class="dp-cell-muted d-none d-md-block" style="width:100px;flex-shrink:0;">{{ c.sect }}</div>
+    <div class="d-none d-sm-block" style="width:70px;flex-shrink:0;">
+      {% if c.status == 'deceased' %}
+      <span class="dp-pill dp-pill--neutral">☠ Deceased</span>
+      {% elif c.status == 'retired' or not c.active %}
+      <span class="dp-pill dp-pill--neutral">Retired</span>
+      {% else %}
+      <span class="dp-pill dp-pill--green">Active</span>
+      {% endif %}
+    </div>
+    <div class="d-none d-sm-block" style="width:60px;flex-shrink:0;font-size:14px;"
+         title="{{ {'yes': 'Has portrait', 'no': 'Wiki page exists, no portrait', 'none': 'No wiki page'}[item.portrait] }}">
+      {{ {'yes': '🧍', 'no': '📄', 'none': '—'}[item.portrait] }}
+    </div>
+    <div style="width:90px;flex-shrink:0;text-align:right;font-size:13px;font-weight:700;" class="{% if item.available_xp > 0 %}xp-positive{% elif item.available_xp < 0 %}xp-negative{% else %}xp-zero{% endif %}">
+      {{ item.available_xp }}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const table = document.getElementById('roster-table');
-  const tbody = table.querySelector('tbody');
-  const headers = table.querySelectorAll('th.sortable');
-  const searchInput = document.getElementById('search');
+  const rows = Array.from(table.querySelectorAll('.roster-row'));
+  const searchInput = document.getElementById('table-search');
 
-  // --- Search / filter ---
   searchInput.addEventListener('input', function () {
     const q = this.value.toLowerCase();
-    tbody.querySelectorAll('tr').forEach(function (row) {
-      const name = row.cells[0].textContent.toLowerCase();
-      row.style.display = name.includes(q) ? '' : 'none';
+    rows.forEach(function (row) {
+      row.style.display = row.dataset.name.includes(q) ? '' : 'none';
     });
   });
 
-  // --- Sortable columns ---
-  let currentCol = 0;
+  let currentCol = null;
   let ascending = true;
+  table.querySelectorAll('.sortable').forEach(function (head) {
+    head.addEventListener('click', function () {
+      const col = head.dataset.col;
+      ascending = (col === currentCol) ? !ascending : true;
+      currentCol = col;
 
-  headers.forEach(function (th) {
-    function sortByHeader() {
-      const col = parseInt(this.dataset.col);
-      if (col === currentCol) {
-        ascending = !ascending;
-      } else {
-        currentCol = col;
-        ascending = true;
-      }
-
-      // Update arrows
-      headers.forEach(function (h) {
-        h.querySelector('.sort-arrow').textContent = '';
-        h.setAttribute('aria-sort', 'none');
-      });
-      this.querySelector('.sort-arrow').textContent = ascending ? '▲' : '▼';
-      this.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
-
-      // Sort rows
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-      const isNumeric = col === 6; // Available XP
-
-      rows.sort(function (a, b) {
-        let va = a.cells[col].textContent.trim();
-        let vb = b.cells[col].textContent.trim();
-        if (isNumeric) {
-          va = parseInt(va) || 0;
-          vb = parseInt(vb) || 0;
+      const sorted = rows.slice().sort(function (a, b) {
+        let va, vb;
+        if (col === 'xp') {
+          va = parseInt(a.dataset.xp, 10) || 0;
+          vb = parseInt(b.dataset.xp, 10) || 0;
           return ascending ? va - vb : vb - va;
         }
-        va = va.toLowerCase();
-        vb = vb.toLowerCase();
+        va = col === 'name' ? a.dataset.name : (a.querySelector('.clan-badge')?.textContent || '');
+        vb = col === 'name' ? b.dataset.name : (b.querySelector('.clan-badge')?.textContent || '');
+        va = va.toLowerCase(); vb = vb.toLowerCase();
         if (va < vb) return ascending ? -1 : 1;
         if (va > vb) return ascending ? 1 : -1;
         return 0;
       });
-
-      rows.forEach(function (row) { tbody.appendChild(row); });
-    }
-
-    th.addEventListener('click', sortByHeader);
-    th.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        sortByHeader.call(this);
-      }
+      sorted.forEach(function (row) { table.appendChild(row); });
     });
   });
 });
