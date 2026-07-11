@@ -119,6 +119,14 @@ BOT_COMMAND_CATALOG = [
         'description': 'Post a rumor to #rumors using the standard template.',
         'subcommands': [],
     },
+    {
+        'name': 'scene',
+        'label': '/scene',
+        'description': 'Queue a scene request with an SPC for an ST to claim or reject.',
+        'subcommands': [
+            {'name': 'request', 'label': 'request', 'description': 'Ask an ST to run a scene with an SPC.'},
+        ],
+    },
 ]
 
 

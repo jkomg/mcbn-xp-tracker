@@ -34,6 +34,7 @@ import { handleContactSendModal, handleContactReplyModal, handleContactReplyButt
 import { handlePostModal, handlePostReplyButton } from './commands/post';
 import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
 import { handleRumorModal } from './commands/rumor';
+import { handleSceneRequestButton, handleSceneRequestRejectModal, isSceneRequestButton } from './commands/scene';
 import { buildDisableTokens, isAnyTokenDisabled } from './services/commandGating';
 import { memberHasAnyRole, requiredRoleIds } from './services/roleGate';
 import {
@@ -113,6 +114,7 @@ liveConfig.correspondencePrestationChannelId = config.correspondencePrestationCh
 liveConfig.correspondenceSocialChannelId = config.correspondenceSocialChannelId;
 liveConfig.correspondenceCobwebChannelId = config.correspondenceCobwebChannelId;
 liveConfig.correspondenceRumorChannelId = config.correspondenceRumorChannelId;
+liveConfig.correspondenceSceneRequestChannelId = config.correspondenceSceneRequestChannelId;
 
 const adapter = new WebAppAdapter(config.webAppBaseUrl, config.webAppApiToken, {
   readToken: config.webAppApiReadToken,
@@ -559,6 +561,11 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_combat_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      if (isSceneRequestButton(interaction.customId)) {
+        await handleSceneRequestButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_scene_request_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const reminderHandled = await handleClaimReminderButton(interaction, adapter);
       if (reminderHandled) {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
@@ -649,6 +656,11 @@ void applyStartupConfigOverrides().then(() => {
       }
       const rumorHandled = await handleRumorModal(interaction);
       if (rumorHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const sceneRequestRejectHandled = await handleSceneRequestRejectModal(interaction, { client, adapter });
+      if (sceneRequestRejectHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }

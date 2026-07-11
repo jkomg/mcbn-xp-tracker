@@ -1300,6 +1300,107 @@ Two-step boon repayment. The debtor's player calls this to propose repayment (`o
 
 ---
 
+## POST /api/scene-requests
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Queues a player's request for a scene with an SPC (ST-played character). Called by the bot's `/scene request` command.
+
+**Body:**
+```json
+{
+  "characterName": "Alice",
+  "spcName": "Prince Voss",
+  "playPeriod": "Night 14",
+  "justification": "Alice needs to answer for the elysium incident",
+  "requesterDiscordId": "111111111111111111",
+  "requesterDiscordName": "playerhandle"
+}
+```
+
+The requester must control `characterName` (staff bypass allowed). `playPeriod` is a free-text label (matches `DbPlayPeriod.period_label`, not validated against the table).
+
+**Response 201:**
+```json
+{
+  "ok": true,
+  "request": {
+    "id": 7,
+    "requester_character_name": "Alice",
+    "requester_discord_id": "111111111111111111",
+    "spc_name": "Prince Voss",
+    "play_period": "Night 14",
+    "justification": "Alice needs to answer for the elysium incident",
+    "status": "pending",
+    "claimed_by_discord_id": "",
+    "claimed_by_name": "",
+    "rejected_reason": "",
+    "queue_channel_id": null,
+    "queue_message_id": null,
+    "created_at": "2026-07-10T20:00:00+00:00",
+    "resolved_at": null
+  }
+}
+```
+
+**Response 400:** Missing `characterName`, `spcName`, or `justification`.
+**Response 403:** Requester doesn't control `characterName`.
+**Response 404:** Character not found (or inactive).
+
+---
+
+## POST /api/scene-requests/{request_id}/queue-message
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+Records where the bot posted the queue embed, so it can be edited in place on claim/reject. Best-effort — called by the bot right after posting; failure here doesn't fail the scene request itself.
+
+**Body:**
+```json
+{ "channelId": "999999999999999999", "messageId": "888888888888888888" }
+```
+
+**Response 200:** `{ "ok": true }`
+**Response 404:** Scene request not found.
+
+---
+
+## POST /api/scene-requests/{request_id}/claim-action
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+An ST claims a `pending` scene request. Called by the bot when a Storyteller clicks **Claim** on the queue embed — role-gating (Storyteller/staff) happens bot-side before this is called.
+
+**Body:**
+```json
+{ "requesterDiscordId": "222222222222222222", "requesterDiscordName": "stormteller" }
+```
+
+**Response 200:** Same `request` shape as `POST /api/scene-requests`, with `status: "claimed"`, `claimed_by_discord_id`, and `claimed_by_name` set.
+**Response 404:** Scene request not found.
+**Response 409:** Already `claimed` or `rejected` by someone else. Body includes the current `request` state so the caller can show who got there first.
+
+---
+
+## POST /api/scene-requests/{request_id}/reject-action
+
+**Scope:** write (replay-protected) | **Rate limit:** 20/min
+
+An ST rejects a `pending` scene request. Called by the bot when a Storyteller submits the reject-reason modal.
+
+**Body:**
+```json
+{ "requesterDiscordId": "222222222222222222", "requesterDiscordName": "stormteller", "reason": "SPC is unavailable that night" }
+```
+
+`reason` is optional.
+
+**Response 200:** Same `request` shape as `POST /api/scene-requests`, with `status: "rejected"` and `rejected_reason` set.
+**Response 404:** Scene request not found.
+**Response 409:** Already `claimed` or `rejected`. Body includes the current `request` state.
+
+---
+
 ## POST /api/contact-threads
 
 **Scope:** write (replay-protected) | **Rate limit:** 20/min
