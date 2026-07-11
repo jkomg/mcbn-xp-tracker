@@ -1,110 +1,85 @@
 {% extends "base.html" %}
+{% import "cc_admin/_shell.html" as ccshell %}
 
 {% block title %}CC Admin — Character Drafts{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+{% call ccshell.shell('drafts') %}
+<div style="max-width:1020px;">
+  <h3 class="settings-pane-title">Drafts</h3>
+  <p class="settings-pane-subtitle">Review submitted character drafts, sorted so what needs your attention first is on top.</p>
 
-  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-    <div>
-      <h2 class="mb-0">Character Drafts</h2>
-      <small class="text-muted">Review submitted character drafts and approve or request revisions.</small>
-    </div>
+  <div class="ccadmin-stat-grid">
+    <a href="{{ url_for('cc_admin.draft_list', status='submitted') }}"
+       class="ccadmin-stat-card ccadmin-stat-card--red {{ 'is-active' if status_filter == 'submitted' }}">
+      <div class="ccadmin-stat-label ccadmin-stat-label--red">Awaiting Review</div>
+      <div class="ccadmin-stat-count">{{ counts.submitted }}</div>
+      <div class="ccadmin-stat-caption">{{ 'oldest waiting ' ~ oldest_waiting_days ~ 'd' if oldest_waiting_days is not none else 'none pending' }}</div>
+    </a>
+    <a href="{{ url_for('cc_admin.draft_list', status='revision_requested') }}"
+       class="ccadmin-stat-card ccadmin-stat-card--amber {{ 'is-active' if status_filter == 'revision_requested' }}">
+      <div class="ccadmin-stat-label ccadmin-stat-label--amber">Revision Requested</div>
+      <div class="ccadmin-stat-count">{{ counts.revision_requested }}</div>
+      <div class="ccadmin-stat-caption">waiting on player</div>
+    </a>
+    <a href="{{ url_for('cc_admin.draft_list', status='approved') }}"
+       class="ccadmin-stat-card ccadmin-stat-card--green {{ 'is-active' if status_filter == 'approved' }}">
+      <div class="ccadmin-stat-label ccadmin-stat-label--green">Approved</div>
+      <div class="ccadmin-stat-count">{{ counts.approved }}</div>
+      <div class="ccadmin-stat-caption">last 30 days</div>
+    </a>
+    <a href="{{ url_for('cc_admin.draft_list', status='all') }}"
+       class="ccadmin-stat-card ccadmin-stat-card--neutral {{ 'is-active' if status_filter == 'all' }}">
+      <div class="ccadmin-stat-label ccadmin-stat-label--neutral">All Drafts</div>
+      <div class="ccadmin-stat-count">{{ counts.all }}</div>
+      <div class="ccadmin-stat-caption">every status</div>
+    </a>
   </div>
 
-  {# ── Status tabs ── #}
-  <ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-      <a class="nav-link {% if status_filter == 'submitted' %}active{% endif %}"
-         href="{{ url_for('cc_admin.draft_list', status='submitted') }}">
-        Submitted
-        {% if counts.submitted %}
-          <span class="badge bg-danger ms-1">{{ counts.submitted }}</span>
-        {% endif %}
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if status_filter == 'revision_requested' %}active{% endif %}"
-         href="{{ url_for('cc_admin.draft_list', status='revision_requested') }}">
-        Revision Requested
-        {% if counts.revision_requested %}
-          <span class="badge bg-warning text-dark ms-1">{{ counts.revision_requested }}</span>
-        {% endif %}
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}"
-         href="{{ url_for('cc_admin.draft_list', status='approved') }}">
-        Approved
-        {% if counts.approved %}
-          <span class="badge bg-success ms-1">{{ counts.approved }}</span>
-        {% endif %}
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if status_filter == 'all' %}active{% endif %}"
-         href="{{ url_for('cc_admin.draft_list', status='all') }}">
-        All
-      </a>
-    </li>
-  </ul>
+  {% set filter_labels = {'submitted': 'Awaiting Review', 'revision_requested': 'Revision Requested', 'approved': 'Approved', 'all': 'All Drafts'} %}
+  <div class="ccadmin-list-heading">
+    <div class="ccadmin-list-heading-label">{{ filter_labels[status_filter] }}</div>
+    <div style="flex:1;"></div>
+    <div class="ccadmin-list-heading-note">sorted oldest-first — the ones that have waited longest surface at the top</div>
+  </div>
 
-  {% if not drafts_with_data %}
-    <div class="text-muted py-4 text-center">No drafts with status "{{ status_filter }}".</div>
+  {% if not rows %}
+    <div class="ccadmin-empty">No drafts with status "{{ filter_labels[status_filter] }}".</div>
   {% else %}
-    <div class="table-responsive">
-      <table class="table table-dark table-hover table-sm align-middle">
-        <thead>
-          <tr>
-            <th>Character</th>
-            <th>Clan</th>
-            <th>Age</th>
-            <th>Player</th>
-            <th>Submitted</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for draft, cd in drafts_with_data %}
-            <tr>
-              <td class="fw-semibold">{{ draft.character_name or '(unnamed)' }}</td>
-              <td>{{ cd.get('clan', '—') }}</td>
-              <td class="text-capitalize">{{ cd.get('age_category', '—') }}</td>
-              <td>
-                <span class="text-muted font-monospace small">{{ draft.player_discord_id }}</span>
-              </td>
-              <td>
-                {% if draft.submitted_at %}
-                  <span title="{{ draft.submitted_at.isoformat() }}">
-                    {{ draft.submitted_at.strftime('%Y-%m-%d') }}
-                  </span>
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if draft.status == 'submitted' %}
-                  <span class="badge bg-danger">Submitted</span>
-                {% elif draft.status == 'revision_requested' %}
-                  <span class="badge bg-warning text-dark">Revision Requested</span>
-                {% elif draft.status == 'approved' %}
-                  <span class="badge bg-success">Approved</span>
-                {% else %}
-                  <span class="badge bg-secondary">{{ draft.status }}</span>
-                {% endif %}
-              </td>
-              <td>
-                <a href="{{ url_for('cc_admin.draft_review', draft_id=draft.id) }}"
-                   class="btn btn-sm btn-outline-secondary">Review</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="settings-card">
+      {% for r in rows %}
+      {% set d = r.draft %}
+      <div class="ccadmin-row">
+        <div class="ccadmin-urgency-bar {{ 'ccadmin-urgency-bar--high' if r.urgency == 'high' else 'ccadmin-urgency-bar--medium' if r.urgency == 'medium' else '' }}"></div>
+        <div style="width:170px;flex-shrink:0;">
+          <div class="ccadmin-row-name">{{ d.character_name or '(unnamed)' }}</div>
+          <div class="ccadmin-row-player">{{ d.player_discord_id }}</div>
+        </div>
+        <div style="width:110px;flex-shrink:0;font-size:12.5px;color:var(--text-body);">{{ r.clan }}</div>
+        <div style="width:90px;flex-shrink:0;font-size:12.5px;color:var(--text-body);text-transform:capitalize;">{{ r.age_category }}</div>
+        <div style="width:130px;flex-shrink:0;">
+          {% if d.status == 'submitted' %}
+            <span class="ccadmin-status-pill ccadmin-status-pill--submitted">Submitted</span>
+          {% elif d.status == 'revision_requested' %}
+            <span class="ccadmin-status-pill ccadmin-status-pill--revision">Revision Req.</span>
+          {% elif d.status == 'approved' %}
+            <span class="ccadmin-status-pill ccadmin-status-pill--approved">Approved</span>
+          {% else %}
+            <span class="ccadmin-status-pill ccadmin-status-pill--neutral">{{ d.status }}</span>
+          {% endif %}
+        </div>
+        <div class="ccadmin-wait-label {{ 'ccadmin-wait-label--high' if r.urgency == 'high' else 'ccadmin-wait-label--medium' if r.urgency == 'medium' else '' }}" style="width:130px;flex-shrink:0;">{{ r.wait_label }}</div>
+        {% if r.flagged %}
+        <div style="width:140px;flex-shrink:0;">
+          <span class="ccadmin-flag-badge">&#9873; ST edit required</span>
+        </div>
+        {% endif %}
+        <div style="flex:1;"></div>
+        <a href="{{ url_for('cc_admin.draft_review', draft_id=d.id) }}" class="ccadmin-review-link">Review &rarr;</a>
+      </div>
+      {% endfor %}
     </div>
   {% endif %}
-
 </div>
-
+{% endcall %}
 {% endblock %}
