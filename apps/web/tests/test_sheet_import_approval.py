@@ -107,7 +107,7 @@ def test_list_only_shows_sheet_review_status():
         res = client.get('/cc-admin/sheet-imports')
     assert res.status_code == 200
     kwargs = mock_render.call_args.kwargs
-    names = [d.character_name for d in kwargs['drafts']]
+    names = [r['draft'].character_name for r in kwargs['rows']]
     assert names == ['Pending One']
 
 
