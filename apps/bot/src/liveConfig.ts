@@ -52,4 +52,5 @@ export const liveConfig = {
   correspondenceSocialChannelId: '',
   correspondenceCobwebChannelId: '',
   correspondenceRumorChannelId: '',
+  correspondenceSceneRequestChannelId: '',
 };
