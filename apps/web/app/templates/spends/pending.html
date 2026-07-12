@@ -77,11 +77,20 @@
           {{ r.sheet_match.close_matches | map(attribute='name') | join(', ') }}. Approving as-is may create a duplicate entry.
         </div>
         {% endif %}
+        {% if blocked %}
+        <div style="font-size:12px;color:#e2a53d;margin-bottom:10px;">⛓ Blocked — approve "{{ r.depends_on_spend.trait_name }}" first.</div>
+        {% elif not r.validation.valid %}
+        <div style="font-size:12px;color:#ff8a96;margin-bottom:10px;">✕ {{ r.validation.message or 'This spend failed cost validation and cannot be approved as-is.' }}</div>
+        {% endif %}
         <div style="display:flex;gap:8px;">
+          {% if blocked or not r.validation.valid %}
+          <button type="button" class="dp-btn" disabled style="opacity:.4;cursor:not-allowed;">Approve @ {{ r.validation.correct_cost }} XP</button>
+          {% else %}
           <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}">
             <input type="hidden" name="verified_cost" value="{{ r.validation.correct_cost }}">
             <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.1);">Approve @ {{ r.validation.correct_cost }} XP</button>
           </form>
+          {% endif %}
           <form method="POST" action="{{ url_for('spends.deny', row_id=spend.row_index) }}" onsubmit="return confirm('Deny this spend request?');">
             <button type="submit" class="dp-btn" style="color:#ff8a96;border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.1);">Deny</button>
           </form>

@@ -14,9 +14,10 @@ bp = Blueprint('spends', __name__)
 
 
 def _days_waiting(timestamp: str) -> int:
-    """Days since a spend was submitted, from the '%Y-%m-%d %H:%M:%S UTC' timestamp."""
+    """Days since a spend was submitted, from the 'YYYYMMDD HH:MM:SS' UTC timestamp
+    written by db_service._now_str()."""
     try:
-        submitted = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
+        submitted = datetime.strptime(timestamp, '%Y%m%d %H:%M:%S').replace(tzinfo=timezone.utc)
     except (ValueError, TypeError):
         return 0
     return max(0, (datetime.now(timezone.utc) - submitted).days)
@@ -112,6 +113,35 @@ def approve(row_id):
     if spend.status.lower() == 'approved':
         flash('This spend request has already been approved.', 'warning')
         return redirect(url_for('spends.pending'))
+
+    # Same queue-order and cost-validity guards bulk_approve() already
+    # enforces — the single-spend path (both the classic review page and
+    # the inline pending-queue expand panel) posted straight through
+    # without them, letting staff jump a dependency queue or approve a
+    # structurally invalid spend (e.g. unrecognized category) at a
+    # nonsensical system-computed cost of 0 XP.
+    if spend.depends_on:
+        parent = db_service.get_spend_by_row(spend.depends_on)
+        if not parent or parent.status.lower() != 'approved':
+            flash(
+                f'{spend.character_name} / {spend.trait_name} depends on another '
+                'spend request that has not been approved yet.',
+                'danger',
+            )
+            return redirect(url_for('spends.review', row_id=row_id))
+
+    validation = validate_spend_request(
+        category=spend.spend_category,
+        current_dots=spend.current_dots,
+        new_dots=spend.new_dots,
+        player_cost=spend.xp_cost,
+    )
+    if not validation.get('valid', False):
+        flash(
+            f'Cannot approve — {validation.get("message") or "this spend failed cost validation"}.',
+            'danger',
+        )
+        return redirect(url_for('spends.review', row_id=row_id))
 
     try:
         verified_cost = int(request.form.get('verified_cost', 0))
