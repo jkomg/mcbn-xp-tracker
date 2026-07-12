@@ -17,7 +17,7 @@ Provides:
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
@@ -114,16 +114,37 @@ def cc_restrictions():
 @bp.route('/cc-admin/loresheets')
 @require_staff
 def loresheet_list():
-    """Staff view: all loresheets with ban status."""
+    """Staff view: all loresheets with ban status, grouped by sourcebook."""
     banned_rows = {
         r.component_id: r
         for r in CcRestriction.query.filter_by(component_type=COMPONENT_TYPE_LORESHEET).all()
     }
     catalog = _load_loresheet_catalog()
+
+    groups_by_source = {}
+    group_order = []
+    for ls in catalog:
+        source = ls.get('source', '')
+        if source not in groups_by_source:
+            groups_by_source[source] = []
+            group_order.append(source)
+        groups_by_source[source].append(ls)
+    groups = [
+        {
+            'source': source,
+            'source_label': _SOURCE_LABELS.get(source, source),
+            'entries': groups_by_source[source],
+            'banned_count': sum(1 for ls in groups_by_source[source] if ls['id'] in banned_rows),
+        }
+        for source in group_order
+    ]
+
     return render_template(
         'cc_admin/loresheets.html',
-        catalog=catalog,
+        groups=groups,
         banned=banned_rows,
+        total_count=len(catalog),
+        banned_total=len(banned_rows),
     )
 
 
@@ -166,26 +187,67 @@ def draft_list():
     if status_filter not in valid_statuses:
         status_filter = 'submitted'
 
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    thirty_days_ago = now - timedelta(days=30)
+
     q = CharacterDraft.query
-    if status_filter != 'all':
-        q = q.filter_by(status=status_filter)
-    else:
+    if status_filter == 'all':
         q = q.filter(CharacterDraft.status.in_(['submitted', 'revision_requested', 'approved']))
-    drafts = q.order_by(CharacterDraft.submitted_at.desc()).all()
+    elif status_filter == 'approved':
+        # The "Approved" stat card/filter is scoped to the last 30 days so the
+        # count shown on the card always matches the list it filters to.
+        q = q.filter(CharacterDraft.status == 'approved', CharacterDraft.approved_at >= thirty_days_ago)
+    else:
+        q = q.filter_by(status=status_filter)
+    drafts = q.order_by(CharacterDraft.submitted_at.asc()).all()
 
     counts = {
-        s: CharacterDraft.query.filter_by(status=s).count()
-        for s in ('submitted', 'revision_requested', 'approved')
+        'submitted': CharacterDraft.query.filter_by(status='submitted').count(),
+        'revision_requested': CharacterDraft.query.filter_by(status='revision_requested').count(),
+        'approved': CharacterDraft.query.filter(
+            CharacterDraft.status == 'approved', CharacterDraft.approved_at >= thirty_days_ago
+        ).count(),
     }
-    drafts_with_data = [
-        (d, json.loads(d.character_data) if d.character_data else {})
-        for d in drafts
-    ]
+    counts['all'] = CharacterDraft.query.filter(
+        CharacterDraft.status.in_(['submitted', 'revision_requested', 'approved'])
+    ).count()
+
+    oldest_waiting_days = None
+    oldest_submitted = (
+        CharacterDraft.query.filter_by(status='submitted')
+        .order_by(CharacterDraft.submitted_at.asc())
+        .first()
+    )
+    if oldest_submitted and oldest_submitted.submitted_at:
+        oldest_waiting_days = (now - oldest_submitted.submitted_at).days
+
+    rows = []
+    for d in drafts:
+        char_data = json.loads(d.character_data) if d.character_data else {}
+        days_waiting = (now - d.submitted_at).days if d.submitted_at else 0
+        urgent = d.status == 'submitted' and days_waiting >= 5
+        warn = d.status == 'submitted' and days_waiting >= 3
+        is_im_ancilla = (
+            char_data.get('age_category') == 'ancilla'
+            and char_data.get('in_memoriam')
+            and not char_data.get('in_memoriam', {}).get('use_standard', True)
+        )
+        rows.append({
+            'draft': d,
+            'clan': char_data.get('clan', '—'),
+            'age_category': char_data.get('age_category', '—'),
+            'days_waiting': days_waiting,
+            'urgency': 'high' if urgent else 'medium' if warn else 'none',
+            'wait_label': '—' if d.status == 'approved' else ('today' if days_waiting == 0 else f'waiting {days_waiting}d'),
+            'flagged': bool(is_im_ancilla),
+        })
+
     return render_template(
         'cc_admin/drafts.html',
-        drafts_with_data=drafts_with_data,
+        rows=rows,
         status_filter=status_filter,
         counts=counts,
+        oldest_waiting_days=oldest_waiting_days,
     )
 
 
@@ -348,6 +410,20 @@ def draft_request_revision(draft_id):
 # Lifecycle: sheet_review -> approved (supersedes the character's prior
 # approved row) | denied (character's current approved row is untouched).
 
+def _relative_time(dt):
+    """Render a datetime as a short 'N units ago' string, or '—' if unset."""
+    if not dt:
+        return '—'
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    delta = now - dt
+    seconds = max(int(delta.total_seconds()), 0)
+    if seconds < 3600:
+        return f'{max(seconds // 60, 1)} minutes ago'
+    if seconds < 86400:
+        return f'{seconds // 3600} hours ago'
+    return f'{seconds // 86400} days ago'
+
+
 @bp.route('/cc-admin/sheet-imports')
 @require_staff
 def sheet_import_list():
@@ -358,7 +434,22 @@ def sheet_import_list():
         .order_by(CharacterDraft.submitted_at.desc())
         .all()
     )
-    return render_template('cc_admin/sheet_imports.html', drafts=drafts)
+    prior_sheet_roster_ids = {
+        row.roster_character_id
+        for row in CharacterDraft.query.filter(
+            CharacterDraft.status.in_(['approved', 'superseded']),
+            CharacterDraft.roster_character_id.isnot(None),
+        ).all()
+    }
+    rows = [
+        {
+            'draft': d,
+            'submitted_label': _relative_time(d.submitted_at),
+            'first_time': d.roster_character_id not in prior_sheet_roster_ids,
+        }
+        for d in drafts
+    ]
+    return render_template('cc_admin/sheet_imports.html', rows=rows)
 
 
 @bp.route('/cc-admin/sheet-imports/<draft_id>')

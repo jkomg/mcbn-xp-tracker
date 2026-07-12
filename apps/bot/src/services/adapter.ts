@@ -59,6 +59,7 @@ export interface BotConfigResponse {
   correspondenceSocialChannelId: string | null;
   correspondenceCobwebChannelId: string | null;
   correspondenceRumorChannelId: string | null;
+  correspondenceSceneRequestChannelId: string | null;
 }
 
 export interface TrackerAdapter {
@@ -230,6 +231,20 @@ export interface TrackerAdapter {
     requester: RequesterContext,
     payload: { senderCharacterName: string; body: string },
   ): Promise<{ ok: boolean; message: string; otherParticipants?: ContactParticipant[] }>;
+  createSceneRequest(
+    requester: RequesterContext,
+    payload: { characterName: string; spcName: string; playPeriod: string; justification: string },
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails }>;
+  setSceneRequestQueueMessage(requestId: number, channelId: string, messageId: string): Promise<void>;
+  claimSceneRequest(
+    requestId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }>;
+  rejectSceneRequest(
+    requestId: number,
+    requester: RequesterContext,
+    reason: string,
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }>;
 }
 
 export type BoonTier = 'trivial' | 'minor' | 'major' | 'life';
@@ -253,6 +268,23 @@ export type BoonSummary = {
   reason: string;
   status: string;
   created_at: string | null;
+};
+
+export type SceneRequestDetails = {
+  id: number;
+  requester_character_name: string;
+  requester_discord_id: string;
+  spc_name: string;
+  play_period: string;
+  justification: string;
+  status: string;
+  claimed_by_discord_id: string;
+  claimed_by_name: string;
+  rejected_reason: string;
+  queue_channel_id: string | null;
+  queue_message_id: string | null;
+  created_at: string | null;
+  resolved_at: string | null;
 };
 
 export type ContactParticipant = { character_name: string; discord_id: string };
@@ -1730,6 +1762,105 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
     const data = await resp.json() as { ok: boolean; other_participants: ContactParticipant[] };
     return { ok: data.ok, message: 'Reply sent.', otherParticipants: data.other_participants };
+  }
+
+  async createSceneRequest(
+    requester: RequesterContext,
+    payload: { characterName: string; spcName: string; playPeriod: string; justification: string },
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/scene-requests`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        characterName: payload.characterName,
+        spcName: payload.spcName,
+        playPeriod: payload.playPeriod,
+        justification: payload.justification,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; request: SceneRequestDetails };
+    return { ok: data.ok, message: 'Scene request queued.', request: data.request };
+  }
+
+  async setSceneRequestQueueMessage(requestId: number, channelId: string, messageId: string): Promise<void> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    await this.fetchWithTimeout(`${this.baseUrl}/api/scene-requests/${requestId}/queue-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({ channelId, messageId }),
+    }).catch(() => null);
+    // Best-effort — losing this mapping only means the embed can't be edited later, not fatal.
+  }
+
+  async claimSceneRequest(
+    requestId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }> {
+    return this.sceneRequestAction(`${requestId}/claim-action`, requester, {}, 'Scene request claimed.');
+  }
+
+  async rejectSceneRequest(
+    requestId: number,
+    requester: RequesterContext,
+    reason: string,
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }> {
+    return this.sceneRequestAction(`${requestId}/reject-action`, requester, { reason }, 'Scene request rejected.');
+  }
+
+  private async sceneRequestAction(
+    pathSuffix: string,
+    requester: RequesterContext,
+    extraBody: Record<string, unknown>,
+    successMessage: string,
+  ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/scene-requests/${pathSuffix}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        ...extraBody,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (resp.status === 409) {
+      const body = await resp.json().catch(() => ({})) as { error?: string; request?: SceneRequestDetails };
+      return {
+        ok: false,
+        message: body.error ?? 'Scene request already resolved.',
+        request: body.request,
+        alreadyResolved: true,
+      };
+    }
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; request: SceneRequestDetails };
+    return { ok: data.ok, message: successMessage, request: data.request };
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

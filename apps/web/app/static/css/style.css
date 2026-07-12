@@ -29,6 +29,11 @@
   --vtm-red-light: #ff8a96;
   --vtm-gold:      #d4b352;
 
+  /* status colors — shared across Settings + CC Admin redesigns */
+  --status-green: #3ecf7e;
+  --status-amber: #e2a53d;
+  --status-blue:  #7cb8f0;
+
   /* typography */
   --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
   --font-body:    'Spectral', Georgia, serif;
@@ -2599,4 +2604,260 @@ a.dp-row:hover, .dp-row.is-clickable:hover { background: rgba(255,255,255,.03); 
   background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 9px;
   padding: 12px 14px; font-size: 11.5px; color: var(--text-body); font-family: monospace;
   white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; margin: 0 0 12px;
+}
+
+/* ── CC Admin (Drafts / Sheet Imports / Loresheet Restrictions) ──
+   Reuses the Settings shell (.settings-topbar/.settings-shell/.settings-nav/
+   .settings-main) — same two-pane layout, same tokens. Only page-specific
+   pieces below. */
+
+.ccadmin-nav-icon { font-size: 14px; }
+.ccadmin-nav-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent-soft);
+  background: rgba(216,58,74,.16);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+}
+
+.ccadmin-callout {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(226,165,61,.08);
+  border: 1px solid rgba(226,165,61,.2);
+}
+.ccadmin-callout-title { font-size: 11px; font-weight: 700; color: var(--status-amber); margin-bottom: 4px; }
+.ccadmin-callout-body { font-size: 11px; color: #a89f8f; line-height: 1.5; }
+
+.ccadmin-callout-info {
+  background: rgba(124,184,240,.08);
+  border: 1px solid rgba(124,184,240,.25);
+  border-radius: var(--r-card);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.ccadmin-callout-info-title { font-size: 13px; font-weight: 700; color: var(--status-blue); margin-bottom: 8px; }
+.ccadmin-callout-info-body { font-size: 12.5px; color: var(--text-body); line-height: 1.6; }
+
+.ccadmin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) {
+  .ccadmin-stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.ccadmin-stat-card {
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 14px 16px;
+  font-family: var(--font-ui);
+}
+.ccadmin-stat-card.is-active { border-width: 1px; }
+.ccadmin-stat-card--red.is-active    { background: rgba(216,58,74,.14);  border-color: rgba(216,58,74,.5); }
+.ccadmin-stat-card--amber.is-active  { background: rgba(226,165,61,.14); border-color: rgba(226,165,61,.5); }
+.ccadmin-stat-card--green.is-active  { background: rgba(62,207,126,.14); border-color: rgba(62,207,126,.5); }
+.ccadmin-stat-card--neutral.is-active { background: rgba(140,148,163,.14); border-color: rgba(140,148,163,.5); }
+.ccadmin-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
+.ccadmin-stat-label--red    { color: var(--accent-soft); }
+.ccadmin-stat-label--amber  { color: var(--status-amber); }
+.ccadmin-stat-label--green  { color: var(--status-green); }
+.ccadmin-stat-label--neutral { color: var(--text-muted); }
+.ccadmin-stat-count { font-size: 26px; font-weight: 700; color: var(--text); }
+.ccadmin-stat-caption { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.ccadmin-list-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ccadmin-list-heading-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+}
+.ccadmin-list-heading-note { font-size: 11.5px; color: var(--text-faintest); }
+
+.ccadmin-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.ccadmin-row:last-child { border-bottom: none; }
+
+.ccadmin-urgency-bar {
+  width: 6px;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+.ccadmin-urgency-bar--high   { background: var(--accent); }
+.ccadmin-urgency-bar--medium { background: var(--status-amber); }
+
+.ccadmin-row-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.ccadmin-row-player { font-size: 11px; color: var(--text-faint); font-family: monospace; }
+
+.ccadmin-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.ccadmin-status-pill--submitted { background: rgba(216,58,74,.16);  color: var(--accent-soft); }
+.ccadmin-status-pill--revision  { background: rgba(226,165,61,.16); color: var(--status-amber); }
+.ccadmin-status-pill--approved  { background: rgba(62,207,126,.16); color: var(--status-green); }
+.ccadmin-status-pill--neutral   { background: rgba(255,255,255,.06); color: var(--text-muted); }
+
+.ccadmin-wait-label { font-size: 12px; color: var(--text-muted); }
+.ccadmin-wait-label--high   { color: var(--accent-soft); font-weight: 700; }
+.ccadmin-wait-label--medium { color: var(--status-amber); font-weight: 500; }
+
+.ccadmin-flag-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--status-amber);
+  background: rgba(226,165,61,.12);
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.ccadmin-firsttime-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255,255,255,.06);
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+
+.ccadmin-review-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--status-blue);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid rgba(124,184,240,.3);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.ccadmin-review-link:hover { background: rgba(124,184,240,.1); color: var(--status-blue); }
+
+.ccadmin-empty { text-align: center; padding: 40px 0; color: var(--text-faintest); font-size: 13px; }
+
+.ccadmin-ls-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.ccadmin-ls-header-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+}
+.ccadmin-ls-header-count { font-size: 10.5px; color: var(--text-faintest); }
+
+.ccadmin-ls-row { gap: 14px; padding: 11px 18px; }
+.ccadmin-ls-dot { font-size: 13px; flex-shrink: 0; }
+.ccadmin-ls-dot--banned    { color: var(--accent); }
+.ccadmin-ls-dot--available { color: var(--status-green); }
+.ccadmin-ls-name { width: 220px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.ccadmin-ls-id { width: 150px; flex-shrink: 0; font-size: 11px; color: var(--text-faint); font-family: monospace; }
+.ccadmin-ls-reason { flex: 1; min-width: 200px; font-size: 12px; color: var(--accent-soft); }
+
+.ccadmin-header-pills { display: flex; gap: 8px; }
+.ccadmin-count-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.ccadmin-count-pill--red { background: rgba(216,58,74,.14); color: var(--accent-soft); }
+.ccadmin-count-pill--neutral { background: rgba(255,255,255,.06); color: var(--text-muted); }
+
+.ccadmin-filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.ccadmin-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  padding: 7px 14px;
+}
+.ccadmin-search-icon { font-size: 13px; color: var(--text-faintest); }
+.ccadmin-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+}
+.ccadmin-search input::placeholder { color: var(--text-faintest); }
+
+.ccadmin-toggle-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+.ccadmin-toggle-btn.is-active {
+  background: rgba(216,58,74,.14);
+  border-color: rgba(216,58,74,.4);
+  color: var(--accent-soft);
+}
+
+.ccadmin-ban-btn, .ccadmin-unban-btn {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  flex-shrink: 0;
+}
+.ccadmin-ban-btn {
+  background: rgba(216,58,74,.12);
+  border: 1px solid rgba(216,58,74,.4);
+  color: var(--accent-soft);
+}
+.ccadmin-unban-btn {
+  background: transparent;
+  border: 1px solid rgba(62,207,126,.4);
+  color: var(--status-green);
 }

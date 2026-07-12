@@ -437,6 +437,30 @@ class DbBoon(db.Model):
     debtor = db.relationship('DbCharacter', foreign_keys=[debtor_character_id])
 
 
+class SceneRequest(db.Model):
+    """A player's ask for a scene with an SPC, queued for an ST to claim or reject."""
+    __tablename__ = 'scene_requests'
+    __table_args__ = (
+        db.Index('ix_scene_requests_status_created', 'status', 'created_at'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    requester_character_id = db.Column(Integer, db.ForeignKey('characters.id'), nullable=False, index=True)
+    spc_name = db.Column(String(200), nullable=False)
+    play_period = db.Column(String(100), default='', index=True)
+    justification = db.Column(Text, default='')
+    status = db.Column(String(20), nullable=False, default='pending', index=True)  # pending | claimed | rejected
+    created_by_discord_id = db.Column(String(30), default='')
+    claimed_by_discord_id = db.Column(String(30), default='')
+    claimed_by_name = db.Column(String(100), default='')
+    rejected_reason = db.Column(Text, default='')
+    queue_channel_id = db.Column(String(32), nullable=True)
+    queue_message_id = db.Column(String(32), nullable=True)
+    created_at = db.Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    resolved_at = db.Column(DateTime, nullable=True)
+
+    requester = db.relationship('DbCharacter', foreign_keys=[requester_character_id])
+
+
 class DbContactThread(db.Model):
     """A #kindred-contact conversation between two or more characters."""
     __tablename__ = 'contact_threads'
