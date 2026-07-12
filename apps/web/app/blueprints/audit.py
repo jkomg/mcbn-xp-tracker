@@ -229,7 +229,7 @@ def errors():
         occurrence_count, first_seen, last_seen = occ if occ else (1, e.created_at, e.created_at)
         cloud_logs_link = ''
         if project_id:
-            query_parts = [f'resource.type="cloud_run_revision"', f'jsonPayload.event="{e.event}"']
+            query_parts = ['resource.type="cloud_run_revision"', f'jsonPayload.event="{e.event}"']
             log_query = '\n'.join(query_parts)
             window_start = (first_seen or e.created_at).strftime('%Y-%m-%dT%H:%M:%SZ')
             window_end = ((last_seen or e.created_at) + timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
