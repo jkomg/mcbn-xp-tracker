@@ -3,81 +3,170 @@
 {% block title %}Play Periods — MCbN XP Tracker{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-calendar-week"></i> Play Periods</h2>
-    <div>
-        <a href="{{ url_for('periods.export_ical') }}" class="btn btn-outline-secondary me-1">
-            <i class="bi bi-calendar-event"></i> Export iCal
-        </a>
-        <a href="{{ url_for('periods.import_periods') }}" class="btn btn-outline-info me-1">
-            <i class="bi bi-cloud-arrow-down"></i> Import from Sheet
-        </a>
-        <a href="{{ url_for('periods.add_form') }}" class="btn btn-danger">
-            <i class="bi bi-plus-lg"></i> New Period
-        </a>
+<div class="dp-head">
+  <h2>📅 Play Periods</h2>
+  <div class="dp-head-actions">
+    <a href="{{ url_for('periods.export_ical') }}" class="dp-btn">⬇ Export iCal</a>
+    <button type="button" class="dp-btn" style="color:#7cb8f0;border-color:rgba(124,184,240,.35);" id="toggle-import">☁ Import from Sheet</button>
+    <button type="button" class="dp-btn dp-btn--accent" style="border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.12);" id="toggle-add">+ New Period</button>
+  </div>
+</div>
+<p class="dp-subtitle">Each period governs when claims/spends can be submitted and which periods appear in submission dropdowns.</p>
+
+<!-- New Period panel -->
+<div id="add-panel" style="display:none;background:var(--surface);border:1px solid rgba(216,58,74,.3);border-radius:var(--r-card);padding:18px 20px;margin-bottom:18px;max-width:640px;">
+  <div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:12px;">New Play Period</div>
+  <form method="POST" action="{{ url_for('periods.add') }}">
+    <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+      <div>
+        <div class="dp-detail-label" style="margin-bottom:5px;">Night Number</div>
+        <input type="number" name="night_number" id="add-night" value="{{ next_night }}" class="dp-select" style="width:100px;">
+      </div>
+      <div>
+        <div class="dp-detail-label" style="margin-bottom:5px;">Start Date (Tue noon CDT)</div>
+        <input type="date" name="start_date" id="add-start" class="dp-select" required>
+      </div>
+      <div>
+        <div class="dp-detail-label" style="margin-bottom:5px;">End Date (Sun noon CDT)</div>
+        <input type="date" name="end_date" id="add-end" class="dp-select" required>
+      </div>
+      <div>
+        <div class="dp-detail-label" style="margin-bottom:5px;">Session (8-wk block)</div>
+        <input type="number" name="session_number" id="add-session" value="1" class="dp-select" style="width:70px;">
+      </div>
     </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;margin-bottom:14px;">
+      <div class="dp-detail-label" style="margin-bottom:3px;">Preview Label</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);" id="add-preview">Night {{ next_night }} - ?/? - ?/?</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.12);">✓ Create Period</button>
+      <button type="button" class="dp-btn" id="cancel-add">Cancel</button>
+    </div>
+  </form>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th data-sort="number">Night</th>
-                <th data-sort="text">Period</th>
-                <th data-sort="text">Start</th>
-                <th data-sort="text">End</th>
-                <th data-sort="number">Session</th>
-                <th>Submissions</th>
-                <th>In Dropdowns</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in periods %}
-            <tr>
-                <td>{{ p.night_number }}</td>
-                <td>{{ p.period_label }}</td>
-                <td>{{ p.start_date }}</td>
-                <td>{{ p.end_date }}</td>
-                <td>{{ p.session_number }}</td>
-                <td>
-                    {% if p.submissions_open %}
-                    <span class="badge bg-success">Open</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Closed</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if p.active %}
-                    <span class="badge bg-success">Active</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <form method="POST" action="{{ url_for('periods.toggle_submissions', label=p.period_label) }}"
-                          class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if p.submissions_open else 'success' }}">
-                            {{ 'Close' if p.submissions_open else 'Open' }}
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ url_for('periods.toggle_active', label=p.period_label) }}"
-                          class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-{{ 'secondary' if p.active else 'info' }}">
-                            {{ 'Hide' if p.active else 'Show' }}
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Import from Sheet panel -->
+<div id="import-panel" style="display:{{ 'block' if import_preview is defined else 'none' }};background:var(--surface);border:1px solid rgba(124,184,240,.3);border-radius:var(--r-card);padding:18px 20px;margin-bottom:18px;max-width:700px;">
+  <div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px;">Import Play Periods</div>
+  <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+    Paste a master spreadsheet URL whose <b style="color:var(--text-body);">tab names</b> follow the pattern
+    <code style="color:#7cb8f0;">Night NN - M/D - M/D</code>. Gaps are filled using the bi-weekly cadence.
+    The service account needs at least Viewer access.
+  </div>
+  <form method="POST" action="{{ url_for('periods.import_periods') }}">
+    <input type="hidden" name="action" value="preview">
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input type="url" name="sheet_url" value="{{ import_sheet_url or '' }}" placeholder="https://docs.google.com/spreadsheets/d/…" class="dp-select" style="flex:1;" required>
+      <button type="submit" class="dp-btn" style="color:#7cb8f0;border-color:rgba(124,184,240,.4);background:rgba(124,184,240,.12);">⌕ Preview</button>
+    </div>
+  </form>
+
+  {% if import_preview is defined %}
+  <div class="dp-detail-label" style="margin-bottom:8px;">Preview — {{ import_preview|length }} found, {{ import_new_count }} new</div>
+  <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;max-height:220px;overflow-y:auto;">
+    {% for p in import_preview %}
+    <div style="display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--border);opacity:{{ '0.55' if p.already_exists else '1' }};">
+      <div style="width:50px;flex-shrink:0;font-size:12.5px;color:var(--text);">N{{ p.night }}</div>
+      <div style="flex:1;font-size:12px;color:var(--text-muted);">{{ p.start }} – {{ p.end }}</div>
+      <span class="dp-pill {{ 'dp-pill--green' if p.source == 'parsed' else 'dp-pill--amber' }}">{{ 'From Tab' if p.source == 'parsed' else 'Extrapolated' }}</span>
+      <span class="dp-pill {{ 'dp-pill--neutral' if p.already_exists else 'dp-pill--blue' }}">{{ 'Already exists' if p.already_exists else 'New' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px;">
+    {% if import_new_count > 0 %}
+    <form method="POST" action="{{ url_for('periods.import_periods') }}">
+      <input type="hidden" name="action" value="confirm">
+      <input type="hidden" name="sheet_url" value="{{ import_sheet_url }}">
+      <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.12);"
+              onclick="return confirm('Import {{ import_new_count }} new play periods?');">✓ Confirm Import ({{ import_new_count }})</button>
+    </form>
+    {% endif %}
+    <button type="button" class="dp-btn" id="cancel-import">Cancel</button>
+  </div>
+  {% endif %}
 </div>
 
 {% if not periods %}
-<div class="text-center text-muted py-5">
-    <i class="bi bi-calendar-x" style="font-size: 3rem;"></i>
-    <p class="mt-2">No play periods yet. Create your first one.</p>
+<div class="dp-empty">
+  <div class="dp-empty-icon" style="color:var(--text-faint);">📅</div>
+  <div class="dp-empty-text">No play periods yet. Create your first one.</div>
+</div>
+{% else %}
+<div class="dp-table">
+  <div class="dp-table-head">
+    <div style="width:50px;flex-shrink:0;">Night</div>
+    <div style="width:180px;flex-shrink:0;">Period</div>
+    <div style="width:90px;flex-shrink:0;">Session</div>
+    <div style="width:100px;flex-shrink:0;">Submissions</div>
+    <div style="width:90px;flex-shrink:0;">Dropdowns</div>
+    <div style="flex:1;text-align:right;">Actions</div>
+  </div>
+  {% for p in periods %}
+  <div class="dp-row" style="cursor:default;">
+    <div style="width:50px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text);">{{ p.night_number }}</div>
+    <div style="width:180px;flex-shrink:0;">
+      <div class="dp-cell-name">{{ p.period_label }}</div>
+      <div style="font-size:11px;color:var(--text-faint);">{{ p.start_date }} – {{ p.end_date }}</div>
+    </div>
+    <div style="width:90px;flex-shrink:0;" class="dp-cell-muted">Session {{ p.session_number }}</div>
+    <div style="width:100px;flex-shrink:0;">
+      <span class="dp-pill {{ 'dp-pill--green' if p.submissions_open else 'dp-pill--neutral' }}">{{ 'Open' if p.submissions_open else 'Closed' }}</span>
+    </div>
+    <div style="width:90px;flex-shrink:0;">
+      <span class="dp-pill {{ 'dp-pill--green' if p.active else 'dp-pill--neutral' }}">{{ 'Active' if p.active else 'Inactive' }}</span>
+    </div>
+    <div style="flex:1;display:flex;gap:8px;justify-content:flex-end;">
+      <form method="POST" action="{{ url_for('periods.toggle_submissions', label=p.period_label) }}">
+        <button type="submit" class="dp-btn" style="padding:5px 11px;{{ 'color:#e2a53d;border-color:rgba(226,165,61,.4);' if p.submissions_open else 'color:#3ecf7e;border-color:rgba(62,207,126,.4);' }}">{{ 'Close' if p.submissions_open else 'Open' }}</button>
+      </form>
+      <form method="POST" action="{{ url_for('periods.toggle_active', label=p.period_label) }}">
+        <button type="submit" class="dp-btn" style="padding:5px 11px;">{{ 'Hide' if p.active else 'Show' }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const addPanel = document.getElementById('add-panel');
+  const importPanel = document.getElementById('import-panel');
+
+  document.getElementById('toggle-add').addEventListener('click', function () {
+    addPanel.style.display = addPanel.style.display === 'none' ? 'block' : 'none';
+    importPanel.style.display = 'none';
+  });
+  document.getElementById('cancel-add').addEventListener('click', function () {
+    addPanel.style.display = 'none';
+  });
+  document.getElementById('toggle-import').addEventListener('click', function () {
+    importPanel.style.display = importPanel.style.display === 'none' ? 'block' : 'none';
+    addPanel.style.display = 'none';
+  });
+  const cancelImport = document.getElementById('cancel-import');
+  if (cancelImport) {
+    cancelImport.addEventListener('click', function () { importPanel.style.display = 'none'; });
+  }
+
+  const nightInput = document.getElementById('add-night');
+  const startInput = document.getElementById('add-start');
+  const endInput = document.getElementById('add-end');
+  const preview = document.getElementById('add-preview');
+
+  function shortDate(value) {
+    if (!value) return '?/?';
+    const [, m, d] = value.split('-');
+    return `${parseInt(m, 10)}/${parseInt(d, 10)}`;
+  }
+  function updatePreview() {
+    preview.textContent = `Night ${nightInput.value || '?'} - ${shortDate(startInput.value)} - ${shortDate(endInput.value)}`;
+  }
+  [nightInput, startInput, endInput].forEach(function (el) { el.addEventListener('input', updatePreview); });
+});
+</script>
 {% endblock %}

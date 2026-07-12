@@ -3,91 +3,108 @@
 {% block title %}Audit Log — MCbN XP Tracker{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-clock-history"></i> Audit Log</h2>
-
-<!-- Filters -->
-<div class="card bg-dark border-secondary mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label for="action" class="form-label">Action Type</label>
-                <select class="form-select" id="action" name="action">
-                    <option value="">All Actions</option>
-                    {% for a in action_types %}
-                    <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="character" class="form-label">Character</label>
-                <input type="text" class="form-control" id="character" name="character"
-                       value="{{ character_filter }}" placeholder="Search character...">
-            </div>
-            <div class="col-md-3">
-                <label for="staff" class="form-label">Staff Member</label>
-                <select class="form-select" id="staff" name="staff">
-                    <option value="">All Staff</option>
-                    {% for s in staff_users %}
-                    <option value="{{ s }}" {% if staff_filter == s %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-outline-light w-100">
-                    <i class="bi bi-funnel"></i> Filter
-                </button>
-            </div>
-        </form>
-    </div>
+<div class="dp-head">
+  <h2>⏱ Audit Log</h2>
+  <span class="dp-count-badge" id="result-count" style="background:rgba(255,255,255,.06);color:var(--text-muted);">{{ entries|length }} entries</span>
 </div>
+<p class="dp-subtitle">Every staff action — approvals, denials, edits, config changes — in one searchable trail.</p>
 
-<!-- Log entries -->
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th data-sort="text">Timestamp</th>
-                <th data-sort="text">Staff</th>
-                <th data-sort="text">Action</th>
-                <th data-sort="text">Character</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-            <tr>
-                <td class="text-nowrap">{{ entry.timestamp }}</td>
-                <td>{{ entry.staff_user }}</td>
-                <td>
-                    <span class="badge
-                        {% if 'approve' in entry.action_type %}bg-success
-                        {% elif 'deny' in entry.action_type %}bg-danger
-                        {% elif 'add' in entry.action_type or 'create' in entry.action_type or 'activate' in entry.action_type %}bg-info
-                        {% elif 'deactivate' in entry.action_type %}bg-warning text-dark
-                        {% else %}bg-secondary{% endif %}">
-                        {{ entry.action_type }}
-                    </span>
-                </td>
-                <td>
-                    {% if entry.target_character %}
-                    <a href="{{ url_for('roster.detail', name=entry.target_character) }}">
-                        {{ entry.target_character }}
-                    </a>
-                    {% endif %}
-                </td>
-                <td>{{ entry.details }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="dp-toolbar">
+  <div class="dp-search">
+    <span class="dp-search-icon">⌕</span>
+    <input type="text" id="character-filter" placeholder="search character…">
+  </div>
+  <select id="action-filter" class="dp-select">
+    <option value="">All Actions</option>
+    {% for a in action_types %}
+    <option value="{{ a }}">{{ a }}</option>
+    {% endfor %}
+  </select>
+  <select id="staff-filter" class="dp-select">
+    <option value="">All Staff</option>
+    {% for s in staff_users %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+  <button type="button" id="clear-filters" style="display:none;font-size:12px;font-weight:600;color:var(--text-muted);background:none;border:none;text-decoration:underline;cursor:pointer;">clear filters</button>
 </div>
 
 {% if not entries %}
-<div class="text-center text-muted py-5">
-    <i class="bi bi-clock" style="font-size: 3rem;"></i>
-    <p class="mt-2">No audit log entries found.</p>
+<div class="dp-empty">
+  <div class="dp-empty-text">No audit log entries found.</div>
+</div>
+{% else %}
+<div class="dp-table" id="audit-table">
+  <div class="dp-table-head">
+    <div style="width:140px;flex-shrink:0;">Timestamp</div>
+    <div style="width:100px;flex-shrink:0;">Staff</div>
+    <div style="width:150px;flex-shrink:0;">Action</div>
+    <div style="width:150px;flex-shrink:0;">Character</div>
+    <div style="flex:1;">Details</div>
+  </div>
+  {% for entry in entries %}
+  <div class="dp-row audit-row" style="cursor:default;"
+       data-character="{{ entry.target_character | lower }}" data-action="{{ entry.action_type }}" data-staff="{{ entry.staff_user }}">
+    <div style="width:140px;flex-shrink:0;font-size:11.5px;color:var(--text-muted);font-family:monospace;">{{ entry.timestamp }}</div>
+    <div class="dp-cell-muted" style="width:100px;flex-shrink:0;color:var(--text-body);">{{ entry.staff_user }}</div>
+    <div style="width:150px;flex-shrink:0;">
+      {% set a = entry.action_type %}
+      <span class="dp-pill {% if 'approve' in a %}dp-pill--green{% elif 'deny' in a %}dp-pill--red{% elif 'add' in a or 'create' in a or 'activate' in a %}dp-pill--blue{% elif 'deactivate' in a %}dp-pill--amber{% else %}dp-pill--neutral{% endif %}">{{ a }}</span>
+    </div>
+    <div style="width:150px;flex-shrink:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      {% if entry.target_character %}
+      <a href="{{ url_for('roster.detail', name=entry.target_character) }}" style="color:#7cb8f0;text-decoration:none;">{{ entry.target_character }}</a>
+      {% endif %}
+    </div>
+    <div class="dp-cell-muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ entry.details }}">{{ entry.details }}</div>
+  </div>
+  {% endfor %}
+  <div class="dp-empty" id="no-match-empty" style="display:none;">
+    <div class="dp-empty-text">No audit log entries match these filters.</div>
+  </div>
 </div>
 {% endif %}
+{% endblock %}
 
-<p class="text-muted mt-3">Showing {{ entries|length }} entries</p>
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const rows = Array.from(document.querySelectorAll('.audit-row'));
+  if (!rows.length) return;
+
+  const characterInput = document.getElementById('character-filter');
+  const actionSelect = document.getElementById('action-filter');
+  const staffSelect = document.getElementById('staff-filter');
+  const clearBtn = document.getElementById('clear-filters');
+  const resultCount = document.getElementById('result-count');
+  const noMatch = document.getElementById('no-match-empty');
+
+  function apply() {
+    const cq = characterInput.value.trim().toLowerCase();
+    const action = actionSelect.value;
+    const staff = staffSelect.value;
+    let shown = 0;
+
+    rows.forEach(function (row) {
+      const matches = (!cq || row.dataset.character.includes(cq))
+        && (!action || row.dataset.action === action)
+        && (!staff || row.dataset.staff === staff);
+      row.style.display = matches ? '' : 'none';
+      if (matches) shown++;
+    });
+
+    resultCount.textContent = `${shown} entries`;
+    noMatch.style.display = shown === 0 ? 'block' : 'none';
+    clearBtn.style.display = (cq || action || staff) ? 'inline' : 'none';
+  }
+
+  characterInput.addEventListener('input', apply);
+  actionSelect.addEventListener('change', apply);
+  staffSelect.addEventListener('change', apply);
+  clearBtn.addEventListener('click', function () {
+    characterInput.value = ''; actionSelect.value = ''; staffSelect.value = '';
+    apply();
+  });
+});
+</script>
 {% endblock %}

@@ -1,64 +1,75 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Spend History</h2>
-
-  <div class="mb-3">
-    <input type="text" id="searchInput" class="form-control" placeholder="Search spends...">
+<div class="dp-head">
+  <a href="{{ url_for('dashboard.index') }}" class="dp-back-link"><span>←</span> Dashboard</a>
+  <div class="dp-back-divider"></div>
+  <h2 style="font-size:19px;">XP Spends</h2>
+  <div class="dp-head-actions">
+    <div class="dp-tabs">
+      <a href="{{ url_for('spends.pending') }}" class="dp-tab">Pending</a>
+      <span class="dp-tab is-active">History</span>
+    </div>
   </div>
+</div>
+<p class="dp-subtitle">Reviewed spend requests, most recent first.</p>
 
-  <div class="table-responsive">
-    <table class="table table-dark table-striped table-hover">
-      <thead>
-        <tr>
-          <th>Character</th>
-          <th class="d-none d-md-table-cell">Category</th>
-          <th>Trait</th>
-          <th class="d-none d-sm-table-cell">Dots</th>
-          <th class="d-none d-md-table-cell">Player Cost</th>
-          <th class="d-none d-md-table-cell">Verified Cost</th>
-          <th>Status</th>
-          <th class="d-none d-lg-table-cell">Reviewed By</th>
-        </tr>
-      </thead>
-      <tbody id="spendTableBody">
-        {% for spend in spends %}
-        <tr>
-          <td>{{ spend.character_name }}</td>
-          <td class="d-none d-md-table-cell">{{ spend.category }}</td>
-          <td>{{ spend.trait_name }}</td>
-          <td class="d-none d-sm-table-cell">{{ spend.current_dots }} → {{ spend.new_dots }}</td>
-          <td class="d-none d-md-table-cell">{{ spend.player_cost }}</td>
-          <td class="d-none d-md-table-cell">{{ spend.verified_cost or '-' }}</td>
-          <td>
-            {% if spend.status == 'approved' %}
-              <span class="badge bg-success">Approved</span>
-            {% elif spend.status == 'denied' %}
-              <span class="badge bg-danger">Denied</span>
-            {% elif spend.status == 'pending' %}
-              <span class="badge bg-warning">Pending</span>
-            {% else %}
-              <span class="badge bg-secondary">{{ spend.status }}</span>
-            {% endif %}
-          </td>
-          <td class="d-none d-lg-table-cell">{{ spend.reviewed_by or '-' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="dp-toolbar">
+  <div class="dp-search">
+    <span class="dp-search-icon">⌕</span>
+    <input type="text" id="history-search" placeholder="filter by character or trait…">
   </div>
 </div>
 
-<script>
-document.getElementById('searchInput').addEventListener('keyup', function() {
-  const searchValue = this.value.toLowerCase();
-  const rows = document.querySelectorAll('#spendTableBody tr');
+{% if not spends %}
+<div class="dp-empty">
+  <div class="dp-empty-icon">✓</div>
+  <div class="dp-empty-text">No reviewed spend requests yet.</div>
+</div>
+{% else %}
+<div class="dp-table">
+  <div class="dp-table-head">
+    <div style="width:150px;flex-shrink:0;">Character</div>
+    <div style="width:180px;flex-shrink:0;">Trait</div>
+    <div style="width:70px;flex-shrink:0;">Cost</div>
+    <div style="width:100px;flex-shrink:0;">Status</div>
+    <div style="flex:1;">Reviewer / Notes</div>
+  </div>
+  {% for spend in spends %}
+  <div class="dp-row history-row" style="cursor:default;" data-search="{{ (spend.character_name ~ ' ' ~ spend.trait_name) | lower }}">
+    <div style="width:150px;flex-shrink:0;" class="dp-cell-name">{{ spend.character_name }}</div>
+    <div style="width:180px;flex-shrink:0;font-size:12.5px;color:var(--text-body);">
+      {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
+    </div>
+    <div style="width:70px;flex-shrink:0;" class="dp-cell-muted">{{ spend.verified_cost or spend.xp_cost }} XP</div>
+    <div style="width:100px;flex-shrink:0;">
+      {% if spend.status|lower == 'approved' %}
+      <span class="dp-pill dp-pill--green">Approved</span>
+      {% elif spend.status|lower == 'denied' %}
+      <span class="dp-pill dp-pill--red">Denied</span>
+      {% else %}
+      <span class="dp-pill dp-pill--neutral">{{ spend.status }}</span>
+      {% endif %}
+    </div>
+    <div style="flex:1;min-width:0;" class="dp-cell-muted">{{ spend.reviewed_by }}{{ ' — ' ~ spend.st_notes if spend.st_notes }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
 
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(searchValue) ? '' : 'none';
-  });
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const search = document.getElementById('history-search');
+    if (!search) return;
+    const rows = document.querySelectorAll('.history-row');
+    search.addEventListener('input', function () {
+        const q = search.value.toLowerCase();
+        rows.forEach(function (row) {
+            row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+        });
+    });
 });
 </script>
 {% endblock %}

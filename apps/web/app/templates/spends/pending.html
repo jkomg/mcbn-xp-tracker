@@ -1,133 +1,136 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Spend Requests <span class="badge bg-secondary fs-6 align-middle">{{ spends|length }}</span></h2>
-    <a href="{{ url_for('spends.history') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-clock-history"></i> History
-    </a>
-</div>
-
-{% if not spends %}
-<div class="card">
-    <div class="empty-state">
-        <i class="bi bi-cart-check"></i>
-        <p>No pending spend requests at this time.</p>
+<div class="dp-head">
+  <a href="{{ url_for('dashboard.index') }}" class="dp-back-link"><span>←</span> Dashboard</a>
+  <div class="dp-back-divider"></div>
+  <h2 style="font-size:19px;">XP Spends</h2>
+  <span class="dp-count-badge">{{ pending_count }} pending</span>
+  <div class="dp-head-actions">
+    <div class="dp-tabs">
+      <span class="dp-tab is-active">Pending</span>
+      <a href="{{ url_for('spends.history') }}" class="dp-tab">History</a>
     </div>
+  </div>
+</div>
+<p class="dp-subtitle">Dot-purchase requests validated against V5 XP costs. Sorted oldest-first; dependent spends show what they're waiting on.</p>
+
+{% if not rows %}
+<div class="dp-empty">
+  <div class="dp-empty-icon">✓</div>
+  <div class="dp-empty-text">No pending spend requests at this time.</div>
 </div>
 {% else %}
-{# Build sets for Queue column logic #}
-{# pending_ids: row_indexes of all spends currently in this list #}
-{# blocked_by_ids: depends_on values that point to a still-pending spend #}
-{% set ns = namespace(pending_ids=[], blocked_by_ids=[]) %}
-{% for spend in spends %}
-  {% set ns.pending_ids = ns.pending_ids + [spend.row_index] %}
-{% endfor %}
-{% for spend in spends %}
-  {% if spend.depends_on and spend.depends_on in ns.pending_ids %}
-    {% set ns.blocked_by_ids = ns.blocked_by_ids + [spend.depends_on] %}
-  {% endif %}
-{% endfor %}
 
-<form method="POST" action="{{ url_for('spends.bulk_approve') }}" id="bulk-spend-form">
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <div class="d-flex align-items-center gap-2">
-        <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" id="select-all-spends">
-            <label class="form-check-label text-muted small" for="select-all-spends">Select all</label>
+<!-- Empty out-of-line form: checkboxes and the bulk-approve button reference it
+     via the HTML5 form="" attribute so they can live outside it. Per-row
+     approve/deny forms below are siblings, not descendants, of this form —
+     nesting <form> elements is invalid HTML and Chrome/Firefox silently
+     reparent the inner submit to the outer form, approving the wrong thing. -->
+<form method="POST" action="{{ url_for('spends.bulk_approve') }}" id="bulk-spend-form"></form>
+
+<div class="dp-bulk-bar" id="bulk-bar" style="display:none;">
+  <span class="dp-bulk-count"><span id="bulk-count">0</span> selected</span>
+  <div style="flex:1;"></div>
+  <button type="submit" form="bulk-spend-form" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.1);">Approve Selected (validated cost)</button>
+  <button type="button" class="dp-btn" id="bulk-clear" style="border:none;">clear</button>
+</div>
+
+  <div class="dp-table" style="margin-bottom:26px;">
+    {% for r in rows %}
+    {% set spend = r.spend %}
+    {% set valid = r.validation.matches %}
+    {% set blocked = r.depends_on_spend and r.depends_on_spend.status|lower == 'pending' %}
+    <div>
+      <div style="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);">
+        <input type="checkbox" name="spend_ids" value="{{ spend.row_index }}" form="bulk-spend-form" class="dp-checkbox spend-checkbox" {% if blocked %}disabled{% endif %}>
+        <div class="dp-urgency-bar {% if r.days >= 5 %}dp-urgency-bar--high{% elif r.days >= 3 %}dp-urgency-bar--med{% else %}dp-urgency-bar--low{% endif %}"></div>
+        <div style="width:150px;flex-shrink:0;font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ spend.character_name }}</div>
+        <div style="width:170px;flex-shrink:0;font-size:12.5px;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
         </div>
-        <button type="submit" class="btn btn-sm btn-success" id="bulk-approve-btn" disabled>
-            <i class="bi bi-check2-all"></i> Bulk Approve Selected
-        </button>
+        <div style="width:85px;flex-shrink:0;">
+          <span class="dp-pill {{ 'dp-pill--green' if valid else 'dp-pill--amber' }}">{{ '✓ Valid' if valid else '⚠ Mismatch' }}</span>
+        </div>
+        {% if r.depends_on_spend %}
+        <span class="dp-pill dp-pill--amber" style="flex-shrink:0;white-space:nowrap;">⛓ waits on {{ r.depends_on_spend.trait_name }}</span>
+        {% endif %}
+        {% if r.sheet_match and not r.sheet_match.exact and r.sheet_match.close_matches %}
+        <span class="dp-pill dp-pill--red" style="flex-shrink:0;white-space:nowrap;">⚑ name mismatch</span>
+        {% endif %}
+        <div style="flex:1;min-width:12px;"></div>
+        <div style="flex-shrink:0;white-space:nowrap;font-size:12px;color:var(--text-muted);">waiting {{ r.days ~ 'd' if r.days > 0 else 'today' }}</div>
+        <button type="button" class="dp-btn dp-btn--accent spend-expand-toggle" data-target="spend-detail-{{ spend.row_index }}">Review ▼</button>
+      </div>
+      <div id="spend-detail-{{ spend.row_index }}" class="dp-detail" style="display:none;padding-left:56px;">
+        <div class="dp-detail-grid">
+          <div><div class="dp-detail-label">Player Cost</div><div style="font-size:16px;font-weight:700;color:var(--text);">{{ spend.xp_cost }} XP</div></div>
+          <div><div class="dp-detail-label">Validated Cost</div><div style="font-size:16px;font-weight:700;color:{{ '#3ecf7e' if valid else '#e2a53d' }};">{{ r.validation.correct_cost }} XP</div></div>
+          <div><div class="dp-detail-label">Available</div><div style="font-size:16px;font-weight:700;color:var(--text);">{{ r.available_xp }} XP</div></div>
+        </div>
+        {% if spend.justification %}
+        <div style="font-size:12.5px;color:var(--text-body);font-style:italic;margin-bottom:12px;">{{ spend.justification | urlize(target='_blank', rel='noopener noreferrer nofollow') }}</div>
+        {% endif %}
+        {% if r.sheet_match and not r.sheet_match.exact and r.sheet_match.close_matches %}
+        <div style="font-size:12px;color:#ff8a96;margin-bottom:10px;">
+          ⚑ Submitted as "{{ spend.trait_name }}" — closest sheet match{{ 'es are' if r.sheet_match.close_matches|length > 1 else ' is' }}
+          {{ r.sheet_match.close_matches | map(attribute='name') | join(', ') }}. Approving as-is may create a duplicate entry.
+        </div>
+        {% endif %}
+        {% if blocked %}
+        <div style="font-size:12px;color:#e2a53d;margin-bottom:10px;">⛓ Blocked — approve "{{ r.depends_on_spend.trait_name }}" first.</div>
+        {% elif not r.validation.valid %}
+        <div style="font-size:12px;color:#ff8a96;margin-bottom:10px;">✕ {{ r.validation.message or 'This spend failed cost validation and cannot be approved as-is.' }}</div>
+        {% endif %}
+        <div style="display:flex;gap:8px;">
+          {% if blocked or not r.validation.valid %}
+          <button type="button" class="dp-btn" disabled style="opacity:.4;cursor:not-allowed;">Approve @ {{ r.validation.correct_cost }} XP</button>
+          {% else %}
+          <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}">
+            <input type="hidden" name="verified_cost" value="{{ r.validation.correct_cost }}">
+            <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.1);">Approve @ {{ r.validation.correct_cost }} XP</button>
+          </form>
+          {% endif %}
+          <form method="POST" action="{{ url_for('spends.deny', row_id=spend.row_index) }}" onsubmit="return confirm('Deny this spend request?');">
+            <button type="submit" class="dp-btn" style="color:#ff8a96;border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.1);">Deny</button>
+          </form>
+          <a href="{{ url_for('spends.review', row_id=spend.row_index) }}" class="dp-btn">Full review page →</a>
+        </div>
+      </div>
     </div>
-    <small class="text-muted">Bulk approval uses system-calculated XP costs. Spends with unknown categories are skipped.</small>
-</div>
-<div class="table-responsive">
-    <table class="table table-dark table-striped table-hover">
-        <thead>
-            <tr>
-                <th style="width:2rem;"></th>
-                <th>Character</th>
-                <th class="d-none d-md-table-cell">Category</th>
-                <th>Trait</th>
-                <th class="d-none d-sm-table-cell">Dots</th>
-                <th>XP Cost</th>
-                <th class="d-none d-sm-table-cell">Queue</th>
-                <th class="d-none d-sm-table-cell">Submitted</th>
-                <th class="text-end">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for spend in spends %}
-            <tr data-href="{{ url_for('spends.review', row_id=spend.row_index) }}">
-                <td onclick="event.stopPropagation()">
-                    <input class="form-check-input spend-checkbox" type="checkbox"
-                           name="spend_ids" value="{{ spend.row_index }}">
-                </td>
-                <td><strong>{{ spend.character_name }}</strong></td>
-                <td class="d-none d-md-table-cell">{{ spend.spend_category }}</td>
-                <td>
-                    {{ spend.trait_name }}
-                    {% if spend.coterie_id %}<span class="badge bg-info ms-1" title="Coterie donation"><i class="bi bi-people"></i> {{ spend.coterie_name }}</span>{% endif %}
-                </td>
-                <td class="d-none d-sm-table-cell"><span class="text-muted">{{ spend.current_dots }} → {{ spend.new_dots }}</span></td>
-                <td><span class="badge bg-danger">{{ spend.xp_cost }} XP</span></td>
-                <td class="d-none d-sm-table-cell">
-                    {% if spend.depends_on and spend.depends_on in ns.pending_ids %}
-                    <span class="badge bg-secondary" title="Blocked — must approve a prior spend first">
-                        <i class="bi bi-arrow-up-circle"></i> Blocked
-                    </span>
-                    {% elif spend.row_index in ns.blocked_by_ids %}
-                    <span class="badge bg-info text-dark" title="Other pending spends are queued after this one">
-                        <i class="bi bi-arrow-down-circle"></i> Has queue
-                    </span>
-                    {% endif %}
-                </td>
-                <td class="d-none d-sm-table-cell"><small class="text-muted">{{ spend.timestamp }}</small></td>
-                <td class="text-end" onclick="event.stopPropagation()">
-                    <a href="{{ url_for('spends.review', row_id=spend.row_index) }}"
-                       class="btn btn-sm btn-outline-light">
-                        <i class="bi bi-pencil-square"></i> Review
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-</form>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}
 
+{% block scripts %}
 <script>
-(function () {
-    var selectAll = document.getElementById('select-all-spends');
-    var checkboxes = document.querySelectorAll('.spend-checkbox');
-    var bulkBtn = document.getElementById('bulk-approve-btn');
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.spend-expand-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const panel = document.getElementById(btn.dataset.target);
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.textContent = isOpen ? 'Review ▼' : 'Collapse ▲';
+        });
+    });
 
-    function updateBtn() {
-        var any = Array.from(checkboxes).some(function (cb) { return cb.checked; });
-        bulkBtn.disabled = !any;
+    const checkboxes = document.querySelectorAll('.spend-checkbox');
+    const bulkBar = document.getElementById('bulk-bar');
+    const bulkCount = document.getElementById('bulk-count');
+    const bulkClear = document.getElementById('bulk-clear');
+
+    function updateBulkBar() {
+        const n = Array.from(checkboxes).filter(function (cb) { return cb.checked; }).length;
+        bulkBar.style.display = n > 0 ? 'flex' : 'none';
+        bulkCount.textContent = n;
     }
 
-    selectAll.addEventListener('change', function () {
-        checkboxes.forEach(function (cb) { cb.checked = selectAll.checked; });
-        updateBtn();
+    checkboxes.forEach(function (cb) { cb.addEventListener('change', updateBulkBar); });
+    bulkClear.addEventListener('click', function () {
+        checkboxes.forEach(function (cb) { cb.checked = false; });
+        updateBulkBar();
     });
-
-    checkboxes.forEach(function (cb) {
-        cb.addEventListener('change', function () {
-            selectAll.checked = Array.from(checkboxes).every(function (c) { return c.checked; });
-            updateBtn();
-        });
-    });
-
-    // Row-click navigation (skip checkbox column)
-    document.querySelectorAll('tr[data-href]').forEach(function (row) {
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', function () {
-            window.location = row.dataset.href;
-        });
-    });
-}());
+});
 </script>
-{% endif %}
 {% endblock %}

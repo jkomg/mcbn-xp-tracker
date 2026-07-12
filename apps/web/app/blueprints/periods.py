@@ -19,15 +19,18 @@ def list_periods():
     periods = db_service.get_all_periods()
     # Most recent first
     periods.sort(key=lambda p: p.night_number, reverse=True)
-    return render_template('periods/list.html', periods=periods)
+    return render_template(
+        'periods/list.html',
+        periods=periods,
+        next_night=db_service.get_next_night_number(),
+    )
 
 
 @bp.route('/add', methods=['GET'])
 @require_staff
 def add_form():
-    """Show form to create a new play period."""
-    next_night = db_service.get_next_night_number()
-    return render_template('periods/add.html', next_night=next_night)
+    """New Period is now an inline panel on the list page."""
+    return redirect(url_for('periods.list_periods'))
 
 
 @bp.route('/add', methods=['POST'])
@@ -86,33 +89,42 @@ def add():
 @bp.route('/import', methods=['GET', 'POST'])
 @require_staff
 def import_periods():
-    """Import play periods from a master XP spreadsheet."""
+    """Import play periods from a master XP spreadsheet.
+
+    The preview/confirm flow renders inline on the list page (per the
+    Nocturne redesign) rather than a separate page, so 'preview' re-renders
+    periods/list.html with the import panel pre-opened and populated.
+    """
     if request.method == 'GET':
-        return render_template('periods/import.html', periods=None, sheet_url='')
+        return redirect(url_for('periods.list_periods'))
 
     action = request.form.get('action', 'preview')
     sheet_url = request.form.get('sheet_url', '').strip()
+    all_periods = db_service.get_all_periods()
+    all_periods.sort(key=lambda p: p.night_number, reverse=True)
 
     if action == 'preview':
         if not sheet_url:
             flash('Please paste a Google Sheet URL.', 'danger')
-            return redirect(url_for('periods.import_periods'))
+            return redirect(url_for('periods.list_periods'))
         try:
-            periods = db_service.preview_period_import(sheet_url)
+            import_preview = db_service.preview_period_import(sheet_url)
         except Exception as e:
             flash(f'Error reading spreadsheet: {e}', 'danger')
-            return redirect(url_for('periods.import_periods'))
+            return redirect(url_for('periods.list_periods'))
 
-        if not periods:
+        if not import_preview:
             flash('No play period tabs found.', 'warning')
-            return redirect(url_for('periods.import_periods'))
+            return redirect(url_for('periods.list_periods'))
 
-        new_count = sum(1 for p in periods if not p['already_exists'])
+        new_count = sum(1 for p in import_preview if not p['already_exists'])
         return render_template(
-            'periods/import.html',
-            periods=periods,
-            sheet_url=sheet_url,
-            new_count=new_count,
+            'periods/list.html',
+            periods=all_periods,
+            next_night=db_service.get_next_night_number(),
+            import_preview=import_preview,
+            import_sheet_url=sheet_url,
+            import_new_count=new_count,
         )
 
     elif action == 'confirm':

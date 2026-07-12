@@ -1,180 +1,141 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="mb-4">Dashboard</h2>
+<div class="dp-head">
+  <span class="dp-status-dot"></span>
+  <h2>Dashboard</h2>
+</div>
+<p class="dp-subtitle">Music City by Night</p>
 
-<!-- Action strip -->
+<!-- Needs-attention bar -->
 {% if pending_claims > 0 or pending_spends > 0 or pending_drafts > 0 or pending_sheet_imports > 0 %}
-<div class="action-strip d-flex align-items-center gap-3 flex-wrap mb-4 p-3">
-    <span><i class="bi bi-bell-fill text-warning me-1"></i> <strong>Needs attention:</strong></span>
+<div class="dp-attention">
+    <span class="dp-attention-label">⚠ Needs attention:</span>
     {% if pending_claims > 0 %}
-    <a href="{{ url_for('claims.pending') }}" class="btn btn-sm btn-outline-warning">
-        <i class="bi bi-journal-check"></i> {{ pending_claims }} Claim{{ 's' if pending_claims != 1 }}
+    <a href="{{ url_for('claims.pending') }}" class="dp-attention-chip" style="color:#e2a53d;background:rgba(226,165,61,.1);border-color:rgba(226,165,61,.3);">
+        📝 {{ pending_claims }} Claim{{ 's' if pending_claims != 1 }}
     </a>
     {% endif %}
     {% if pending_spends > 0 %}
-    <a href="{{ url_for('spends.pending') }}" class="btn btn-sm btn-outline-danger">
-        <i class="bi bi-cart-check"></i> {{ pending_spends }} Spend{{ 's' if pending_spends != 1 }}
+    <a href="{{ url_for('spends.pending') }}" class="dp-attention-chip" style="color:var(--accent-soft);background:rgba(216,58,74,.1);border-color:rgba(216,58,74,.3);">
+        🛒 {{ pending_spends }} Spend{{ 's' if pending_spends != 1 }}
     </a>
     {% endif %}
     {% if pending_drafts > 0 %}
-    <a href="{{ url_for('cc_admin.draft_list') }}" class="btn btn-sm btn-outline-info">
-        <i class="bi bi-person-check"></i> {{ pending_drafts }} Draft{{ 's' if pending_drafts != 1 }}
+    <a href="{{ url_for('cc_admin.draft_list') }}" class="dp-attention-chip" style="color:#7cb8f0;background:rgba(124,184,240,.1);border-color:rgba(124,184,240,.3);">
+        👤 {{ pending_drafts }} Draft{{ 's' if pending_drafts != 1 }}
     </a>
     {% endif %}
     {% if pending_sheet_imports > 0 %}
-    <a href="{{ url_for('cc_admin.sheet_import_list') }}" class="btn btn-sm btn-outline-info">
-        <i class="bi bi-file-earmark-diff"></i> {{ pending_sheet_imports }} Sheet Import{{ 's' if pending_sheet_imports != 1 }}
+    <a href="{{ url_for('cc_admin.sheet_import_list') }}" class="dp-attention-chip" style="color:#7cb8f0;background:rgba(124,184,240,.1);border-color:rgba(124,184,240,.3);">
+        📄 {{ pending_sheet_imports }} Sheet Import{{ 's' if pending_sheet_imports != 1 }}
     </a>
     {% endif %}
 </div>
 {% endif %}
 
 <!-- Stat cards -->
-<div class="row mb-4">
-  <div class="col-md-4 mb-3">
-    <div class="card stat-card stat-card-characters h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <i class="bi bi-people stat-icon text-info"></i>
-        <div>
-          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Active Characters</h6>
-          <p class="card-text display-6 mb-0 lh-1">{{ characters|selectattr('active')|list|length }}</p>
-        </div>
-      </div>
-    </div>
+<div class="dp-stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Active Characters</span>
+    <span class="stat-value">{{ characters|selectattr('active')|list|length }}</span>
   </div>
-  <div class="col-md-4 mb-3">
-    <div class="card stat-card stat-card-claims h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <i class="bi bi-journal-check stat-icon text-warning"></i>
-        <div>
-          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Claims</h6>
-          <p class="card-text display-6 mb-2 lh-1">{{ pending_claims }}</p>
-          <a href="/claims/" class="btn btn-sm btn-outline-warning">View Claims</a>
-        </div>
-      </div>
+  <a href="{{ url_for('claims.pending') }}" class="stat-card">
+    <span class="stat-label">Pending Claims</span>
+    <span class="stat-value">{{ pending_claims }}</span>
+    <span class="dp-stat-link" style="color:#e2a53d;">View Claims →</span>
+  </a>
+  <a href="{{ url_for('spends.pending') }}" class="stat-card">
+    <span class="stat-label">Pending Spends</span>
+    <span class="stat-value">{{ pending_spends }}</span>
+    <span class="dp-stat-link" style="color:var(--accent-soft);">View Spends →</span>
+  </a>
+  <a href="{{ url_for('cc_admin.draft_list') }}" class="stat-card">
+    <span class="stat-label">Pending Drafts</span>
+    <span class="stat-value">{{ pending_drafts }}</span>
+    <span class="dp-stat-link" style="color:#7cb8f0;">Review Drafts →</span>
+  </a>
+  <a href="{{ url_for('cc_admin.sheet_import_list') }}" class="stat-card">
+    <span class="stat-label">Pending Sheet Imports</span>
+    <span class="stat-value">{{ pending_sheet_imports }}</span>
+    <span class="dp-stat-link" style="color:#7cb8f0;">Review Imports →</span>
+  </a>
+</div>
+
+<!-- Roster -->
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <span class="dp-section-label">Character Roster</span>
+  <div class="dp-toolbar mb-0">
+    <div class="dp-chip-tabs">
+      <button type="button" class="dp-chip-tab is-active" data-filter="all">All</button>
+      <button type="button" class="dp-chip-tab" data-filter="active">Active</button>
+      <button type="button" class="dp-chip-tab" data-filter="no-claim">⚠ No Claims</button>
     </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="card stat-card stat-card-spends h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <i class="bi bi-cart-check stat-icon text-danger"></i>
-        <div>
-          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Spends</h6>
-          <p class="card-text display-6 mb-2 lh-1">{{ pending_spends }}</p>
-          <a href="/spends/" class="btn btn-sm btn-outline-danger">View Spends</a>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <i class="bi bi-person-check stat-icon text-info"></i>
-        <div>
-          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Drafts</h6>
-          <p class="card-text display-6 mb-2 lh-1">{{ pending_drafts }}</p>
-          <a href="{{ url_for('cc_admin.draft_list') }}" class="btn btn-sm btn-outline-info">Review Drafts</a>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <i class="bi bi-file-earmark-diff stat-icon text-info"></i>
-        <div>
-          <h6 class="card-title text-muted mb-1" style="font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Pending Sheet Imports</h6>
-          <p class="card-text display-6 mb-2 lh-1">{{ pending_sheet_imports }}</p>
-          <a href="{{ url_for('cc_admin.sheet_import_list') }}" class="btn btn-sm btn-outline-info">Review Imports</a>
-        </div>
-      </div>
+    <div class="dp-search">
+      <span class="dp-search-icon">⌕</span>
+      <input type="text" id="table-search" placeholder="search characters…">
     </div>
   </div>
 </div>
 
-<!-- Filter controls -->
-<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
-  <div class="btn-group me-2" role="group" aria-label="Filter characters">
-    <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">All</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="active">Active</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="no-claim">
-      <i class="bi bi-exclamation-circle"></i> No Claims
-    </button>
+<div class="dp-table">
+  <div class="dp-table-head">
+    <div style="width:200px;flex-shrink:0;">Character</div>
+    <div style="width:110px;flex-shrink:0;" class="d-none d-md-block">Clan</div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="d-none d-lg-block">Creation</div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="d-none d-lg-block">Earned</div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="d-none d-lg-block">Spent</div>
+    <div style="width:90px;flex-shrink:0;text-align:right;">Available</div>
+    <div style="flex:1;min-width:0;" class="d-none d-md-block">Last Submission</div>
   </div>
-  <input type="text" class="form-control form-control-sm" id="table-search"
-         placeholder="Search characters..." style="max-width: 240px;">
+  {% for c in characters %}
+  <a href="{{ url_for('roster.detail', name=c.character_name) }}"
+     class="dp-row has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}{% if not c.active %} is-inactive{% endif %}"
+     data-active="{{ 'true' if c.active else 'false' }}"
+     data-no-claim="{{ 'true' if not c.last_submission else 'false' }}"
+     data-name="{{ c.character_name | lower }}">
+    <div style="width:200px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
+      <span class="dp-cell-name">{{ c.character_name }}</span>
+      {% if not c.last_submission and c.active %}
+      <span class="dp-pill dp-pill--amber" title="No claims submitted" style="border-radius:50%;width:15px;height:15px;padding:0;justify-content:center;">!</span>
+      {% endif %}
+    </div>
+    <div style="width:110px;flex-shrink:0;" class="d-none d-md-block">
+      {% if c.clan %}<span class="clan-badge clan-{{ c.clan | lower | replace(' ', '-') }}">{{ c.clan }}</span>{% endif %}
+    </div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="dp-cell-muted d-none d-lg-block">{{ c.creation_xp }}</div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="dp-cell-muted d-none d-lg-block">{{ c.earned_xp }}</div>
+    <div style="width:70px;flex-shrink:0;text-align:right;" class="dp-cell-muted d-none d-lg-block">{{ c.approved_spends }}</div>
+    <div style="width:90px;flex-shrink:0;text-align:right;font-size:13px;font-weight:700;" class="{% if c.available_xp > 0 %}xp-positive{% elif c.available_xp < 0 %}xp-negative{% else %}xp-zero{% endif %}">{{ c.available_xp }}</div>
+    <div style="flex:1;min-width:0;" class="dp-cell-muted d-none d-md-block">{{ c.last_submission }}</div>
+  </a>
+  {% endfor %}
 </div>
 
-<div class="table-responsive">
-  <table class="table table-dark table-striped table-hover">
-    <thead>
-      <tr>
-        <th data-sort="text">Character Name</th>
-        <th data-sort="text" class="d-none d-md-table-cell">Clan</th>
-        <th data-sort="number" class="d-none d-lg-table-cell">Creation XP</th>
-        <th data-sort="number" class="d-none d-lg-table-cell">Earned XP</th>
-        <th data-sort="number" class="d-none d-lg-table-cell">Total XP</th>
-        <th data-sort="number" class="d-none d-lg-table-cell">Spends</th>
-        <th data-sort="number">Available XP</th>
-        <th data-sort="text" class="d-none d-md-table-cell">Last Submission</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in characters %}
-      <tr{% if not c.active %} class="opacity-50 has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}"
-         {% else %} class="has-clan-color clan-{{ c.clan | lower | replace(' ', '-') }}"{% endif %}
-          data-href="{{ url_for('roster.detail', name=c.character_name) }}"
-          data-active="{{ 'true' if c.active else 'false' }}"
-          data-no-claim="{{ 'true' if not c.last_submission else 'false' }}">
-        <td>
-          <a href="{{ url_for('roster.detail', name=c.character_name) }}" onclick="event.stopPropagation()">
-            {{ c.character_name }}
-          </a>
-          {% if not c.last_submission and c.active %}
-          <span class="badge bg-warning text-dark ms-1" title="No claims submitted" style="font-size:0.65rem;">
-            <i class="bi bi-exclamation"></i>
-          </span>
-          {% endif %}
-        </td>
-        <td class="d-none d-md-table-cell">
-          {% if c.clan %}
-          <span class="clan-badge clan-{{ c.clan | lower | replace(' ', '-') }}">{{ c.clan }}</span>
-          {% endif %}
-        </td>
-        <td class="d-none d-lg-table-cell">{{ c.creation_xp }}</td>
-        <td class="d-none d-lg-table-cell">{{ c.earned_xp }}</td>
-        <td class="d-none d-lg-table-cell">{{ c.total_xp }}</td>
-        <td class="d-none d-lg-table-cell">{{ c.approved_spends }}</td>
-        <td class="{% if c.available_xp > 0 %}xp-positive{% elif c.available_xp < 0 %}xp-negative{% else %}xp-zero{% endif %}">{{ c.available_xp }}</td>
-        <td class="d-none d-md-table-cell">{{ c.last_submission }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
+<!-- Admin Testing: gated server-side by role in dashboard.py -->
 {% if preview_players %}
-<div class="card border-secondary mt-5">
-    <div class="card-header d-flex align-items-center gap-2 text-muted">
-        <i class="bi bi-eye"></i> <span>Preview as Player</span>
-    </div>
-    <div class="card-body">
-        <p class="text-muted small mb-3">Renders the player portal as the selected player — useful for testing UI changes without a separate Discord account.</p>
-        <form method="post" action="{{ url_for('dashboard.set_view_as') }}" class="d-flex align-items-center gap-2 flex-wrap">
-            <select name="discord_id" class="form-select form-select-sm" style="max-width:280px;" required
-                    onchange="this.form.querySelector('[name=display_name]').value = this.options[this.selectedIndex].dataset.name">
-                <option value="">— select a player —</option>
-                {% for p in preview_players %}
-                <option value="{{ p.discord_id }}" data-name="{{ p.display_name }}">{{ p.display_name }}</option>
-                {% endfor %}
-            </select>
-            <input type="hidden" name="display_name" value="">
-            <button type="submit" class="btn btn-sm btn-outline-warning">
-                <i class="bi bi-eye"></i> Preview
-            </button>
-        </form>
-    </div>
+<div style="border-top:1px dashed var(--border-strong);padding-top:18px;margin-top:8px;">
+  <button type="button" id="preview-toggle" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;border:none;cursor:pointer;padding:0;margin-bottom:0;">
+    <span class="dp-pill dp-pill--amber" style="border:1px solid rgba(226,165,61,.3);">🔒 Admin Testing</span>
+    <span style="font-size:12.5px;font-weight:600;color:var(--text-body);">Preview as Player</span>
+    <span style="flex:1;"></span>
+    <span id="preview-arrow" style="font-size:11px;color:var(--text-faint);">▼</span>
+  </button>
+  <div id="preview-panel" style="display:none;background:rgba(226,165,61,.05);border:1px solid rgba(226,165,61,.2);border-radius:var(--r-card);padding:16px 18px;max-width:520px;margin-top:14px;">
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:2px;">Administrator-only. Not visible to Storytellers or Moderators.</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Renders the player portal as the selected player — useful for testing UI changes without a separate Discord account.</div>
+    <form method="post" action="{{ url_for('dashboard.set_view_as') }}" class="d-flex gap-2">
+      <select name="discord_id" class="dp-select" style="flex:1;" required
+              onchange="this.form.querySelector('[name=display_name]').value = this.options[this.selectedIndex].dataset.name">
+        <option value="">— select a player —</option>
+        {% for p in preview_players %}
+        <option value="{{ p.discord_id }}" data-name="{{ p.display_name }}">{{ p.display_name }}</option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="display_name" value="">
+      <button type="submit" style="font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:9px;border:1px solid rgba(226,165,61,.4);background:rgba(226,165,61,.12);color:#e2a53d;cursor:pointer;">Preview</button>
+    </form>
+  </div>
 </div>
 {% endif %}
 {% endblock %}
@@ -182,7 +143,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const rows = document.querySelectorAll('tbody tr');
+    const rows = document.querySelectorAll('.dp-row');
     const filterBtns = document.querySelectorAll('[data-filter]');
     const search = document.getElementById('table-search');
     let activeFilter = 'all';
@@ -190,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyFilters() {
         const q = search.value.toLowerCase();
         rows.forEach(function (row) {
-            const name = row.querySelector('td')?.textContent.toLowerCase() || '';
+            const name = row.dataset.name || '';
             const matchesSearch = !q || name.includes(q);
             const isActive = row.dataset.active === 'true';
             const noClaim = row.dataset.noClaim === 'true';
@@ -205,14 +166,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     filterBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
-            filterBtns.forEach(function (b) { b.classList.remove('active'); });
-            btn.classList.add('active');
+            filterBtns.forEach(function (b) { b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
             activeFilter = btn.dataset.filter;
             applyFilters();
         });
     });
 
     search.addEventListener('input', applyFilters);
+
+    const previewToggle = document.getElementById('preview-toggle');
+    const previewPanel = document.getElementById('preview-panel');
+    const previewArrow = document.getElementById('preview-arrow');
+    if (previewToggle) {
+        previewToggle.addEventListener('click', function () {
+            const isOpen = previewPanel.style.display !== 'none';
+            previewPanel.style.display = isOpen ? 'none' : 'block';
+            previewArrow.textContent = isOpen ? '▼' : '▲';
+        });
+    }
 });
 </script>
 {% endblock %}
