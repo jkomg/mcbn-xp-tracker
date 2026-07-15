@@ -781,7 +781,7 @@
 </div>
 
 <!-- Pending Claims -->
-{% if pending_claims %}
+{% if pending_claims_list %}
 <div class="card mb-4" id="pending-claims">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#pending-claims-body" role="button" style="cursor:pointer;">
         <div class="d-flex justify-content-between align-items-center">
@@ -789,7 +789,7 @@
                 <i class="bi bi-hourglass-split"></i> XP Claims In Progress
                 <i class="bi bi-chevron-down float-end"></i>
             </h5>
-            <span class="badge bg-warning text-dark">{{ pending_claims|length }} pending</span>
+            <span class="badge bg-warning text-dark">{{ pending_claims_list|length }} pending</span>
         </div>
     </div>
     <div class="collapse show" id="pending-claims-body">
@@ -804,7 +804,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for c in pending_claims %}
+                        {% for c in pending_claims_list %}
                         <tr>
                             <td>{{ c.play_period }}</td>
                             <td><span class="badge bg-secondary">{{ c.xp_claimed }} XP</span></td>
