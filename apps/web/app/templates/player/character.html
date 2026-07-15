@@ -329,10 +329,10 @@
 <div class="alert alert-info">
     <i class="bi bi-hourglass-split"></i>
     {% if pending_claims_count > 0 %}
-        <strong>{{ pending_claims_count }}</strong> XP claim{{ 's' if pending_claims_count != 1 }} pending review.
+        <a href="#pending-claims" class="alert-link"><strong>{{ pending_claims_count }}</strong> XP claim{{ 's' if pending_claims_count != 1 }} pending review.</a>
     {% endif %}
     {% if pending_spends_count > 0 %}
-        <strong>{{ pending_spends_count }}</strong> spend request{{ 's' if pending_spends_count != 1 }} pending review.
+        <a href="#spend-requests-in-progress" class="alert-link"><strong>{{ pending_spends_count }}</strong> spend request{{ 's' if pending_spends_count != 1 }} pending review.</a>
     {% endif %}
 </div>
 {% endif %}
@@ -780,6 +780,45 @@
     </div>
 </div>
 
+<!-- Pending Claims -->
+{% if pending_claims_list %}
+<div class="card mb-4" id="pending-claims">
+    <div class="card-header" data-bs-toggle="collapse" data-bs-target="#pending-claims-body" role="button" style="cursor:pointer;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-hourglass-split"></i> XP Claims In Progress
+                <i class="bi bi-chevron-down float-end"></i>
+            </h5>
+            <span class="badge bg-warning text-dark">{{ pending_claims_list|length }} pending</span>
+        </div>
+    </div>
+    <div class="collapse show" id="pending-claims-body">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Play Period</th>
+                            <th>XP Claimed</th>
+                            <th class="d-none d-sm-table-cell">Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in pending_claims_list %}
+                        <tr>
+                            <td>{{ c.play_period }}</td>
+                            <td><span class="badge bg-secondary">{{ c.xp_claimed }} XP</span></td>
+                            <td class="d-none d-sm-table-cell">{{ c.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Approved Claims History -->
 <div class="card mb-4" id="xp-claims-history">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#claims-history-body" role="button" style="cursor:pointer;">
@@ -840,7 +879,7 @@
 
 <!-- Pending Spends -->
 {% if pending_spends_list %}
-<div class="card mb-4">
+<div class="card mb-4" id="spend-requests-in-progress">
     <div class="card-header" data-bs-toggle="collapse" data-bs-target="#spends-in-progress" role="button" style="cursor:pointer;">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">

@@ -294,6 +294,7 @@ def character(name):
         approved_claims=approved_claims,
         approved_spends=approved_spends,
         amend_claims=amend_claims,
+        pending_claims_list=pending_claims,
         pending_claims_count=len(pending_claims),
         pending_spends_list=pending_spends_list,
         pending_spends_count=len(pending_spends),
