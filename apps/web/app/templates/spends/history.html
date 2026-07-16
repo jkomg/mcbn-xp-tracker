@@ -34,24 +34,44 @@
     <div style="width:70px;flex-shrink:0;">Cost</div>
     <div style="width:100px;flex-shrink:0;">Status</div>
     <div style="flex:1;">Reviewer / Notes</div>
+    <div style="width:90px;flex-shrink:0;"></div>
   </div>
   {% for spend in spends %}
-  <div class="dp-row history-row" style="cursor:default;" data-search="{{ (spend.character_name ~ ' ' ~ spend.trait_name) | lower }}">
-    <div style="width:150px;flex-shrink:0;" class="dp-cell-name">{{ spend.character_name }}</div>
-    <div style="width:180px;flex-shrink:0;font-size:12.5px;color:var(--text-body);">
-      {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
+  <div>
+    <div class="dp-row history-row" style="cursor:default;" data-search="{{ (spend.character_name ~ ' ' ~ spend.trait_name) | lower }}">
+      <div style="width:150px;flex-shrink:0;" class="dp-cell-name">{{ spend.character_name }}</div>
+      <div style="width:180px;flex-shrink:0;font-size:12.5px;color:var(--text-body);">
+        {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
+      </div>
+      <div style="width:70px;flex-shrink:0;" class="dp-cell-muted">{{ spend.verified_cost or spend.xp_cost }} XP</div>
+      <div style="width:100px;flex-shrink:0;">
+        {% if spend.status|lower == 'approved' %}
+        <span class="dp-pill dp-pill--green">Approved</span>
+        {% elif spend.status|lower == 'denied' %}
+        <span class="dp-pill dp-pill--red">Denied</span>
+        {% else %}
+        <span class="dp-pill dp-pill--neutral">{{ spend.status }}</span>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:0;" class="dp-cell-muted">{{ spend.reviewed_by }}{{ ' — ' ~ spend.st_notes if spend.st_notes }}</div>
+      <div style="width:90px;flex-shrink:0;text-align:right;">
+        {% if spend.status|lower == 'approved' %}
+        <button type="button" class="dp-btn reverse-toggle" data-target="reverse-detail-{{ spend.row_index }}">Reverse ▾</button>
+        {% endif %}
+      </div>
     </div>
-    <div style="width:70px;flex-shrink:0;" class="dp-cell-muted">{{ spend.verified_cost or spend.xp_cost }} XP</div>
-    <div style="width:100px;flex-shrink:0;">
-      {% if spend.status|lower == 'approved' %}
-      <span class="dp-pill dp-pill--green">Approved</span>
-      {% elif spend.status|lower == 'denied' %}
-      <span class="dp-pill dp-pill--red">Denied</span>
-      {% else %}
-      <span class="dp-pill dp-pill--neutral">{{ spend.status }}</span>
-      {% endif %}
+    {% if spend.status|lower == 'approved' %}
+    <div id="reverse-detail-{{ spend.row_index }}" class="dp-detail" style="display:none;">
+      <form method="POST" action="{{ url_for('spends.reverse', row_id=spend.row_index) }}"
+            onsubmit="return confirm('Reverse this approved spend? This restores the XP and puts it back in the pending queue.');">
+        <div style="margin-bottom:8px;">
+          <label for="reverse_notes-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Reason <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+          <textarea class="form-control form-control-sm" id="reverse_notes-{{ spend.row_index }}" name="notes" rows="2" style="max-width:420px;"></textarea>
+        </div>
+        <button type="submit" class="dp-btn" style="color:#e2a53d;border-color:rgba(226,165,61,.4);background:rgba(226,165,61,.1);">Reverse Spend</button>
+      </form>
     </div>
-    <div style="flex:1;min-width:0;" class="dp-cell-muted">{{ spend.reviewed_by }}{{ ' — ' ~ spend.st_notes if spend.st_notes }}</div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
@@ -62,12 +82,22 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const search = document.getElementById('history-search');
-    if (!search) return;
-    const rows = document.querySelectorAll('.history-row');
-    search.addEventListener('input', function () {
-        const q = search.value.toLowerCase();
-        rows.forEach(function (row) {
-            row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+    if (search) {
+        const rows = document.querySelectorAll('.history-row');
+        search.addEventListener('input', function () {
+            const q = search.value.toLowerCase();
+            rows.forEach(function (row) {
+                row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+            });
+        });
+    }
+
+    document.querySelectorAll('.reverse-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const panel = document.getElementById(btn.dataset.target);
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.textContent = isOpen ? 'Reverse ▾' : 'Collapse ▴';
         });
     });
 });

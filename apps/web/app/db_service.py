@@ -764,6 +764,44 @@ class DBService:
         row.st_notes = notes
         db.session.commit()
 
+    def reverse_spend(self, row_index: int, staff: str, notes: str = '') -> dict:
+        """Reverse an approved spend request back to Pending, restoring its XP.
+
+        Also attempts to roll back the character sheet patch that approval
+        applied. Raises ValueError if the spend isn't found, isn't currently
+        Approved, or has an already-approved dependent that must be reversed
+        first. Returns {'spend': SpendRequest, 'sheet_reverted': bool}.
+        """
+        from app.character_sheet import reverse_character_sheet_patch
+
+        row = db.session.get(DbSpendRequest, row_index)
+        if not row:
+            raise ValueError(f'Spend request not found: {row_index}')
+        if row.status.lower() != 'approved':
+            raise ValueError('Only an approved spend request can be reversed.')
+
+        dependent = DbSpendRequest.query.filter(
+            DbSpendRequest.depends_on == row_index,
+            func.lower(DbSpendRequest.status) == 'approved',
+        ).first()
+        if dependent:
+            raise ValueError(
+                f'{dependent.character_name} / {dependent.trait_name} depends on this '
+                'spend and is already approved — reverse it first.'
+            )
+
+        spend = _row_to_spend(row)
+        sheet_reverted = reverse_character_sheet_patch(spend)
+
+        row.status = 'Pending'
+        row.verified_cost = 0
+        row.reviewed_by = ''
+        row.review_date = ''
+        row.st_notes = notes
+        db.session.commit()
+
+        return {'spend': spend, 'sheet_reverted': sheet_reverted}
+
     def get_spend_dependents(self, row_index: int) -> list[SpendRequest]:
         """Return pending spends that declare they depend on row_index."""
         rows = DbSpendRequest.query.filter(
