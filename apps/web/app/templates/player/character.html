@@ -966,18 +966,21 @@
                 <i class="bi bi-bookmark-star"></i> Wish List
                 <i class="bi bi-chevron-down float-end"></i>
             </h5>
-            <span class="text-muted small ms-3" id="wl-header-summary"></span>
+            <span class="text-muted small ms-3" id="wl-header-summary">
+                {% if wish_list_items %}{{ wish_list_items | length }} item{{ 's' if wish_list_items | length != 1 else '' }} · {{ wish_list_items | sum(attribute='xp_cost') }} XP{% endif %}
+            </span>
         </div>
     </div>
     <div class="collapse" id="wish-list">
         <div class="card-body">
 
             <!-- Add item form -->
-            <div class="wl-add-form mb-3 p-3">
+            <form class="wl-add-form mb-3 p-3" method="post"
+                  action="{{ url_for('player.add_wish_list_item', name=char.character_name) }}">
                 <div class="row g-2 align-items-end">
                     <div class="col-12 col-sm-4">
                         <label class="form-label small fw-bold mb-1">Category</label>
-                        <select class="form-select form-select-sm" id="wl-category">
+                        <select class="form-select form-select-sm" id="wl-category" name="spend_category" required>
                             <option value="">Select...</option>
                             {% for cat in spend_categories %}
                             <option value="{{ cat }}">{{ cat }}</option>
@@ -986,43 +989,104 @@
                     </div>
                     <div class="col-12 col-sm">
                         <label class="form-label small fw-bold mb-1">Trait</label>
-                        <input type="text" class="form-control form-control-sm" id="wl-trait"
-                               placeholder="e.g., Strength, Dominate">
+                        <input type="text" class="form-control form-control-sm" id="wl-trait" name="trait_name"
+                               placeholder="e.g., Strength, Dominate" required>
                     </div>
                     <div class="col-5 col-sm-auto" style="max-width:80px;">
                         <label class="form-label small fw-bold mb-1">From</label>
-                        <input type="number" class="form-control form-control-sm" id="wl-from" min="0" max="4" value="0">
+                        <input type="number" class="form-control form-control-sm" id="wl-from" name="current_dots" min="0" max="4" value="0">
                     </div>
                     <div class="col-2 col-sm-auto d-flex align-items-end justify-content-center pb-1 px-0" style="font-size:1.1rem; color:#666;">→</div>
                     <div class="col-5 col-sm-auto" style="max-width:80px;">
                         <label class="form-label small fw-bold mb-1">To</label>
-                        <input type="number" class="form-control form-control-sm" id="wl-to" min="1" max="5" value="1">
+                        <input type="number" class="form-control form-control-sm" id="wl-to" name="new_dots" min="1" max="5" value="1">
+                    </div>
+                </div>
+                <div class="row g-2 mt-1 d-none" id="wl-power-name-group">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold mb-1">Power Name <span class="text-muted fw-normal">(specific power being purchased)</span></label>
+                        <input type="text" class="form-control form-control-sm" name="power_name" id="wl-power-name"
+                               placeholder="e.g., Mesmerize, Prowl, Sense the Unseen">
+                        <div class="form-text">Required to update your character sheet when converted to a spend request.</div>
+                    </div>
+                </div>
+                <div class="mt-1 d-none" id="wl-in-clan-group">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_in_clan" id="wl-is-in-clan" value="1">
+                        <label class="form-check-label small" for="wl-is-in-clan">This is an In-Clan Discipline</label>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold mb-1">Notes <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" class="form-control form-control-sm" name="justification"
+                               placeholder="e.g., justification for staff, used when converted to a spend request">
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
                     <span class="text-muted small">Cost: <strong id="wl-preview-cost" class="text-warning">—</strong> XP</span>
-                    <button class="btn btn-sm btn-outline-warning" id="wl-add-btn" disabled>
+                    <button type="submit" class="btn btn-sm btn-outline-warning" id="wl-add-btn" disabled>
                         <i class="bi bi-plus"></i> Add to List
                     </button>
                 </div>
-            </div>
+            </form>
 
             <!-- Items list -->
-            <div id="wl-items"></div>
-
-            <!-- Summary footer -->
-            <div id="wl-summary" class="d-none mt-2">
-                <div class="wl-summary-bar d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <span id="wl-total-text" class="small"></span>
-                    <span id="wl-xp-status" class="small"></span>
+            <div id="wl-items">
+                {% for item in wish_list_items %}
+                <div class="wl-item">
+                    <div class="wl-item-body">
+                        <div class="wl-item-main">
+                            <span class="wl-item-trait">{{ item.trait_name }}</span>
+                            <span class="wl-item-cat">{{ item.spend_category }}</span>
+                        </div>
+                        <div class="wl-item-meta">
+                            <span class="wl-item-dots">{{ item.current_dots }} → {{ item.new_dots }}</span>
+                            <span class="wl-item-cost">{{ item.xp_cost }} XP</span>
+                        </div>
+                    </div>
+                    <div class="wl-item-actions">
+                        <form method="post" class="d-inline"
+                              action="{{ url_for('player.convert_wish_list_item', name=char.character_name, item_id=item.id) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success py-0" title="Submit as spend request">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </form>
+                        <form method="post" class="d-inline"
+                              action="{{ url_for('player.remove_wish_list_item', name=char.character_name, item_id=item.id) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0" title="Remove">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
 
+            <!-- Summary footer -->
+            {% if wish_list_items %}
+            {% set wl_total = wish_list_items | sum(attribute='xp_cost') %}
+            <div id="wl-summary" class="mt-2">
+                <div class="wl-summary-bar d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span id="wl-total-text" class="small">
+                        <strong>{{ wl_total }} XP</strong> planned across {{ wish_list_items | length }} item{{ 's' if wish_list_items | length != 1 else '' }}
+                    </span>
+                    <span id="wl-xp-status" class="small">
+                        {% if available_xp - wl_total >= 0 %}
+                        <span class="text-success"><i class="bi bi-check-circle"></i> {{ available_xp - wl_total }} XP remaining after all</span>
+                        {% else %}
+                        <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> {{ -(available_xp - wl_total) }} XP short of full list</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% else %}
             <!-- Empty state -->
             <div id="wl-empty" class="text-center text-muted py-3">
                 <i class="bi bi-bookmark-star" style="font-size:1.8rem;opacity:0.25;"></i>
                 <p class="small mt-2 mb-0">No items yet. Add traits you're planning to purchase.</p>
             </div>
+            {% endif %}
 
         </div>
     </div>
@@ -1390,12 +1454,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
-// ═══ Wish List (localStorage per character) ═══
+// ═══ Wish List (server-persisted; this block only drives the add-form's live cost preview) ═══
 (function() {
-    const STORAGE_KEY = 'wl_' + {{ char.character_name | tojson }};
-    const AVAILABLE_XP = {{ available_xp | int }};
-
-    // Mirror of the server-side cost rules (same as XP_RULES above)
+    // Mirror of the server-side cost rules (same as XP_RULES above) — used only
+    // to preview cost before submit; the server recalculates authoritatively.
     const WL_RULES = {
         'Attribute':                   { multiplier: 5 },
         'Skill':                       { multiplier: 3 },
@@ -1423,111 +1485,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return cost || null;
     }
 
-    function load() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-        catch(e) { return []; }
-    }
-
-    function save(items) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }
-
-    function esc(str) {
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
-
-    function render() {
-        const items = load();
-        const container = document.getElementById('wl-items');
-        const emptyEl   = document.getElementById('wl-empty');
-        const summaryEl = document.getElementById('wl-summary');
-        const headerEl  = document.getElementById('wl-header-summary');
-
-        container.innerHTML = '';
-
-        if (items.length === 0) {
-            emptyEl.classList.remove('d-none');
-            summaryEl.classList.add('d-none');
-            headerEl.textContent = '';
-            return;
-        }
-
-        emptyEl.classList.add('d-none');
-        summaryEl.classList.remove('d-none');
-
-        let total = 0;
-        items.forEach(function(item, idx) {
-            total += item.cost;
-            const div = document.createElement('div');
-            div.className = 'wl-item';
-            div.innerHTML =
-                '<div class="wl-item-body">' +
-                    '<div class="wl-item-main">' +
-                        '<span class="wl-item-trait">' + esc(item.trait) + '</span>' +
-                        '<span class="wl-item-cat">' + esc(item.category) + '</span>' +
-                    '</div>' +
-                    '<div class="wl-item-meta">' +
-                        '<span class="wl-item-dots">' + item.from_dots + ' → ' + item.to_dots + '</span>' +
-                        '<span class="wl-item-cost">' + item.cost + ' XP</span>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="wl-item-actions">' +
-                    '<button class="btn btn-sm btn-outline-secondary wl-fill-btn py-0" title="Pre-fill spend form" data-idx="' + idx + '">' +
-                        '<i class="bi bi-arrow-up-right-square"></i>' +
-                    '</button>' +
-                    '<button class="btn btn-sm btn-outline-danger wl-remove-btn py-0" title="Remove" data-idx="' + idx + '">' +
-                        '<i class="bi bi-x"></i>' +
-                    '</button>' +
-                '</div>';
-            container.appendChild(div);
-        });
-
-        // Bind buttons
-        container.querySelectorAll('.wl-remove-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const list = load();
-                list.splice(parseInt(this.dataset.idx), 1);
-                save(list);
-                render();
-            });
-        });
-        container.querySelectorAll('.wl-fill-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                fillSpend(load()[parseInt(this.dataset.idx)]);
-            });
-        });
-
-        // Summary
-        const xpAfter = AVAILABLE_XP - total;
-        headerEl.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + ' · ' + total + ' XP';
-        document.getElementById('wl-total-text').innerHTML =
-            '<strong>' + total + ' XP</strong> planned across ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
-        const statusEl = document.getElementById('wl-xp-status');
-        if (xpAfter >= 0) {
-            statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> ' + xpAfter + ' XP remaining after all</span>';
-        } else {
-            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle"></i> ' + Math.abs(xpAfter) + ' XP short of full list</span>';
-        }
-    }
-
-    function fillSpend(item) {
-        const spendEl = document.getElementById('spend-form');
-        if (spendEl) bootstrap.Collapse.getOrCreateInstance(spendEl).show();
-        const catEl   = document.getElementById('spend_category');
-        const traitEl = document.getElementById('trait_name');
-        const fromEl  = document.getElementById('current_dots');
-        const toEl    = document.getElementById('new_dots');
-        if (catEl)   { catEl.value = item.category; catEl.dispatchEvent(new Event('change')); }
-        if (traitEl) { traitEl.value = item.trait; }
-        if (fromEl)  { fromEl.value = item.from_dots; fromEl.dispatchEvent(new Event('input')); }
-        if (toEl)    { toEl.value = item.to_dots; toEl.dispatchEvent(new Event('input')); }
-        setTimeout(function() {
-            spendEl?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-    }
-
     // Add form
     const wlCat  = document.getElementById('wl-category');
     const wlTrait = document.getElementById('wl-trait');
@@ -1535,6 +1492,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const wlTo    = document.getElementById('wl-to');
     const wlPreview = document.getElementById('wl-preview-cost');
     const wlAddBtn  = document.getElementById('wl-add-btn');
+    const wlPowerNameGroup = document.getElementById('wl-power-name-group');
+    const wlPowerNameInput = document.getElementById('wl-power-name');
+    const wlInClanGroup = document.getElementById('wl-in-clan-group');
 
     function updatePreview() {
         const cost = wlCost(wlCat.value, parseInt(wlFrom.value)||0, parseInt(wlTo.value)||0);
@@ -1549,6 +1509,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     wlCat?.addEventListener('change', function() {
+        const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
+        const needsPowerName = isDiscipline || wlCat.value === 'Ghoul Discipline';
+        if (wlInClanGroup) wlInClanGroup.classList.toggle('d-none', !isDiscipline);
+        if (wlPowerNameGroup) {
+            wlPowerNameGroup.classList.toggle('d-none', !needsPowerName);
+            if (wlPowerNameInput) {
+                wlPowerNameInput.required = needsPowerName;
+                if (!needsPowerName) wlPowerNameInput.value = '';
+            }
+        }
         if (wlCat.value === 'Humanity') {
             wlTrait.value = 'Humanity';
             wlTrait.readOnly = true;
@@ -1567,29 +1537,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePreview();
     });
 
-    wlAddBtn?.addEventListener('click', function() {
-        const cat   = wlCat.value;
-        const trait = wlTrait.value.trim();
-        const from  = parseInt(wlFrom.value) || 0;
-        const to    = parseInt(wlTo.value) || 0;
-        const cost  = wlCost(cat, from, to);
-        if (!cost || !trait) return;
-
-        const items = load();
-        items.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2),
-                     category: cat, trait: trait, from_dots: from, to_dots: to, cost: cost });
-        save(items);
-
-        wlTrait.value = '';
-        wlCat.value = '';
-        wlFrom.value = 0;
-        wlTo.value = 1;
-        wlPreview.textContent = '—';
-        wlAddBtn.disabled = true;
-        render();
-    });
-
-    render();
+    updatePreview();
 })();
 
 (function () {

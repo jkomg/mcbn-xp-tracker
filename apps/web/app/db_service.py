@@ -28,6 +28,7 @@ from app.db import (
     DbSheetsSyncError,
     DbCharacterBackground,
     DbBoon,
+    DbWishListItem,
 )
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 from app.game_calendar import next_night_after_downtime
@@ -334,6 +335,9 @@ class DBService:
         ).update({'character_name': new_name}, synchronize_session=False)
         DbLedgerEntry.query.filter(
             func.lower(DbLedgerEntry.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        DbWishListItem.query.filter(
+            func.lower(DbWishListItem.character_name) == old_name.lower()
         ).update({'character_name': new_name}, synchronize_session=False)
         _character_action_types = {
             'add_character', 'edit_character', 'activate_character',
@@ -803,6 +807,66 @@ class DBService:
         db.session.add(row)
         db.session.commit()
         return xp_cost
+
+    # ── Wish List ─────────────────────────────────────────────────────────────
+
+    def get_wish_list_items(self, character_name: str) -> list[dict]:
+        rows = DbWishListItem.query.filter(
+            func.lower(DbWishListItem.character_name) == character_name.lower(),
+        ).order_by(DbWishListItem.id.asc()).all()
+        return [{
+            'id': row.id,
+            'spend_category': row.spend_category,
+            'trait_name': row.trait_name,
+            'power_name': row.power_name or '',
+            'current_dots': row.current_dots,
+            'new_dots': row.new_dots,
+            'is_in_clan': bool(row.is_in_clan),
+            'xp_cost': row.xp_cost,
+            'justification': row.justification or '',
+            'created_at': row.created_at or '',
+        } for row in rows]
+
+    def add_wish_list_item(self, character_name: str, spend_category: str,
+                            trait_name: str, current_dots: int, new_dots: int,
+                            is_in_clan: bool = False, power_name: str = '',
+                            justification: str = '') -> int:
+        """Add a wish list item. Returns the calculated XP cost.
+
+        Raises ValueError if the cost calculation fails.
+        """
+        from app.xp_rules import calculate_xp_cost
+        xp_cost = calculate_xp_cost(spend_category, current_dots, new_dots)
+
+        row = DbWishListItem(
+            character_name=character_name,
+            spend_category=spend_category,
+            trait_name=trait_name,
+            power_name=power_name or '',
+            current_dots=current_dots,
+            new_dots=new_dots,
+            is_in_clan=bool(is_in_clan),
+            xp_cost=xp_cost,
+            justification=justification,
+            created_at=_now_str(),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return xp_cost
+
+    def get_wish_list_item(self, item_id: int, character_name: str) -> Optional[DbWishListItem]:
+        return DbWishListItem.query.filter(
+            DbWishListItem.id == item_id,
+            func.lower(DbWishListItem.character_name) == character_name.lower(),
+        ).first()
+
+    def delete_wish_list_item(self, item_id: int, character_name: str) -> bool:
+        row = self.get_wish_list_item(item_id, character_name)
+        if not row:
+            return False
+        db.session.delete(row)
+        db.session.commit()
+        return True
 
     # ── XP Totals (computed) ─────────────────────────────────────────────────
 

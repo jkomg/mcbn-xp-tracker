@@ -345,6 +345,24 @@ class DbCharacterBackground(db.Model):
         return max(0, (self.dots_total or 0) - (self.dots_blanked or 0))
 
 
+class DbWishListItem(db.Model):
+    __tablename__ = 'wish_list_items'
+    __table_args__ = (
+        db.Index('ix_wish_list_items_character', 'character_name'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    character_name = db.Column(String(200), nullable=False)
+    spend_category = db.Column(String(100), nullable=False)
+    trait_name = db.Column(String(100), nullable=False)
+    power_name = db.Column(String(100), default='')
+    current_dots = db.Column(Integer, nullable=False, default=0)
+    new_dots = db.Column(Integer, nullable=False, default=1)
+    is_in_clan = db.Column(Boolean, default=False)
+    xp_cost = db.Column(Integer, nullable=False, default=0)
+    justification = db.Column(Text, default='')
+    created_at = db.Column(String(20), nullable=False, default='')
+
+
 class Coterie(db.Model):
     __tablename__ = 'coteries'
     __table_args__ = (
