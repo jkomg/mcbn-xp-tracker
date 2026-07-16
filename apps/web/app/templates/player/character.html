@@ -1002,6 +1002,20 @@
                         <input type="number" class="form-control form-control-sm" id="wl-to" name="new_dots" min="1" max="5" value="1">
                     </div>
                 </div>
+                <div class="row g-2 mt-1 d-none" id="wl-power-name-group">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold mb-1">Power Name <span class="text-muted fw-normal">(specific power being purchased)</span></label>
+                        <input type="text" class="form-control form-control-sm" name="power_name" id="wl-power-name"
+                               placeholder="e.g., Mesmerize, Prowl, Sense the Unseen">
+                        <div class="form-text">Required to update your character sheet when converted to a spend request.</div>
+                    </div>
+                </div>
+                <div class="mt-1 d-none" id="wl-in-clan-group">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_in_clan" id="wl-is-in-clan" value="1">
+                        <label class="form-check-label small" for="wl-is-in-clan">This is an In-Clan Discipline</label>
+                    </div>
+                </div>
                 <div class="row g-2 mt-1">
                     <div class="col-12">
                         <label class="form-label small fw-bold mb-1">Notes <span class="text-muted fw-normal">(optional)</span></label>
@@ -1478,6 +1492,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const wlTo    = document.getElementById('wl-to');
     const wlPreview = document.getElementById('wl-preview-cost');
     const wlAddBtn  = document.getElementById('wl-add-btn');
+    const wlPowerNameGroup = document.getElementById('wl-power-name-group');
+    const wlPowerNameInput = document.getElementById('wl-power-name');
+    const wlInClanGroup = document.getElementById('wl-in-clan-group');
 
     function updatePreview() {
         const cost = wlCost(wlCat.value, parseInt(wlFrom.value)||0, parseInt(wlTo.value)||0);
@@ -1492,6 +1509,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     wlCat?.addEventListener('change', function() {
+        const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
+        const needsPowerName = isDiscipline || wlCat.value === 'Ghoul Discipline';
+        if (wlInClanGroup) wlInClanGroup.classList.toggle('d-none', !isDiscipline);
+        if (wlPowerNameGroup) {
+            wlPowerNameGroup.classList.toggle('d-none', !needsPowerName);
+            if (wlPowerNameInput) {
+                wlPowerNameInput.required = needsPowerName;
+                if (!needsPowerName) wlPowerNameInput.value = '';
+            }
+        }
         if (wlCat.value === 'Humanity') {
             wlTrait.value = 'Humanity';
             wlTrait.readOnly = true;

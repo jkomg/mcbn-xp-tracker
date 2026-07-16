@@ -648,6 +648,11 @@ def add_wish_list_item(name):
         flash('Invalid spend category.', 'danger')
         return redirect(url_for('player.character', name=name))
 
+    from app.character_sheet import _DISCIPLINE_CATEGORIES
+    if spend_category in _DISCIPLINE_CATEGORIES and not power_name:
+        flash('Power name is required for discipline purchases.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
     try:
         current_dots = int(request.form.get('current_dots', 0))
         new_dots = int(request.form.get('new_dots', 1))

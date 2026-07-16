@@ -336,6 +336,9 @@ class DBService:
         DbLedgerEntry.query.filter(
             func.lower(DbLedgerEntry.character_name) == old_name.lower()
         ).update({'character_name': new_name}, synchronize_session=False)
+        DbWishListItem.query.filter(
+            func.lower(DbWishListItem.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
         _character_action_types = {
             'add_character', 'edit_character', 'activate_character',
             'deactivate_character', 'delete_character', 'rename_character',
