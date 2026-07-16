@@ -260,6 +260,136 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
     return False
 
 
+def reverse_character_sheet_patch(spend) -> bool:
+    """Undo an already-applied patch_character_draft() for this spend.
+
+    Only rolls back a field/entry if it still holds exactly the value this
+    spend set — if something else has changed it since (e.g. a later spend
+    raised the same trait further), skips rather than clobbering newer state.
+    Also regenerates the wiki stats section on success. Returns True if the
+    sheet was rolled back, False if there was nothing to safely undo.
+    Errors are logged but never raised — a reversal must not be blocked by this.
+    """
+    try:
+        return _do_reverse_patch(spend)
+    except Exception as exc:
+        logger.warning('character_sheet reverse-patch failed for %s: %s', spend.character_name, exc)
+        return False
+
+
+def _do_reverse_patch(spend) -> bool:
+    from app.db import db, WikiPage
+    from sqlalchemy import func
+
+    draft = _find_approved_draft(spend.character_name)
+    if not draft or not draft.character_data:
+        return False
+
+    try:
+        data = json.loads(draft.character_data)
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+    power_name = (getattr(spend, 'power_name', '') or '').strip()
+    reverted = _apply_reverse_patch(
+        data, spend.spend_category, spend.trait_name, power_name,
+        spend.current_dots, spend.new_dots,
+    )
+    if not reverted:
+        return False
+
+    draft.character_data = json.dumps(data)
+    draft.updated_at = datetime.now(timezone.utc)
+
+    wiki_page = WikiPage.query.filter(
+        WikiPage.category == 'characters',
+        func.lower(WikiPage.title) == spend.character_name.lower(),
+    ).first()
+    if wiki_page:
+        _update_wiki_stats_section(wiki_page, data)
+
+    db.session.commit()
+    return True
+
+
+def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name: str,
+                          current_dots: int, new_dots: int) -> bool:
+    """Mutate data in-place to undo a prior _apply_patch call. Returns True if reverted."""
+    trait_name = (trait_name or '').strip()
+    if not trait_name:
+        return False
+
+    if category == 'Attribute':
+        key = trait_name.lower()
+        attrs = data.get('attributes', {})
+        if attrs.get(key) == new_dots:
+            attrs[key] = current_dots
+            return True
+        return False
+
+    if category in _SKILL_CATEGORIES:
+        key = trait_name.lower()
+        skills = data.get('skills', {})
+        if skills.get(key) == new_dots:
+            skills[key] = current_dots
+            return True
+        return False
+
+    if category in _DISCIPLINE_CATEGORIES:
+        if not power_name:
+            return False
+        # Unlike a background/merit rating, a named discipline power is a
+        # discrete, one-time purchase — it isn't "leveled up" again later
+        # under the same name. So undoing one always removes the entry,
+        # regardless of current_dots (the discipline's overall rating
+        # before this purchase), rather than reducing its level in place.
+        disciplines = data.get('disciplines', [])
+        for power in disciplines:
+            if power.get('name', '').lower() == power_name.lower() and power.get('level') == new_dots:
+                disciplines.remove(power)
+                return True
+        return False
+
+    if category in ('Blood Sorcery Ritual', 'Thin-Blood Alchemy Formula'):
+        rituals = data.get('rituals', [])
+        for r in rituals:
+            if r.get('name', '').lower() == trait_name.lower() and r.get('level') == new_dots:
+                rituals.remove(r)
+                return True
+        return False
+
+    if category == 'Advantage (Merit/Background)':
+        key = trait_name.lower()
+        for array_name in ('backgrounds', 'merits'):
+            items = data.get(array_name)
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if item.get('name', '').lower() == key and item.get('level') == new_dots:
+                    if current_dots == 0:
+                        items.remove(item)
+                    else:
+                        item['level'] = current_dots
+                    return True
+        return False
+
+    if category == 'Loresheet':
+        purchases = data.get('loresheet_purchases', [])
+        for lp in purchases:
+            if lp.get('dot') == new_dots and lp.get('loresheet_id', '').lower() == trait_name.lower():
+                purchases.remove(lp)
+                return True
+        return False
+
+    if category == 'Humanity':
+        if data.get('humanity') == new_dots:
+            data['humanity'] = current_dots
+            return True
+        return False
+
+    return False
+
+
 def _dots_str(n: int, max_dots: int = 5) -> str:
     n = max(0, min(n, max_dots))
     return _DOT * n + _EMPTY * (max_dots - n)

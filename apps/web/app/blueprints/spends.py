@@ -151,6 +151,16 @@ def approve(row_id):
     if verified_cost < 0 or verified_cost > 200:
         flash('Verified cost must be between 0 and 200.', 'danger')
         return redirect(url_for('spends.review', row_id=row_id))
+
+    available_xp = db_service.get_xp_totals(spend.character_name)['available_xp']
+    if verified_cost > available_xp:
+        flash(
+            f'Cannot approve — insufficient XP. {spend.character_name} has '
+            f'{available_xp} XP available, this costs {verified_cost} XP.',
+            'danger',
+        )
+        return redirect(url_for('spends.review', row_id=row_id))
+
     notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
@@ -245,6 +255,77 @@ def deny(row_id):
     return redirect(url_for('spends.pending'))
 
 
+@bp.route('/<int:row_id>/reverse', methods=['POST'])
+@require_staff
+def reverse(row_id):
+    """Reverse an approved spend request back to Pending, restoring its XP."""
+    spend = db_service.get_spend_by_row(row_id)
+    if not spend:
+        abort(404)
+
+    notes = request.form.get('notes', '')[:1000]
+    staff = get_staff_user()
+
+    try:
+        result = db_service.reverse_spend(row_id, staff, notes)
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('spends.history'))
+
+    db_service.log_action(
+        staff_user=staff,
+        action_type='reverse_spend',
+        target=spend.character_name,
+        details=(
+            f'Reversed spend: {spend.trait_name} '
+            f'({spend.current_dots}→{spend.new_dots}), restoring {spend.verified_cost} XP. '
+            f'Originally approved by {spend.reviewed_by or "unknown"}. {notes}'
+        ).strip(),
+    )
+    if sheets_sync:
+        sheets_sync.sync_reverse_spend(
+            character_name=spend.character_name,
+            trait_name=spend.trait_name,
+            spend_category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            notes=notes,
+        )
+        sheets_sync.sync_log_action(
+            staff_user=staff,
+            action_type='reverse_spend',
+            target=spend.character_name,
+            details=(
+                f'Reversed spend: {spend.trait_name} '
+                f'({spend.current_dots}→{spend.new_dots}), restoring {spend.verified_cost} XP. '
+                f'Originally approved by {spend.reviewed_by or "unknown"}. {notes}'
+            ).strip(),
+        )
+
+    if result['sheet_reverted']:
+        flash(
+            f'Reversed {spend.trait_name} spend for {spend.character_name} — '
+            f'XP restored, character sheet rolled back, and it is back in the pending queue.',
+            'success',
+        )
+    else:
+        flash(
+            f'Reversed {spend.trait_name} spend for {spend.character_name} — XP restored '
+            f'and it is back in the pending queue, but the character sheet could not be '
+            f'safely rolled back automatically (it may have changed since). Please check '
+            f'{spend.character_name}\'s sheet manually.',
+            'warning',
+        )
+    if spend.coterie_id:
+        flash(
+            f'This spend was a coterie XP donation to {spend.coterie_name or "a coterie"} — '
+            f'reversing it does not undo the coterie donation. Please check the coterie\'s '
+            f'domain/pool state manually.',
+            'warning',
+        )
+    return redirect(url_for('spends.history'))
+
+
 @bp.route('/bulk-approve', methods=['POST'])
 @require_staff
 def bulk_approve():
@@ -289,6 +370,14 @@ def bulk_approve():
             continue
 
         verified_cost = validation['correct_cost']
+
+        available_xp = db_service.get_xp_totals(spend.character_name)['available_xp']
+        if verified_cost > available_xp:
+            skipped.append(
+                f'{spend.character_name} / {spend.trait_name} '
+                f'(insufficient XP: has {available_xp}, needs {verified_cost})'
+            )
+            continue
 
         db_service.approve_spend(row_id, verified_cost, staff, '')
         patch_character_draft(spend)
