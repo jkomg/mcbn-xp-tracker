@@ -838,6 +838,21 @@ class SheetsClient:
         )
         self._cache.invalidate(TAB_SPEND_REQUESTS)
 
+    def reverse_spend(self, row_index: int, notes: str = '') -> None:
+        """Reset a previously-approved row back to Pending (mirrors reverse_spend)."""
+        ws = self._ws(TAB_SPEND_REQUESTS)
+        row_num = row_index + 2
+
+        status_col = SPEND_REQUESTS_HEADERS.index('status') + 1
+        end_col = status_col + 4
+        ws.update(
+            f'{gspread.utils.rowcol_to_a1(row_num, status_col)}:'
+            f'{gspread.utils.rowcol_to_a1(row_num, end_col)}',
+            [['Pending', '', '', '', notes]],
+            value_input_option='RAW',
+        )
+        self._cache.invalidate(TAB_SPEND_REQUESTS)
+
     def submit_spend_request(self, character_name: str, spend_category: str,
                               trait_name: str, current_dots: int,
                               new_dots: int, is_in_clan: bool,

@@ -790,6 +790,27 @@ class DBService:
                 'spend and is already approved — reverse it first.'
             )
 
+        # Catch sequential purchases of the same trait that were submitted
+        # independently (depends_on is optional in the submission UI) — e.g.
+        # a 1→2 and a later 2→3 both approved with no declared link between
+        # them. Without this, reversing the 1→2 spend would restore its XP
+        # and leave the 2→3 spend approved on top of a purchase that's now
+        # nominally un-approved.
+        implicit_dependent = DbSpendRequest.query.filter(
+            DbSpendRequest.id != row_index,
+            func.lower(DbSpendRequest.character_name) == row.character_name.lower(),
+            DbSpendRequest.spend_category == row.spend_category,
+            func.lower(DbSpendRequest.trait_name) == (row.trait_name or '').lower(),
+            DbSpendRequest.current_dots == row.new_dots,
+            func.lower(DbSpendRequest.status) == 'approved',
+        ).first()
+        if implicit_dependent:
+            raise ValueError(
+                f'{implicit_dependent.character_name} / {implicit_dependent.trait_name} '
+                f'({implicit_dependent.current_dots}→{implicit_dependent.new_dots}) was approved '
+                'assuming this spend already applied — reverse it first.'
+            )
+
         spend = _row_to_spend(row)
         sheet_reverted = reverse_character_sheet_patch(spend)
 

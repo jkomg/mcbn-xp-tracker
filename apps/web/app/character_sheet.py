@@ -338,13 +338,15 @@ def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name:
     if category in _DISCIPLINE_CATEGORIES:
         if not power_name:
             return False
+        # Unlike a background/merit rating, a named discipline power is a
+        # discrete, one-time purchase — it isn't "leveled up" again later
+        # under the same name. So undoing one always removes the entry,
+        # regardless of current_dots (the discipline's overall rating
+        # before this purchase), rather than reducing its level in place.
         disciplines = data.get('disciplines', [])
         for power in disciplines:
             if power.get('name', '').lower() == power_name.lower() and power.get('level') == new_dots:
-                if current_dots == 0:
-                    disciplines.remove(power)
-                else:
-                    power['level'] = current_dots
+                disciplines.remove(power)
                 return True
         return False
 

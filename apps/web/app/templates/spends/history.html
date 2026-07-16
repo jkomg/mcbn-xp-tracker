@@ -37,8 +37,8 @@
     <div style="width:90px;flex-shrink:0;"></div>
   </div>
   {% for spend in spends %}
-  <div>
-    <div class="dp-row history-row" style="cursor:default;" data-search="{{ (spend.character_name ~ ' ' ~ spend.trait_name) | lower }}">
+  <div class="history-wrapper" data-search="{{ (spend.character_name ~ ' ' ~ spend.trait_name) | lower }}">
+    <div class="dp-row history-row" style="cursor:default;">
       <div style="width:150px;flex-shrink:0;" class="dp-cell-name">{{ spend.character_name }}</div>
       <div style="width:180px;flex-shrink:0;font-size:12.5px;color:var(--text-body);">
         {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
@@ -83,11 +83,18 @@
 document.addEventListener('DOMContentLoaded', function () {
     const search = document.getElementById('history-search');
     if (search) {
-        const rows = document.querySelectorAll('.history-row');
+        const wrappers = document.querySelectorAll('.history-wrapper');
         search.addEventListener('input', function () {
             const q = search.value.toLowerCase();
-            rows.forEach(function (row) {
-                row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+            wrappers.forEach(function (wrapper) {
+                const match = !q || wrapper.dataset.search.includes(q);
+                wrapper.style.display = match ? '' : 'none';
+                if (!match) {
+                    const panel = wrapper.querySelector('.dp-detail');
+                    const toggle = wrapper.querySelector('.reverse-toggle');
+                    if (panel) panel.style.display = 'none';
+                    if (toggle) toggle.textContent = 'Reverse ▾';
+                }
             });
         });
     }

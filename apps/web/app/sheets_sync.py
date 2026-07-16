@@ -206,6 +206,30 @@ class SheetsSyncWorker:
                 logger.warning('sheets_sync_failed: approve_spend — %s', exc)
         _executor.submit(_task)
 
+    def sync_reverse_spend(self, character_name: str, trait_name: str,
+                           spend_category: str, current_dots: int, new_dots: int,
+                           notes: str = '') -> None:
+        def _task():
+            try:
+                match = next(
+                    (s for s in self._sheets.get_all_spends()
+                     if s.character_name.lower() == character_name.lower()
+                     and s.trait_name == trait_name
+                     and s.spend_category == spend_category
+                     and s.current_dots == current_dots
+                     and s.new_dots == new_dots
+                     and s.status.lower() == 'approved'),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: reverse_spend no match for %s / %s',
+                                   character_name, trait_name)
+                    return
+                self._sheets.reverse_spend(match.row_index, notes)
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: reverse_spend — %s', exc)
+        _executor.submit(_task)
+
     def sync_deny_spend(self, character_name: str, trait_name: str,
                         spend_category: str, current_dots: int, new_dots: int,
                         reviewer: str, notes: str = '') -> None:
@@ -360,6 +384,13 @@ class SheetsSyncWorker:
                         self._sheets.deny_spend(
                             ss.row_index, ds.reviewed_by, ds.st_notes or ''
                         )
+                        summary['spends_status_updated'] += 1
+                    elif ds.status.lower() == 'pending' and ss.status.lower() == 'approved':
+                        # A reversed spend — DB is back to Pending after
+                        # having been Approved. sync_reverse_spend() should
+                        # have already caught this at reversal time; this is
+                        # the self-heal path if that call was missed/failed.
+                        self._sheets.reverse_spend(ss.row_index, ds.st_notes or '')
                         summary['spends_status_updated'] += 1
                 except Exception as exc:
                     summary['errors'].append(

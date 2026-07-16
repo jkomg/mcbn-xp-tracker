@@ -283,6 +283,14 @@ def reverse(row_id):
         ).strip(),
     )
     if sheets_sync:
+        sheets_sync.sync_reverse_spend(
+            character_name=spend.character_name,
+            trait_name=spend.trait_name,
+            spend_category=spend.spend_category,
+            current_dots=spend.current_dots,
+            new_dots=spend.new_dots,
+            notes=notes,
+        )
         sheets_sync.sync_log_action(
             staff_user=staff,
             action_type='reverse_spend',
