@@ -673,6 +673,13 @@ def add_wish_list_item(name):
             is_in_clan=is_in_clan,
             justification=justification or _WISH_LIST_DEFAULT_JUSTIFICATION,
         )
+        discord_name = session.get('discord_name', 'unknown')
+        db_service.log_action(
+            staff_user=f'player:{discord_name}',
+            action_type='player_wishlist_add',
+            target=name,
+            details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots})',
+        )
         flash(f'Added "{trait_name}" to your wish list.', 'success')
     except ValueError as e:
         flash(f'Could not add to wish list: {e}', 'danger')
@@ -689,7 +696,15 @@ def remove_wish_list_item(name, item_id):
     if not char or not char.active:
         abort(404)
 
-    if db_service.delete_wish_list_item(item_id, name):
+    item = db_service.get_wish_list_item(item_id, name)
+    if item and db_service.delete_wish_list_item(item_id, name):
+        discord_name = session.get('discord_name', 'unknown')
+        db_service.log_action(
+            staff_user=f'player:{discord_name}',
+            action_type='player_wishlist_remove',
+            target=name,
+            details=f'{item.spend_category}: {item.trait_name} ({item.current_dots}→{item.new_dots})',
+        )
         flash('Removed item from wish list.', 'success')
     else:
         flash('Wish list item not found.', 'danger')
