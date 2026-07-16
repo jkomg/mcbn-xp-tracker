@@ -313,6 +313,7 @@ def character(name):
         chronicle_tenets=_get_chronicle_tenets(),
         player_coterie=player_coterie,
         player_coterie_role=player_coterie_role,
+        wish_list_items=db_service.get_wish_list_items(name),
     )
 
 
@@ -613,6 +614,144 @@ def submit_spend(name):
         flash(
             f'Spend request submitted: {trait_name} '
             f'({current_dots}→{new_dots}) for {xp_cost} XP. '
+            f'Awaiting staff review.',
+            'success',
+        )
+    except ValueError as e:
+        flash(f'Invalid spend request: {e}', 'danger')
+
+    return redirect(url_for('player.character', name=name))
+
+
+_WISH_LIST_DEFAULT_JUSTIFICATION = 'Planned via wish list'
+
+
+@bp.route('/<name>/wishlist/add', methods=['POST'])
+@require_character_owner
+@_limit("20 per minute")
+def add_wish_list_item(name):
+    """Add an item to the character's wish list."""
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    spend_category = request.form.get('spend_category', '').strip()
+    trait_name = request.form.get('trait_name', '').strip()
+    power_name = request.form.get('power_name', '').strip()[:100]
+    justification = request.form.get('justification', '').strip()[:1000]
+
+    if not spend_category or not trait_name:
+        flash('Category and trait name are required.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
+    if spend_category not in SPEND_CATEGORIES:
+        flash('Invalid spend category.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
+    try:
+        current_dots = int(request.form.get('current_dots', 0))
+        new_dots = int(request.form.get('new_dots', 1))
+    except (ValueError, TypeError):
+        flash('Invalid dot values.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
+    is_in_clan = bool(request.form.get('is_in_clan'))
+
+    try:
+        db_service.add_wish_list_item(
+            character_name=name,
+            spend_category=spend_category,
+            trait_name=trait_name,
+            power_name=power_name,
+            current_dots=current_dots,
+            new_dots=new_dots,
+            is_in_clan=is_in_clan,
+            justification=justification or _WISH_LIST_DEFAULT_JUSTIFICATION,
+        )
+        flash(f'Added "{trait_name}" to your wish list.', 'success')
+    except ValueError as e:
+        flash(f'Could not add to wish list: {e}', 'danger')
+
+    return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/wishlist/<int:item_id>/remove', methods=['POST'])
+@require_character_owner
+@_limit("20 per minute")
+def remove_wish_list_item(name, item_id):
+    """Remove an item from the character's wish list."""
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    if db_service.delete_wish_list_item(item_id, name):
+        flash('Removed item from wish list.', 'success')
+    else:
+        flash('Wish list item not found.', 'danger')
+
+    return redirect(url_for('player.character', name=name))
+
+
+@bp.route('/<name>/wishlist/<int:item_id>/spend', methods=['POST'])
+@require_character_owner
+@_limit("10 per minute")
+def convert_wish_list_item(name, item_id):
+    """Convert a wish list item directly into a pending spend request."""
+    char = db_service.get_character(name)
+    if not char or not char.active:
+        abort(404)
+
+    item = db_service.get_wish_list_item(item_id, name)
+    if not item:
+        flash('Wish list item not found.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
+    try:
+        discord_name = session.get('discord_name', 'unknown')
+        justification = item.justification or _WISH_LIST_DEFAULT_JUSTIFICATION
+        xp_cost = db_service.submit_spend_request(
+            character_name=name,
+            spend_category=item.spend_category,
+            trait_name=item.trait_name,
+            power_name=item.power_name,
+            current_dots=item.current_dots,
+            new_dots=item.new_dots,
+            is_in_clan=item.is_in_clan,
+            justification=justification,
+        )
+        if sheets_sync:
+            sheets_sync.sync_add_spend(
+                character_name=name,
+                spend_category=item.spend_category,
+                trait_name=item.trait_name,
+                current_dots=item.current_dots,
+                new_dots=item.new_dots,
+                is_in_clan=item.is_in_clan,
+                justification=justification,
+            )
+        db_service.log_action(
+            staff_user=f'player:{discord_name}',
+            action_type='player_spend_submitted',
+            target=name,
+            details=(
+                f'{item.spend_category}: {item.trait_name} '
+                f'({item.current_dots}→{item.new_dots}) for {xp_cost} XP (from wish list)'
+            ),
+        )
+        if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'player:{discord_name}',
+                action_type='player_spend_submitted',
+                target=name,
+                details=(
+                    f'{item.spend_category}: {item.trait_name} '
+                    f'({item.current_dots}→{item.new_dots}) for {xp_cost} XP (from wish list)'
+                ),
+            )
+        db_service.delete_wish_list_item(item_id, name)
+        flash(
+            f'Spend request submitted: {item.trait_name} '
+            f'({item.current_dots}→{item.new_dots}) for {xp_cost} XP. '
             f'Awaiting staff review.',
             'success',
         )
