@@ -82,18 +82,36 @@
         {% elif not r.validation.valid %}
         <div style="font-size:12px;color:#ff8a96;margin-bottom:10px;">✕ {{ r.validation.message or 'This spend failed cost validation and cannot be approved as-is.' }}</div>
         {% endif %}
-        <div style="display:flex;gap:8px;">
-          {% if blocked or not r.validation.valid %}
-          <button type="button" class="dp-btn" disabled style="opacity:.4;cursor:not-allowed;">Approve @ {{ r.validation.correct_cost }} XP</button>
-          {% else %}
-          <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}">
-            <input type="hidden" name="verified_cost" value="{{ r.validation.correct_cost }}">
-            <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.1);">Approve @ {{ r.validation.correct_cost }} XP</button>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          {% if not (blocked or not r.validation.valid) %}
+          <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}" style="min-width:220px;flex:1;">
+            <div style="display:flex;gap:8px;align-items:end;margin-bottom:8px;">
+              <div style="flex:1;">
+                <label for="verified_cost-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Verified Cost (XP)</label>
+                <input type="number" class="form-control form-control-sm" id="verified_cost-{{ spend.row_index }}"
+                       name="verified_cost" value="{{ r.validation.correct_cost }}" min="0" max="200" required>
+              </div>
+            </div>
+            <div style="margin-bottom:8px;">
+              <label for="approve_notes-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Notes <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+              <textarea class="form-control form-control-sm" id="approve_notes-{{ spend.row_index }}" name="notes" rows="2"></textarea>
+            </div>
+            <button type="submit" class="dp-btn" style="color:#3ecf7e;border-color:rgba(62,207,126,.4);background:rgba(62,207,126,.1);">Approve</button>
           </form>
+          {% else %}
+          <div style="min-width:220px;flex:1;opacity:.4;">
+            <button type="button" class="dp-btn" disabled style="cursor:not-allowed;">Approve @ {{ r.validation.correct_cost }} XP</button>
+          </div>
           {% endif %}
-          <form method="POST" action="{{ url_for('spends.deny', row_id=spend.row_index) }}" onsubmit="return confirm('Deny this spend request?');">
+          <form method="POST" action="{{ url_for('spends.deny', row_id=spend.row_index) }}" style="min-width:220px;flex:1;">
+            <div style="margin-bottom:8px;">
+              <label for="deny_notes-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Reason <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+              <textarea class="form-control form-control-sm" id="deny_notes-{{ spend.row_index }}" name="notes" rows="2"></textarea>
+            </div>
             <button type="submit" class="dp-btn" style="color:#ff8a96;border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.1);">Deny</button>
           </form>
+        </div>
+        <div style="margin-top:10px;">
           <a href="{{ url_for('spends.review', row_id=spend.row_index) }}" class="dp-btn">Full review page →</a>
         </div>
       </div>
