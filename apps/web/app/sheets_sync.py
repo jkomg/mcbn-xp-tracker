@@ -230,6 +230,50 @@ class SheetsSyncWorker:
                 logger.warning('sheets_sync_failed: reverse_spend — %s', exc)
         _executor.submit(_task)
 
+    def sync_add_wish_list_item(self, character_name: str, spend_category: str,
+                                trait_name: str, power_name: str, current_dots: int,
+                                new_dots: int, is_in_clan: bool, xp_cost: int,
+                                justification: str, created_at: str) -> None:
+        def _task():
+            try:
+                self._sheets.add_wish_list_item(
+                    character_name=character_name,
+                    spend_category=spend_category,
+                    trait_name=trait_name,
+                    power_name=power_name,
+                    current_dots=current_dots,
+                    new_dots=new_dots,
+                    is_in_clan=is_in_clan,
+                    xp_cost=xp_cost,
+                    justification=justification,
+                    created_at=created_at,
+                )
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: add_wish_list_item — %s', exc)
+        _executor.submit(_task)
+
+    def sync_remove_wish_list_item(self, character_name: str, spend_category: str,
+                                   trait_name: str, current_dots: int, new_dots: int) -> None:
+        def _task():
+            try:
+                match = next(
+                    (r for r in self._sheets.get_all_wish_list_items()
+                     if r.get('character_name', '').lower() == character_name.lower()
+                     and r.get('trait_name') == trait_name
+                     and r.get('spend_category') == spend_category
+                     and str(r.get('current_dots')) == str(current_dots)
+                     and str(r.get('new_dots')) == str(new_dots)),
+                    None,
+                )
+                if match is None:
+                    logger.warning('sheets_sync: remove_wish_list_item no match for %s / %s',
+                                   character_name, trait_name)
+                    return
+                self._sheets.remove_wish_list_item_row(match['row_index'])
+            except Exception as exc:
+                logger.warning('sheets_sync_failed: remove_wish_list_item — %s', exc)
+        _executor.submit(_task)
+
     def sync_deny_spend(self, character_name: str, trait_name: str,
                         spend_category: str, current_dots: int, new_dots: int,
                         reviewer: str, notes: str = '') -> None:

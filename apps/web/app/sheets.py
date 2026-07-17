@@ -88,6 +88,7 @@ TAB_XP_RESPONSES = 'XP Responses'
 TAB_SPEND_REQUESTS = 'Spend Requests'
 TAB_XP_LEDGER = 'XP Ledger'
 TAB_AUDIT_LOG = 'Audit Log'
+TAB_WISH_LIST_ITEMS = 'Wish List Items'
 
 # Header rows for each tab
 ROSTER_HEADERS = [
@@ -128,6 +129,11 @@ XP_LEDGER_HEADERS = [
 
 AUDIT_LOG_HEADERS = [
     'timestamp', 'staff_user', 'action_type', 'target_character', 'details',
+]
+
+WISH_LIST_ITEMS_HEADERS = [
+    'created_at', 'character_name', 'spend_category', 'trait_name', 'power_name',
+    'current_dots', 'new_dots', 'is_in_clan', 'xp_cost', 'justification',
 ]
 
 
@@ -296,6 +302,7 @@ class SheetsClient:
             TAB_SPEND_REQUESTS: SPEND_REQUESTS_HEADERS,
             TAB_XP_LEDGER: XP_LEDGER_HEADERS,
             TAB_AUDIT_LOG: AUDIT_LOG_HEADERS,
+            TAB_WISH_LIST_ITEMS: WISH_LIST_ITEMS_HEADERS,
         }
         import logging
         log = logging.getLogger(__name__)
@@ -400,6 +407,7 @@ class SheetsClient:
             TAB_SPEND_REQUESTS: SPEND_REQUESTS_HEADERS,
             TAB_XP_LEDGER: XP_LEDGER_HEADERS,
             TAB_AUDIT_LOG: AUDIT_LOG_HEADERS,
+            TAB_WISH_LIST_ITEMS: WISH_LIST_ITEMS_HEADERS,
         }
 
         for tab_name, headers in tabs.items():
@@ -909,6 +917,36 @@ class SheetsClient:
             review_date=str(row.get('review_date', '')),
             st_notes=str(row.get('st_notes', '')),
         )
+
+    # ── Wish List Items (backup mirror only — app never reads this back) ──────
+
+    def add_wish_list_item(self, character_name: str, spend_category: str,
+                            trait_name: str, power_name: str, current_dots: int,
+                            new_dots: int, is_in_clan: bool, xp_cost: int,
+                            justification: str, created_at: str) -> None:
+        row = [
+            created_at,
+            character_name,
+            spend_category,
+            trait_name,
+            power_name,
+            current_dots,
+            new_dots,
+            'TRUE' if is_in_clan else 'FALSE',
+            xp_cost,
+            justification,
+        ]
+        self._safe_append_row(TAB_WISH_LIST_ITEMS, row)
+
+    def get_all_wish_list_items(self) -> list[dict]:
+        rows = self._get_all_rows(TAB_WISH_LIST_ITEMS)
+        return [dict(row, row_index=i) for i, row in enumerate(rows)
+                if row.get('character_name')]
+
+    def remove_wish_list_item_row(self, row_index: int) -> None:
+        ws = self._ws(TAB_WISH_LIST_ITEMS)
+        ws.delete_rows(row_index + 2)  # +1 header, +1 for 1-indexed
+        self._cache.invalidate(TAB_WISH_LIST_ITEMS)
 
     # ── XP Totals (computed) ─────────────────────────────────────────────────
 

@@ -663,7 +663,8 @@ def add_wish_list_item(name):
     is_in_clan = bool(request.form.get('is_in_clan'))
 
     try:
-        db_service.add_wish_list_item(
+        final_justification = justification or _WISH_LIST_DEFAULT_JUSTIFICATION
+        result = db_service.add_wish_list_item(
             character_name=name,
             spend_category=spend_category,
             trait_name=trait_name,
@@ -671,7 +672,7 @@ def add_wish_list_item(name):
             current_dots=current_dots,
             new_dots=new_dots,
             is_in_clan=is_in_clan,
-            justification=justification or _WISH_LIST_DEFAULT_JUSTIFICATION,
+            justification=final_justification,
         )
         discord_name = session.get('discord_name', 'unknown')
         db_service.log_action(
@@ -680,6 +681,19 @@ def add_wish_list_item(name):
             target=name,
             details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots})',
         )
+        if sheets_sync:
+            sheets_sync.sync_add_wish_list_item(
+                character_name=name,
+                spend_category=spend_category,
+                trait_name=trait_name,
+                power_name=power_name,
+                current_dots=current_dots,
+                new_dots=new_dots,
+                is_in_clan=is_in_clan,
+                xp_cost=result['xp_cost'],
+                justification=final_justification,
+                created_at=result['created_at'],
+            )
         flash(f'Added "{trait_name}" to your wish list.', 'success')
     except ValueError as e:
         flash(f'Could not add to wish list: {e}', 'danger')
@@ -705,6 +719,14 @@ def remove_wish_list_item(name, item_id):
             target=name,
             details=f'{item.spend_category}: {item.trait_name} ({item.current_dots}→{item.new_dots})',
         )
+        if sheets_sync:
+            sheets_sync.sync_remove_wish_list_item(
+                character_name=name,
+                spend_category=item.spend_category,
+                trait_name=item.trait_name,
+                current_dots=item.current_dots,
+                new_dots=item.new_dots,
+            )
         flash('Removed item from wish list.', 'success')
     else:
         flash('Wish list item not found.', 'danger')
@@ -769,6 +791,14 @@ def convert_wish_list_item(name, item_id):
                 ),
             )
         db_service.delete_wish_list_item(item_id, name)
+        if sheets_sync:
+            sheets_sync.sync_remove_wish_list_item(
+                character_name=name,
+                spend_category=item.spend_category,
+                trait_name=item.trait_name,
+                current_dots=item.current_dots,
+                new_dots=item.new_dots,
+            )
         flash(
             f'Spend request submitted: {item.trait_name} '
             f'({item.current_dots}→{item.new_dots}) for {xp_cost} XP. '
