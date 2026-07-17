@@ -6,7 +6,10 @@
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
+  CategoryChannel,
+  ChannelType,
   ChatInputCommandInteraction,
+  Guild,
   ModalBuilder,
   ModalSubmitInteraction,
   SlashCommandBuilder,
@@ -20,6 +23,81 @@ import { liveConfig } from '../liveConfig';
 import { errorToMessage } from '../logger';
 
 const MODAL_ID = 'rumor:submit';
+
+// Curated allowlist — the bot posts with its own permissions, so this must
+// stay an explicit list of in-fiction roles rather than "any guild role."
+// Letting @ resolve arbitrary roles would let a player trigger a real
+// @Administrator (or effectively @everyone-scale) ping through this command.
+const RUMOR_TAGGABLE_ROLE_NAMES = [
+  'Kindred', 'Ghouls', 'Mortals', 'Storyteller',
+  'Camarilla', 'Anarch', 'Autarkis', 'Family', 'Family Representatives',
+  'Camarilla Court', 'Anarch Leaders',
+  'Banu Haqim', 'Brujah', 'Gangrel', 'Lasombra', 'Malkavian', 'Ministry',
+  'Nosferatu', 'Ravnos', 'Salubri', 'Toreador', 'Tremere', 'Tzimisce', 'Ventrue',
+];
+
+// Channels under these categories are treated as taggable in-game locations.
+const RUMOR_LOCATION_CATEGORY_NAMES = ['city of nashville', 'elysium', 'event locations'];
+
+function normalizeTagName(s: string): string {
+  return s.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+async function buildTagMaps(guild: Guild): Promise<{ roleMap: Map<string, string>; channelMap: Map<string, string> }> {
+  const roleMap = new Map<string, string>();
+  const channelMap = new Map<string, string>();
+  try {
+    const [roles, channels] = await Promise.all([guild.roles.fetch(), guild.channels.fetch()]);
+
+    for (const role of roles.values()) {
+      if (RUMOR_TAGGABLE_ROLE_NAMES.some((n) => n.toLowerCase() === role.name.toLowerCase())) {
+        roleMap.set(normalizeTagName(role.name), role.id);
+      }
+    }
+
+    const locationCategoryIds = new Set(
+      Array.from(channels.values())
+        .filter((ch): ch is CategoryChannel => !!ch && ch.type === ChannelType.GuildCategory)
+        .filter((ch) => RUMOR_LOCATION_CATEGORY_NAMES.some((n) => n === ch.name.toLowerCase()))
+        .map((ch) => ch.id),
+    );
+    for (const channel of channels.values()) {
+      if (channel && channel.type === ChannelType.GuildText && channel.parentId && locationCategoryIds.has(channel.parentId)) {
+        channelMap.set(normalizeTagName(channel.name), channel.id);
+      }
+    }
+  } catch {
+    // Tag resolution is a best-effort enhancement — a rumor must still post
+    // even if the guild role/channel fetch fails.
+  }
+  return { roleMap, channelMap };
+}
+
+/**
+ * Scans text for `@word[ word...]` / `#word[ word...]` runs and replaces
+ * any that match a known role/location name with a real Discord mention —
+ * trying the longest run of words first, then backing off one word at a
+ * time, so multi-word names (e.g. "Camarilla Court") resolve without
+ * requiring special quoting. Unmatched tags are left as literal text.
+ */
+export function resolveTags(text: string, roleMap: Map<string, string>, channelMap: Map<string, string>): string {
+  return text.replace(/([@#])([A-Za-z0-9][A-Za-z0-9 '-]{0,48})/g, (full, sigil: string, rest: string) => {
+    const map = sigil === '@' ? roleMap : channelMap;
+    const wordMatches = Array.from(rest.matchAll(/\S+/g));
+    for (let n = wordMatches.length; n >= 1; n--) {
+      const lastWord = wordMatches[n - 1];
+      const endIdx = (lastWord.index ?? 0) + lastWord[0].length;
+      const candidate = rest.slice(0, endIdx);
+      const id = map.get(normalizeTagName(candidate));
+      if (id) {
+        const trailing = rest.slice(endIdx);
+        const mention = sigil === '@' ? `<@&${id}>` : `<#${id}>`;
+        return mention + trailing;
+      }
+    }
+    return full;
+  });
+}
 
 const DISCOVERY_CHOICES = [
   { name: 'Kindred', value: 'Kindred' },
@@ -147,10 +225,16 @@ export async function handleRumorModal(interaction: ModalSubmitInteraction): Pro
     return true;
   }
 
-  const rumorText = interaction.fields.getTextInputValue('rumor_text').trim();
-  const location = interaction.fields.getTextInputValue('location').trim();
+  let rumorText = interaction.fields.getTextInputValue('rumor_text').trim();
+  let location = interaction.fields.getTextInputValue('location').trim();
   const pointOfContactTyped = interaction.fields.getTextInputValue('point_of_contact').trim();
   const roll = interaction.fields.getTextInputValue('roll').trim();
+
+  if (interaction.guild) {
+    const { roleMap, channelMap } = await buildTagMaps(interaction.guild);
+    rumorText = resolveTags(rumorText, roleMap, channelMap);
+    location = resolveTags(location, roleMap, channelMap);
+  }
 
   const pointOfContact =
     pointOfContactTyped || (pending.sourceDiscordId ? `<@${pending.sourceDiscordId}>` : pending.sourceCharacterName ?? '');
