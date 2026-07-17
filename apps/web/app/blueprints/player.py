@@ -682,6 +682,12 @@ def add_wish_list_item(name):
             details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots})',
         )
         if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'player:{discord_name}',
+                action_type='player_wishlist_add',
+                target=name,
+                details=f'{spend_category}: {trait_name} ({current_dots}→{new_dots})',
+            )
             sheets_sync.sync_add_wish_list_item(
                 character_name=name,
                 spend_category=spend_category,
@@ -720,6 +726,12 @@ def remove_wish_list_item(name, item_id):
             details=f'{item.spend_category}: {item.trait_name} ({item.current_dots}→{item.new_dots})',
         )
         if sheets_sync:
+            sheets_sync.sync_log_action(
+                staff_user=f'player:{discord_name}',
+                action_type='player_wishlist_remove',
+                target=name,
+                details=f'{item.spend_category}: {item.trait_name} ({item.current_dots}→{item.new_dots})',
+            )
             sheets_sync.sync_remove_wish_list_item(
                 character_name=name,
                 spend_category=item.spend_category,
