@@ -889,13 +889,14 @@ class DBService:
     def add_wish_list_item(self, character_name: str, spend_category: str,
                             trait_name: str, current_dots: int, new_dots: int,
                             is_in_clan: bool = False, power_name: str = '',
-                            justification: str = '') -> int:
-        """Add a wish list item. Returns the calculated XP cost.
+                            justification: str = '') -> dict:
+        """Add a wish list item. Returns {'xp_cost': int, 'created_at': str}.
 
         Raises ValueError if the cost calculation fails.
         """
         from app.xp_rules import calculate_xp_cost
         xp_cost = calculate_xp_cost(spend_category, current_dots, new_dots)
+        created_at = _now_str()
 
         row = DbWishListItem(
             character_name=character_name,
@@ -907,11 +908,11 @@ class DBService:
             is_in_clan=bool(is_in_clan),
             xp_cost=xp_cost,
             justification=justification,
-            created_at=_now_str(),
+            created_at=created_at,
         )
         db.session.add(row)
         db.session.commit()
-        return xp_cost
+        return {'xp_cost': xp_cost, 'created_at': created_at}
 
     def get_wish_list_item(self, item_id: int, character_name: str) -> Optional[DbWishListItem]:
         return DbWishListItem.query.filter(
