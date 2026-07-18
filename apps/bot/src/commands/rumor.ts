@@ -81,7 +81,13 @@ async function buildTagMaps(guild: Guild): Promise<{ roleMap: Map<string, string
  * requiring special quoting. Unmatched tags are left as literal text.
  */
 export function resolveTags(text: string, roleMap: Map<string, string>, channelMap: Map<string, string>): string {
-  return text.replace(/([@#])([A-Za-z0-9][A-Za-z0-9 '-]{0,48})/g, (full, sigil: string, rest: string) => {
+  // Apostrophes are deliberately excluded from the candidate character class
+  // (none of the taggable role/location names contain one) so a possessive
+  // like "@Kindred's gathering" or "@Camarilla Court's decree" naturally
+  // stops the match right before the apostrophe — "Kindred"/"Camarilla
+  // Court" resolves normally, and "'s gathering"/"'s decree" is left
+  // completely untouched as trailing text outside the match.
+  return text.replace(/([@#])([A-Za-z0-9][A-Za-z0-9 -]{0,48})/g, (full, sigil: string, rest: string) => {
     const map = sigil === '@' ? roleMap : channelMap;
     const wordMatches = Array.from(rest.matchAll(/\S+/g));
     for (let n = wordMatches.length; n >= 1; n--) {

@@ -282,6 +282,24 @@ describe('resolveTags', () => {
     expect(resolveTags('It was @Kindred, allegedly.', roleMap, channelMap)).toBe('It was <@&role-kindred>, allegedly.');
   });
 
+  it('resolves a single-word tag with a possessive suffix', () => {
+    expect(resolveTags("It's @Kindred's gathering tonight.", roleMap, channelMap)).toBe(
+      "It's <@&role-kindred>'s gathering tonight.",
+    );
+  });
+
+  it('resolves a multi-word tag with a possessive suffix', () => {
+    expect(resolveTags("The @Camarilla Court's decree was clear.", roleMap, channelMap)).toBe(
+      "The <@&role-camcourt>'s decree was clear.",
+    );
+  });
+
+  it('resolves a location tag with a possessive suffix', () => {
+    expect(resolveTags("It's #downtown's finest hour.", roleMap, channelMap)).toBe(
+      "It's <#chan-downtown>'s finest hour.",
+    );
+  });
+
   it('does not cross-match @ against locations or # against roles', () => {
     expect(resolveTags('#Kindred and @downtown', roleMap, channelMap)).toBe('#Kindred and @downtown');
   });
