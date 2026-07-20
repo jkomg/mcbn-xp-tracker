@@ -62,6 +62,16 @@ export class WikiSyncScheduler {
     if (this.timer) {
       return;
     }
+    if (!this.cfg.enabled) {
+      // Loud and distinct from wiki_sync_scheduler_started on purpose — this
+      // has no liveConfig mirror, so a wrong/missing env var here would
+      // otherwise persist silently for the process's entire lifetime with no
+      // dashboard visibility (the same shape as the cubby-sync incident).
+      logEvent('warn', 'wiki_sync_scheduler_disabled', {
+        hint: 'WIKI_SYNC_ENABLED is not "true" — scheduled wiki sync will not run.',
+      });
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.cfg.intervalMs);

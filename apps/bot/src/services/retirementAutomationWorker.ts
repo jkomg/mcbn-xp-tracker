@@ -111,6 +111,18 @@ export class RetirementAutomationWorker {
 
   start(): void {
     if (this.timer) return;
+    if (!this.cfg.enabled) {
+      // Loud and distinct from retirement_automation_worker_started on
+      // purpose — this has no liveConfig mirror, so a wrong env var here
+      // would otherwise persist silently for the process's entire lifetime
+      // with no dashboard visibility (the same shape as the cubby-sync
+      // incident). Defaults to enabled, but don't let a future explicit
+      // RETIREMENT_AUTOMATION_ENABLED=false go unnoticed either.
+      logEvent('warn', 'retirement_automation_worker_disabled', {
+        hint: 'RETIREMENT_AUTOMATION_ENABLED is not "true" — retirement job processing will not run.',
+      });
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.cfg.intervalMs);
