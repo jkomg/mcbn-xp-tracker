@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "marker=\"/tmp/claude-hygiene-hook-$(date +%Y%m%d)\"; if [ ! -f \"$marker\" ]; then touch \"$marker\"; checklist=$(cat \"/Users/jkennedy/.claude/projects/-Users-jkennedy-Projects-mcbn-xp-tracker/memory/feedback_regression_hygiene_checklist.md\" 2>/dev/null); ctx=\"Regression hygiene reminder (first code edit today) -- full checklist below. Also consult project_architecture_web.md / project_architecture_bot.md / project_history_and_themes.md in the same memory dir for deeper context (shared models, Sheets/audit-log sync pairing, the worker enabled-flag footgun table) before touching db.py, db_service.py, sheets.py/sheets_sync.py, or apps/bot/src/services.\\n\\n${checklist}\"; jq -n --arg ctx \"$ctx\" '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":$ctx}}'; else echo '{}'; fi",
+            "timeout": 10,
+            "statusMessage": "Checking regression hygiene checklist..."
+          }
+        ]
+      }
+    ]
+  }
+}
