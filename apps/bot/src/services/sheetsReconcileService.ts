@@ -59,6 +59,16 @@ export class SheetsReconcileService {
     if (this.timer) {
       return;
     }
+    if (!this.config.enabled) {
+      // Loud and distinct from sheets_reconcile_service_started on purpose —
+      // this has no liveConfig mirror, so a wrong/missing env var here would
+      // otherwise persist silently for the process's entire lifetime with no
+      // dashboard visibility (the same shape as the cubby-sync incident).
+      logEvent('warn', 'sheets_reconcile_service_disabled', {
+        hint: 'SHEETS_RECONCILE_ENABLED is not "true" — nightly Sheets reconciliation will not run.',
+      });
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.config.intervalMs);
