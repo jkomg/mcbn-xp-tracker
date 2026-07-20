@@ -40,11 +40,25 @@ export class CubbySyncWorker {
 
   start() {
     if (this.timer) return;
+    if (!this.cfg.enabled) {
+      // Loud and distinct from cubby_sync_worker_started on purpose — this
+      // silently no-op'd in production for two days once before (missing
+      // CUBBY_SYNC_ENABLED in .env), with nothing but an identical-looking
+      // "started" log to suggest it was ever running.
+      logEvent('warn', 'cubby_sync_worker_disabled', {
+        hint: 'CUBBY_SYNC_ENABLED is not "true" — cubby channel backfill and retirement detection will not run.',
+      });
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.cfg.intervalMs);
     this.timer.unref();
     logEvent('info', 'cubby_sync_worker_started', { intervalMs: this.cfg.intervalMs });
+    // Run once immediately rather than waiting a full interval — otherwise
+    // every bot restart leaves newly-created cubbies unlinked for up to an
+    // hour with no visible signal that anything is wrong.
+    void this.tick();
   }
 
   stop() {
