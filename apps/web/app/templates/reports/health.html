@@ -219,7 +219,9 @@
         </div>
         <div class="card-body">
           {% if report.leaderboard %}
-          <canvas id="leaderboardChart" height="140" role="img" aria-label="Bar chart of the top 15 posters by total post count"></canvas>
+          <div style="height: {{ [report.leaderboard | length * 32, 140] | max }}px;">
+            <canvas id="leaderboardChart" role="img" aria-label="Bar chart of the top 15 posters by total post count"></canvas>
+          </div>
           {% else %}
           <p class="text-muted mb-0">No posts recorded in this window.</p>
           {% endif %}
@@ -412,6 +414,7 @@
       options: {
         indexAxis: 'y',
         responsive: true,
+        maintainAspectRatio: false,
         interaction: { mode: 'index', axis: 'y', intersect: false },
         scales: {
           x: { beginAtZero: true, grid: { color: GRIDLINE }, ticks: { precision: 0 } },
