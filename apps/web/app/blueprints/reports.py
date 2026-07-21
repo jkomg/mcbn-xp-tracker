@@ -281,14 +281,14 @@ def activity_csv():
     )
 
 
-HEALTH_RANGE_OPTIONS = (30, 60, 90)
+HEALTH_RANGE_OPTIONS = (30, 60, 90, 180)
 
 
 @bp.route('/reports/health')
 @require_staff
 def health():
     """Server-health dashboard: posting trend, participation, and a
-    "who hasn't posted" list over a rolling 30/60/90-day window."""
+    "who hasn't posted" list over a rolling 30/60/90/180-day window."""
     try:
         range_days = int(request.args.get('range', 30))
     except (TypeError, ValueError):
