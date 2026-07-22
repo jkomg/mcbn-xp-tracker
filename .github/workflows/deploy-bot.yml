@@ -35,6 +35,12 @@ jobs:
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Capture currently-deployed SHA
+        id: prev
+        run: |
+          cd ${{ secrets.URSULA_BOT_DIR }}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Pull latest code
         run: |
           cd ${{ secrets.URSULA_BOT_DIR }}
@@ -42,7 +48,32 @@ jobs:
           git checkout main
           git pull origin main
 
+      # workflow_run can't use a native `paths:` filter (that only works on
+      # `push`), so this diffs the previously-deployed SHA against the new
+      # one and skips the rebuild when nothing the bot actually depends on
+      # changed (apps/bot or the shared packages/ it imports). Manual
+      # dispatch always deploys regardless, since that's an explicit ask.
+      # Fails open (relevant=true) on any error in the diff itself, since a
+      # spurious redeploy is cheaper than silently never deploying.
+      - name: Check whether bot-relevant paths changed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cd ${{ secrets.URSULA_BOT_DIR }}
+          diff_output=$(git diff --name-only "${{ steps.prev.outputs.sha }}" "${{ steps.sha.outputs.sha }}") || diff_output="__DIFF_FAILED__"
+          if [ "$diff_output" = "__DIFF_FAILED__" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          elif echo "$diff_output" | grep -qE '^(apps/bot/|packages/)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Rebuild and restart bot
+        if: steps.check.outputs.relevant != 'false'
         run: |
           cd ${{ secrets.URSULA_BOT_DIR }}/apps/bot
           docker compose -f docker-compose.yml build
@@ -50,7 +81,7 @@ jobs:
           npm run ops:docker:up
 
       - name: Notify Discord
-        if: always()
+        if: always() && steps.check.outputs.relevant != 'false'
         continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
