@@ -41,12 +41,19 @@ jobs:
           cd ${{ secrets.URSULA_BOT_DIR }}
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Pull latest code
+      # Pin to the exact SHA this run resolved to deploy, not main's current
+      # tip. If we followed the moving tip instead, a later commit that
+      # landed on main between CI completing and this job running would get
+      # silently checked out here too -- decoupling "what's on disk" from
+      # "what this run actually validated/diffed" -- and the next run's
+      # "Capture currently-deployed SHA" step would then diff from that
+      # unrelated newer commit, potentially masking a bot-relevant change in
+      # between as already deployed when it never was.
+      - name: Check out the resolved deploy SHA
         run: |
           cd ${{ secrets.URSULA_BOT_DIR }}
           git fetch origin main
-          git checkout main
-          git pull origin main
+          git checkout "${{ steps.sha.outputs.sha }}"
 
       # workflow_run can't use a native `paths:` filter (that only works on
       # `push`), so this diffs the previously-deployed SHA against the new
