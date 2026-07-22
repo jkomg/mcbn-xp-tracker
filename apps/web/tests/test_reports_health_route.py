@@ -178,6 +178,27 @@ def test_member_growth_stat_tiles_reflect_seeded_events():
         assert '1 Kindred' in html
 
 
+def test_range_all_includes_data_older_than_any_fixed_day_count():
+    """range=all must be a real sentinel tied to the earliest tracked row,
+    not a large-but-fixed day count — a fixed ceiling would eventually
+    silently truncate old data (with no capped-data warning, since the
+    requested start would land after the earliest row, not before it) once
+    the server's history grew past it."""
+    app = _app()
+    with app.app_context():
+        db.session.add(DiscordPostCount(discord_id='u1', date=_days_ago(1200), category='ic', count=3))
+        db.session.add(DiscordPostCount(discord_id='u1', date=_days_ago(5), category='ic', count=7))
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client)
+        resp = client.get('/reports/health?range=all')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'clean data back to' not in html  # no capped-data warning
+        assert _days_ago(1200) in html  # the 1200-day-old row's date is inside the rendered window
+
+
 def test_new_characters_recognizes_migrated_date_added_format():
     """Regression test: characters created via the one-time CSV migration
     have date_added stored as 'YYYY-MM-DD' instead of the live approval
