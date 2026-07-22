@@ -33,6 +33,13 @@ describe('describeWeatherCode', () => {
     expect(describeWeatherCode(95)).toEqual({ label: 'Thunderstorm', emoji: '⛈️' });
   });
 
+  it('maps the freezing-precipitation and snow-shower codes real winter weather can return', () => {
+    expect(describeWeatherCode(56)).toEqual({ label: 'Light freezing drizzle', emoji: '🌧️' });
+    expect(describeWeatherCode(67)).toEqual({ label: 'Heavy freezing rain', emoji: '🌧️' });
+    expect(describeWeatherCode(77)).toEqual({ label: 'Snow grains', emoji: '🌨️' });
+    expect(describeWeatherCode(86)).toEqual({ label: 'Heavy snow showers', emoji: '🌨️' });
+  });
+
   it('falls back to an unknown-conditions placeholder for an unrecognized code', () => {
     expect(describeWeatherCode(-1)).toEqual({ label: 'Unknown conditions', emoji: '❓' });
   });
