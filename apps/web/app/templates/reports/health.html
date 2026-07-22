@@ -140,28 +140,41 @@
   </div>
 
   {% if new_characters.characters %}
+  <style>
+    .collapse-chevron { transition: transform .15s ease; }
+    [data-bs-toggle="collapse"]:not(.collapsed) .collapse-chevron { transform: rotate(180deg); }
+  </style>
   <div class="card mb-4">
-    <div class="card-header py-2 fw-semibold">
-      <i class="bi bi-person-plus me-1"></i> New Characters ({{ start }}–{{ end }})
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center"
+         style="cursor: pointer;" role="button" tabindex="0"
+         data-bs-toggle="collapse" data-bs-target="#newCharactersCollapse"
+         aria-expanded="false" aria-controls="newCharactersCollapse">
+      <span>
+        <i class="bi bi-person-plus me-1"></i> New Characters ({{ start }}–{{ end }})
+        <span class="badge bg-secondary ms-1">{{ new_characters.characters | length }}</span>
+      </span>
+      <i class="bi bi-chevron-down small collapse-chevron"></i>
     </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-dark table-hover table-sm align-middle mb-0">
-          <thead>
-            <tr><th>Character</th><th>Clan</th><th>Sect</th><th>Age</th><th>Approved</th></tr>
-          </thead>
-          <tbody>
-            {% for c in new_characters.characters %}
-            <tr>
-              <td class="fw-semibold">{{ c.character_name }}</td>
-              <td>{{ c.clan or '—' }}</td>
-              <td>{{ c.sect or '—' }}</td>
-              <td class="text-capitalize">{{ c.age_category or '—' }}</td>
-              <td class="font-monospace text-muted small">{{ c.date_added }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <div class="collapse" id="newCharactersCollapse">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover table-sm align-middle mb-0">
+            <thead>
+              <tr><th>Character</th><th>Clan</th><th>Sect</th><th>Age</th><th>Approved</th></tr>
+            </thead>
+            <tbody>
+              {% for c in new_characters.characters %}
+              <tr>
+                <td class="fw-semibold">{{ c.character_name }}</td>
+                <td>{{ c.clan or '—' }}</td>
+                <td>{{ c.sect or '—' }}</td>
+                <td class="text-capitalize">{{ c.age_category or '—' }}</td>
+                <td class="font-monospace text-muted small">{{ c.date_added }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
