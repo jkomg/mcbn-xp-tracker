@@ -15,7 +15,7 @@
         {% for opt in range_options %}
         <a href="{{ url_for('reports.health', range=opt) }}"
            class="btn btn-sm {% if opt == range_days %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-          {{ opt }}d
+          {% if opt == 365 %}1y{% elif opt >= 1000 %}All{% else %}{{ opt }}d{% endif %}
         </a>
         {% endfor %}
       </div>
