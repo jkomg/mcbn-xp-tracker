@@ -13,6 +13,7 @@ The bot calls the web app's REST API (`/api/*`) using a bearer token. It never w
 | Command | Who Can Use | Description |
 |---------|-------------|-------------|
 | `/ping` | Everyone | Basic liveness check |
+| `/weather` | Everyone | Current weather in Nashville (via Open-Meteo) |
 | `/xp submit` | Players | Redirect to the web player portal claim flow |
 | `/xp claim` | Players | Redirect to the web player portal claim flow |
 | `/xp spend` | Players | Redirect to the web player portal spend flow |
