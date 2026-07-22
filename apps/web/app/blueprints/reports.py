@@ -281,22 +281,17 @@ def activity_csv():
     )
 
 
-HEALTH_RANGE_OPTIONS = (30, 60, 90, 180, 365, 1000)
+HEALTH_RANGE_OPTIONS = (30, 60, 90, 180, 365)
 
 
 @bp.route('/reports/health')
 @require_staff
 def health():
     """Server-health dashboard: posting trend, participation, and a
-    "who hasn't posted" list over a rolling window, up to the full
-    tracked history (data_capped/earliest_data_date cover the case where
-    the requested range exceeds what's been backfilled so far)."""
-    try:
-        range_days = int(request.args.get('range', 30))
-    except (TypeError, ValueError):
-        range_days = 30
-    if range_days not in HEALTH_RANGE_OPTIONS:
-        range_days = 30
+    "who hasn't posted" list over a rolling window, or the full tracked
+    history via range=all (a real sentinel, not a fixed day count that
+    would eventually undercount as the server ages past it)."""
+    range_param = request.args.get('range', '30').strip()
 
     earliest_row = (
         DiscordPostCount.query.order_by(DiscordPostCount.date.asc()).first()
@@ -304,11 +299,24 @@ def health():
     earliest_date = earliest_row.date if earliest_row else None
 
     end = datetime.now(timezone.utc).date().isoformat()
-    requested_start = (
-        datetime.strptime(end, '%Y-%m-%d').date() - timedelta(days=range_days - 1)
-    ).isoformat()
-    start = max(requested_start, earliest_date) if earliest_date else requested_start
-    data_capped = bool(earliest_date) and requested_start < earliest_date
+
+    if range_param == 'all':
+        range_days = 'all'
+        start = earliest_date or end
+        requested_start = start
+        data_capped = False
+    else:
+        try:
+            range_days = int(range_param)
+        except (TypeError, ValueError):
+            range_days = 30
+        if range_days not in HEALTH_RANGE_OPTIONS:
+            range_days = 30
+        requested_start = (
+            datetime.strptime(end, '%Y-%m-%d').date() - timedelta(days=range_days - 1)
+        ).isoformat()
+        start = max(requested_start, earliest_date) if earliest_date else requested_start
+        data_capped = bool(earliest_date) and requested_start < earliest_date
 
     prev_start, prev_end = shift_window(start, end)
 
