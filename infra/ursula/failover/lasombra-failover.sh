@@ -2,11 +2,16 @@
 # Lasombra bot failover — starts local OrbStack bot if Ursula's bot heartbeat goes stale.
 # Stops local bot automatically when Ursula recovers.
 
+set -uo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 
 MCBN_URL="https://mcbn.jkomg.us"
 MCBN_TOKEN="YOUR_MCBN_API_TOKEN_HERE"
-BOT_DIR="/Users/jasonkennedy/Projects/mcbn-xp-tracker/apps/bot"
+# Must match the actual local clone path on the failover host -- a wrong path
+# here makes `cd "$BOT_DIR" && docker compose ...` silently no-op (the `&&`
+# short-circuits on a failed cd), so this whole failover mechanism looks like
+# it's working in the logs while never actually starting/stopping anything.
+BOT_DIR="/Users/jasonkennedy/Documents/Coding/mcbn-xp-tracker/apps/bot"
 STALE_SECONDS=600   # 10 min — matches Ursula health check threshold
 LOG_PREFIX="$(date -u +"%Y-%m-%dT%H:%M:%SZ") [lasombra-failover]"
 
@@ -31,14 +36,18 @@ age=$(echo "$response" | python3 -c \
 if [[ "$age" == "-1" || "$age" -gt "$STALE_SECONDS" ]]; then
   if local_bot_running; then
     echo "${LOG_PREFIX} Heartbeat stale (${age}s) — local failover already running"
+  elif cd "$BOT_DIR" 2>/dev/null && docker compose up -d >/dev/null 2>&1; then
+    echo "${LOG_PREFIX} Heartbeat stale (${age}s) — started local failover bot"
   else
-    echo "${LOG_PREFIX} Heartbeat stale (${age}s) — starting local failover bot"
-    cd "$BOT_DIR" && docker compose up -d
+    echo "${LOG_PREFIX} ERROR: heartbeat stale (${age}s) but failed to start local failover bot (check BOT_DIR=${BOT_DIR} and docker)"
   fi
 else
   if local_bot_running; then
-    echo "${LOG_PREFIX} Ursula bot recovered (${age}s) — stopping local failover"
-    cd "$BOT_DIR" && docker compose down
+    if cd "$BOT_DIR" 2>/dev/null && docker compose down >/dev/null 2>&1; then
+      echo "${LOG_PREFIX} Ursula bot recovered (${age}s) — stopped local failover"
+    else
+      echo "${LOG_PREFIX} ERROR: Ursula bot recovered (${age}s) but failed to stop local failover bot (check BOT_DIR=${BOT_DIR} and docker)"
+    fi
   else
     echo "${LOG_PREFIX} OK (${age}s)"
   fi
