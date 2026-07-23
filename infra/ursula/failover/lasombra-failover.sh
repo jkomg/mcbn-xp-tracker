@@ -11,7 +11,7 @@ MCBN_TOKEN="YOUR_MCBN_API_TOKEN_HERE"
 # here makes `cd "$BOT_DIR" && docker compose ...` silently no-op (the `&&`
 # short-circuits on a failed cd), so this whole failover mechanism looks like
 # it's working in the logs while never actually starting/stopping anything.
-BOT_DIR="/Users/jasonkennedy/Documents/Coding/mcbn-xp-tracker/apps/bot"
+BOT_DIR="/Users/jasonkennedy/mcbn-failover/mcbn-xp-tracker/apps/bot"
 STALE_SECONDS=600   # 10 min — matches Ursula health check threshold
 LOG_PREFIX="$(date -u +"%Y-%m-%dT%H:%M:%SZ") [lasombra-failover]"
 

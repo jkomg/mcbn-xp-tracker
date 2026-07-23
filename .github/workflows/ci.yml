@@ -67,7 +67,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r apps/web/requirements-lock.txt
-          pip install ruff pytest-cov mypy types-requests
+          # ruff pinned: an unpinned install picks up whatever's newest at CI
+          # run-time, and a new ruff release can enable new default lint
+          # rules that fail on existing, previously-clean code with no
+          # actual code change in the PR (happened 2026-07-23 -- ruff 0.16.0
+          # added 207 new violations across apps/web that 0.15.20 doesn't
+          # flag). Bump deliberately, not silently.
+          pip install ruff==0.15.20 pytest-cov mypy types-requests
 
       - name: Lint web (ruff)
         run: ruff check apps/web/app apps/web/tests
