@@ -1,12 +1,18 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
+import { config } from '../config';
+import { currentIcNightKey } from '../services/icNightTracker';
 
 // Nashville, TN — the only location this command supports for now.
 const LATITUDE = 36.1627;
 const LONGITUDE = -86.7816;
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
-let cache: { fetchedAt: number; data: OpenMeteoCurrent } | null = null;
+// An IC night runs 2 weeks IRL (matches the sunset passage-of-time event —
+// see PASSAGE_SUNSET_MESSAGE), so refetching weather on every call would let
+// it swing wildly within a single "night," breaking the narrative. Instead
+// the weather is locked in at the start of each IC night and held steady
+// until the next one, keyed by currentIcNightKey rather than a wall-clock TTL.
+let cache: { nightKey: string; data: OpenMeteoCurrent } | null = null;
 
 // https://open-meteo.com/en/docs — WMO weather interpretation codes.
 const WEATHER_CODES: Record<number, { label: string; emoji: string }> = {
@@ -56,11 +62,18 @@ export function __resetWeatherCacheForTests() {
   cache = null;
 }
 
-async function fetchCurrentWeather(): Promise<OpenMeteoCurrent> {
-  if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache.data;
-  }
+function sunsetSchedule() {
+  return {
+    timezone: config.passageOfTimeTimezone,
+    weekdayLocal: config.passageSunsetWeekdayLocal,
+    hourLocal: config.passageSunsetHourLocal,
+    minuteLocal: config.passageSunsetMinuteLocal,
+    anchorDate: config.passageSunsetAnchorDate,
+    cadenceWeeks: 2,
+  };
+}
 
+async function fetchOpenMeteo(): Promise<OpenMeteoCurrent> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
     '&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m' +
@@ -71,8 +84,27 @@ async function fetchCurrentWeather(): Promise<OpenMeteoCurrent> {
     throw new Error(`Open-Meteo request failed: ${res.status}`);
   }
   const body = (await res.json()) as { current: OpenMeteoCurrent };
-  cache = { fetchedAt: Date.now(), data: body.current };
   return body.current;
+}
+
+/**
+ * Returns weather locked to the current IC night, refetching only when the
+ * night key changes. If no IC night has started yet (fresh install, or
+ * `now` predates the sunset anchor date), there's nothing to lock to, so
+ * this falls back to fetching live every call.
+ */
+export async function fetchCurrentWeather(now: Date = new Date()): Promise<OpenMeteoCurrent> {
+  const nightKey = currentIcNightKey(now, sunsetSchedule());
+
+  if (nightKey && cache && cache.nightKey === nightKey) {
+    return cache.data;
+  }
+
+  const data = await fetchOpenMeteo();
+  if (nightKey) {
+    cache = { nightKey, data };
+  }
+  return data;
 }
 
 export const data = new SlashCommandBuilder()
@@ -102,7 +134,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       { name: 'Wind', value: `${Math.round(current.wind_speed_10m)} mph`, inline: true },
     )
     .setColor(0x3987e5)
-    .setFooter({ text: 'via Open-Meteo' });
+    .setFooter({ text: "Locked in for tonight's IC night • via Open-Meteo" });
 
   await interaction.editReply({ embeds: [embed] });
 }

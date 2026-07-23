@@ -79,7 +79,7 @@ function writeState(state: ServiceState) {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
 }
 
-function toDateOnly(value: string): Date | null {
+export function toDateOnly(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
   }
@@ -87,12 +87,12 @@ function toDateOnly(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function daysBetweenUtc(a: Date, b: Date): number {
+export function daysBetweenUtc(a: Date, b: Date): number {
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.floor((a.getTime() - b.getTime()) / msPerDay);
 }
 
-function localParts(now: Date, timezone: string): { dateKey: string; weekday: number; hour: number; minute: number } {
+export function localParts(now: Date, timezone: string): { dateKey: string; weekday: number; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
