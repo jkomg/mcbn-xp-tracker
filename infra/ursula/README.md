@@ -104,9 +104,9 @@ sudo usermod -aG docker jkomg
 
 ---
 
-## 4. Mac Failover (Miniplex)
+## 4. Mac Failover (little-mac)
 
-A launchd job runs every 5 minutes. If Ursula's bot heartbeat goes stale (>10 min), it starts the bot locally via OrbStack. When Ursula recovers, it stops the local copy automatically.
+Currently deployed on `little-mac` (192.168.0.63), not Miniplex — update this if the failover host changes again. A launchd job runs every 5 minutes. If Ursula's bot heartbeat goes stale (>10 min), it starts the bot locally via OrbStack. When Ursula recovers, it stops the local copy automatically.
 
 ```bash
 # Install script
@@ -122,6 +122,8 @@ launchctl load ~/Library/LaunchAgents/com.mcbn.lasombra-failover.plist
 Logs: `tail -f /tmp/lasombra-failover.log`
 
 **Note:** The failover script contains `MCBN_TOKEN` — treat it as a secret. Do not commit the deployed copy with real credentials. Fill in your real token in the deployed copy — the version in this repo uses a placeholder.
+
+**`BOT_DIR` in the deployed copy must match the actual local clone path on the failover host.** A wrong path here silently no-ops the whole mechanism (the `cd && docker compose ...` chain short-circuits on a failed `cd`) while still logging as if it worked — this is exactly what happened on 2026-07-22/23: the script pointed at a stale path for an unknown length of time, meaning failover never actually triggered despite logging "starting local failover bot" every 5 minutes. If you re-clone or move the repo on the failover host, update `BOT_DIR` in the deployed script.
 
 ---
 

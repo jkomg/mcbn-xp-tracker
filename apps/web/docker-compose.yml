@@ -1,3 +1,4 @@
+name: mcbn-xp-tracker-web
 services:
   web-dev:
     container_name: mcbn-xp-tracker-web

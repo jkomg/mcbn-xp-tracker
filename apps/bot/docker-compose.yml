@@ -1,3 +1,4 @@
+name: mcbn-xp-tracker-bot
 services:
   bot:
     container_name: lasombra-bot
