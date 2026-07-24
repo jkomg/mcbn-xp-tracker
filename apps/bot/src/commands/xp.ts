@@ -14,7 +14,7 @@ import { errorToMessage, logEvent } from '../logger';
 import { SPEND_CATEGORY_CHOICES } from '../sharedContract';
 import { buildClaimReminderActionRow, buildClaimReminderText } from '../services/claimReminderService';
 import { findCubbyChannel, normalizeChannelName } from '../services/cubbyChannels';
-import { getPassageMessage } from '../services/passageOfTimeService';
+import { appendSunsetWeather, getPassageMessage } from '../services/passageOfTimeService';
 import type { XpClaimCategory, XpSpendCategory } from '../types';
 import { parseMessageLink } from '../utils/linkValidator';
 import { calculateXpCost } from '../xpRules';
@@ -583,7 +583,11 @@ export async function execute(interaction: ChatInputCommandInteraction, { adapte
     }
     const eventName = interaction.options.getString('event', true) as 'sunrise' | 'sunset' | 'downtime';
     try {
-      await target.send({ content: getPassageMessage(eventName) });
+      let content = getPassageMessage(eventName);
+      if (eventName === 'sunset') {
+        content = await appendSunsetWeather(content, new Date());
+      }
+      await target.send({ content });
     } catch (error) {
       await interaction.reply({
         content:

@@ -57,6 +57,12 @@ export function describeWeatherCode(code: number): { label: string; emoji: strin
   return WEATHER_CODES[code] ?? { label: 'Unknown conditions', emoji: '❓' };
 }
 
+/** Short flavor-text line for embedding in the sunset passage-of-time announcement. */
+export function formatWeatherLine(current: OpenMeteoCurrent): string {
+  const { label, emoji } = describeWeatherCode(current.weather_code);
+  return `${emoji} Tonight's weather in Nashville: ${label}, ${Math.round(current.temperature_2m)}°F`;
+}
+
 /** Test-only: the module-level cache otherwise leaks across test cases. */
 export function __resetWeatherCacheForTests() {
   cache = null;

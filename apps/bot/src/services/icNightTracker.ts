@@ -1,4 +1,4 @@
-import { daysBetweenUtc, localParts, toDateOnly } from './passageOfTimeService';
+import { daysBetweenUtc, localParts, toDateOnly } from './dateCadence';
 
 export type SunsetSchedule = {
   timezone: string;
