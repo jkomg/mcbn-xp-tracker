@@ -124,6 +124,14 @@ def is_settings_admin() -> bool:
     return _get_db_staff_role(str(discord_id)) == 'administrator'
 
 
+def is_cloud_spend_admin() -> bool:
+    """Check the separate owner allowlist for personal billing data."""
+    discord_id = session.get('discord_id', '')
+    return bool(discord_id) and str(discord_id) in current_app.config.get(
+        'CLOUD_SPEND_ADMIN_DISCORD_IDS', set()
+    )
+
+
 def is_staff() -> bool:
     """Check if the current session user is staff.
 

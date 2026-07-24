@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from flask import (
     Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 )
-from app.auth import require_staff, is_settings_admin
+from app.auth import require_staff, is_cloud_spend_admin, is_settings_admin
 from app.app_settings import (
     EDITABLE_KEYS,
     delete_app_setting,
@@ -80,6 +80,9 @@ SETTINGS_NAV = [
         {'id': 'web-integrations', 'label': 'Integrations', 'count_key': 'web_integrations'},
         {'id': 'web-chronicle', 'label': 'Chronicle'},
     ]},
+    {'group': 'Owner', 'links': [
+        {'id': 'cloud-spend', 'label': 'Cloud Spend'},
+    ]},
 ]
 VALID_SECTIONS = {item['id'] for group in SETTINGS_NAV for item in group['links']}
 
@@ -145,6 +148,9 @@ def index():
     can_edit = True
     active_section = request.args.get('section', 'overview')
     if active_section not in VALID_SECTIONS:
+        active_section = 'overview'
+    cloud_spend_admin = is_cloud_spend_admin()
+    if active_section == 'cloud-spend' and not cloud_spend_admin:
         active_section = 'overview'
 
     def _eff_bool(key, env_default):
@@ -1011,6 +1017,8 @@ def index():
     for i in integrations:
         search_index.append({'label': i['label'], 'description': i['description'], 'section': 'web-integrations', 'section_label': 'Web App · Integrations'})
     search_index.append({'label': 'Chronicle Tenets', 'description': 'Chronicle-wide tenets shown on player sheets.', 'section': 'web-chronicle', 'section_label': 'Web App · Chronicle'})
+    if cloud_spend_admin:
+        search_index.append({'label': 'Cloud Spend', 'description': 'Monthly GCP costs compared with captured application errors.', 'section': 'cloud-spend', 'section_label': 'Owner · Cloud Spend'})
     for f in bot_flags:
         search_index.append({'label': f['label'], 'description': f['description'], 'section': 'bot-flags', 'section_label': 'Bot · Feature Flags'})
     for t in bot_tuning:
@@ -1022,10 +1030,18 @@ def index():
         for sub in cmd['subcommands']:
             search_index.append({'label': f"{cmd['label']} {sub['label']}", 'description': sub['description'], 'section': 'bot-commands', 'section_label': 'Bot · Commands'})
 
+    settings_nav = SETTINGS_NAV if cloud_spend_admin else [
+        group for group in SETTINGS_NAV if group['group'] != 'Owner'
+    ]
+    cloud_spend = None
+    if cloud_spend_admin and active_section == 'cloud-spend':
+        from app.cloud_spend import build_snapshot
+        cloud_spend = build_snapshot(cfg, bot_heartbeat_ts)
+
     return render_template(
         'settings/index.html',
         active_section=active_section,
-        settings_nav=SETTINGS_NAV,
+        settings_nav=settings_nav,
         nav_counts=nav_counts,
         search_index=search_index,
         bot_channel_groups=bot_channel_groups,
@@ -1048,6 +1064,7 @@ def index():
         retirement_summary=retirement_summary,
         retirement_next_retry_at=retirement_next_retry_at,
         staff_members=staff_members,
+        cloud_spend=cloud_spend,
     )
 
 
