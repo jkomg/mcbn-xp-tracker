@@ -5,6 +5,18 @@ Use these templates as secure, cost-conscious production baselines:
 - Web: `apps/web/.env.production.example`
 - Bot: `apps/bot/.env.production.example`
 
+## Current Deployment Topology
+
+- Production web: Cloud Run service `mcbn-xp-tracker`, custom domain `mcbn.jkomg.us`.
+- Dev web: separate Cloud Run service `mcbn-xp-tracker-dev`, custom domain
+  `dev.mcbn.jkomg.us`.
+- Databases: separate production and dev Turso databases, injected through distinct
+  Cloud Secret Manager secrets.
+- Production bot: Docker on Ursula.
+- Bot failover: heartbeat-triggered Docker/OrbStack bot on little-mac.
+- Kubernetes: `apps/web/k8s/` and `apps/bot/k8s/` are migration-preparation manifests
+  for a future local cluster. They are not the current production deployment.
+
 ## Key Production Rules
 
 1. Keep `FLASK_DEBUG=false`.
@@ -14,6 +26,7 @@ Use these templates as secure, cost-conscious production baselines:
 5. Keep Cloud Run `min-instances=0` unless latency SLOs require warm instances.
 6. Keep Cloud Run deploy defaults pinned (`cpu=1`, `memory=256Mi`, `max-instances=2`, `concurrency=80`, `timeout=120`).
 7. Keep bot polling intervals at cost-conscious defaults unless faster notification latency is required.
+8. Keep character creator notification services explicitly enabled only when their Discord channels are configured; the code defaults are off to avoid accidental 60-second web polling.
 
 ## Token Scope Mapping
 
@@ -48,6 +61,10 @@ Use these templates as secure, cost-conscious production baselines:
 - `BOT_HEARTBEAT_INTERVAL_MS=120000`
 - `REVIEW_NOTIFIER_INTERVAL_MS=120000`
 - `SUBMISSION_NOTIFIER_INTERVAL_MS=120000`
+- `CC_SUBMISSION_NOTIFIER_ENABLED=true` when character draft submission alerts are required
+- `CC_APPROVAL_NOTIFIER_ENABLED=true` when character approval alerts are required
+- `CC_SUBMISSION_NOTIFIER_INTERVAL_MS=120000`
+- `CC_APPROVAL_NOTIFIER_INTERVAL_MS=120000`
 
 Use shorter intervals only when operational latency requirements justify the extra request volume.
 

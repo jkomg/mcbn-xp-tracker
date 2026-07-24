@@ -64,7 +64,7 @@ No authentication required. Liveness check.
 
 Called by the bot on startup and then on its heartbeat loop interval (default every 120 seconds, configurable with bot env `BOT_HEARTBEAT_INTERVAL_MS`) to record a liveness timestamp.
 The web app stores the timestamp in `AppSetting` under key `BOT_LAST_HEARTBEAT`.
-Optional live-state fields in the POST body are also persisted for Settings UI status cards (for example, `notionSyncCapable` stores to `BOT_LIVE_NOTION_SYNC_CAPABLE`).
+Optional live-state fields in the POST body are also persisted for Settings UI status cards (for example, `wikiSyncCapable` stores to `BOT_LIVE_WIKI_SYNC_CAPABLE`).
 
 **Response 200:**
 ```json
@@ -183,7 +183,7 @@ warn/error records to the web DB (`app_log_entries`) for review in the admin UI.
     "ts": "2026-04-17T03:00:00.000000+00:00",
     "level": "warn",
     "event": "wiki_sync_scheduled_failed",
-    "error": "timeout contacting Notion API"
+    "error": "timeout contacting web wiki API"
   }
 ]
 ```

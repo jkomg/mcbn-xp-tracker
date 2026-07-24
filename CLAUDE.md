@@ -69,7 +69,7 @@ Container names: `mcbn-xp-tracker-web`, `lasombra-bot`.
 - In full-stack Docker, bot must use `WEB_APP_BASE_URL=http://web:5001` (not `127.0.0.1`). The bootstrap script patches this automatically.
 - Bot control-loop cadence can be tuned via `CONFIG_SYNC_INTERVAL_MS` and `BOT_HEARTBEAT_INTERVAL_MS` (defaults: 120000 ms each).
 - Retirement automation now queues web-side jobs when a character becomes `retired`; the bot moves cubby/forum Discord content immediately and leaves wiki updates to the next successful batch sync.
-- Notion sync manual run button in Settings is capability-gated by bot heartbeat state (`BOT_LIVE_NOTION_SYNC_CAPABLE`) and is disabled when bot reports missing `NOTION_TOKEN`/`DISCORD_GUILD_ID`.
+- Wiki sync manual run in Settings is capability-gated by bot heartbeat state (`BOT_LIVE_WIKI_SYNC_CAPABLE`) and requires the bot's `DISCORD_GUILD_ID` capability. The current runtime performs Discord-to-Chronicle-Wiki sync; older Notion references are historical.
 - Details: `docs/ENV_AND_SECRETS.md`
 
 ## Production Deploy (Web)
@@ -80,7 +80,12 @@ cd apps/web
 ./setup-secrets.sh  # sync env values to GCP Secret Manager
 ```
 
-Bot remains locally hosted (launchd/systemd or Docker on host).
+Current deployment topology: production web runs on Cloud Run service
+`mcbn-xp-tracker` at `mcbn.jkomg.us`; dev web runs on the separate Cloud Run service
+`mcbn-xp-tracker-dev` at `dev.mcbn.jkomg.us`. Both use Turso, with separate production
+and dev databases/credentials. The Discord bot runs in Docker on Ursula, with a
+heartbeat-triggered failover bot on little-mac. Kubernetes manifests under
+`apps/*/k8s/` are migration preparation only and are not current production infrastructure.
 
 ## Bot Docker Audit Logs
 

@@ -26,3 +26,10 @@ assert_contains "docs/INSTALL_REGULAR.md" "./scripts/bootstrap-local.sh web+bot"
 assert_contains "docs/BOT.md" '| `/xp submit` | Players | Redirect to the web player portal claim flow |' "xp submit portal semantics"
 assert_contains "docs/BOT.md" '| `/xp claim` | Players | Redirect to the web player portal claim flow |' "xp claim portal semantics"
 assert_contains "docs/BOT.md" '| `/xp spend` | Players | Redirect to the web player portal spend flow |' "xp spend portal semantics"
+
+# Current runtime/deployment references
+assert_contains "apps/bot/k8s/deployment.yaml" "http://mcbn-web:8091" "Kubernetes bot Service port"
+assert_contains "apps/web/k8s/deployment.yaml" "port: 8091" "Kubernetes web Service port"
+assert_contains "docs/ENV_AND_SECRETS.md" "CC_SUBMISSION_NOTIFIER_ENABLED" "character submission notifier env documentation"
+assert_contains "docs/ENV_AND_SECRETS.md" "CC_APPROVAL_NOTIFIER_ENABLED" "character approval notifier env documentation"
+assert_contains "docs/BOT.md" "manual Wiki sync requests" "current wiki sync terminology"

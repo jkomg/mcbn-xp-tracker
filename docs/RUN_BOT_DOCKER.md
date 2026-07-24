@@ -2,6 +2,10 @@
 
 Use this when you want the bot in a managed container with persistent, queryable logs for 30-day usage and cost audits.
 
+This Docker workflow matches the current bot topology: primary bot on Ursula and
+heartbeat-backed failover bot on little-mac. The web services run on Cloud Run and
+use Turso; Kubernetes manifests are maintained separately for a future migration.
+
 ## What this setup gives you
 
 - Bot runtime in Docker (`apps/bot/docker-compose.yml`)
@@ -31,6 +35,10 @@ Populate required keys in `apps/bot/.env`:
 - `WEB_APP_API_TOKEN` — legacy all-scope fallback (omit when scoped tokens are set)
 
 See [`docs/PRODUCTION_ENV_PROFILE.md`](PRODUCTION_ENV_PROFILE.md) for token scope mapping and rollout order.
+
+Character creator submission/approval notifiers are opt-in in the runtime. Set their
+`CC_*_NOTIFIER_ENABLED` values explicitly when those alerts are required; the production
+template enables them at a 120-second interval.
 
 Optional retention tuning:
 
@@ -112,3 +120,5 @@ docker logs lasombra-bot --since "24h" --timestamps | tail -n 100
 - This keeps bot hosting local while making usage auditable.
 - You do not need to migrate bot to GCP to produce cost modeling inputs.
 - For Docker full profile, bot uses `WEB_APP_BASE_URL=http://web:5001`.
+- For the Kubernetes manifests, bot-to-web traffic uses the Service address
+  `http://mcbn-web:8091`; the web container itself listens on target port 8080.

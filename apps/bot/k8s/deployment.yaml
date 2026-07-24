@@ -1,0 +1,68 @@
+# FUTURE MIGRATION MANIFEST — not the current production deployment.
+# mcbn-xp-tracker bot (lasombra-bot) — Discord bot, outbound-only, calls the
+# web app's API over the cluster network (not 127.0.0.1).
+#
+# Build image first:
+#   docker build -t mcbn-xp-tracker-bot:local apps/bot
+#
+# Create the secret from your existing env file:
+#   kubectl create secret generic mcbn-bot-env --from-env-file=apps/bot/.env
+#
+# Apply (after apps/web/k8s/deployment.yaml, so the mcbn-web Service exists):
+#   kubectl apply -f apps/bot/k8s/deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcbn-bot
+  labels:
+    app: mcbn-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcbn-bot
+  template:
+    metadata:
+      labels:
+        app: mcbn-bot
+    spec:
+      containers:
+        - name: bot
+          image: mcbn-xp-tracker-bot:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mcbn-bot-env
+          env:
+            # In-cluster DNS name of the web Service — overrides whatever
+            # WEB_APP_BASE_URL is set to in the .env-derived secret above.
+            - name: WEB_APP_BASE_URL
+              value: http://mcbn-web:8091
+            - name: NODE_ENV
+              value: production
+          volumeMounts:
+            - name: bot-data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: bot-data
+          persistentVolumeClaim:
+            claimName: mcbn-bot-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mcbn-bot-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi

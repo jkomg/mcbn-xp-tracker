@@ -125,7 +125,7 @@ Also handles **manual Wiki sync requests** from Settings (`BOT_WIKI_SYNC_REQUEST
 ### wikiSyncScheduler
 
 Runs a nightly scheduled wiki sync at configured local time (`WIKI_SYNC_*` env vars).
-Scheduled runs default to **wiki-only refresh** (no Notion archival import) and report status through `POST /api/wiki-sync-ack` with `source=scheduled`.
+Scheduled runs perform a **wiki-only refresh** and report status through `POST /api/wiki-sync-ack` with `source=scheduled`.
 
 ### retirementAutomationWorker
 
@@ -145,14 +145,14 @@ If staff complete the Discord and wiki cleanup manually, they can mark a retirem
 
 Important constraint: Discord does not support moving a thread from one forum to another by changing parent ID, so the forum post is cloned rather than literally moved.
 
-### Wiki/Notion sync lock semantics
+### Wiki sync lock semantics
 
 Manual and scheduled sync triggers share an in-process lock (`wikiSyncLock`):
 - Manual trigger owner: `manual`
 - Scheduler owner: `scheduled`
 
 Only one owner can run at a time. If a run is active, the other trigger logs a
-`*_lock_busy` event and skips. This prevents overlapping sync writes across web/wiki/notion surfaces.
+`*_lock_busy` event and skips. This prevents overlapping sync writes across the web/wiki surface.
 
 ### botHeartbeatService
 
