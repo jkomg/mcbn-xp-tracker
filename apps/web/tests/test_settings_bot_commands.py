@@ -1,12 +1,12 @@
 """Tests for the per-command/subcommand kill-switch toggles on the Settings page."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Blueprint, Flask
 
 from app.blueprints.settings import bp as settings_bp
-from app.db import AppSetting, db
+from app.db import AppLogEntry, AppSetting, db
 
 _TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
 _STATIC_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'static')
@@ -26,6 +26,7 @@ def _app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SETTINGS_ADMIN_DISCORD_IDS'] = {'12345'}
+    app.config['CLOUD_SPEND_ADMIN_DISCORD_IDS'] = set()
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
     app.jinja_env.globals['csrf_token'] = lambda: 'test-csrf'
     db.init_app(app)
@@ -109,9 +110,44 @@ def test_denied_for_non_admin():
         _set_session(client, '99999')
         res = client.post('/settings/commands/toggle', data={'token': 'xp.submit', 'action': 'disable'})
         assert res.status_code == 302
-
     assert _disabled_value(app) == ''
 
+
+def test_cloud_spend_is_owner_only(monkeypatch):
+    app = _app()
+    app.config['CLOUD_SPEND_ADMIN_DISCORD_IDS'] = {'12345'}
+    app.config['SETTINGS_ADMIN_DISCORD_IDS'] = {'12345', '99999'}
+    monkeypatch.setattr(
+        'app.cloud_spend.fetch_monthly_gcp_costs',
+        lambda config: [{'month': '2026-07', 'cost': 1.25}],
+    )
+    with app.test_client() as client:
+        _set_session(client, '12345')
+        response = client.get('/settings/?section=cloud-spend')
+        assert response.status_code == 200
+        assert b'Monthly comparison' in response.data
+
+        _set_session(client, '99999')
+        response = client.get('/settings/?section=cloud-spend')
+        assert response.status_code == 200
+        assert b'Monthly comparison' not in response.data
+
+
+def test_cloud_spend_compares_error_counts(monkeypatch):
+    app = _app()
+    with app.app_context():
+        db.session.add(AppLogEntry(
+            ts='2026-07-24T12:00:00+00:00', source='web', level='error',
+            event='test', created_at=datetime.now(timezone.utc),
+        ))
+        db.session.commit()
+        monkeypatch.setattr(
+            'app.cloud_spend.fetch_monthly_gcp_costs',
+            lambda config: [{'month': '2026-07', 'cost': 1.25}],
+        )
+        from app.cloud_spend import build_snapshot
+        snapshot = build_snapshot(app.config)
+        assert snapshot['series'][-1]['errors'] == 1
 
 def test_settings_index_renders_bot_commands_section():
     app = _app()

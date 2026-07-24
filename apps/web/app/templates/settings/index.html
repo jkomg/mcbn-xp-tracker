@@ -546,6 +546,52 @@
       </div>
     </section>
 
+    {% if cloud_spend is not none %}
+    {# ═══ OWNER · CLOUD SPEND ═══ #}
+    <section class="settings-pane {{ 'is-active' if active_section == 'cloud-spend' }}" data-section="cloud-spend">
+      <h3 class="settings-pane-title">Owner — Cloud Spend</h3>
+      <p class="settings-pane-subtitle">Monthly GCP billing compared with captured application errors. This pane is restricted to the owner allowlist.</p>
+
+      <div class="settings-overview-grid">
+        <div class="settings-overview-card">
+          <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">Billing export</div>
+          {% if cloud_spend.billing_error %}
+            <span class="badge bg-secondary">Unavailable</span>
+            <p class="small text-muted mt-2 mb-0">{{ cloud_spend.billing_error }}</p>
+          {% else %}
+            <span class="badge bg-success">Monthly data loaded</span>
+            <p class="small text-muted mt-2 mb-0">Cached for several hours; the query is capped at the configured byte budget.</p>
+          {% endif %}
+        </div>
+        <div class="settings-overview-card">
+          <div class="settings-card-header" style="border:none;padding:0;margin-bottom:10px;">Turso</div>
+          <span class="badge bg-secondary">Not connected</span>
+          <p class="small text-muted mt-2 mb-0">Turso account-level billing is intentionally shown as unavailable until its account API is configured.</p>
+        </div>
+      </div>
+
+      <div class="settings-card mt-3" style="padding:16px 18px;">
+        <div class="settings-card-header" style="border:none;padding:0;margin-bottom:8px;">Monthly comparison</div>
+        <p class="small text-muted">Error counts are a correlation signal, not an uptime or causality claim. The current bot heartbeat is shown in Overview.</p>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Month</th><th class="text-end">GCP cost</th><th class="text-end">Captured errors</th></tr></thead>
+            <tbody>
+            {% for item in cloud_spend.series %}
+              <tr>
+                <td>{{ item.month }}</td>
+                <td class="text-end">{% if item.cost is none %}—{% else %}${{ '%.2f'|format(item.cost) }}{% endif %}</td>
+                <td class="text-end">{{ item.errors }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="small text-muted mt-3">Fetched {{ cloud_spend.fetched_at }}. This view does not query hourly or daily billing detail.</div>
+      </div>
+    </section>
+    {% endif %}
+
   </main>
 </div>
 
