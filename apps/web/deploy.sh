@@ -50,6 +50,9 @@ IMAGE="${REPO}/${SERVICE_NAME}:latest"
 SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 WEB_APP_API_READ_TOKEN_VALUE="${WEB_APP_API_READ_TOKEN:-$(grep '^WEB_APP_API_READ_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 WEB_APP_API_WRITE_TOKEN_VALUE="${WEB_APP_API_WRITE_TOKEN:-$(grep '^WEB_APP_API_WRITE_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+CLOUD_SPEND_ADMIN_DISCORD_IDS_VALUE="${CLOUD_SPEND_ADMIN_DISCORD_IDS:-$(grep '^CLOUD_SPEND_ADMIN_DISCORD_IDS=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+CLOUD_SPEND_BILLING_TABLE_VALUE="${CLOUD_SPEND_BILLING_TABLE:-$(grep '^CLOUD_SPEND_BILLING_TABLE=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+CLOUD_SPEND_BILLING_PROJECT_ID_VALUE="${CLOUD_SPEND_BILLING_PROJECT_ID:-$(grep '^CLOUD_SPEND_BILLING_PROJECT_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 
 OPTIONAL_SECRET_ARGS=()
 if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
@@ -57,6 +60,22 @@ if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
 fi
 if [ -n "${WEB_APP_API_WRITE_TOKEN_VALUE}" ]; then
   OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest")
+fi
+# CLOUD_SPEND_ADMIN_DISCORD_IDS is optional, like the two tokens above --
+# setup-secrets.sh's upsert_secret skips creating mcbn-cloud-spend-admin-ids
+# at all when the .env value is empty (the documented default, since the
+# whole pane is opt-in), and Cloud Run validates every --update-secrets
+# reference exists at deploy time. Binding it unconditionally would fail
+# the entire deploy for anyone who hasn't opted into Cloud Spend, not just
+# leave the pane disabled.
+if [ -n "${CLOUD_SPEND_ADMIN_DISCORD_IDS_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--update-secrets "CLOUD_SPEND_ADMIN_DISCORD_IDS=mcbn-cloud-spend-admin-ids:latest")
+fi
+if [ -n "${CLOUD_SPEND_BILLING_TABLE_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_TABLE=${CLOUD_SPEND_BILLING_TABLE_VALUE}")
+fi
+if [ -n "${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_PROJECT_ID=${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}")
 fi
 
 if [ -z "${SPREADSHEET_ID_VALUE}" ]; then

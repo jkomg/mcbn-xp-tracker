@@ -86,6 +86,7 @@ upsert_secret "mcbn-discord-client-id"     "$(_env_val DISCORD_CLIENT_ID)"
 upsert_secret "mcbn-discord-client-secret" "$(_env_val DISCORD_CLIENT_SECRET)"
 upsert_secret "mcbn-discord-allowed-ids"   "$(_env_val ALLOWED_DISCORD_IDS)"
 upsert_secret "mcbn-settings-admin-ids"   "$(_env_val SETTINGS_ADMIN_DISCORD_IDS)"
+upsert_secret "mcbn-cloud-spend-admin-ids" "$(_env_val CLOUD_SPEND_ADMIN_DISCORD_IDS)"
 
 # Bot API tokens
 upsert_secret "mcbn-web-app-api-token"      "$(_env_val WEB_APP_API_TOKEN)"
@@ -104,6 +105,7 @@ SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 for SECRET in mcbn-flask-secret mcbn-google-creds \
               mcbn-discord-client-id mcbn-discord-client-secret mcbn-discord-allowed-ids mcbn-settings-admin-ids \
+              mcbn-cloud-spend-admin-ids \
               mcbn-web-app-api-token mcbn-web-app-api-read-token mcbn-web-app-api-write-token \
               mcbn-database-url mcbn-turso-auth-token; do
   gcloud secrets add-iam-policy-binding "${SECRET}" \
