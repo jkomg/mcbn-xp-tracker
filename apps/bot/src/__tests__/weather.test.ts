@@ -15,6 +15,7 @@ import {
   describeWeatherCode,
   execute,
   fetchCurrentWeather,
+  formatWeatherLine,
 } from '../commands/weather';
 
 function makeInteraction() {
@@ -61,6 +62,18 @@ describe('describeWeatherCode', () => {
 
   it('falls back to an unknown-conditions placeholder for an unrecognized code', () => {
     expect(describeWeatherCode(-1)).toEqual({ label: 'Unknown conditions', emoji: '❓' });
+  });
+});
+
+describe('formatWeatherLine', () => {
+  it('formats a short flavor-text line for the sunset announcement', () => {
+    const line = formatWeatherLine({
+      temperature_2m: 58.6,
+      weather_code: 61,
+      relative_humidity_2m: 70,
+      wind_speed_10m: 8,
+    });
+    expect(line).toBe("🌧️ Tonight's weather in Nashville: Slight rain, 59°F");
   });
 });
 

@@ -1,5 +1,12 @@
 import { ChannelType } from 'discord.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// passageOfTimeService.ts transitively imports commands/weather.ts, which
+// imports config.ts -- config.ts eagerly validates process.env at module
+// load, so any test importing from passageOfTimeService.ts needs this
+// mocked, even one (like this file) that never touches weather/config.
+vi.mock('../config', () => ({ config: {} }));
+
 import { filterNewNightTargets } from '../services/passageOfTimeService';
 
 const CATEGORY_A = 'category-a';

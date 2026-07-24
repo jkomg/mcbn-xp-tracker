@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AttachmentBuilder, ChannelType, type Client, type GuildTextBasedChannel, type TextChannel, type NewsChannel } from 'discord.js';
+import { fetchCurrentWeather, formatWeatherLine } from '../commands/weather';
 import { errorToMessage, logEvent } from '../logger';
 import { liveConfig } from '../liveConfig';
+import { daysBetweenUtc, localParts, toDateOnly } from './dateCadence';
 
 type ScheduledEventConfig = {
   name: 'sunrise' | 'sunset' | 'downtime';
@@ -79,52 +81,6 @@ function writeState(state: ServiceState) {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
 }
 
-export function toDateOnly(value: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
-  }
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-export function daysBetweenUtc(a: Date, b: Date): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.floor((a.getTime() - b.getTime()) / msPerDay);
-}
-
-export function localParts(now: Date, timezone: string): { dateKey: string; weekday: number; hour: number; minute: number } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(now);
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  const dateKey = `${pick('year')}-${pick('month')}-${pick('day')}`;
-  const hour = Number.parseInt(pick('hour'), 10);
-  const minute = Number.parseInt(pick('minute'), 10);
-  const weekdayMap: Record<string, number> = {
-    sun: 0,
-    mon: 1,
-    tue: 2,
-    wed: 3,
-    thu: 4,
-    fri: 5,
-    sat: 6,
-  };
-  const weekday = weekdayMap[pick('weekday').toLowerCase()] ?? -1;
-  return {
-    dateKey,
-    weekday,
-    hour: Number.isFinite(hour) ? hour : 0,
-    minute: Number.isFinite(minute) ? minute : 0,
-  };
-}
-
 function isCadenceDate(localDateKey: string, anchorDate: string, cadenceWeeks: number): boolean {
   const localDate = toDateOnly(localDateKey);
   const anchor = toDateOnly(anchorDate);
@@ -141,6 +97,24 @@ function isCadenceDate(localDateKey: string, anchorDate: string, cadenceWeeks: n
 function roleMentions(roleIds: string[]): string {
   const ids = roleIds.map((v) => String(v).trim()).filter((v) => /^\d{17,20}$/.test(v));
   return ids.map((id) => `<@&${id}>`).join(' ');
+}
+
+/**
+ * Appends a current-conditions line to the sunset announcement, fetching
+ * weather at the exact moment the new IC night begins (rather than lazily
+ * on whoever first runs /weather) -- see icNightTracker.ts. Best-effort: a
+ * weather-service hiccup must never block or fail the sunset announcement
+ * itself, so any error here is logged and swallowed, returning the
+ * original content unchanged.
+ */
+export async function appendSunsetWeather(content: string, now: Date): Promise<string> {
+  try {
+    const current = await fetchCurrentWeather(now);
+    return `${content}\n\n${formatWeatherLine(current)}`;
+  } catch (err) {
+    logEvent('warn', 'passage_sunset_weather_failed', { error: errorToMessage(err) });
+    return content;
+  }
 }
 
 function isSendableChannelType(type: ChannelType): boolean {
@@ -322,7 +296,10 @@ export class PassageOfTimeService {
         }
 
         const mentionPrefix = this.config.testMode ? '' : roleMentions(this.config.mentionRoleIds);
-        const content = mentionPrefix ? `${mentionPrefix}\n\n${event.body}` : event.body;
+        let content = mentionPrefix ? `${mentionPrefix}\n\n${event.body}` : event.body;
+        if (event.name === 'sunset') {
+          content = await appendSunsetWeather(content, now);
+        }
 
         if (event.imageFile && fs.existsSync(event.imageFile)) {
           const filename = path.basename(event.imageFile);
