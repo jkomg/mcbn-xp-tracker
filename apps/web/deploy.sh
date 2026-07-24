@@ -50,6 +50,8 @@ IMAGE="${REPO}/${SERVICE_NAME}:latest"
 SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 WEB_APP_API_READ_TOKEN_VALUE="${WEB_APP_API_READ_TOKEN:-$(grep '^WEB_APP_API_READ_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 WEB_APP_API_WRITE_TOKEN_VALUE="${WEB_APP_API_WRITE_TOKEN:-$(grep '^WEB_APP_API_WRITE_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+CLOUD_SPEND_BILLING_TABLE_VALUE="${CLOUD_SPEND_BILLING_TABLE:-$(grep '^CLOUD_SPEND_BILLING_TABLE=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
+CLOUD_SPEND_BILLING_PROJECT_ID_VALUE="${CLOUD_SPEND_BILLING_PROJECT_ID:-$(grep '^CLOUD_SPEND_BILLING_PROJECT_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
 
 OPTIONAL_SECRET_ARGS=()
 if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
@@ -57,6 +59,16 @@ if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
 fi
 if [ -n "${WEB_APP_API_WRITE_TOKEN_VALUE}" ]; then
   OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest")
+fi
+# CLOUD_SPEND_ADMIN_DISCORD_IDS is always bound below (empty secret value
+# just disables the pane, per is_cloud_spend_admin()). The billing table
+# itself is optional -- Owner > Cloud Spend fails soft with a
+# billing_error message if it's not configured yet.
+if [ -n "${CLOUD_SPEND_BILLING_TABLE_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_TABLE=${CLOUD_SPEND_BILLING_TABLE_VALUE}")
+fi
+if [ -n "${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}" ]; then
+  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_PROJECT_ID=${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}")
 fi
 
 if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
@@ -103,6 +115,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
   --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
   --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
+  --update-secrets "CLOUD_SPEND_ADMIN_DISCORD_IDS=mcbn-cloud-spend-admin-ids:latest" \
   --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
   --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
   --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
