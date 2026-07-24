@@ -65,7 +65,7 @@ At least one token must be set for the bot API to function. If only scoped token
 | `BOT_API_REPLAY_WINDOW_SECONDS` | No | `300` | Max drift between bot request timestamp and server time. |
 | `BOT_API_NONCE_TTL_SECONDS` | No | `600` | How long nonces are tracked. |
 | `BOT_API_NONCE_CACHE_SIZE` | No | `10000` | Max nonces held in memory. |
-| `BOT_NOTION_SYNC_STALE_AFTER_SECONDS` | No | `3600` | Settings UI threshold before a running sync is marked stale. |
+| `BOT_WIKI_SYNC_STALE_AFTER_SECONDS` | No | `3600` | Settings UI threshold before a running wiki sync is marked stale. |
 
 ### Auto-Period Management
 
@@ -156,7 +156,7 @@ cp apps/bot/.env.example apps/bot/.env
 | `AUTO_PERIOD_CLOSER_GUILD_ID` | No | falls back to `REVIEW_NOTIFIER_GUILD_ID` | Guild ID for close notifications in character cubby channels. |
 | `AUTO_PERIOD_CLOSER_INTERVAL_MS` | No | `3600000` | Poll interval (ms). |
 
-### Wiki/Notion Sync
+### Wiki Sync
 
 | Var | Required | Default | Description |
 |-----|----------|---------|-------------|
@@ -166,8 +166,24 @@ cp apps/bot/.env.example apps/bot/.env
 | `WIKI_SYNC_TIMEZONE` | No | `America/Chicago` | IANA timezone for scheduler calculations. |
 | `WIKI_SYNC_INTERVAL_MS` | No | `300000` | Tick interval for scheduler window checks (ms). |
 | `DISCORD_GUILD_ID` | Conditional | `TEST_GUILD_ID` fallback | Discord guild used by sync scripts and channel discovery. |
-| `NOTION_TOKEN` | Conditional | — | Required for manual runs that include Notion import/archive sync. |
-| `NOTION_SYNC_MSG_LIMIT` | No | `200` | Max Discord messages fetched per source channel during sync. |
+| `NOTION_TOKEN` | Historical | — | No longer consumed by the current wiki-only runtime; retained here only for historical configuration reference. |
+| `NOTION_SYNC_MSG_LIMIT` | Historical | `200` | No longer consumed by the current wiki-only runtime; retained here only for historical configuration reference. |
+
+The current runtime uses `apps/bot/src/scripts/discord-wiki-sync.ts` and writes to the
+web-hosted Chronicle Wiki. Older release notes refer to the former combined
+Discord/Notion sync; those notes describe historical changes and are not current runtime
+instructions.
+
+### Character Creator Notifications
+
+| Var | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `CC_SUBMISSION_NOTIFIER_ENABLED` | No | `false` | Enable Discord notifications for submitted character drafts. Explicitly enable in production if needed. |
+| `CC_SUBMISSION_NOTIFIER_INTERVAL_MS` | No | `60000` | Poll interval for submitted drafts (ms). Production template uses `120000`. |
+| `CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS` | No | `86400` | How far back to look on startup (seconds). |
+| `CC_APPROVAL_NOTIFIER_ENABLED` | No | `false` | Enable Discord notifications for approved character drafts. Explicitly enable in production if needed. |
+| `CC_APPROVAL_NOTIFIER_INTERVAL_MS` | No | `60000` | Poll interval for approved drafts (ms). Production template uses `120000`. |
+| `CC_APPROVAL_NOTIFIER_LOOKBACK_SECONDS` | No | `86400` | How far back to look on startup (seconds). |
 
 ### Retirement Automation
 

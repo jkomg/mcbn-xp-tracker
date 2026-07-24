@@ -436,7 +436,7 @@ export const config = {
   ccCreationRulesUrl: env.CC_CREATION_RULES_URL,
   ccTicketCategoryIds: parseCsvIds(env.CC_TICKET_CATEGORY_IDS),
   ccTicketMonitorEnabled: (env.CC_TICKET_MONITOR_ENABLED ?? 'true').toLowerCase() === 'true',
-  ccSubmissionNotifierEnabled: (env.CC_SUBMISSION_NOTIFIER_ENABLED ?? 'true').toLowerCase() === 'true',
+  ccSubmissionNotifierEnabled: (env.CC_SUBMISSION_NOTIFIER_ENABLED ?? 'false').toLowerCase() === 'true',
   ccSubmissionNotifierIntervalMs: parsePositiveInt(
     env.CC_SUBMISSION_NOTIFIER_INTERVAL_MS,
     60_000,
@@ -447,7 +447,7 @@ export const config = {
     86_400,
     'CC_SUBMISSION_NOTIFIER_LOOKBACK_SECONDS',
   ),
-  ccApprovalNotifierEnabled: (env.CC_APPROVAL_NOTIFIER_ENABLED ?? 'true').toLowerCase() === 'true',
+  ccApprovalNotifierEnabled: (env.CC_APPROVAL_NOTIFIER_ENABLED ?? 'false').toLowerCase() === 'true',
   ccApprovalNotifierIntervalMs: parsePositiveInt(
     env.CC_APPROVAL_NOTIFIER_INTERVAL_MS,
     60_000,

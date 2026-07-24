@@ -41,6 +41,8 @@ jobs:
               - 'compose.full.yml'
               - 'apps/web/docker-compose.yml'
               - 'apps/bot/docker-compose.yml'
+              - 'apps/bot/k8s/**'
+              - 'apps/web/k8s/**'
               - 'scripts/bootstrap-local.sh'
               - 'scripts/check-docs-parity.sh'
               - 'README.md'

@@ -101,7 +101,7 @@ The Settings page includes web-app runtime controls plus bot operations panels.
 
 **Bot Status + Notion Sync** — operational controls for bot lifecycle and wiki/notion sync:
 - Bot heartbeat status (Online / Delayed / Offline) with restart/rebuild controls.
-- Manual **Run Notion Sync** queue button for staff (disabled when the bot reports missing `NOTION_TOKEN` or `DISCORD_GUILD_ID` prerequisites).
+- Manual **Run Wiki Sync** queue button for staff (disabled when the bot reports missing `DISCORD_GUILD_ID` capability).
 - Live sync state badges (Queued / Running / Success / Error / Stale).
 - `Reset Stale` action for settings admins to clear stuck sync status keys and safely requeue.
 - Recent sync runs table (run ID, source, started/finished, duration, final status, error) aggregated from persisted `notion_sync_events`.

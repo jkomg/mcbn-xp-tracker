@@ -50,6 +50,13 @@ cd apps/web && ./deploy.sh           # build/push image, deploy Cloud Run revisi
 cd apps/web && ./setup-secrets.sh    # sync env values to GCP Secret Manager
 ```
 
+The current production web app runs on Cloud Run as `mcbn-xp-tracker` and the dev web
+app runs as the separate `mcbn-xp-tracker-dev` service. Each uses its own Turso
+database and credentials. The Discord bot runs in Docker on Ursula, with a
+heartbeat-triggered failover bot on little-mac. Kubernetes manifests under
+`apps/*/k8s/` are retained for a future local-cluster migration and are not used by
+the current deployment.
+
 ## Key Docs
 
 | Doc | Purpose |

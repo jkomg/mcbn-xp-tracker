@@ -1,0 +1,97 @@
+# FUTURE MIGRATION MANIFEST — not the current production deployment.
+# mcbn-xp-tracker web — production-style container (entrypoint.sh runs
+# migrations then gunicorn on :8080), not the docker-compose dev setup
+# (which live-mounts source and runs `flask run` instead). If you want the
+# compose-style hot-reload dev loop under k8s too, add a hostPath volume
+# mounting this repo over /app and override the command — not done here
+# since it fights with the baked-in character-app SPA build stage.
+#
+# Build image first (from repo root, matches apps/web/Dockerfile build context):
+#   docker build -f apps/web/Dockerfile -t mcbn-xp-tracker-web:local .
+#
+# Create the secret from your existing env file:
+#   kubectl create secret generic mcbn-web-env --from-env-file=apps/web/.env
+#
+# If GOOGLE_CREDENTIALS_FILE is used (Sheets backup mirror), also create:
+#   kubectl create secret generic mcbn-web-google-creds \
+#     --from-file=service-account.json=apps/web/credentials/service-account.json
+#
+# Apply:
+#   kubectl apply -f apps/web/k8s/deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcbn-web
+  labels:
+    app: mcbn-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcbn-web
+  template:
+    metadata:
+      labels:
+        app: mcbn-web
+    spec:
+      containers:
+        - name: web
+          image: mcbn-xp-tracker-web:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: mcbn-web-env
+          env:
+            - name: PORT
+              value: "8080"
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /app/data
+            - name: google-creds
+              mountPath: /app/credentials
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: mcbn-web-sqlite-data
+        - name: google-creds
+          secret:
+            secretName: mcbn-web-google-creds
+            optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcbn-web
+spec:
+  selector:
+    app: mcbn-web
+  ports:
+    # External port bumped to 8091 — OrbStack's single-node cluster binds
+    # each LoadBalancer Service's port directly on the host, so it can't
+    # collide with heirloom-kitchen's 8080. Container itself still listens
+    # on 8080 (targetPort).
+    - port: 8091
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mcbn-web-sqlite-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
