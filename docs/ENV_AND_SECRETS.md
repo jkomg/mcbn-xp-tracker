@@ -46,6 +46,29 @@ cp apps/web/.env.example apps/web/.env
 | `DISCORD_REDIRECT_URI` | Yes | — | OAuth callback URL (e.g. `http://127.0.0.1:5001/auth/callback`). |
 | `ALLOWED_DISCORD_IDS` | Yes | — | Comma-separated Discord IDs with staff access. |
 | `SETTINGS_ADMIN_DISCORD_IDS` | No | — | Subset of `ALLOWED_DISCORD_IDS` who can edit Settings at runtime. |
+| `CLOUD_SPEND_ADMIN_DISCORD_IDS` | No | — | Separate, narrower Discord-ID allowlist for the personal billing view. Keep this to the owner. |
+
+### Owner-only Cloud Spend (optional)
+
+The Settings → Owner → Cloud Spend pane is monthly by design. It compares a
+BigQuery GCP Billing Export aggregate with persisted web error counts and the
+existing bot heartbeat signal. It is disabled unless `CLOUD_SPEND_ADMIN_DISCORD_IDS`
+contains the owner's Discord ID. Turso account billing is not inferred from
+database activity and remains marked unavailable until a Turso account API is
+configured.
+
+| Var | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `CLOUD_SPEND_BILLING_PROJECT_ID` | Conditional | `GCP_PROJECT_ID` | GCP project allowed to run the billing query. |
+| `CLOUD_SPEND_BILLING_TABLE` | Conditional | — | Fully-qualified standard Billing Export table: `project.dataset.table`. |
+| `CLOUD_SPEND_CACHE_TTL_SECONDS` | No | `21600` | In-process cache duration; six hours avoids repeated BigQuery queries. |
+| `CLOUD_SPEND_MAX_BYTES_BILLED` | No | `1000000000` | BigQuery safety cap (1 GB by default). Failed queries do not fall back to uncapped reads. |
+| `CLOUD_SPEND_HTTP_TIMEOUT_SECONDS` | No | `25` | Billing API request timeout. |
+
+The Cloud Run service account needs permission to run BigQuery jobs and read
+the billing-export dataset. The billing export itself is the only additional
+Google Cloud data source; page loads use one capped monthly aggregate and the
+result is cached. Do not add the billing table or credentials to source control.
 
 ### Bot API Auth
 

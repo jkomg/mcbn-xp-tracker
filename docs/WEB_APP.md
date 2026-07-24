@@ -86,6 +86,16 @@ The Settings page includes web-app runtime controls plus bot operations panels.
 - Bot API legacy token, read token, write token
 - Turso cloud database
 
+## Owner-only Cloud Spend
+
+The Settings page has an optional Owner → Cloud Spend pane. It is intentionally
+monthly rather than hourly/daily: the web service runs one capped aggregate
+against a configured GCP Billing Export table, caches it for six hours, and
+compares it with captured application errors. Access uses the separate
+`CLOUD_SPEND_ADMIN_DISCORD_IDS` allowlist; Settings administrator access alone
+does not expose billing data. Turso account billing remains unavailable until a
+Turso account API integration is configured.
+
 **Tuning** — editable numeric parameters (spinners with Save buttons):
 
 | Parameter | Default | Description |

@@ -49,6 +49,26 @@ class Config:
     SETTINGS_ADMIN_DISCORD_IDS = set(
         uid.strip() for uid in _admin_ids.split(',') if uid.strip()
     )
+    # Separate owner allowlist for the Cloud Spend pane. Keep this narrower
+    # than Settings admins because it exposes personal billing-account data.
+    _cloud_spend_admin_ids = os.environ.get('CLOUD_SPEND_ADMIN_DISCORD_IDS', '')
+    CLOUD_SPEND_ADMIN_DISCORD_IDS = set(
+        uid.strip() for uid in _cloud_spend_admin_ids.split(',') if uid.strip()
+    )
+    CLOUD_SPEND_BILLING_PROJECT_ID = os.environ.get(
+        'CLOUD_SPEND_BILLING_PROJECT_ID', GCP_PROJECT_ID
+    )
+    # Fully-qualified BigQuery Billing Export table: project.dataset.table.
+    CLOUD_SPEND_BILLING_TABLE = os.environ.get('CLOUD_SPEND_BILLING_TABLE', '')
+    CLOUD_SPEND_CACHE_TTL_SECONDS = int(
+        os.environ.get('CLOUD_SPEND_CACHE_TTL_SECONDS', '21600')
+    )
+    CLOUD_SPEND_MAX_BYTES_BILLED = int(
+        os.environ.get('CLOUD_SPEND_MAX_BYTES_BILLED', '1000000000')
+    )
+    CLOUD_SPEND_HTTP_TIMEOUT_SECONDS = float(
+        os.environ.get('CLOUD_SPEND_HTTP_TIMEOUT_SECONDS', '25')
+    )
 
     # Cache TTL in seconds for Google Sheets reads
     SHEETS_CACHE_TTL = int(os.environ.get('SHEETS_CACHE_TTL', '30'))
