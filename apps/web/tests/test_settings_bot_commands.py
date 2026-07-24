@@ -133,6 +133,32 @@ def test_cloud_spend_is_owner_only(monkeypatch):
         assert b'Monthly comparison' not in response.data
 
 
+def test_cloud_spend_pane_is_lazy_but_nav_link_href_is_still_correct(monkeypatch):
+    """Regression test: cloud_spend is only computed when active_section is
+    already 'cloud-spend' (avoids firing the GCP billing API on every
+    settings page load), so the <section data-section="cloud-spend"> HTML
+    is absent on a plain page load. The client-side nav JS does
+    preventDefault() + client-side pane toggling with no fetch, so if that
+    JS ever stops falling back to a real navigation for absent panes, this
+    at least locks in that the link's href still points to the right place
+    for that fallback to work.
+    """
+    app = _app()
+    app.config['CLOUD_SPEND_ADMIN_DISCORD_IDS'] = {'12345'}
+    monkeypatch.setattr(
+        'app.cloud_spend.fetch_monthly_gcp_costs',
+        lambda config: [{'month': '2026-07', 'cost': 1.25}],
+    )
+    with app.test_client() as client:
+        _set_session(client, '12345')
+        response = client.get('/settings/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        assert '<section class="settings-pane' in html  # other panes did render
+        assert 'Monthly comparison' not in html  # cloud-spend pane body did not
+        assert 'section=cloud-spend' in html  # nav link href still present
+
+
 def test_cloud_spend_compares_error_counts(monkeypatch):
     app = _app()
     with app.app_context():
