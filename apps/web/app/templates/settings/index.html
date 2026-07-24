@@ -614,6 +614,19 @@
   var panes = document.querySelectorAll('.settings-pane[data-section]');
   var navLinks = document.querySelectorAll('.settings-nav-link[data-section]');
 
+  // Some panes (e.g. Cloud Spend) are only server-rendered when
+  // active_section already matches on the initial request, to avoid firing
+  // an external API call on every settings page load regardless of which
+  // tab is open. If a pane wasn't rendered, there's nothing in the DOM for
+  // the client-side toggle below to activate -- fall back to a real
+  // navigation instead of silently showing a blank pane.
+  function paneExists(id) {
+    for (var i = 0; i < panes.length; i++) {
+      if (panes[i].dataset.section === id) return true;
+    }
+    return false;
+  }
+
   function showSection(id) {
     panes.forEach(function (p) { p.classList.toggle('is-active', p.dataset.section === id); });
     navLinks.forEach(function (l) { l.classList.toggle('is-active', l.dataset.section === id); });
@@ -649,6 +662,10 @@
       row.querySelector('.settings-search-result-section').textContent = r.section_label;
       row.querySelector('.settings-search-result-desc').textContent = r.description;
       row.addEventListener('click', function () {
+        if (!paneExists(r.section)) {
+          window.location.href = '?section=' + encodeURIComponent(r.section);
+          return;
+        }
         searchInput.value = '';
         history.replaceState(null, '', '?section=' + r.section);
         showSection(r.section);
@@ -676,10 +693,14 @@
 
   navLinks.forEach(function (link) {
     link.addEventListener('click', function (e) {
+      var id = link.dataset.section;
+      if (!paneExists(id)) {
+        return; // let the browser follow the link's real href
+      }
       e.preventDefault();
       if (searchInput) searchInput.value = '';
       history.pushState(null, '', link.getAttribute('href'));
-      showSection(link.dataset.section);
+      showSection(id);
     });
   });
 })();
