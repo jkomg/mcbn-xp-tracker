@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Python (web)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
@@ -126,7 +126,7 @@ jobs:
           python -m json.tool packages/rules/xp_costs.json >/dev/null
 
       - name: Setup Python (contract)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
