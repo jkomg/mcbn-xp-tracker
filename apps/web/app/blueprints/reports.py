@@ -232,7 +232,18 @@ def activity_csv():
     since = request.args.get('since', '').strip()
     until = request.args.get('until', '').strip()
 
-    q = DiscordPostCount.query
+    # Column-only query (not DiscordPostCount.query) -- this table has
+    # 300k+ rows post-backfill and this route has no default date bounds,
+    # so an unfiltered call exports the whole thing; materializing each row
+    # as a full ORM-mapped instance rather than a lightweight Row tuple was
+    # measurably contributing to Cloud Run OOM restarts. Same fix as
+    # health()'s _rows_for.
+    q = db.session.query(
+        DiscordPostCount.discord_id,
+        DiscordPostCount.date,
+        DiscordPostCount.category,
+        DiscordPostCount.count,
+    )
     if since:
         q = q.filter(DiscordPostCount.date >= since)
     if until:
@@ -240,7 +251,7 @@ def activity_csv():
     rows = q.order_by(DiscordPostCount.date, DiscordPostCount.discord_id).all()
 
     # Build display name lookup
-    discord_ids = list({r.discord_id for r in rows})
+    discord_ids = list({r[0] for r in rows})
     name_rows = DiscordDisplayName.query.filter(
         DiscordDisplayName.discord_id.in_(discord_ids)
     ).all()
@@ -248,10 +259,10 @@ def activity_csv():
 
     # Pivot: (discord_id, date) → {ic, ooc, rolls, cubby}
     pivot: dict[tuple[str, str], dict[str, int]] = {}
-    for row in rows:
-        key = (row.discord_id, row.date)
+    for discord_id, date, category, count in rows:
+        key = (discord_id, date)
         entry = pivot.setdefault(key, {'ic': 0, 'ooc': 0, 'rolls': 0, 'cubby': 0})
-        entry[row.category] = entry.get(row.category, 0) + row.count
+        entry[category] = entry.get(category, 0) + count
 
     def _csv_safe(val: str) -> str:
         """Prevent CSV formula injection by prefixing dangerous leading chars."""
@@ -323,13 +334,25 @@ def health():
     def _rows_for(since: str, until: str) -> list[dict]:
         if since > until:
             return []
-        q = DiscordPostCount.query.filter(
+        # Column-only query (not DiscordPostCount.query) -- for a wide range
+        # (180d/365d/all) this table now has 300k+ rows post-backfill, and
+        # materializing each as a full ORM-mapped instance (identity map
+        # registration, InstanceState tracking) rather than a lightweight
+        # Row tuple was measurably contributing to Cloud Run OOM restarts,
+        # which are themselves a real driver of Cloud Run cost (each OOM
+        # kill forces an expensive cold-start re-init on restart).
+        q = db.session.query(
+            DiscordPostCount.discord_id,
+            DiscordPostCount.date,
+            DiscordPostCount.category,
+            DiscordPostCount.count,
+        ).filter(
             DiscordPostCount.date >= since,
             DiscordPostCount.date <= until,
         )
         return [
-            {'discord_id': r.discord_id, 'date': r.date, 'category': r.category, 'count': r.count}
-            for r in q.all()
+            {'discord_id': did, 'date': date, 'category': category, 'count': count}
+            for did, date, category, count in q
         ]
 
     rows = _rows_for(start, end)
