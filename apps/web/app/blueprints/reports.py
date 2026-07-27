@@ -419,12 +419,17 @@ def health():
     def _member_events_for(since: str, until: str, event_type: str) -> list[dict]:
         if since > until:
             return []
-        q = DiscordMemberEvent.query.filter(
+        # Column-only query -- same rationale as _rows_for above.
+        q = db.session.query(
+            DiscordMemberEvent.discord_id,
+            DiscordMemberEvent.role,
+            DiscordMemberEvent.date,
+        ).filter(
             DiscordMemberEvent.event_type == event_type,
             DiscordMemberEvent.date >= since,
             DiscordMemberEvent.date <= until,
         )
-        return [{'discord_id': r.discord_id, 'role': r.role, 'date': r.date} for r in q.all()]
+        return [{'discord_id': did, 'role': role, 'date': date} for did, role, date in q]
 
     join_events = _member_events_for(start, end, 'join')
     role_gain_events = _member_events_for(start, end, 'role_gain')

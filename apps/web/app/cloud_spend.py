@@ -19,7 +19,7 @@ import requests
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 
-from app.db import AppLogEntry
+from app.db import AppLogEntry, db
 
 _BQ_SCOPE = 'https://www.googleapis.com/auth/bigquery'
 _TABLE_RE = re.compile(r'^[A-Za-z0-9_.-]+$')
@@ -123,12 +123,20 @@ def build_snapshot(config, heartbeat_ts: str | None = None, months: int = 12) ->
     costs, billing_error = _cached_costs(config)
     cutoff = datetime.now(timezone.utc) - timedelta(days=months * 32)
     errors = Counter()
-    for entry in AppLogEntry.query.filter(AppLogEntry.level == 'error').all():
-        created = entry.created_at
+    # Column-only query with the cutoff pushed into SQL -- app_log_entries
+    # is an append-only error/warning log written on every unhandled
+    # exception, so it only grows; the previous version fetched every
+    # error row ever logged as a full ORM instance and filtered by date in
+    # Python only after the fact. created_at is stored tz-naive (UTC), so
+    # compare against a naive cutoff.
+    rows = db.session.query(AppLogEntry.created_at).filter(
+        AppLogEntry.level == 'error',
+        AppLogEntry.created_at >= cutoff.replace(tzinfo=None),
+    )
+    for (created,) in rows:
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
-        if created >= cutoff:
-            errors[created.strftime('%Y-%m')] += 1
+        errors[created.strftime('%Y-%m')] += 1
 
     now = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_keys = []
