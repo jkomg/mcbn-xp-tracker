@@ -84,12 +84,15 @@ jobs:
             --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
             --set-env-vars "BOT_API_REPLAY_PROTECTION_ENABLED=true" \
             --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
+            --set-env-vars "CLOUD_SPEND_BILLING_TABLE=${{ secrets.CLOUD_SPEND_BILLING_TABLE }}" \
+            --set-env-vars "CLOUD_SPEND_BILLING_PROJECT_ID=${{ secrets.CLOUD_SPEND_BILLING_PROJECT_ID }}" \
             --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
             --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
             --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
             --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
             --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
             --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
+            --update-secrets "CLOUD_SPEND_ADMIN_DISCORD_IDS=mcbn-cloud-spend-admin-ids:latest" \
             --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
             --update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest" \
             --update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest" \
