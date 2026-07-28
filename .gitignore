@@ -48,3 +48,4 @@ apps/web/app/static/character-app/
 /tg-local/
 prod-snapshot.sql
 scripts/overwrite-snapshots/
+.claude/
