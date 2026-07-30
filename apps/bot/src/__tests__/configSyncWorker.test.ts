@@ -172,7 +172,9 @@ describe('ConfigSyncWorker sync orchestration', () => {
 
     expect(liveConfig.activityIcCategoryIds).toEqual(new Set(['ic-1', 'ic-2']));
     expect(liveConfig.activityOocCategoryIds).toEqual(new Set(['ooc-1']));
-    expect(liveConfig.activityRollsCategoryIds).toEqual(new Set());
+    // A blank override means "restore the default" (per that Settings field's
+    // own help text), not "track nothing" — falls back to the .env default.
+    expect(liveConfig.activityRollsCategoryIds).toEqual(new Set(['default-rolls']));
   });
 
   it('start uses provided interval and unrefs timer', () => {

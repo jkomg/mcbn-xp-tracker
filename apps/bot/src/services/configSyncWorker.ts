@@ -37,13 +37,17 @@ export class ConfigSyncWorker {
       liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
         ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.ccTicketCategoryIds);
-      liveConfig.activityIcCategoryIds = cfg.activityIcCategoryIds !== null
+      // A blank override (an admin clearing the Settings field to restore the
+      // built-in default, per that field's own help text) must fall back to
+      // the .env/default set, not resolve to an empty Set that silently
+      // stops counting that category.
+      liveConfig.activityIcCategoryIds = cfg.activityIcCategoryIds && cfg.activityIcCategoryIds.trim()
         ? new Set(cfg.activityIcCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.activityIcCategoryIds);
-      liveConfig.activityOocCategoryIds = cfg.activityOocCategoryIds !== null
+      liveConfig.activityOocCategoryIds = cfg.activityOocCategoryIds && cfg.activityOocCategoryIds.trim()
         ? new Set(cfg.activityOocCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.activityOocCategoryIds);
-      liveConfig.activityRollsCategoryIds = cfg.activityRollsCategoryIds !== null
+      liveConfig.activityRollsCategoryIds = cfg.activityRollsCategoryIds && cfg.activityRollsCategoryIds.trim()
         ? new Set(cfg.activityRollsCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.activityRollsCategoryIds);
       if (cfg.honeypotEnabled !== null) liveConfig.honeypotEnabled = cfg.honeypotEnabled;

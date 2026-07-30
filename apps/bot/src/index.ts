@@ -172,9 +172,15 @@ initClientCommandCollection(client);
 // Fetch DB-backed config overrides before constructing services so interval
 // overrides set in the web UI take effect immediately on this startup.
 async function applyStartupConfigOverrides(): Promise<void> {
-  // Seed CC ticket monitor from .env defaults so it works before first DB sync.
+  // Seed CC ticket monitor and activity-category tracking from .env defaults
+  // so they work before the first DB sync (ConfigSyncWorker starts after this
+  // and isn't awaited, so any message handled in that window needs a
+  // non-empty set here rather than the liveConfig module's empty-Set default).
   liveConfig.ccTicketMonitorEnabled = config.ccTicketMonitorEnabled;
   liveConfig.ccTicketCategoryIds = new Set(config.ccTicketCategoryIds);
+  liveConfig.activityIcCategoryIds = new Set(config.activityIcCategoryIds);
+  liveConfig.activityOocCategoryIds = new Set(config.activityOocCategoryIds);
+  liveConfig.activityRollsCategoryIds = new Set(config.activityRollsCategoryIds);
   try {
     const cfg = await adapter.getBotConfig();
     if (cfg.passageOfTimeIntervalMs !== null) liveConfig.passageOfTimeIntervalMs = cfg.passageOfTimeIntervalMs;
@@ -186,6 +192,21 @@ async function applyStartupConfigOverrides(): Promise<void> {
     if (cfg.ccTicketCategoryIds !== null) {
       liveConfig.ccTicketCategoryIds = new Set(
         cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
+      );
+    }
+    if (cfg.activityIcCategoryIds && cfg.activityIcCategoryIds.trim()) {
+      liveConfig.activityIcCategoryIds = new Set(
+        cfg.activityIcCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
+      );
+    }
+    if (cfg.activityOocCategoryIds && cfg.activityOocCategoryIds.trim()) {
+      liveConfig.activityOocCategoryIds = new Set(
+        cfg.activityOocCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
+      );
+    }
+    if (cfg.activityRollsCategoryIds && cfg.activityRollsCategoryIds.trim()) {
+      liveConfig.activityRollsCategoryIds = new Set(
+        cfg.activityRollsCategoryIds.split(',').map(s => s.trim()).filter(Boolean),
       );
     }
     logEvent('info', 'startup_config_loaded', { liveConfig });
