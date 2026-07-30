@@ -925,10 +925,17 @@ export async function handleBroadcastModal(
 // ── Update modal handlers ───────────────────────────────────────────────────
 
 /**
- * Discord rejects an upload exceeding this guild's attachment-size cap
- * (varies by boost tier; not exposed via the API) at the HTTP layer before
- * it ever becomes a coded API error, so this is a message-text match rather
- * than a discord.js error code check.
+ * The player who dropped the PDF in their ticket channel may be on Nitro,
+ * which raises their personal client upload ceiling (currently 500MB)
+ * independent of the guild's boost tier. The bot re-uploading that same
+ * file is bound by the guild's own boost-tier cap instead — bots don't
+ * inherit a user's Nitro allowance, and (per Discord's own API-docs tracker,
+ * discord/discord-api-docs#6058) bot/webhook uploads may not even get the
+ * newer default bump that Discord client uploads do. So a file a player
+ * uploaded natively without issue can still bounce when the bot tries to
+ * re-post it. Discord rejects it at the HTTP layer before it ever becomes a
+ * coded API error, so this is a message-text match rather than a discord.js
+ * error code check.
  */
 export function isRequestEntityTooLarge(err: unknown): boolean {
   return err instanceof Error && /request entity too large/i.test(err.message);

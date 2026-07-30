@@ -5,7 +5,7 @@ vi.mock('../config', () => ({ config: { lasombraCommandName: 'lasombra' } }));
 import { isRequestEntityTooLarge } from '../commands/lasombra';
 
 describe('isRequestEntityTooLarge', () => {
-  it('matches the error Discord throws when an attachment exceeds the guild upload cap', () => {
+  it('matches the error Discord throws when the bot re-upload exceeds the guild boost-tier cap', () => {
     expect(isRequestEntityTooLarge(new Error('Request entity too large'))).toBe(true);
     expect(isRequestEntityTooLarge(new Error('413: Request Entity Too Large'))).toBe(true);
   });
