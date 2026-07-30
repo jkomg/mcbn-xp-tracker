@@ -1442,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ═══ Living Sheet — pre-fill current dots from imported sheet data ═══
     const SHEET_DATA = {{ sheet_data | tojson if sheet_data else 'null' }};
 
-    function lookupCurrentDots(cat, traitName) {
+    function lookupCurrentDots(cat, traitName, powerName) {
         if (!SHEET_DATA || !traitName) return null;
         const key = traitName.trim().toLowerCase().replace(/\s+/g, '_');
         if (cat === 'Attribute') {
@@ -1463,7 +1463,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cat === 'Advantage (Merit/Background)') {
             // Schema v7+ keeps Backgrounds in a separate array from Merits.
             const merits = (SHEET_DATA.backgrounds || []).concat(SHEET_DATA.merits || []);
-            const m = merits.find(m => m.name && m.name.toLowerCase() === traitName.trim().toLowerCase());
+            const trimmedTrait = traitName.trim();
+            const trimmedPower = (powerName || '').trim();
+            // Mirrors _effective_advantage_name in character_sheet.py: when the
+            // trait is a SUBCATEGORY_ADVANTAGES trigger (e.g. "Status") and a
+            // sub-category/faction is given, look up the folded sheet name
+            // (e.g. "Status (Tremere)") instead of the bare trait name — the
+            // bare name is a different sheet entry (or none at all).
+            const lookupName = (trimmedPower && SUBCATEGORY_ADVANTAGES[trimmedTrait.toLowerCase()])
+                ? `${trimmedTrait} (${trimmedPower})`
+                : trimmedTrait;
+            const m = merits.find(m => m.name && m.name.toLowerCase() === lookupName.toLowerCase());
             return m ? (m.level || 0) : null;
         }
         return null;
@@ -1473,7 +1483,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function autofillCurrentDots() {
         const cat = spendCategory.value;
         const trait = traitNameInput ? traitNameInput.value : '';
-        const dots = lookupCurrentDots(cat, trait);
+        const power = powerNameInput ? powerNameInput.value : '';
+        const dots = lookupCurrentDots(cat, trait, power);
         if (dots != null) {
             currentDots.value = dots;
             calcCost();
@@ -1487,6 +1498,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // power-name-group toggle on every keystroke so it appears/disappears
         // live as the player types "status", not only on blur.
         traitNameInput.addEventListener('input', updateDotConstraints);
+    }
+    if (powerNameInput) {
+        // The current-dots autofill for triggering Advantages (e.g. Status)
+        // depends on BOTH trait_name and power_name (faction/group) — re-run
+        // it whenever the faction input changes so a character who already
+        // has "Status (Tremere)" at N dots doesn't get silently proposed as
+        // a fresh 0-dot purchase once a faction is typed.
+        powerNameInput.addEventListener('input', autofillCurrentDots);
+        powerNameInput.addEventListener('change', autofillCurrentDots);
+        powerNameInput.addEventListener('blur', autofillCurrentDots);
     }
 
     spendCategory.addEventListener('change', function() {

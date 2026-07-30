@@ -529,11 +529,13 @@ def submit_spend(name):
         return redirect(url_for('player.character', name=name))
 
     from app.character_sheet import _SUBCATEGORY_ADVANTAGES
-    if trait_name.lower() in _SUBCATEGORY_ADVANTAGES and not power_name:
-        flash(
-            f'{_SUBCATEGORY_ADVANTAGES[trait_name.lower()]} is required for {trait_name} purchases.',
-            'danger',
-        )
+    if (
+        spend_category == 'Advantage (Merit/Background)'
+        and trait_name.strip().lower() in _SUBCATEGORY_ADVANTAGES
+        and not power_name
+    ):
+        subcategory_label = _SUBCATEGORY_ADVANTAGES[trait_name.strip().lower()]
+        flash(f'{subcategory_label} is required for {trait_name}.', 'danger')
         return redirect(url_for('player.character', name=name))
 
     try:
@@ -660,11 +662,14 @@ def add_wish_list_item(name):
     if spend_category in _DISCIPLINE_CATEGORIES and not power_name:
         flash('Power name is required for discipline purchases.', 'danger')
         return redirect(url_for('player.character', name=name))
-    if trait_name.lower() in _SUBCATEGORY_ADVANTAGES and not power_name:
-        flash(
-            f'{_SUBCATEGORY_ADVANTAGES[trait_name.lower()]} is required for {trait_name} purchases.',
-            'danger',
-        )
+
+    if (
+        spend_category == 'Advantage (Merit/Background)'
+        and trait_name.strip().lower() in _SUBCATEGORY_ADVANTAGES
+        and not power_name
+    ):
+        subcategory_label = _SUBCATEGORY_ADVANTAGES[trait_name.strip().lower()]
+        flash(f'{subcategory_label} is required for {trait_name}.', 'danger')
         return redirect(url_for('player.character', name=name))
 
     try:
