@@ -32,6 +32,17 @@ _SUBCATEGORY_ADVANTAGES = {
     'status': 'Faction / Group',
 }
 
+
+def subcategory_label_for_trait(trait_name: str) -> str | None:
+    """Return the sub-category label (e.g. 'Faction / Group') for a trigger
+
+    trait like 'Status', or None if trait_name isn't one of
+    _SUBCATEGORY_ADVANTAGES. Used by staff-facing templates to distinguish a
+    Discipline power_name (e.g. "Auspex 3") from a structured Advantage
+    sub-category value (e.g. "Tremere") stored in the same power_name field.
+    """
+    return _SUBCATEGORY_ADVANTAGES.get((trait_name or '').strip().lower())
+
 _SHEET_MARKER_START = '<!-- CHARACTER_SHEET -->'
 _SHEET_MARKER_END = '<!-- /CHARACTER_SHEET -->'
 

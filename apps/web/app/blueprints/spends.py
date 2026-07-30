@@ -8,7 +8,9 @@ from flask import (
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
-from app.character_sheet import patch_character_draft, find_trait_sheet_match
+from app.character_sheet import (
+    patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
+)
 
 bp = Blueprint('spends', __name__)
 
@@ -52,6 +54,10 @@ def pending():
             'depends_on_spend': depends_on_spend,
             'sheet_match': sheet_match,
             'days': days,
+            # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
+            # structured Advantage sub-category value (e.g. "Tremere") stored
+            # in the same power_name field — see _SUBCATEGORY_ADVANTAGES.
+            'power_name_label': subcategory_label_for_trait(spend.trait_name),
         })
 
     # Oldest-first, matching the design's "sorted oldest-first" note.
@@ -95,6 +101,11 @@ def review(row_id):
         spend.character_name, spend.spend_category, spend.trait_name, spend.power_name,
     )
 
+    # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
+    # structured Advantage sub-category value (e.g. "Tremere") stored in the
+    # same power_name field — see _SUBCATEGORY_ADVANTAGES.
+    power_name_label = subcategory_label_for_trait(spend.trait_name)
+
     return render_template(
         'spends/review.html',
         spend=spend,
@@ -103,6 +114,7 @@ def review(row_id):
         depends_on_spend=depends_on_spend,
         dependents=dependents,
         sheet_match=sheet_match,
+        power_name_label=power_name_label,
     )
 
 

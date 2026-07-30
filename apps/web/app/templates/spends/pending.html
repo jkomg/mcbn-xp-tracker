@@ -68,6 +68,15 @@
           <div><div class="dp-detail-label">Validated Cost</div><div style="font-size:16px;font-weight:700;color:{{ '#3ecf7e' if valid else '#e2a53d' }};">{{ r.validation.correct_cost }} XP</div></div>
           <div><div class="dp-detail-label">Available</div><div style="font-size:16px;font-weight:700;color:var(--text);">{{ r.available_xp }} XP</div></div>
         </div>
+        {% if spend.power_name %}
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
+          {% if r.power_name_label %}
+          <i class="bi bi-flag"></i> <strong>{{ r.power_name_label }}:</strong> {{ spend.power_name }}
+          {% else %}
+          <i class="bi bi-lightning"></i> {{ spend.power_name }}
+          {% endif %}
+        </div>
+        {% endif %}
         {% if spend.justification %}
         <div style="font-size:12.5px;color:var(--text-body);font-style:italic;margin-bottom:12px;">{{ spend.justification | urlize(target='_blank', rel='noopener noreferrer nofollow') }}</div>
         {% endif %}

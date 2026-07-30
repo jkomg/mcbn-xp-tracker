@@ -4,7 +4,7 @@ import pytest
 from flask import Flask
 
 import app as app_module
-from app.character_sheet import _apply_patch, find_trait_sheet_match
+from app.character_sheet import _apply_patch, find_trait_sheet_match, subcategory_label_for_trait
 from app.db import CharacterDraft, DbCharacter, db
 from app.db_service import DBService
 
@@ -241,3 +241,26 @@ def test_find_trait_sheet_match_legacy_bare_status_still_warns_against_structure
     assert sorted(m['name'] for m in result['close_matches']) == [
         'Status (Anarch Movement)', 'Status (Tremere)',
     ]
+
+
+# --- subcategory_label_for_trait -------------------------------------------
+# Used by the staff pending/review templates to distinguish a Discipline
+# power_name (e.g. "Auspex 3") from a structured Advantage sub-category value
+# (e.g. "Tremere") stored in the same power_name field, so staff see
+# "Faction / Group: Tremere" instead of mistaking it for a discipline power.
+
+def test_subcategory_label_for_trait_matches_status():
+    assert subcategory_label_for_trait('Status') == 'Faction / Group'
+
+
+def test_subcategory_label_for_trait_case_and_whitespace_insensitive():
+    assert subcategory_label_for_trait('  STATUS  ') == 'Faction / Group'
+
+
+def test_subcategory_label_for_trait_none_for_discipline():
+    assert subcategory_label_for_trait('Auspex') is None
+
+
+def test_subcategory_label_for_trait_none_for_blank():
+    assert subcategory_label_for_trait('') is None
+    assert subcategory_label_for_trait(None) is None
