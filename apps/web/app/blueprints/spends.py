@@ -57,7 +57,7 @@ def pending():
             # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
             # structured Advantage sub-category value (e.g. "Tremere") stored
             # in the same power_name field — see _SUBCATEGORY_ADVANTAGES.
-            'power_name_label': subcategory_label_for_trait(spend.trait_name),
+            'power_name_label': subcategory_label_for_trait(spend.trait_name, spend.spend_category),
         })
 
     # Oldest-first, matching the design's "sorted oldest-first" note.
@@ -104,7 +104,7 @@ def review(row_id):
     # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
     # structured Advantage sub-category value (e.g. "Tremere") stored in the
     # same power_name field — see _SUBCATEGORY_ADVANTAGES.
-    power_name_label = subcategory_label_for_trait(spend.trait_name)
+    power_name_label = subcategory_label_for_trait(spend.trait_name, spend.spend_category)
 
     return render_template(
         'spends/review.html',

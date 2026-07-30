@@ -33,14 +33,22 @@ _SUBCATEGORY_ADVANTAGES = {
 }
 
 
-def subcategory_label_for_trait(trait_name: str) -> str | None:
+def subcategory_label_for_trait(trait_name: str, spend_category: str | None = None) -> str | None:
     """Return the sub-category label (e.g. 'Faction / Group') for a trigger
 
     trait like 'Status', or None if trait_name isn't one of
-    _SUBCATEGORY_ADVANTAGES. Used by staff-facing templates to distinguish a
-    Discipline power_name (e.g. "Auspex 3") from a structured Advantage
-    sub-category value (e.g. "Tremere") stored in the same power_name field.
+    _SUBCATEGORY_ADVANTAGES, or spend_category isn't
+    'Advantage (Merit/Background)'. Used by staff-facing templates to
+    distinguish a Discipline power_name (e.g. "Auspex 3") from a structured
+    Advantage sub-category value (e.g. "Tremere") stored in the same
+    power_name field.
+
+    The category gate matters because trait_name is free text: a Discipline
+    spend whose trait_name happens to be typed as "Status" (a power name,
+    not the Status advantage) must not be mislabeled as a Faction/Group.
     """
+    if spend_category != 'Advantage (Merit/Background)':
+        return None
     return _SUBCATEGORY_ADVANTAGES.get((trait_name or '').strip().lower())
 
 _SHEET_MARKER_START = '<!-- CHARACTER_SHEET -->'

@@ -248,19 +248,48 @@ def test_find_trait_sheet_match_legacy_bare_status_still_warns_against_structure
 # power_name (e.g. "Auspex 3") from a structured Advantage sub-category value
 # (e.g. "Tremere") stored in the same power_name field, so staff see
 # "Faction / Group: Tremere" instead of mistaking it for a discipline power.
+#
+# The label is only meaningful for Advantage (Merit/Background) spends —
+# trait_name is free text, so a Discipline spend could coincidentally be
+# typed as "Status" and must not be mislabeled as a Faction/Group.
+
+_ADVANTAGE_CATEGORY = 'Advantage (Merit/Background)'
+
 
 def test_subcategory_label_for_trait_matches_status():
-    assert subcategory_label_for_trait('Status') == 'Faction / Group'
+    assert subcategory_label_for_trait('Status', _ADVANTAGE_CATEGORY) == 'Faction / Group'
 
 
 def test_subcategory_label_for_trait_case_and_whitespace_insensitive():
-    assert subcategory_label_for_trait('  STATUS  ') == 'Faction / Group'
+    assert subcategory_label_for_trait('  STATUS  ', _ADVANTAGE_CATEGORY) == 'Faction / Group'
 
 
 def test_subcategory_label_for_trait_none_for_discipline():
-    assert subcategory_label_for_trait('Auspex') is None
+    assert subcategory_label_for_trait('Auspex', _ADVANTAGE_CATEGORY) is None
 
 
 def test_subcategory_label_for_trait_none_for_blank():
-    assert subcategory_label_for_trait('') is None
-    assert subcategory_label_for_trait(None) is None
+    assert subcategory_label_for_trait('', _ADVANTAGE_CATEGORY) is None
+    assert subcategory_label_for_trait(None, _ADVANTAGE_CATEGORY) is None
+
+
+def test_subcategory_label_for_trait_none_for_non_advantage_category_even_if_status_named():
+    """Regression test for the Codex P2 finding: a Discipline spend whose
+    free-text trait_name happens to be "Status" (e.g. a player typed a
+    discipline power named "Status" with a real power_name set) must not be
+    labeled as a Faction/Group — the category gate must win over the name
+    match so staff see the Discipline power_name display instead."""
+    assert subcategory_label_for_trait('Status', 'Discipline (In-Clan)') is None
+    assert subcategory_label_for_trait('status', 'Caitiff Discipline') is None
+
+
+def test_subcategory_label_for_trait_none_when_category_omitted():
+    """Without a spend_category, the label must not be returned — callers
+    are required to pass the category through."""
+    assert subcategory_label_for_trait('Status') is None
+
+
+def test_subcategory_label_for_trait_none_for_non_triggering_advantage():
+    """Advantage-category spends for traits outside _SUBCATEGORY_ADVANTAGES
+    (e.g. Contacts) still get no label — only Status is in scope."""
+    assert subcategory_label_for_trait('Contacts', _ADVANTAGE_CATEGORY) is None
