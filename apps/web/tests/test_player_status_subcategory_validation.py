@@ -1,5 +1,9 @@
-"""Status spends require a faction/sub-category (power_name) — mirrors the
-existing discipline power_name-required validation in the same routes."""
+"""Status spends with a faction/sub-category (power_name) still work fine at
+this layer. Note: power_name is NOT hard-required here yet — that requirement
+ships in a later PR (#388) bundled with the player-facing form UI that lets
+players actually supply a faction value. See GitHub issue #386 / PR #387
+discussion for why the requirement was deliberately deferred rather than
+added in this PR standalone."""
 
 import os
 
@@ -74,22 +78,6 @@ def _base_form(**overrides):
     return form
 
 
-def test_submit_spend_rejects_status_without_faction():
-    app = _app()
-    _seed(app)
-    client = _client(app)
-
-    resp = client.post(
-        '/player/Faction Fred/spend', data=_base_form(), follow_redirects=True,
-    )
-
-    assert resp.status_code == 200
-    body = resp.get_data(as_text=True)
-    assert 'Faction / Group is required for Status purchases.' in body
-    with app.app_context():
-        assert DbSpendRequest.query.count() == 0
-
-
 def test_submit_spend_accepts_status_with_faction():
     app = _app()
     _seed(app)
@@ -107,22 +95,6 @@ def test_submit_spend_accepts_status_with_faction():
         assert len(rows) == 1
         assert rows[0].trait_name == 'Status'
         assert rows[0].power_name == 'Tremere'
-
-
-def test_wishlist_add_rejects_status_without_faction():
-    app = _app()
-    _seed(app)
-    client = _client(app)
-
-    resp = client.post(
-        '/player/Faction Fred/wishlist/add', data=_base_form(), follow_redirects=True,
-    )
-
-    assert resp.status_code == 200
-    body = resp.get_data(as_text=True)
-    assert 'Faction / Group is required for Status purchases.' in body
-    with app.app_context():
-        assert DbWishListItem.query.count() == 0
 
 
 def test_wishlist_add_accepts_status_with_faction():
@@ -162,3 +134,41 @@ def test_submit_spend_unaffected_for_non_triggering_trait():
         rows = DbSpendRequest.query.all()
         assert len(rows) == 1
         assert rows[0].trait_name == 'Contacts'
+
+
+def test_submit_spend_accepts_status_without_faction():
+    """Confirms the hard requirement is NOT enforced at this layer yet (that
+    lands in PR #388, together with the form UI that supplies power_name for
+    Status). A bare Status spend must still be accepted here."""
+    app = _app()
+    _seed(app)
+    client = _client(app)
+
+    resp = client.post(
+        '/player/Faction Fred/spend', data=_base_form(), follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+    with app.app_context():
+        rows = DbSpendRequest.query.all()
+        assert len(rows) == 1
+        assert rows[0].trait_name == 'Status'
+        assert not rows[0].power_name
+
+
+def test_wishlist_add_accepts_status_without_faction():
+    """Same as above, for the wishlist-add route."""
+    app = _app()
+    _seed(app)
+    client = _client(app)
+
+    resp = client.post(
+        '/player/Faction Fred/wishlist/add', data=_base_form(), follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+    with app.app_context():
+        rows = DbWishListItem.query.all()
+        assert len(rows) == 1
+        assert rows[0].trait_name == 'Status'
+        assert not rows[0].power_name
