@@ -924,6 +924,16 @@ export async function handleBroadcastModal(
 
 // ── Update modal handlers ───────────────────────────────────────────────────
 
+/**
+ * Discord rejects an upload exceeding this guild's attachment-size cap
+ * (varies by boost tier; not exposed via the API) at the HTTP layer before
+ * it ever becomes a coded API error, so this is a message-text match rather
+ * than a discord.js error code check.
+ */
+export function isRequestEntityTooLarge(err: unknown): boolean {
+  return err instanceof Error && /request entity too large/i.test(err.message);
+}
+
 type SheetUpdateFlavor = {
   /** e.g. 'update' — used in the "session expired" retry hint. */
   subcommandName: string;
@@ -984,6 +994,7 @@ async function handleSheetUpdateModal(
     return;
   }
 
+  let attachmentTooLarge = false;
   try {
     const sheetsChannel = await guild.channels.fetch(sheetsChannelId);
     if (!sheetsChannel || !sheetsChannel.isTextBased() || !('send' in sheetsChannel)) {
@@ -1008,10 +1019,22 @@ async function handleSheetUpdateModal(
     }
 
     if (pdfBuffer && pdf) {
-      await (sheetsChannel as import('discord.js').TextChannel).send({
-        content,
-        files: [{ attachment: pdfBuffer, name: pdf.name }],
-      });
+      try {
+        await (sheetsChannel as import('discord.js').TextChannel).send({
+          content,
+          files: [{ attachment: pdfBuffer, name: pdf.name }],
+        });
+      } catch (err) {
+        // Discord rejects the *entire* request (text + file together) if the
+        // attachment exceeds this guild's upload cap (varies by boost tier,
+        // and Discord doesn't expose the exact limit via the API) -- fall
+        // back to posting the text confirmation alone rather than losing the
+        // update entirely. attachmentTooLarge feeds the pdfNote below so the
+        // requester knows the file needs sharing another way.
+        if (!isRequestEntityTooLarge(err)) throw err;
+        attachmentTooLarge = true;
+        await (sheetsChannel as import('discord.js').TextChannel).send({ content });
+      }
     } else {
       await (sheetsChannel as import('discord.js').TextChannel).send({ content });
     }
@@ -1025,6 +1048,7 @@ async function handleSheetUpdateModal(
     playerId,
     staffId: interaction.user.id,
     hasPdf: Boolean(pdf),
+    attachmentTooLarge,
   });
 
   // Post public confirmation in the character's channel
@@ -1034,7 +1058,9 @@ async function handleSheetUpdateModal(
     logEvent('warn', `${flavor.logEventName}_channel_confirm_failed`, { characterName, error: errorToMessage(err) });
   }
 
-  const pdfNote = pdf ? '' : ' *(no PDF found in channel)*';
+  const pdfNote = attachmentTooLarge
+    ? ' *(PDF too large for this server to upload — share it manually)*'
+    : pdf ? '' : ' *(no PDF found in channel)*';
   await interaction.editReply(`✅ Posted update for **${characterName}** to <#${sheetsChannelId}>${pdfNote}.`);
 }
 
