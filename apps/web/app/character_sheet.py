@@ -21,6 +21,17 @@ _DISCIPLINE_CATEGORIES = frozenset({
 
 _SKILL_CATEGORIES = frozenset({'Skill', 'New Skill'})
 
+# Advantages (Merits/Backgrounds) that track a required sub-category/faction
+# via a parenthetical suffix on the plain sheet name — e.g. "Status (Tremere)"
+# is the existing informal convention already present in sheet data, not a
+# new field. Maps lowercased trait_name -> player-facing label for that
+# sub-category (used by later PRs' form UI/staff-review display). Adding a
+# future trigger trait is a one-line change here; deliberately scoped to
+# Status only for now — Contacts/Mentor/Allies/Retainer are out of scope.
+_SUBCATEGORY_ADVANTAGES = {
+    'status': 'Faction / Group',
+}
+
 _SHEET_MARKER_START = '<!-- CHARACTER_SHEET -->'
 _SHEET_MARKER_END = '<!-- /CHARACTER_SHEET -->'
 
@@ -76,7 +87,28 @@ def _load_approved_sheet_data(character_name: str) -> dict | None:
         return None
 
 
-def find_trait_sheet_match(character_name: str, category: str, trait_name: str) -> dict | None:
+def _effective_advantage_name(trait_name: str, power_name: str) -> str:
+    """Compute the sheet-storage/match name for an Advantage (Merit/Background) spend.
+
+    Some Advantages (see _SUBCATEGORY_ADVANTAGES) track a required
+    sub-category/faction via a parenthetical suffix on the plain name, e.g.
+    "Status (Tremere)" — this is the existing informal convention already
+    present in sheet data, not a new field. When the trait is one of these
+    and a sub-category is given via power_name (dual-purpose: discipline
+    power name OR advantage sub-category), fold it into the name. Otherwise
+    (legacy calls with no power_name, or non-triggering traits) the plain
+    trait_name is used unchanged.
+    """
+    trait_name = (trait_name or '').strip()
+    power_name = (power_name or '').strip()
+    if power_name and trait_name.lower() in _SUBCATEGORY_ADVANTAGES:
+        return f'{trait_name} ({power_name})'
+    return trait_name
+
+
+def find_trait_sheet_match(
+    character_name: str, category: str, trait_name: str, power_name: str = '',
+) -> dict | None:
     """Check a pending spend's trait name against the character's current sheet.
 
     Only meaningful for 'Advantage (Merit/Background)': these are the traits
@@ -84,30 +116,54 @@ def find_trait_sheet_match(character_name: str, category: str, trait_name: str) 
     spend submitted as plain "Status" can silently miss an existing entry and
     create a stray duplicate instead of raising it — the bug that hit Marcus.
 
+    power_name carries the sub-category/faction for triggering traits (see
+    _SUBCATEGORY_ADVANTAGES), e.g. trait_name="Status", power_name="Tremere"
+    matches/folds to "Status (Tremere)", the same convention _apply_patch uses.
+
     Returns None if there's nothing to check (wrong category, no sheet, blank
     trait name). Otherwise returns {'exact': bool, 'close_matches': [...]} —
     close_matches lists existing entries whose name starts with trait_name
-    but isn't an exact match, e.g. trait_name="Status" surfaces an existing
-    "Status (Tremere)" entry as a likely-intended match.
+    but isn't an exact match, e.g. trait_name="Status" (no power_name)
+    surfaces an existing "Status (Tremere)" entry as a likely-intended match.
+
+    When the current spend already specifies a structured sub-category (e.g.
+    "Status"/"Tremere"), other existing entries that are themselves distinct
+    structured sub-categories of the same trait (e.g. "Status (Anarch
+    Movement)") are NOT surfaced as close matches — two different factions
+    of Status are independent, unambiguous entries, not a warning-worthy
+    near-miss of each other.
     """
     if category != 'Advantage (Merit/Background)':
         return None
     trait_name = (trait_name or '').strip()
     if not trait_name:
         return None
+    power_name = (power_name or '').strip()
 
     data = _load_approved_sheet_data(character_name)
     if data is None:
         return None
 
-    key = trait_name.lower()
+    base_key = trait_name.lower()
+    effective_name = _effective_advantage_name(trait_name, power_name)
+    key = effective_name.lower()
+    has_subcategory = bool(power_name) and base_key in _SUBCATEGORY_ADVANTAGES
+    structured_prefix = f'{base_key} ('
+
     entries = list(data.get('backgrounds') or []) + list(data.get('merits') or [])
     exact = any((e.get('name') or '').lower() == key for e in entries)
-    close_matches = [
-        {'name': e.get('name', ''), 'level': e.get('level', 0)}
-        for e in entries
-        if (e.get('name') or '').lower() != key and (e.get('name') or '').lower().startswith(key)
-    ]
+
+    close_matches = []
+    for e in entries:
+        name_lower = (e.get('name') or '').lower()
+        if name_lower == key or not name_lower.startswith(base_key):
+            continue
+        if has_subcategory and name_lower.startswith(structured_prefix) and name_lower.endswith(')'):
+            # Independent structured sub-category (different faction) — not
+            # an ambiguous close match against the current spend's faction.
+            continue
+        close_matches.append({'name': e.get('name', ''), 'level': e.get('level', 0)})
+
     return {'exact': exact, 'close_matches': close_matches}
 
 
@@ -215,7 +271,13 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         return True
 
     if category == 'Advantage (Merit/Background)':
-        key = trait_name.lower()
+        # power_name is dual-purpose: specific power/ritual name for
+        # discipline spends (above), or the required sub-category/faction
+        # for triggering Advantages like Status (see _SUBCATEGORY_ADVANTAGES)
+        # — folded into the stored name as "Status (Tremere)", matching the
+        # existing informal convention already present in sheet data.
+        effective_name = _effective_advantage_name(trait_name, power_name)
+        key = effective_name.lower()
         # Schema v7+ splits Backgrounds (Status, Resources, Contacts, Haven,
         # etc.) into their own array, separate from Merits — but both use the
         # same entry shape (`type` is always 'merit', it's just stored under
@@ -236,7 +298,7 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         # full background-name catalog here (a maintenance/drift risk), so
         # default to merits, matching this function's original behavior.
         data.setdefault('merits', []).append({
-            'name': trait_name,
+            'name': effective_name,
             'level': new_dots,
             'summary': '',
             'excludes': [],
@@ -359,7 +421,8 @@ def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name:
         return False
 
     if category == 'Advantage (Merit/Background)':
-        key = trait_name.lower()
+        effective_name = _effective_advantage_name(trait_name, power_name)
+        key = effective_name.lower()
         for array_name in ('backgrounds', 'merits'):
             items = data.get(array_name)
             if not isinstance(items, list):
