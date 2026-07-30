@@ -11,7 +11,7 @@
 import { ChannelType, type Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
-import { CUBBY_CATEGORY_NAMES, normalizeChannelName } from './cubbyChannels';
+import { isCubbyCategoryName, normalizeChannelName } from './cubbyChannels';
 
 type CubbySyncConfig = {
   enabled: boolean;
@@ -87,7 +87,7 @@ export class CubbySyncWorker {
     const activeCubbyParentIds = new Set<string>();
     for (const channel of allChannels.values()) {
       if (!channel || channel.type !== ChannelType.GuildCategory) continue;
-      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+      if (isCubbyCategoryName(channel.name)) {
         activeCubbyParentIds.add(channel.id);
       }
     }
