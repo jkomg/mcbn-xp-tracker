@@ -27,7 +27,13 @@
                             {% if spend.coterie_id %}<span class="badge bg-info ms-2" title="Coterie donation"><i class="bi bi-people"></i> {{ spend.coterie_name }}</span>{% endif %}
                         </h4>
                         {% if spend.power_name %}
-                        <div class="text-muted small mt-1"><i class="bi bi-lightning"></i> {{ spend.power_name }}</div>
+                        <div class="text-muted small mt-1">
+                            {% if power_name_label %}
+                            <i class="bi bi-flag"></i> <strong>{{ power_name_label }}:</strong> {{ spend.power_name }}
+                            {% else %}
+                            <i class="bi bi-lightning"></i> {{ spend.power_name }}
+                            {% endif %}
+                        </div>
                         {% endif %}
                     </div>
                     {% if spend.current_dots is not none and spend.new_dots %}
