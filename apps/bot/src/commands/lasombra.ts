@@ -1059,8 +1059,11 @@ async function handleSheetUpdateModal(
   });
 
   // Post public confirmation in the character's channel
+  const publicConfirmMessage = attachmentTooLarge
+    ? `${flavor.publicConfirmMessage} *(file too large to upload — shared as text only)*`
+    : flavor.publicConfirmMessage;
   try {
-    await channel.send({ content: flavor.publicConfirmMessage });
+    await channel.send({ content: publicConfirmMessage });
   } catch (err) {
     logEvent('warn', `${flavor.logEventName}_channel_confirm_failed`, { characterName, error: errorToMessage(err) });
   }
