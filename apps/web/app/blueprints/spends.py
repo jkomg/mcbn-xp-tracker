@@ -41,7 +41,9 @@ def pending():
         )
         char_data = dashboard_data.get(spend.character_name.lower())
         depends_on_spend = by_row.get(spend.depends_on) if spend.depends_on else None
-        sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+        sheet_match = find_trait_sheet_match(
+            spend.character_name, spend.spend_category, spend.trait_name, spend.power_name,
+        )
         days = _days_waiting(spend.timestamp)
         rows.append({
             'spend': spend,
@@ -89,7 +91,9 @@ def review(row_id):
     # Warn staff if the trait name doesn't exactly match an existing sheet
     # entry — e.g. "Status" submitted when the sheet has "Status (Tremere)" —
     # since approving as-is creates a stray duplicate instead of raising it.
-    sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+    sheet_match = find_trait_sheet_match(
+        spend.character_name, spend.spend_category, spend.trait_name, spend.power_name,
+    )
 
     return render_template(
         'spends/review.html',

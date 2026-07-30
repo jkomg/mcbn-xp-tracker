@@ -528,6 +528,14 @@ def submit_spend(name):
         flash('Invalid spend category.', 'danger')
         return redirect(url_for('player.character', name=name))
 
+    from app.character_sheet import _SUBCATEGORY_ADVANTAGES
+    if trait_name.lower() in _SUBCATEGORY_ADVANTAGES and not power_name:
+        flash(
+            f'{_SUBCATEGORY_ADVANTAGES[trait_name.lower()]} is required for {trait_name} purchases.',
+            'danger',
+        )
+        return redirect(url_for('player.character', name=name))
+
     try:
         current_dots = int(request.form.get('current_dots', 0))
         new_dots = int(request.form.get('new_dots', 1))
@@ -648,9 +656,15 @@ def add_wish_list_item(name):
         flash('Invalid spend category.', 'danger')
         return redirect(url_for('player.character', name=name))
 
-    from app.character_sheet import _DISCIPLINE_CATEGORIES
+    from app.character_sheet import _DISCIPLINE_CATEGORIES, _SUBCATEGORY_ADVANTAGES
     if spend_category in _DISCIPLINE_CATEGORIES and not power_name:
         flash('Power name is required for discipline purchases.', 'danger')
+        return redirect(url_for('player.character', name=name))
+    if trait_name.lower() in _SUBCATEGORY_ADVANTAGES and not power_name:
+        flash(
+            f'{_SUBCATEGORY_ADVANTAGES[trait_name.lower()]} is required for {trait_name} purchases.',
+            'danger',
+        )
         return redirect(url_for('player.character', name=name))
 
     try:
