@@ -684,12 +684,15 @@
                                    placeholder="e.g., Strength, Dominate, Allies" required>
                         </div>
 
-                        <!-- Power Name (discipline spends only) -->
+                        <!-- Power Name (discipline spends) / Faction-Group (Status advantage) -->
+                        <!-- Shared input: only one of these two triggers is ever active for a
+                             given category+trait combo, so we relabel one field rather than
+                             maintain two separate name="power_name" inputs in the same form. -->
                         <div class="mb-3 d-none" id="power-name-group">
-                            <label for="power_name" class="form-label fw-bold">Power Name <span class="text-muted fw-normal">(specific power being purchased)</span></label>
+                            <label for="power_name" class="form-label fw-bold" id="power-name-label">Power Name <span class="text-muted fw-normal" id="power-name-sublabel">(specific power being purchased)</span></label>
                             <input type="text" class="form-control" name="power_name" id="power_name"
                                    placeholder="e.g., Mesmerize, Prowl, Sense the Unseen">
-                            <div class="form-text">Enter the exact name of the discipline power you are purchasing. This updates your character sheet.</div>
+                            <div class="form-text" id="power-name-help">Enter the exact name of the discipline power you are purchasing. This updates your character sheet.</div>
                         </div>
 
                         <!-- Dots Row -->
@@ -1002,12 +1005,14 @@
                         <input type="number" class="form-control form-control-sm" id="wl-to" name="new_dots" min="1" max="5" value="1">
                     </div>
                 </div>
+                <!-- Shared input: relabeled for Status advantage's Faction/Group, same
+                     rationale as the main spend-form's power-name-group above. -->
                 <div class="row g-2 mt-1 d-none" id="wl-power-name-group">
                     <div class="col-12">
-                        <label class="form-label small fw-bold mb-1">Power Name <span class="text-muted fw-normal">(specific power being purchased)</span></label>
+                        <label class="form-label small fw-bold mb-1" id="wl-power-name-label">Power Name <span class="text-muted fw-normal" id="wl-power-name-sublabel">(specific power being purchased)</span></label>
                         <input type="text" class="form-control form-control-sm" name="power_name" id="wl-power-name"
                                placeholder="e.g., Mesmerize, Prowl, Sense the Unseen">
-                        <div class="form-text">Required to update your character sheet when converted to a spend request.</div>
+                        <div class="form-text" id="wl-power-name-help">Required to update your character sheet when converted to a spend request.</div>
                     </div>
                 </div>
                 <div class="mt-1 d-none" id="wl-in-clan-group">
@@ -1256,11 +1261,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const inClanGroup = document.getElementById('in-clan-group');
     const powerNameGroup = document.getElementById('power-name-group');
     const powerNameInput = document.getElementById('power_name');
+    const powerNameLabel = document.getElementById('power-name-label');
+    const powerNameSublabel = document.getElementById('power-name-sublabel');
+    const powerNameHelp = document.getElementById('power-name-help');
     const costValue = document.getElementById('spend-cost-value');
     const costFormula = document.getElementById('spend-cost-formula');
     const xpWarning = document.getElementById('spend-xp-warning');
     const xpWarningText = document.getElementById('spend-xp-warning-text');
     const availableXpEl = document.getElementById('available-xp');
+
+    // Advantages (Merit/Background) that require a sub-category/faction value
+    // in the shared power_name field. Mirrors _SUBCATEGORY_ADVANTAGES in
+    // apps/web/app/character_sheet.py — keep both in sync when adding triggers.
+    const SUBCATEGORY_ADVANTAGES = {
+        'status': 'Faction / Group',
+    };
+
+    function setPowerNameLabel(label, sublabelText, placeholder, helpText) {
+        if (powerNameLabel) powerNameLabel.firstChild.textContent = label + ' ';
+        if (powerNameSublabel) powerNameSublabel.textContent = sublabelText;
+        if (powerNameInput) powerNameInput.placeholder = placeholder;
+        if (powerNameHelp) powerNameHelp.textContent = helpText;
+    }
 
     if (!spendCategory) return;
 
@@ -1372,11 +1394,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Show Power Name field for all discipline categories (including Ghoul)
+        // Show Power Name field for all discipline categories (including Ghoul).
+        // Separately, some Advantages (see SUBCATEGORY_ADVANTAGES below, mirrors
+        // _SUBCATEGORY_ADVANTAGES in character_sheet.py) require a sub-category/
+        // faction field instead — e.g. "Status" needs "Faction / Group". A
+        // category is never both a Discipline and an Advantage at once, so these
+        // two triggers are mutually exclusive; we relabel the single shared
+        // power_name input rather than keep two separate inputs of the same name.
         const needsPowerName = isDiscipline || cat === 'Ghoul Discipline';
+        const traitLower = traitNameInput ? traitNameInput.value.trim().toLowerCase() : '';
+        const subcategoryLabel = (cat === 'Advantage (Merit/Background)') ? SUBCATEGORY_ADVANTAGES[traitLower] : undefined;
+        const needsSubcategory = !!subcategoryLabel;
         if (powerNameGroup) {
             if (needsPowerName) {
                 powerNameGroup.classList.remove('d-none');
+                setPowerNameLabel('Power Name', '(specific power being purchased)',
+                    'e.g., Mesmerize, Prowl, Sense the Unseen',
+                    'Enter the exact name of the discipline power you are purchasing. This updates your character sheet.');
+                if (powerNameInput) powerNameInput.required = true;
+            } else if (needsSubcategory) {
+                powerNameGroup.classList.remove('d-none');
+                setPowerNameLabel(subcategoryLabel, '',
+                    'e.g., Tremere, Anarch Movement, Cult of Set',
+                    'Enter which faction, clan, cult, or group this Status applies to.');
                 if (powerNameInput) powerNameInput.required = true;
             } else {
                 powerNameGroup.classList.add('d-none');
@@ -1442,6 +1482,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (traitNameInput) {
         traitNameInput.addEventListener('change', autofillCurrentDots);
         traitNameInput.addEventListener('blur', autofillCurrentDots);
+        // Status (and future SUBCATEGORY_ADVANTAGES triggers) depend on what's
+        // typed into Trait Name, not just spend_category — re-run the
+        // power-name-group toggle on every keystroke so it appears/disappears
+        // live as the player types "status", not only on blur.
+        traitNameInput.addEventListener('input', updateDotConstraints);
     }
 
     spendCategory.addEventListener('change', function() {
@@ -1494,7 +1539,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const wlAddBtn  = document.getElementById('wl-add-btn');
     const wlPowerNameGroup = document.getElementById('wl-power-name-group');
     const wlPowerNameInput = document.getElementById('wl-power-name');
+    const wlPowerNameLabel = document.getElementById('wl-power-name-label');
+    const wlPowerNameSublabel = document.getElementById('wl-power-name-sublabel');
+    const wlPowerNameHelp = document.getElementById('wl-power-name-help');
     const wlInClanGroup = document.getElementById('wl-in-clan-group');
+
+    // Advantages (Merit/Background) that require a sub-category/faction value
+    // in the shared power_name field. Mirrors _SUBCATEGORY_ADVANTAGES in
+    // apps/web/app/character_sheet.py (and the same-named const in the spend
+    // form's script block above) — keep all three in sync when adding triggers.
+    const WL_SUBCATEGORY_ADVANTAGES = {
+        'status': 'Faction / Group',
+    };
+
+    function setWlPowerNameLabel(label, sublabelText, placeholder, helpText) {
+        if (wlPowerNameLabel) wlPowerNameLabel.firstChild.textContent = label + ' ';
+        if (wlPowerNameSublabel) wlPowerNameSublabel.textContent = sublabelText;
+        if (wlPowerNameInput) wlPowerNameInput.placeholder = placeholder;
+        if (wlPowerNameHelp) wlPowerNameHelp.textContent = helpText;
+    }
+
+    // Show/relabel the shared power_name group for Discipline power purchases
+    // or a triggering Advantage sub-category (e.g. Status). A category is
+    // never both at once, so these two triggers are mutually exclusive.
+    function updateWlPowerNameGroup() {
+        const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
+        const needsPowerName = isDiscipline || wlCat.value === 'Ghoul Discipline';
+        const traitLower = wlTrait ? wlTrait.value.trim().toLowerCase() : '';
+        const subcategoryLabel = (wlCat.value === 'Advantage (Merit/Background)') ? WL_SUBCATEGORY_ADVANTAGES[traitLower] : undefined;
+        const needsSubcategory = !!subcategoryLabel;
+        if (wlPowerNameGroup) {
+            if (needsPowerName) {
+                wlPowerNameGroup.classList.remove('d-none');
+                setWlPowerNameLabel('Power Name', '(specific power being purchased)',
+                    'e.g., Mesmerize, Prowl, Sense the Unseen',
+                    'Required to update your character sheet when converted to a spend request.');
+                if (wlPowerNameInput) wlPowerNameInput.required = true;
+            } else if (needsSubcategory) {
+                wlPowerNameGroup.classList.remove('d-none');
+                setWlPowerNameLabel(subcategoryLabel, '',
+                    'e.g., Tremere, Anarch Movement, Cult of Set',
+                    'Enter which faction, clan, cult, or group this Status applies to.');
+                if (wlPowerNameInput) wlPowerNameInput.required = true;
+            } else {
+                wlPowerNameGroup.classList.add('d-none');
+                if (wlPowerNameInput) {
+                    wlPowerNameInput.required = false;
+                    wlPowerNameInput.value = '';
+                }
+            }
+        }
+    }
 
     function updatePreview() {
         const cost = wlCost(wlCat.value, parseInt(wlFrom.value)||0, parseInt(wlTo.value)||0);
@@ -1508,17 +1603,16 @@ document.addEventListener('DOMContentLoaded', function() {
         el?.addEventListener('change', updatePreview);
     });
 
+    // Status (and future WL_SUBCATEGORY_ADVANTAGES triggers) depend on what's
+    // typed into Trait, not just the category — re-run the power-name-group
+    // toggle on every keystroke so it appears/disappears live, matching the
+    // main spend form's trait_name 'input' listener.
+    wlTrait?.addEventListener('input', updateWlPowerNameGroup);
+
     wlCat?.addEventListener('change', function() {
         const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
-        const needsPowerName = isDiscipline || wlCat.value === 'Ghoul Discipline';
         if (wlInClanGroup) wlInClanGroup.classList.toggle('d-none', !isDiscipline);
-        if (wlPowerNameGroup) {
-            wlPowerNameGroup.classList.toggle('d-none', !needsPowerName);
-            if (wlPowerNameInput) {
-                wlPowerNameInput.required = needsPowerName;
-                if (!needsPowerName) wlPowerNameInput.value = '';
-            }
-        }
+        updateWlPowerNameGroup();
         if (wlCat.value === 'Humanity') {
             wlTrait.value = 'Humanity';
             wlTrait.readOnly = true;
