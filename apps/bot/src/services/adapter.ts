@@ -35,6 +35,9 @@ export interface BotConfigResponse {
   claimReminderIntervalMs: number | null;
   announcementsChannelId: string | null;
   ccTicketCategoryIds: string | null;
+  activityIcCategoryIds: string | null;
+  activityOocCategoryIds: string | null;
+  activityRollsCategoryIds: string | null;
   honeypotEnabled: boolean | null;
   honeypotRequireYoungAccount: boolean | null;
   honeypotMaxAccountAgeDays: number | null;

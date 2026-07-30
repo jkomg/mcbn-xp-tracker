@@ -38,6 +38,10 @@ EDITABLE_KEYS = {
     # CC ticket monitor (polled by bot via /api/bot-config; applies within 1 minute)
     'BOT_CC_TICKET_MONITOR_ENABLED',
     'BOT_CC_TICKET_CATEGORY_IDS',
+    # Activity tracking category IDs (polled by bot via /api/bot-config; applies within 1 minute)
+    'BOT_ACTIVITY_IC_CATEGORY_IDS',
+    'BOT_ACTIVITY_OOC_CATEGORY_IDS',
+    'BOT_ACTIVITY_ROLLS_CATEGORY_IDS',
     # Bot channel IDs (polled by bot via /api/bot-config; take effect after restart)
     'BOT_ANNOUNCEMENTS_CHANNEL_ID',
     'BOT_HONEYPOT_CHANNEL_ID',

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BotConfigResponse, TrackerAdapter } from '../services/adapter';
 import { ConfigSyncWorker } from '../services/configSyncWorker';
+import { liveConfig } from '../liveConfig';
 import { currentWikiSyncOwner, tryAcquireWikiSync } from '../services/wikiSyncLock';
 import { runWikiSync } from '../scripts/discord-wiki-sync';
 
@@ -14,6 +15,9 @@ vi.mock('../config', () => ({
     webAppApiWriteToken: 'write-token',
     ccTicketMonitorEnabled: false,
     ccTicketCategoryIds: new Set<string>(),
+    activityIcCategoryIds: new Set(['default-ic']),
+    activityOocCategoryIds: new Set(['default-ooc']),
+    activityRollsCategoryIds: new Set(['default-rolls']),
     honeypotMaxAccountAgeDays: 30,
     honeypotChannelId: '',
     honeypotModLogChannelId: '',
@@ -55,6 +59,9 @@ function baseBotConfig(overrides: Partial<BotConfigResponse> = {}): BotConfigRes
     claimReminderIntervalMs: null,
     announcementsChannelId: null,
     ccTicketCategoryIds: null,
+    activityIcCategoryIds: null,
+    activityOocCategoryIds: null,
+    activityRollsCategoryIds: null,
     honeypotEnabled: null,
     honeypotRequireYoungAccount: null,
     honeypotMaxAccountAgeDays: null,
@@ -142,6 +149,32 @@ describe('ConfigSyncWorker sync orchestration', () => {
     expect(firstRunId).toEqual(expect.any(String));
     expect(adapter.ackWikiSync).toHaveBeenCalledWith('running', undefined, 'manual', firstRunId);
     expect(runWikiSync).not.toHaveBeenCalled();
+  });
+
+  it('falls back to config.activity*CategoryIds defaults when no DB override is set', async () => {
+    const adapter = makeAdapter(baseBotConfig());
+    const worker = new ConfigSyncWorker(adapter);
+    await worker.sync();
+
+    expect(liveConfig.activityIcCategoryIds).toEqual(new Set(['default-ic']));
+    expect(liveConfig.activityOocCategoryIds).toEqual(new Set(['default-ooc']));
+    expect(liveConfig.activityRollsCategoryIds).toEqual(new Set(['default-rolls']));
+  });
+
+  it('uses the DB override for activity*CategoryIds when present, ignoring the .env-derived default', async () => {
+    const adapter = makeAdapter(baseBotConfig({
+      activityIcCategoryIds: 'ic-1, ic-2',
+      activityOocCategoryIds: 'ooc-1',
+      activityRollsCategoryIds: '',
+    }));
+    const worker = new ConfigSyncWorker(adapter);
+    await worker.sync();
+
+    expect(liveConfig.activityIcCategoryIds).toEqual(new Set(['ic-1', 'ic-2']));
+    expect(liveConfig.activityOocCategoryIds).toEqual(new Set(['ooc-1']));
+    // A blank override means "restore the default" (per that Settings field's
+    // own help text), not "track nothing" — falls back to the .env default.
+    expect(liveConfig.activityRollsCategoryIds).toEqual(new Set(['default-rolls']));
   });
 
   it('start uses provided interval and unrefs timer', () => {

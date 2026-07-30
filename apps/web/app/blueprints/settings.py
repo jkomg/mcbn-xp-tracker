@@ -106,6 +106,9 @@ CHANNEL_GROUPS = [
     ('Announcements & Events', [
         'BOT_ANNOUNCEMENTS_CHANNEL_ID', 'BOT_NEW_NIGHT_BROADCAST_MESSAGE',
     ]),
+    ('Activity Tracking', [
+        'BOT_ACTIVITY_IC_CATEGORY_IDS', 'BOT_ACTIVITY_OOC_CATEGORY_IDS', 'BOT_ACTIVITY_ROLLS_CATEGORY_IDS',
+    ]),
 ]
 USED_BY = {
     'BOT_ANNOUNCEMENTS_CHANNEL_ID': '/lasombra broadcast',
@@ -127,6 +130,9 @@ USED_BY = {
     'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': '/cobweb',
     'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': '/rumor',
     'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID': '/scene request · claim/reject buttons',
+    'BOT_ACTIVITY_IC_CATEGORY_IDS': '/lasombra scan-activity · passive activity tracking',
+    'BOT_ACTIVITY_OOC_CATEGORY_IDS': '/lasombra scan-activity · passive activity tracking',
+    'BOT_ACTIVITY_ROLLS_CATEGORY_IDS': '/lasombra scan-activity · passive activity tracking',
 }
 
 
@@ -744,6 +750,42 @@ def index():
             'editable': True,
             'description': '/scene request posts the ST queue (with Claim/Reject buttons) here. Leave blank to disable the command.',
         },
+        {
+            'label': 'IC activity category IDs',
+            'key': 'BOT_ACTIVITY_IC_CATEGORY_IDS',
+            'used_by': '/lasombra scan-activity · passive activity tracking',
+            'env': 'ACTIVITY_IC_CATEGORY_IDS',
+            'value': _eff_str('BOT_ACTIVITY_IC_CATEGORY_IDS'),
+            'placeholder': 'e.g. 123456789012345678,987654321098765432',
+            'input_pattern': None,
+            'overridden': 'BOT_ACTIVITY_IC_CATEGORY_IDS' in overrides,
+            'editable': True,
+            'description': 'Discord category IDs treated as IC for post-count activity tracking and /lasombra scan-activity backfills (comma-separated). Leave blank to use the built-in default set.',
+        },
+        {
+            'label': 'OOC activity category IDs',
+            'key': 'BOT_ACTIVITY_OOC_CATEGORY_IDS',
+            'used_by': '/lasombra scan-activity · passive activity tracking',
+            'env': 'ACTIVITY_OOC_CATEGORY_IDS',
+            'value': _eff_str('BOT_ACTIVITY_OOC_CATEGORY_IDS'),
+            'placeholder': 'e.g. 123456789012345678,987654321098765432',
+            'input_pattern': None,
+            'overridden': 'BOT_ACTIVITY_OOC_CATEGORY_IDS' in overrides,
+            'editable': True,
+            'description': 'Discord category IDs treated as OOC for post-count activity tracking and /lasombra scan-activity backfills (comma-separated). Leave blank to use the built-in default set.',
+        },
+        {
+            'label': 'Rolls activity category IDs',
+            'key': 'BOT_ACTIVITY_ROLLS_CATEGORY_IDS',
+            'used_by': '/lasombra scan-activity · passive activity tracking',
+            'env': 'ACTIVITY_ROLLS_CATEGORY_IDS',
+            'value': _eff_str('BOT_ACTIVITY_ROLLS_CATEGORY_IDS'),
+            'placeholder': 'e.g. 123456789012345678,987654321098765432',
+            'input_pattern': None,
+            'overridden': 'BOT_ACTIVITY_ROLLS_CATEGORY_IDS' in overrides,
+            'editable': True,
+            'description': 'Discord category IDs treated as Rolls for post-count activity tracking and /lasombra scan-activity backfills (comma-separated). Leave blank to use the built-in default set.',
+        },
     ]
     _channels_by_key = {c['key']: c for c in bot_channels}
     bot_channel_groups = [
@@ -1200,6 +1242,9 @@ def update():
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID',
         'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID',
         'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID',
+        'BOT_ACTIVITY_IC_CATEGORY_IDS',
+        'BOT_ACTIVITY_OOC_CATEGORY_IDS',
+        'BOT_ACTIVITY_ROLLS_CATEGORY_IDS',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.
