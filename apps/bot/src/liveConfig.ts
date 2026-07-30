@@ -23,6 +23,10 @@ export const liveConfig = {
   ccTicketMonitorEnabled: true,
   /** Category IDs to restrict the CC ticket monitor to. Seeded from .env in index.ts, then updated by ConfigSyncWorker. */
   ccTicketCategoryIds: new Set<string>(),
+  /** IC/OOC/Rolls activity-tracking category IDs. Seeded from .env in index.ts, then updated by ConfigSyncWorker. */
+  activityIcCategoryIds: new Set<string>(),
+  activityOocCategoryIds: new Set<string>(),
+  activityRollsCategoryIds: new Set<string>(),
   /** Honeypot + mention-spam breaker — fully live (checked per-message, no restart needed). */
   honeypotEnabled: false,
   honeypotRequireYoungAccount: false,

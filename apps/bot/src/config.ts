@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  DEFAULT_IC_CATEGORY_IDS,
+  DEFAULT_OOC_CATEGORY_IDS,
+  DEFAULT_ROLLS_CATEGORY_IDS,
+} from './services/discordActivityCategories';
 
 function parsePositiveInt(input: string | undefined, fallback: number, key: string): number {
   const raw = input ?? String(fallback);
@@ -159,6 +164,9 @@ const envSchema = z.object({
   APPROVE_SHEET_IN_PROGRESS_ROLE_ID: z.string().optional(),
   CC_CREATION_RULES_URL: z.string().transform(v => v || undefined).pipe(z.string().url().optional()),
   CC_TICKET_CATEGORY_IDS: z.string().optional(),
+  ACTIVITY_IC_CATEGORY_IDS: z.string().optional(),
+  ACTIVITY_OOC_CATEGORY_IDS: z.string().optional(),
+  ACTIVITY_ROLLS_CATEGORY_IDS: z.string().optional(),
   CC_TICKET_MONITOR_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_ENABLED: z.string().optional(),
   CC_SUBMISSION_NOTIFIER_INTERVAL_MS: z.string().optional(),
@@ -231,6 +239,14 @@ function parseCsvIds(input: string | undefined): Set<string> {
       .map((v) => v.trim())
       .filter((v) => v.length > 0),
   );
+}
+
+/** Like parseCsvIds, but falls back to *defaultSet* when the env var is unset (rather than an empty set). */
+function parseCsvIdsWithDefault(input: string | undefined, defaultSet: Set<string>): Set<string> {
+  if (!input) {
+    return new Set(defaultSet);
+  }
+  return parseCsvIds(input);
 }
 
 export const config = {
@@ -435,6 +451,10 @@ export const config = {
   approveSheetInProgressRoleId: env.APPROVE_SHEET_IN_PROGRESS_ROLE_ID ?? '',
   ccCreationRulesUrl: env.CC_CREATION_RULES_URL,
   ccTicketCategoryIds: parseCsvIds(env.CC_TICKET_CATEGORY_IDS),
+  /** IC/OOC/Rolls activity-tracking category IDs. Default to the historical hardcoded set; overridable via env or web Settings (DB override wins, see configSyncWorker.ts). */
+  activityIcCategoryIds: parseCsvIdsWithDefault(env.ACTIVITY_IC_CATEGORY_IDS, DEFAULT_IC_CATEGORY_IDS),
+  activityOocCategoryIds: parseCsvIdsWithDefault(env.ACTIVITY_OOC_CATEGORY_IDS, DEFAULT_OOC_CATEGORY_IDS),
+  activityRollsCategoryIds: parseCsvIdsWithDefault(env.ACTIVITY_ROLLS_CATEGORY_IDS, DEFAULT_ROLLS_CATEGORY_IDS),
   ccTicketMonitorEnabled: (env.CC_TICKET_MONITOR_ENABLED ?? 'true').toLowerCase() === 'true',
   ccSubmissionNotifierEnabled: (env.CC_SUBMISSION_NOTIFIER_ENABLED ?? 'false').toLowerCase() === 'true',
   ccSubmissionNotifierIntervalMs: parsePositiveInt(

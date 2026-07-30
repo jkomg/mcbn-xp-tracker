@@ -816,6 +816,9 @@ def bot_config():
         'BOT_CORRESPONDENCE_COBWEB_CHANNEL_ID': 'correspondenceCobwebChannelId',
         'BOT_CORRESPONDENCE_RUMOR_CHANNEL_ID': 'correspondenceRumorChannelId',
         'BOT_CORRESPONDENCE_SCENE_REQUEST_CHANNEL_ID': 'correspondenceSceneRequestChannelId',
+        'BOT_ACTIVITY_IC_CATEGORY_IDS': 'activityIcCategoryIds',
+        'BOT_ACTIVITY_OOC_CATEGORY_IDS': 'activityOocCategoryIds',
+        'BOT_ACTIVITY_ROLLS_CATEGORY_IDS': 'activityRollsCategoryIds',
     }
     all_keys = list(BOOL_KEYS) + list(INT_KEYS) + list(STR_KEYS)
     from app.db import AppSetting

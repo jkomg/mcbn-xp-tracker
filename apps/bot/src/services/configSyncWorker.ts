@@ -37,6 +37,15 @@ export class ConfigSyncWorker {
       liveConfig.ccTicketCategoryIds = cfg.ccTicketCategoryIds !== null
         ? new Set(cfg.ccTicketCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
         : new Set(config.ccTicketCategoryIds);
+      liveConfig.activityIcCategoryIds = cfg.activityIcCategoryIds !== null
+        ? new Set(cfg.activityIcCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.activityIcCategoryIds);
+      liveConfig.activityOocCategoryIds = cfg.activityOocCategoryIds !== null
+        ? new Set(cfg.activityOocCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.activityOocCategoryIds);
+      liveConfig.activityRollsCategoryIds = cfg.activityRollsCategoryIds !== null
+        ? new Set(cfg.activityRollsCategoryIds.split(',').map(s => s.trim()).filter(Boolean))
+        : new Set(config.activityRollsCategoryIds);
       if (cfg.honeypotEnabled !== null) liveConfig.honeypotEnabled = cfg.honeypotEnabled;
       if (cfg.honeypotRequireYoungAccount !== null) liveConfig.honeypotRequireYoungAccount = cfg.honeypotRequireYoungAccount;
       if (cfg.mentionBreakerEnabled !== null) liveConfig.mentionBreakerEnabled = cfg.mentionBreakerEnabled;
