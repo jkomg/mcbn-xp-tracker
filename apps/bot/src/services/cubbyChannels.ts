@@ -7,6 +7,18 @@ export const CUBBY_CATEGORY_NAMES = [
   'mortal character cubbies',
 ] as const;
 
+/**
+ * Staff decorate category names with trailing emoji/symbols from time to
+ * time (e.g. "Ancilla Character Cubbies 📁"), which breaks an exact-string
+ * match against CUBBY_CATEGORY_NAMES — a mismatch here reads as "every
+ * character's cubby is gone" to cubbySyncWorker, which auto-retires the
+ * whole roster. Match by substring instead, so decoration doesn't matter.
+ */
+export function isCubbyCategoryName(name: string): boolean {
+  const normalized = name.toLowerCase().trim();
+  return CUBBY_CATEGORY_NAMES.some((n) => normalized.includes(n));
+}
+
 export type NotificationChannel = GuildBasedChannel & {
   send: (payload: { content: string; components?: unknown[]; allowedMentions?: { parse?: string[] } }) => Promise<unknown>;
 };
@@ -80,7 +92,7 @@ export async function findCubbyChannel(guild: Guild, characterName: string): Pro
   const cubbyParentIds = new Set<string>();
   for (const channel of channels.values()) {
     if (channel && channel.type === ChannelType.GuildCategory) {
-      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+      if (isCubbyCategoryName(channel.name)) {
         cubbyParentIds.add(channel.id);
       }
     }
@@ -125,7 +137,7 @@ export async function buildCubbyChannelMap(guild: Guild): Promise<Map<string, No
   const cubbyParentIds = new Set<string>();
   for (const channel of channels.values()) {
     if (channel && channel.type === ChannelType.GuildCategory) {
-      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+      if (isCubbyCategoryName(channel.name)) {
         cubbyParentIds.add(channel.id);
       }
     }
@@ -162,7 +174,7 @@ export async function getChannelsInCubbyCategories(guild: Guild): Promise<Array<
   const cubbyParentIds = new Set<string>();
   for (const channel of channels.values()) {
     if (channel && channel.type === ChannelType.GuildCategory) {
-      if ((CUBBY_CATEGORY_NAMES as readonly string[]).includes(channel.name.toLowerCase().trim())) {
+      if (isCubbyCategoryName(channel.name)) {
         cubbyParentIds.add(channel.id);
       }
     }

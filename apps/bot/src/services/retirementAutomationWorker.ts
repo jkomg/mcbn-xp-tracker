@@ -10,7 +10,7 @@ import {
 import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
-import { CUBBY_CATEGORY_NAMES, normalizeChannelName } from './cubbyChannels';
+import { isCubbyCategoryName, normalizeChannelName } from './cubbyChannels';
 import { messagesToMarkdown, type DiscordMessageForWiki } from '../scripts/notionSync/wikiSyncHelpers';
 
 export type RetirementAutomationConfig = {
@@ -280,7 +280,7 @@ export class RetirementAutomationWorker {
       const activeParentIds = new Set<string>();
       for (const candidate of allChannels.values()) {
         if (candidate?.type === ChannelType.GuildCategory &&
-            (CUBBY_CATEGORY_NAMES as readonly string[]).includes(candidate.name.toLowerCase().trim())) {
+            isCubbyCategoryName(candidate.name)) {
           activeParentIds.add(candidate.id);
         }
       }
