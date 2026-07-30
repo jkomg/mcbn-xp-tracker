@@ -1104,6 +1104,15 @@ def submit_spend():
     if not character_name or not spend_category or not trait_name or not justification:
         return jsonify({'error': 'characterName, spendCategory, traitName, and justification are required'}), 400
 
+    from app.character_sheet import _SUBCATEGORY_ADVANTAGES
+    if (
+        spend_category == 'Advantage (Merit/Background)'
+        and trait_name.strip().lower() in _SUBCATEGORY_ADVANTAGES
+        and not power_name
+    ):
+        subcategory_label = _SUBCATEGORY_ADVANTAGES[trait_name.strip().lower()]
+        return jsonify({'error': f'powerName ({subcategory_label}) is required for {trait_name}'}), 400
+
     try:
         current_dots = int(payload.get('currentDots', 0))
         new_dots = int(payload.get('newDots', 0))
