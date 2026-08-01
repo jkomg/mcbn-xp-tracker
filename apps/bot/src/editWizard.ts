@@ -343,7 +343,7 @@ export async function handleEditWizardButton(
         const targetCategory = allChannels.find(
           (ch) =>
             ch?.type === ChannelType.GuildCategory &&
-            ch.name.toLowerCase().trim() === targetCubbyName,
+            ch.name.toLowerCase().includes(targetCubbyName),
         );
         if (!targetCategory) {
           results.push(`⚠️ Category **${targetCubbyName}** not found — channel not moved.`);

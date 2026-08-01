@@ -18,6 +18,7 @@ import {
 import type { CommandContext } from './discord';
 import { config } from './config';
 import { errorToMessage, logEvent } from './logger';
+import { isCubbyCategoryName } from './services/cubbyChannels';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -39,10 +40,8 @@ const AGE_TO_CUBBY: Record<string, string> = {
   ancilla: 'ancilla character cubbies',
 };
 
-const CUBBY_CATEGORY_NAMES = new Set(Object.values(AGE_TO_CUBBY));
-
 const APPROVAL_ROLE_NAMES = [
-  'Kindred', 'Ghoul', 'Mortal', 'Camarilla', 'Anarch', 'Family', 'Autarkis',
+  'Kindred', 'Ghouls', 'Mortals', 'Camarilla', 'Anarch', 'Family', 'Autarkis',
   'Banu Haqim', 'Brujah', 'Clanless', 'Gangrel', 'Lasombra', 'Malkavian',
   'Ministry', 'Nosferatu', 'Ravnos', 'Salubri', 'Toreador', 'Tremere',
   'Tzimisce', 'Ventrue',
@@ -298,8 +297,7 @@ export async function startApproveWizard(
   }
 
   // Guard: don't run if already inside a cubby category
-  const parentName = channel.parent?.name.toLowerCase().trim() ?? '';
-  if (CUBBY_CATEGORY_NAMES.has(parentName)) {
+  if (channel.parent?.name && isCubbyCategoryName(channel.parent.name)) {
     await interaction.reply({
       content: `⚠️ This channel is already in **${channel.parent?.name}**. Run \`/lasombra approve\` from a Character Tickets channel.`,
       ephemeral: true,
@@ -448,7 +446,7 @@ export async function handleApproveWizardButton(
     const targetCategory = allChannels.find(
       (ch) =>
         ch?.type === ChannelType.GuildCategory &&
-        ch.name.toLowerCase().trim() === targetCubbyName,
+        ch.name.toLowerCase().includes(targetCubbyName),
     );
     if (!targetCategory) {
       results.push(`⚠️ Category **${targetCubbyName}** not found — channel not moved.`);
