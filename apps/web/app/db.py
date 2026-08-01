@@ -112,7 +112,11 @@ class DbSpendRequest(db.Model):
     reviewed_by = db.Column(String(100), default='')
     review_date = db.Column(String(20), default='')
     st_notes = db.Column(Text, default='')
-    power_name = db.Column(String(100), default='')   # specific power/ritual name for discipline spends
+    # Dual-purpose: specific power/ritual name for discipline spends, OR the
+    # required faction/sub-category name for repeatable Advantages like
+    # Status (e.g. "Tremere"), folded into the sheet as "Status (Tremere)" —
+    # see app.character_sheet._SUBCATEGORY_ADVANTAGES.
+    power_name = db.Column(String(100), default='')
     depends_on = db.Column(Integer, nullable=True)  # FK to another spend request id
     coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
     coterie = db.relationship('Coterie', foreign_keys=[coterie_id], lazy='joined')

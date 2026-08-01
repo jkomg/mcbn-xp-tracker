@@ -293,6 +293,61 @@ def test_claim_and_spend_include_requester_and_enforce_ownership():
         assert fake.audit[-1]['staff_user'] == 'bot-api:111111111111111111'
 
 
+def test_spend_rejects_status_advantage_without_power_name():
+    """API-path counterpart of the player-form validation: a bot/service-token
+    caller posting Status under 'Advantage (Merit/Background)' with no
+    powerName must be rejected too — this is the gap Codex flagged in #387's
+    investigation (powerName was parsed but never required, and the bot
+    couldn't even send it since SpendPayload lacked the field)."""
+    fake = FakeSheets()
+    app = _app(fake)
+    with app.test_client() as client:
+        res = client.post(
+            '/api/spends',
+            headers=_auth(),
+            json={
+                'characterName': 'Alice',
+                'spendCategory': 'Advantage (Merit/Background)',
+                'traitName': 'Status',
+                'currentDots': 0,
+                'newDots': 1,
+                'justification': 'Bot flow',
+                'isInClan': False,
+                'requesterDiscordId': '111111111111111111',
+                'requesterDiscordName': 'alice-user',
+            },
+        )
+        assert res.status_code == 400
+        assert 'powerName' in res.get_json()['error']
+        assert not fake.spends
+
+
+def test_spend_accepts_status_advantage_with_power_name():
+    """Same as above, but with powerName supplied — must be accepted."""
+    fake = FakeSheets()
+    app = _app(fake)
+    with app.test_client() as client:
+        res = client.post(
+            '/api/spends',
+            headers=_auth(),
+            json={
+                'characterName': 'Alice',
+                'spendCategory': 'Advantage (Merit/Background)',
+                'traitName': 'Status',
+                'powerName': 'Tremere',
+                'currentDots': 0,
+                'newDots': 1,
+                'justification': 'Bot flow',
+                'isInClan': False,
+                'requesterDiscordId': '111111111111111111',
+                'requesterDiscordName': 'alice-user',
+            },
+        )
+        assert res.status_code == 201
+        assert fake.spends
+        assert fake.spends[-1]['power_name'] == 'Tremere'
+
+
 def test_review_events_returns_only_reviewed_claims_and_spends():
     app = _app(FakeSheets())
     with app.test_client() as client:

@@ -11,8 +11,9 @@
 import { ChannelType, type Collection, type Guild, type Message, type Snowflake, type TextChannel, type AnyThreadChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
-import { IC_CATEGORY_IDS, OOC_CATEGORY_IDS, ROLLS_CATEGORY_IDS, type ActivityCategory } from './discordActivityCategories';
+import { categoryFromId, type ActivityCategory } from './discordActivityCategories';
 import { CUBBY_CATEGORY_NAMES } from './cubbyChannels';
+import { liveConfig } from '../liveConfig';
 
 const MESSAGES_PER_FETCH = 100;
 // Flush to API every this many accumulated entries
@@ -73,9 +74,8 @@ function utcDateOf(d: Date): string {
 function categoryForChannel(channel: TextChannel): ActivityCategory | null {
   const catId = channel.parentId;
   if (!catId) return null;
-  if (IC_CATEGORY_IDS.has(catId)) return 'ic';
-  if (OOC_CATEGORY_IDS.has(catId)) return 'ooc';
-  if (ROLLS_CATEGORY_IDS.has(catId)) return 'rolls';
+  const cat = categoryFromId(catId);
+  if (cat) return cat;
   const parent = channel.parent;
   if (parent && (CUBBY_CATEGORY_NAMES as readonly string[]).some(n => parent.name.toLowerCase().includes(n))) {
     return 'cubby';
@@ -217,7 +217,11 @@ async function _runActivityBackfillInner(
   const channels = await guild.channels.fetch();
 
   // Build set of category IDs to scan
-  const monitoredCatIds = new Set([...IC_CATEGORY_IDS, ...OOC_CATEGORY_IDS, ...ROLLS_CATEGORY_IDS]);
+  const monitoredCatIds = new Set([
+    ...liveConfig.activityIcCategoryIds,
+    ...liveConfig.activityOocCategoryIds,
+    ...liveConfig.activityRollsCategoryIds,
+  ]);
   const cubbyCatIds = new Set<string>();
   for (const ch of channels.values()) {
     if (ch?.type === ChannelType.GuildCategory) {
@@ -232,11 +236,8 @@ async function _runActivityBackfillInner(
   for (const ch of channels.values()) {
     if (!ch || ch.type !== ChannelType.GuildText) continue;
     const catId = ch.parentId ?? '';
-    let cat: ActivityCategory | null = null;
-    if (IC_CATEGORY_IDS.has(catId)) cat = 'ic';
-    else if (OOC_CATEGORY_IDS.has(catId)) cat = 'ooc';
-    else if (ROLLS_CATEGORY_IDS.has(catId)) cat = 'rolls';
-    else if (cubbyCatIds.has(catId)) cat = 'cubby';
+    let cat: ActivityCategory | null = categoryFromId(catId);
+    if (!cat && cubbyCatIds.has(catId)) cat = 'cubby';
     if (cat) toScan.push({ channel: ch as TextChannel, category: cat });
   }
 
@@ -248,11 +249,8 @@ async function _runActivityBackfillInner(
       const parent = channels.get(thread.parentId);
       if (!parent) continue;
       const catId = parent.parentId ?? '';
-      let cat: ActivityCategory | null = null;
-      if (IC_CATEGORY_IDS.has(catId)) cat = 'ic';
-      else if (OOC_CATEGORY_IDS.has(catId)) cat = 'ooc';
-      else if (ROLLS_CATEGORY_IDS.has(catId)) cat = 'rolls';
-      else if (cubbyCatIds.has(catId)) cat = 'cubby';
+      let cat: ActivityCategory | null = categoryFromId(catId);
+      if (!cat && cubbyCatIds.has(catId)) cat = 'cubby';
       if (cat) toScan.push({ channel: thread as unknown as TextChannel, category: cat });
     }
   }

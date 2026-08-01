@@ -8,7 +8,9 @@ from flask import (
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
-from app.character_sheet import patch_character_draft, find_trait_sheet_match
+from app.character_sheet import (
+    patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
+)
 
 bp = Blueprint('spends', __name__)
 
@@ -41,7 +43,9 @@ def pending():
         )
         char_data = dashboard_data.get(spend.character_name.lower())
         depends_on_spend = by_row.get(spend.depends_on) if spend.depends_on else None
-        sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+        sheet_match = find_trait_sheet_match(
+            spend.character_name, spend.spend_category, spend.trait_name, spend.power_name,
+        )
         days = _days_waiting(spend.timestamp)
         rows.append({
             'spend': spend,
@@ -50,6 +54,10 @@ def pending():
             'depends_on_spend': depends_on_spend,
             'sheet_match': sheet_match,
             'days': days,
+            # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
+            # structured Advantage sub-category value (e.g. "Tremere") stored
+            # in the same power_name field — see _SUBCATEGORY_ADVANTAGES.
+            'power_name_label': subcategory_label_for_trait(spend.trait_name, spend.spend_category),
         })
 
     # Oldest-first, matching the design's "sorted oldest-first" note.
@@ -89,7 +97,14 @@ def review(row_id):
     # Warn staff if the trait name doesn't exactly match an existing sheet
     # entry — e.g. "Status" submitted when the sheet has "Status (Tremere)" —
     # since approving as-is creates a stray duplicate instead of raising it.
-    sheet_match = find_trait_sheet_match(spend.character_name, spend.spend_category, spend.trait_name)
+    sheet_match = find_trait_sheet_match(
+        spend.character_name, spend.spend_category, spend.trait_name, spend.power_name,
+    )
+
+    # Distinguishes a Discipline power_name (e.g. "Auspex 3") from a
+    # structured Advantage sub-category value (e.g. "Tremere") stored in the
+    # same power_name field — see _SUBCATEGORY_ADVANTAGES.
+    power_name_label = subcategory_label_for_trait(spend.trait_name, spend.spend_category)
 
     return render_template(
         'spends/review.html',
@@ -99,6 +114,7 @@ def review(row_id):
         depends_on_spend=depends_on_spend,
         dependents=dependents,
         sheet_match=sheet_match,
+        power_name_label=power_name_label,
     )
 
 

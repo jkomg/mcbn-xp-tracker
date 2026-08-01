@@ -4,7 +4,7 @@ import pytest
 from flask import Flask
 
 import app as app_module
-from app.character_sheet import _apply_patch, find_trait_sheet_match
+from app.character_sheet import _apply_patch, find_trait_sheet_match, subcategory_label_for_trait
 from app.db import CharacterDraft, DbCharacter, db
 from app.db_service import DBService
 
@@ -132,3 +132,164 @@ def test_find_trait_sheet_match_ignored_for_other_categories(app_ctx):
 
 def test_find_trait_sheet_match_none_when_no_approved_sheet(app_ctx):
     assert find_trait_sheet_match('Nobody', 'Advantage (Merit/Background)', 'Status') is None
+
+
+# --- Status sub-category (power_name reused as faction/group) ---
+
+
+def test_status_spend_with_faction_creates_folded_entry():
+    """A new Status spend with a faction sub-category creates a single
+    "Status (Tremere)" entry, matching the existing informal sheet convention."""
+    data = {'backgrounds': [], 'merits': []}
+    patched = _apply_patch(data, 'Advantage (Merit/Background)', 'Status', 'Tremere', 1)
+
+    assert patched is True
+    assert data['merits'] == [
+        {'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+
+def test_status_spend_with_same_faction_updates_existing_entry_in_place():
+    """Raising Status/Tremere a second time updates the existing "Status
+    (Tremere)" entry's level rather than creating a duplicate."""
+    data = {
+        'backgrounds': [{'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'}],
+        'merits': [],
+    }
+    patched = _apply_patch(data, 'Advantage (Merit/Background)', 'Status', 'Tremere', 2)
+
+    assert patched is True
+    assert data['backgrounds'] == [
+        {'name': 'Status (Tremere)', 'level': 2, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+    assert data['merits'] == []
+
+
+def test_non_triggering_trait_unaffected_by_subcategory_logic():
+    """Regression check: a plain, non-Status Advantage (e.g. Contacts) is
+    completely unaffected by the new sub-category folding logic, even if a
+    power_name happens to be passed."""
+    data = {'backgrounds': [], 'merits': []}
+    patched = _apply_patch(data, 'Advantage (Merit/Background)', 'Contacts', 'Some Value', 1)
+
+    assert patched is True
+    assert data['merits'] == [
+        {'name': 'Contacts', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+
+def test_two_different_status_factions_coexist_as_distinct_entries():
+    """Two different factions of Status don't clobber each other — each is
+    its own distinct entry in the backgrounds/merits array."""
+    data = {'backgrounds': [], 'merits': []}
+    _apply_patch(data, 'Advantage (Merit/Background)', 'Status', 'Tremere', 1)
+    _apply_patch(data, 'Advantage (Merit/Background)', 'Status', 'Anarch Movement', 2)
+
+    assert sorted(data['merits'], key=lambda e: e['name']) == [
+        {'name': 'Status (Anarch Movement)', 'level': 2, 'summary': '', 'excludes': [], 'type': 'merit'},
+        {'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+    # Raising the Tremere entry again must not touch the Anarch Movement one.
+    _apply_patch(data, 'Advantage (Merit/Background)', 'Status', 'Tremere', 3)
+    assert sorted(data['merits'], key=lambda e: e['name']) == [
+        {'name': 'Status (Anarch Movement)', 'level': 2, 'summary': '', 'excludes': [], 'type': 'merit'},
+        {'name': 'Status (Tremere)', 'level': 3, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+
+def test_find_trait_sheet_match_exact_for_structured_status_faction(app_ctx):
+    _seed_approved_character('Marcus', {
+        'merits': [{'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'}],
+    })
+
+    result = find_trait_sheet_match('Marcus', 'Advantage (Merit/Background)', 'Status', 'Tremere')
+
+    assert result == {'exact': True, 'close_matches': []}
+
+
+def test_find_trait_sheet_match_two_structured_factions_not_flagged_as_close_matches(app_ctx):
+    """Two distinct structured Status factions are independent, unambiguous
+    entries — checking one against the sheet must not surface the other as
+    a "close match" warning."""
+    _seed_approved_character('Marcus', {
+        'merits': [
+            {'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'},
+            {'name': 'Status (Anarch Movement)', 'level': 2, 'summary': '', 'excludes': [], 'type': 'merit'},
+        ],
+    })
+
+    result = find_trait_sheet_match('Marcus', 'Advantage (Merit/Background)', 'Status', 'Tremere')
+
+    assert result == {'exact': True, 'close_matches': []}
+
+
+def test_find_trait_sheet_match_legacy_bare_status_still_warns_against_structured_factions(app_ctx):
+    """A legacy/bare "Status" spend (no power_name) submitted against a sheet
+    that only has structured faction entries should still be flagged — the
+    original Marcus-bug protection must keep working."""
+    _seed_approved_character('Marcus', {
+        'merits': [
+            {'name': 'Status (Tremere)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'},
+            {'name': 'Status (Anarch Movement)', 'level': 2, 'summary': '', 'excludes': [], 'type': 'merit'},
+        ],
+    })
+
+    result = find_trait_sheet_match('Marcus', 'Advantage (Merit/Background)', 'Status')
+
+    assert result['exact'] is False
+    assert sorted(m['name'] for m in result['close_matches']) == [
+        'Status (Anarch Movement)', 'Status (Tremere)',
+    ]
+
+
+# --- subcategory_label_for_trait -------------------------------------------
+# Used by the staff pending/review templates to distinguish a Discipline
+# power_name (e.g. "Auspex 3") from a structured Advantage sub-category value
+# (e.g. "Tremere") stored in the same power_name field, so staff see
+# "Faction / Group: Tremere" instead of mistaking it for a discipline power.
+#
+# The label is only meaningful for Advantage (Merit/Background) spends —
+# trait_name is free text, so a Discipline spend could coincidentally be
+# typed as "Status" and must not be mislabeled as a Faction/Group.
+
+_ADVANTAGE_CATEGORY = 'Advantage (Merit/Background)'
+
+
+def test_subcategory_label_for_trait_matches_status():
+    assert subcategory_label_for_trait('Status', _ADVANTAGE_CATEGORY) == 'Faction / Group'
+
+
+def test_subcategory_label_for_trait_case_and_whitespace_insensitive():
+    assert subcategory_label_for_trait('  STATUS  ', _ADVANTAGE_CATEGORY) == 'Faction / Group'
+
+
+def test_subcategory_label_for_trait_none_for_discipline():
+    assert subcategory_label_for_trait('Auspex', _ADVANTAGE_CATEGORY) is None
+
+
+def test_subcategory_label_for_trait_none_for_blank():
+    assert subcategory_label_for_trait('', _ADVANTAGE_CATEGORY) is None
+    assert subcategory_label_for_trait(None, _ADVANTAGE_CATEGORY) is None
+
+
+def test_subcategory_label_for_trait_none_for_non_advantage_category_even_if_status_named():
+    """Regression test for the Codex P2 finding: a Discipline spend whose
+    free-text trait_name happens to be "Status" (e.g. a player typed a
+    discipline power named "Status" with a real power_name set) must not be
+    labeled as a Faction/Group — the category gate must win over the name
+    match so staff see the Discipline power_name display instead."""
+    assert subcategory_label_for_trait('Status', 'Discipline (In-Clan)') is None
+    assert subcategory_label_for_trait('status', 'Caitiff Discipline') is None
+
+
+def test_subcategory_label_for_trait_none_when_category_omitted():
+    """Without a spend_category, the label must not be returned — callers
+    are required to pass the category through."""
+    assert subcategory_label_for_trait('Status') is None
+
+
+def test_subcategory_label_for_trait_none_for_non_triggering_advantage():
+    """Advantage-category spends for traits outside _SUBCATEGORY_ADVANTAGES
+    (e.g. Contacts) still get no label — only Status is in scope."""
+    assert subcategory_label_for_trait('Contacts', _ADVANTAGE_CATEGORY) is None

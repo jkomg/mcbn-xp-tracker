@@ -41,6 +41,7 @@ export type SpendPayload = {
   characterName: string;
   spendCategory: XpSpendCategory;
   traitName: string;
+  powerName?: string;
   currentDots: number;
   newDots: number;
   isInClan: boolean;
