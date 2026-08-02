@@ -4,7 +4,14 @@ import pytest
 from flask import Flask
 
 import app as app_module
-from app.character_sheet import _apply_patch, find_trait_sheet_match, subcategory_label_for_trait
+from app.character_sheet import (
+    _apply_patch,
+    _apply_reverse_patch,
+    character_has_specialty,
+    character_skill_rating,
+    find_trait_sheet_match,
+    subcategory_label_for_trait,
+)
 from app.db import CharacterDraft, DbCharacter, db
 from app.db_service import DBService
 
@@ -293,3 +300,105 @@ def test_subcategory_label_for_trait_none_for_non_triggering_advantage():
     """Advantage-category spends for traits outside _SUBCATEGORY_ADVANTAGES
     (e.g. Contacts) still get no label — only Status is in scope."""
     assert subcategory_label_for_trait('Contacts', _ADVANTAGE_CATEGORY) is None
+
+
+# ── Skill Specialty ─────────────────────────────────────────────────────────
+
+_SKILL_SPECIALTY = 'Skill Specialty'
+
+
+def test_apply_patch_adds_specialty():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_creates_skill_specialties_dict_if_missing():
+    data = {'skills': {'firearms': 2}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_appends_to_existing_list():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Trick Shots', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw', 'Trick Shots']
+
+
+def test_apply_patch_specialty_rejects_duplicate():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is False
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_duplicate_check_is_case_insensitive():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'quickdraw', 1)
+    assert patched is False
+
+
+def test_apply_patch_specialty_requires_power_name():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', '', 1)
+    assert patched is False
+    assert data['skill_specialties'] == {}
+
+
+def test_apply_reverse_patch_removes_specialty():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 0, 1)
+    assert reverted is True
+    assert data['skill_specialties']['firearms'] == []
+
+
+def test_apply_reverse_patch_specialty_no_op_if_already_removed():
+    """Staleness guard: if the specialty isn't present anymore (e.g. staff
+    already removed it directly), the reversal is a no-op rather than
+    raising or clobbering unrelated state."""
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': []}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 0, 1)
+    assert reverted is False
+
+
+def test_apply_reverse_patch_specialty_no_op_when_missing_power_name():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', '', 0, 1)
+    assert reverted is False
+
+
+def test_character_skill_rating_reads_approved_sheet(app_ctx):
+    _seed_approved_character('Rated Rex', {'skills': {'firearms': 3}})
+    assert character_skill_rating('Rated Rex', 'Firearms') == 3
+
+
+def test_character_skill_rating_zero_for_unrated_skill(app_ctx):
+    _seed_approved_character('Unrated Uma', {'skills': {'firearms': 3}})
+    assert character_skill_rating('Unrated Uma', 'Larceny') == 0
+
+
+def test_character_skill_rating_zero_when_no_approved_sheet(app_ctx):
+    assert character_skill_rating('Nobody', 'Firearms') == 0
+
+
+def test_character_has_specialty_true_when_present(app_ctx):
+    _seed_approved_character(
+        'Specialized Sam', {'skills': {'firearms': 3}, 'skill_specialties': {'firearms': ['Quickdraw']}},
+    )
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'Quickdraw') is True
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'quickdraw') is True
+
+
+def test_character_has_specialty_false_when_absent(app_ctx):
+    _seed_approved_character(
+        'Specialized Sam', {'skills': {'firearms': 3}, 'skill_specialties': {'firearms': ['Quickdraw']}},
+    )
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'Trick Shots') is False
+
+
+def test_subcategory_label_for_trait_specialty_for_skill_specialty_category():
+    assert subcategory_label_for_trait('Firearms', _SKILL_SPECIALTY) == 'Specialty'
+    assert subcategory_label_for_trait('Anything', _SKILL_SPECIALTY) == 'Specialty'

@@ -538,6 +538,18 @@ def submit_spend(name):
         flash(f'{subcategory_label} is required for {trait_name}.', 'danger')
         return redirect(url_for('player.character', name=name))
 
+    if spend_category == 'Skill Specialty':
+        from app.character_sheet import character_has_specialty, character_skill_rating
+        if not power_name:
+            flash('A specialty name is required.', 'danger')
+            return redirect(url_for('player.character', name=name))
+        if character_skill_rating(name, trait_name) < 1:
+            flash(f'{trait_name} must be rated at least 1 to buy a specialty in it.', 'danger')
+            return redirect(url_for('player.character', name=name))
+        if character_has_specialty(name, trait_name, power_name):
+            flash(f'{trait_name} already has a "{power_name}" specialty.', 'danger')
+            return redirect(url_for('player.character', name=name))
+
     try:
         current_dots = int(request.form.get('current_dots', 0))
         new_dots = int(request.form.get('new_dots', 1))

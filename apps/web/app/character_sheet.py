@@ -46,7 +46,15 @@ def subcategory_label_for_trait(trait_name: str, spend_category: str | None = No
     The category gate matters because trait_name is free text: a Discipline
     spend whose trait_name happens to be typed as "Status" (a power name,
     not the Status advantage) must not be mislabeled as a Faction/Group.
+
+    Skill Specialty uses the same power_name field for the specialty name.
+    Unlike Advantage sub-categories, the trigger here is the category alone
+    (spend_category == 'Skill Specialty') — the skill name in trait_name
+    varies freely, so there's no fixed trait-name set to key off, and the
+    category itself is already unambiguous.
     """
+    if spend_category == 'Skill Specialty':
+        return 'Specialty'
     if spend_category != 'Advantage (Merit/Background)':
         return None
     return _SUBCATEGORY_ADVANTAGES.get((trait_name or '').strip().lower())
@@ -123,6 +131,36 @@ def _effective_advantage_name(trait_name: str, power_name: str) -> str:
     if power_name and trait_name.lower() in _SUBCATEGORY_ADVANTAGES:
         return f'{trait_name} ({power_name})'
     return trait_name
+
+
+def character_skill_rating(character_name: str, skill_name: str) -> int:
+    """Return the character's current dot rating for a skill (0 if unrated/unknown).
+
+    Reads the approved sheet's `skills` dict, keyed the same way `_apply_patch`
+    stores it (lowercased skill name) — the source of truth for the
+    "skill must be rated >= 1" gate on Skill Specialty purchases, not a
+    client-supplied value.
+    """
+    data = _load_approved_sheet_data(character_name)
+    if data is None:
+        return 0
+    try:
+        return int(data.get('skills', {}).get((skill_name or '').strip().lower(), 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def character_has_specialty(character_name: str, skill_name: str, specialty_name: str) -> bool:
+    """Return True if the character's approved sheet already has this specialty on this skill."""
+    data = _load_approved_sheet_data(character_name)
+    if data is None:
+        return False
+    skill_key = (skill_name or '').strip().lower()
+    specialty_key = (specialty_name or '').strip().lower()
+    existing = data.get('skill_specialties', {}).get(skill_key, [])
+    if not isinstance(existing, list):
+        return False
+    return any((s or '').strip().lower() == specialty_key for s in existing)
 
 
 def find_trait_sheet_match(
@@ -334,6 +372,18 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         purchases.append({'loresheet_id': trait_name, 'dot': new_dots})
         return True
 
+    if category == 'Skill Specialty':
+        # power_name carries the specialty name here (dual-purpose field, same
+        # as Discipline power name / Advantage sub-category above).
+        if not power_name:
+            return False
+        skill_key = trait_name.lower()
+        specialties = data.setdefault('skill_specialties', {}).setdefault(skill_key, [])
+        if any((s or '').lower() == power_name.lower() for s in specialties):
+            return False  # already present — submit_spend should have caught this
+        specialties.append(power_name)
+        return True
+
     if category == 'Humanity':
         data['humanity'] = new_dots
         return True
@@ -460,6 +510,17 @@ def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name:
         for lp in purchases:
             if lp.get('dot') == new_dots and lp.get('loresheet_id', '').lower() == trait_name.lower():
                 purchases.remove(lp)
+                return True
+        return False
+
+    if category == 'Skill Specialty':
+        if not power_name:
+            return False
+        skill_key = trait_name.lower()
+        specialties = data.get('skill_specialties', {}).get(skill_key, [])
+        for s in specialties:
+            if (s or '').lower() == power_name.lower():
+                specialties.remove(s)
                 return True
         return False
 
