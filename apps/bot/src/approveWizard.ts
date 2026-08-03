@@ -4,14 +4,10 @@ import {
   ButtonStyle,
   ChannelType,
   GuildChannel,
-  ModalBuilder,
   OverwriteType,
   StringSelectMenuBuilder,
-  TextInputBuilder,
-  TextInputStyle,
   type ButtonInteraction,
   type ChatInputCommandInteraction,
-  type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
   type TextChannel,
 } from 'discord.js';
@@ -106,8 +102,6 @@ export const APPROVE_SECT_SELECT_ID = 'approve:sect:select';
 export const APPROVE_ROLES_SELECT_ID = 'approve:roles:select';
 export const APPROVE_CONFIRM_ID = 'approve:confirm';
 export const APPROVE_CANCEL_ID = 'approve:cancel';
-export const APPROVE_NAME_MODAL_ID = 'approve:name:modal';
-export const APPROVE_NAME_INPUT_ID = 'approve:name:input';
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -306,20 +300,20 @@ export async function startApproveWizard(
   }
 
   // If the channel still has a default ticket name (starts with "ticket"),
-  // the character name hasn't been set yet — show a modal to collect it and
-  // rename the channel before proceeding with the rest of the wizard.
+  // the character name hasn't been set yet. Pause here rather than trying
+  // to collect the name via a modal and auto-rename the channel — that path
+  // was the source of a recurring "Invalid string length" crash (see PR
+  // #399's diagnostics) and staff already have to rename the channel
+  // manually via Discord's UI anyway when it fails, so just tell them to
+  // do that up front and re-run the command.
   if (/^ticket/i.test(channel.name)) {
-    const modal = new ModalBuilder()
-      .setCustomId(APPROVE_NAME_MODAL_ID)
-      .setTitle('Set Character Name');
-    const input = new TextInputBuilder()
-      .setCustomId(APPROVE_NAME_INPUT_ID)
-      .setLabel('Character name (as it should appear on the roster)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g. Sylvester Glass')
-      .setRequired(true);
-    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
-    await interaction.showModal(modal);
+    await interaction.reply({
+      content:
+        `⚠️ **${channel.name}** still has its default ticket name. Rename the channel to the ` +
+        'character\'s name first (right-click the channel → Edit Channel → Name), then run ' +
+        `\`/${config.lasombraCommandName} approve\` again.`,
+      ephemeral: true,
+    });
     return;
   }
 
@@ -591,72 +585,3 @@ export async function handleApproveWizardButton(
   return true;
 }
 
-// ── Name modal handler ─────────────────────────────────────────────────────
-
-export async function handleApproveNameModal(
-  interaction: ModalSubmitInteraction,
-  _ctx: CommandContext,
-): Promise<boolean> {
-  if (interaction.customId !== APPROVE_NAME_MODAL_ID) return false;
-
-  const characterName = interaction.fields.getTextInputValue(APPROVE_NAME_INPUT_ID).trim();
-  if (!characterName) {
-    await interaction.reply({ content: '⚠️ Character name cannot be empty.', ephemeral: true });
-    return true;
-  }
-
-  const channel = interaction.channel;
-  if (!channel || channel.type !== ChannelType.GuildText) {
-    await interaction.reply({ content: '⚠️ Could not resolve channel.', ephemeral: true });
-    return true;
-  }
-
-  // Rename the channel to a Discord-safe slug of the character name.
-  const slug = characterName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  try {
-    await channel.setName(slug, `Character ticket renamed to: ${characterName}`);
-  } catch (err) {
-    await interaction.reply({
-      content: `⚠️ Could not rename channel: ${errorToMessage(err)}`,
-      ephemeral: true,
-    });
-    return true;
-  }
-
-  await interaction.deferReply({ ephemeral: false });
-
-  const guild = interaction.guild!;
-  const [playerId, pdf, guildRoles] = await Promise.all([
-    findPlayerInChannel(channel, config.testerDiscordIds),
-    findLatestPdf(channel),
-    guild.roles.fetch(),
-  ]);
-
-  const availableRoles = APPROVAL_ROLE_NAMES
-    .map((name) => {
-      const role = guildRoles.find((r) => r.name.toLowerCase() === name.toLowerCase());
-      return role ? { id: role.id, name: role.name } : null;
-    })
-    .filter((r): r is { id: string; name: string } => r !== null);
-
-  const state: ApproveState = {
-    channelId: channel.id,
-    characterName,
-    playerId,
-    pdfUrl: pdf?.url ?? null,
-    pdfFilename: pdf?.name ?? null,
-    age: null,
-    clan: null,
-    sect: null,
-    roleIds: [],
-    availableRoles,
-  };
-
-  pending.set(interaction.user.id, state);
-
-  await interaction.editReply({
-    content: `✅ Channel renamed to \`${slug}\`.\n\n${buildStatusContent(state)}`,
-    components: buildComponents(state),
-  });
-  return true;
-}

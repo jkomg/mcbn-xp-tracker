@@ -40,7 +40,6 @@ import { memberHasAnyRole, requiredRoleIds } from './services/roleGate';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
-  handleApproveNameModal,
   isApproveWizardButton,
 } from './approveWizard';
 import {
@@ -475,6 +474,15 @@ void applyStartupConfigOverrides().then(() => {
     userId: interaction.user?.id,
     guildId: interaction.guildId,
   };
+  // Populated right before a chat-input command executes so the catch
+  // block below can attribute a failure to the exact subcommand, not just
+  // the top-level command name — a recurring "command_failure" alert with
+  // no subcommand was previously impossible to pin down without asking the
+  // user what they ran.
+  let cmdContext: { commandName?: string; subcommandGroup: string | null; subcommand: string | null } = {
+    subcommandGroup: null,
+    subcommand: null,
+  };
 
   try {
     // interaction.member is null for DM-context interactions — denied by
@@ -620,11 +628,6 @@ void applyStartupConfigOverrides().then(() => {
     }
 
     if (interaction.isModalSubmit()) {
-      const approveNameHandled = await handleApproveNameModal(interaction, { client, adapter });
-      if (approveNameHandled) {
-        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
-        return;
-      }
       const updateHandled = await handleUpdateModal(interaction);
       if (updateHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
@@ -701,22 +704,28 @@ void applyStartupConfigOverrides().then(() => {
       return;
     }
 
+    cmdContext = {
+      commandName: interaction.commandName,
+      subcommandGroup: interaction.options.getSubcommandGroup(false),
+      subcommand: interaction.options.getSubcommand(false),
+    };
+
     if (!config.testerDiscordIds.has(interaction.user.id)) {
       const tokens = buildDisableTokens(
         interaction.commandName,
-        interaction.options.getSubcommandGroup(false),
-        interaction.options.getSubcommand(false),
+        cmdContext.subcommandGroup,
+        cmdContext.subcommand,
       );
       if (isAnyTokenDisabled(tokens, liveConfig.disabledCommands)) {
-        logEvent('info', 'command_execute_blocked_disabled', { ...baseMeta, commandName: interaction.commandName, tokens });
+        logEvent('info', 'command_execute_blocked_disabled', { ...baseMeta, ...cmdContext, tokens });
         await interaction.reply({ content: 'This command is currently disabled by staff.', ephemeral: true });
         return;
       }
     }
 
-    logEvent('info', 'command_execute_start', { ...baseMeta, commandName: interaction.commandName });
+    logEvent('info', 'command_execute_start', { ...baseMeta, ...cmdContext });
     await cmd.execute(interaction, { client, adapter });
-    logEvent('info', 'command_execute_done', { ...baseMeta, commandName: interaction.commandName });
+    logEvent('info', 'command_execute_done', { ...baseMeta, ...cmdContext });
   } catch (error) {
     const code = (error as { code?: number }).code;
     // 40060 means another process/handler already acknowledged this interaction.
@@ -734,7 +743,13 @@ void applyStartupConfigOverrides().then(() => {
       return;
     }
 
-    logEvent('error', 'command_failure', { ...baseMeta, code, error: errorToMessage(error) });
+    logEvent('error', 'command_failure', {
+      ...baseMeta,
+      ...cmdContext,
+      code,
+      error: errorToMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     if (!interaction.isRepliable()) {
       return;
     }
