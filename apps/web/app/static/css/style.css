@@ -2663,6 +2663,14 @@ body.login-page {
   display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 14px; padding: 9px 18px; border-bottom: 1px solid var(--border);
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-faint);
 }
+/* Column headers assume fixed-width children matching each row's layout —
+   on narrow viewports rows wrap onto multiple lines (see .dp-row above) so
+   a single-line header row no longer lines up with anything and is more
+   confusing than useful. Hiding it is simpler and more robust than trying
+   to keep two independently-maintained fixed-width layouts in sync. */
+@media (max-width: 600px) {
+  .dp-table-head { display: none; }
+}
 .dp-row {
   display: flex; align-items: center; flex-wrap: wrap; row-gap: 8px; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border);
   text-decoration: none; color: inherit;
