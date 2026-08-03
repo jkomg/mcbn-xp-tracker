@@ -70,5 +70,11 @@
     "description": "New rating × 2",
     "min_dots": 1,
     "max_dots": 10
+  },
+  "Skill Specialty": {
+    "flat_cost": 3,
+    "description": "3 XP (0 → 1)",
+    "min_dots": 0,
+    "max_dots": 1
   }
 }

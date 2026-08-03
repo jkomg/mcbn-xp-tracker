@@ -4,7 +4,16 @@ import pytest
 from flask import Flask
 
 import app as app_module
-from app.character_sheet import _apply_patch, find_trait_sheet_match, subcategory_label_for_trait
+from app.character_sheet import (
+    _apply_patch,
+    _apply_reverse_patch,
+    _merge_cc_specialties,
+    _normalize_skill_key,
+    character_has_specialty,
+    character_skill_rating,
+    find_trait_sheet_match,
+    subcategory_label_for_trait,
+)
 from app.db import CharacterDraft, DbCharacter, db
 from app.db_service import DBService
 
@@ -293,3 +302,214 @@ def test_subcategory_label_for_trait_none_for_non_triggering_advantage():
     """Advantage-category spends for traits outside _SUBCATEGORY_ADVANTAGES
     (e.g. Contacts) still get no label — only Status is in scope."""
     assert subcategory_label_for_trait('Contacts', _ADVANTAGE_CATEGORY) is None
+
+
+# ── Skill Specialty ─────────────────────────────────────────────────────────
+
+_SKILL_SPECIALTY = 'Skill Specialty'
+
+
+def test_apply_patch_adds_specialty():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_creates_skill_specialties_dict_if_missing():
+    data = {'skills': {'firearms': 2}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_appends_to_existing_list():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Trick Shots', 1)
+    assert patched is True
+    assert data['skill_specialties']['firearms'] == ['Quickdraw', 'Trick Shots']
+
+
+def test_apply_patch_specialty_rejects_duplicate():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 1)
+    assert patched is False
+    assert data['skill_specialties']['firearms'] == ['Quickdraw']
+
+
+def test_apply_patch_specialty_duplicate_check_is_case_insensitive():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', 'quickdraw', 1)
+    assert patched is False
+
+
+def test_apply_patch_specialty_requires_power_name():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Firearms', '', 1)
+    assert patched is False
+    assert data['skill_specialties'] == {}
+
+
+def test_apply_reverse_patch_removes_specialty():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 0, 1)
+    assert reverted is True
+    assert data['skill_specialties']['firearms'] == []
+
+
+def test_apply_reverse_patch_specialty_no_op_if_already_removed():
+    """Staleness guard: if the specialty isn't present anymore (e.g. staff
+    already removed it directly), the reversal is a no-op rather than
+    raising or clobbering unrelated state."""
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': []}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', 'Quickdraw', 0, 1)
+    assert reverted is False
+
+
+def test_apply_reverse_patch_specialty_no_op_when_missing_power_name():
+    data = {'skills': {'firearms': 2}, 'skill_specialties': {'firearms': ['Quickdraw']}}
+    reverted = _apply_reverse_patch(data, _SKILL_SPECIALTY, 'Firearms', '', 0, 1)
+    assert reverted is False
+
+
+def test_character_skill_rating_reads_approved_sheet(app_ctx):
+    _seed_approved_character('Rated Rex', {'skills': {'firearms': 3}})
+    assert character_skill_rating('Rated Rex', 'Firearms') == 3
+
+
+def test_character_skill_rating_zero_for_unrated_skill(app_ctx):
+    _seed_approved_character('Unrated Uma', {'skills': {'firearms': 3}})
+    assert character_skill_rating('Unrated Uma', 'Larceny') == 0
+
+
+def test_character_skill_rating_zero_when_no_approved_sheet(app_ctx):
+    assert character_skill_rating('Nobody', 'Firearms') == 0
+
+
+def test_character_has_specialty_true_when_present(app_ctx):
+    _seed_approved_character(
+        'Specialized Sam', {'skills': {'firearms': 3}, 'skill_specialties': {'firearms': ['Quickdraw']}},
+    )
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'Quickdraw') is True
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'quickdraw') is True
+
+
+def test_character_has_specialty_false_when_absent(app_ctx):
+    _seed_approved_character(
+        'Specialized Sam', {'skills': {'firearms': 3}, 'skill_specialties': {'firearms': ['Quickdraw']}},
+    )
+    assert character_has_specialty('Specialized Sam', 'Firearms', 'Trick Shots') is False
+
+
+def test_subcategory_label_for_trait_specialty_for_skill_specialty_category():
+    assert subcategory_label_for_trait('Firearms', _SKILL_SPECIALTY) == 'Specialty'
+    assert subcategory_label_for_trait('Anything', _SKILL_SPECIALTY) == 'Specialty'
+
+
+# ── _normalize_skill_key (Codex P2: multiword skills like Animal Ken) ──────
+
+
+def test_normalize_skill_key_lowercases():
+    assert _normalize_skill_key('Firearms') == 'firearms'
+
+
+def test_normalize_skill_key_collapses_spaces_to_underscore():
+    assert _normalize_skill_key('Animal Ken') == 'animal_ken'
+    assert _normalize_skill_key('animal ken') == 'animal_ken'
+    assert _normalize_skill_key('  Animal   Ken  ') == 'animal_ken'
+
+
+def test_normalize_skill_key_blank():
+    assert _normalize_skill_key('') == ''
+    assert _normalize_skill_key(None) == ''
+
+
+def test_character_skill_rating_multiword_skill(app_ctx):
+    """Regression test: a plain .lower() with no space handling would look
+    up 'animal ken' against a sheet keyed 'animal_ken' and always miss."""
+    _seed_approved_character('Beast Whisperer', {'skills': {'animal_ken': 3}})
+    assert character_skill_rating('Beast Whisperer', 'Animal Ken') == 3
+
+
+def test_apply_patch_specialty_multiword_skill_matches_rating_key():
+    """The Skill Specialty patch branch must key skill_specialties the same
+    way the sheet's skills dict and player/sheet.html's fixed key lists do
+    ('animal_ken'), or a purchased specialty would be stored under a key the
+    sheet template never looks at."""
+    data = {'skills': {'animal_ken': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Animal Ken', 'Big Cats', 1)
+    assert patched is True
+    assert data['skill_specialties']['animal_ken'] == ['Big Cats']
+
+
+# ── _merge_cc_specialties (Codex P1: CC-format skillSpecialties list) ──────
+
+
+def test_merge_cc_specialties_populates_from_cc_list():
+    data = {'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}]}
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Quickdraw']}
+
+
+def test_merge_cc_specialties_multiword_skill_normalized():
+    data = {'skillSpecialties': [{'skill': 'Animal Ken', 'name': 'Big Cats'}]}
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'animal_ken': ['Big Cats']}
+
+
+def test_merge_cc_specialties_includes_predator_type_picks():
+    data = {
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+        'predatorType': {'pickedSpecialties': [{'skill': 'Stealth', 'name': 'Shadowing'}]},
+    }
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Quickdraw'], 'stealth': ['Shadowing']}
+
+
+def test_merge_cc_specialties_noop_when_skill_specialties_already_present():
+    """Once skill_specialties exists (e.g. from a RoD import or a prior
+    patch), the CC list is never consulted again — this is the existing,
+    intentional guard in player.py's _normalize_sheet_data."""
+    data = {
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+        'skill_specialties': {'firearms': ['Already Here']},
+    }
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Already Here']}
+
+
+def test_merge_cc_specialties_noop_when_no_cc_data():
+    data = {'skills': {'firearms': 2}}
+    _merge_cc_specialties(data)
+    assert 'skill_specialties' not in data
+
+
+def test_character_has_specialty_sees_cc_format_specialty(app_ctx):
+    """Regression test for the Codex P1 finding: without merging CC-format
+    specialties, a character whose specialty only exists as
+    skillSpecialties: [{skill, name}] would look unspecialized, letting the
+    same specialty be purchased again."""
+    _seed_approved_character('CC Imported Casey', {
+        'skills': {'firearms': 3},
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+    })
+    assert character_has_specialty('CC Imported Casey', 'Firearms', 'Quickdraw') is True
+
+
+def test_apply_patch_preserves_cc_specialties_when_adding_new_one():
+    """Regression test for the Codex P1 finding: patching a new specialty
+    onto a sheet that already has CC-format specialties must not create a
+    skill_specialties dict from scratch and silently drop them — this test
+    exercises _merge_cc_specialties directly the way _do_patch calls it
+    before _apply_patch."""
+    data = {
+        'skills': {'firearms': 3, 'stealth': 2},
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+    }
+    _merge_cc_specialties(data)
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Stealth', 'Shadowing', 1)
+    assert patched is True
+    assert data['skill_specialties'] == {
+        'firearms': ['Quickdraw'],
+        'stealth': ['Shadowing'],
+    }
