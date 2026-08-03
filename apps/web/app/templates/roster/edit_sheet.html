@@ -83,6 +83,47 @@
         </div>
         {% endif %}
 
+        {% if draft %}
+        <div class="card border-secondary mb-3">
+            <div class="card-header py-2">
+                <small class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">
+                    <i class="bi bi-stars"></i> Skill Specialties
+                </small>
+            </div>
+            <div class="card-body">
+                {% if skill_specialties %}
+                <ul class="list-unstyled mb-3" style="font-size:0.85rem;">
+                    {% for skill, specs in skill_specialties.items() %}
+                        {% for spec in specs %}
+                        <li class="d-flex justify-content-between align-items-center mb-1">
+                            <span><strong>{{ skill|capitalize }}</strong>: {{ spec }}</span>
+                            <form method="POST" action="{{ url_for('roster.edit_skill_specialty', name=char.character_name) }}" class="d-inline">
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="skill" value="{{ skill }}">
+                                <input type="hidden" name="specialty" value="{{ spec }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-3" style="font-size:0.85rem;">No specialties on file.</p>
+                {% endif %}
+                <form method="POST" action="{{ url_for('roster.edit_skill_specialty', name=char.character_name) }}" class="d-flex flex-column gap-2">
+                    <input type="hidden" name="action" value="add">
+                    <input type="text" name="skill" class="form-control form-control-sm" placeholder="Skill (e.g. Firearms)" required>
+                    <input type="text" name="specialty" class="form-control form-control-sm" placeholder="Specialty (e.g. Quickdraw)" required>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-plus"></i> Add Specialty
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card border-info">
             <div class="card-header bg-info bg-opacity-10 py-2">
                 <h6 class="mb-0"><i class="bi bi-info-circle"></i> Key Fields</h6>

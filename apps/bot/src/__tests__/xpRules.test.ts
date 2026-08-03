@@ -11,6 +11,7 @@ describe('xpRules', () => {
     expect(calculateXpCost('New Skill', 0, 1)).toBe(3);
     expect(calculateXpCost('Advantage (Merit/Background)', 3, 4)).toBe(3);
     expect(calculateXpCost('Loresheet', 0, 3)).toBe(9);
+    expect(calculateXpCost('Skill Specialty', 0, 1)).toBe(3);
   });
 
   it('validates player submitted costs', () => {

@@ -538,6 +538,18 @@ def submit_spend(name):
         flash(f'{subcategory_label} is required for {trait_name}.', 'danger')
         return redirect(url_for('player.character', name=name))
 
+    if spend_category == 'Skill Specialty':
+        from app.character_sheet import character_has_specialty, character_skill_rating
+        if not power_name:
+            flash('A specialty name is required.', 'danger')
+            return redirect(url_for('player.character', name=name))
+        if character_skill_rating(name, trait_name) < 1:
+            flash(f'{trait_name} must be rated at least 1 to buy a specialty in it.', 'danger')
+            return redirect(url_for('player.character', name=name))
+        if character_has_specialty(name, trait_name, power_name):
+            flash(f'{trait_name} already has a "{power_name}" specialty.', 'danger')
+            return redirect(url_for('player.character', name=name))
+
     try:
         current_dots = int(request.form.get('current_dots', 0))
         new_dots = int(request.form.get('new_dots', 1))
@@ -1019,20 +1031,8 @@ def _normalize_sheet_data(data: dict) -> dict:
     Always produces skill_specialties (dict) and convictions (list) so
     templates have one format to handle.
     """
-    if 'skill_specialties' not in data:
-        cc_specs = list(data.get('skillSpecialties') or [])
-        predator = data.get('predatorType')
-        if isinstance(predator, dict):
-            cc_specs = cc_specs + list(predator.get('pickedSpecialties') or [])
-        merged: dict[str, list[str]] = {}
-        for item in cc_specs:
-            if isinstance(item, dict):
-                skill = item.get('skill', '').replace(' ', '_')
-                name = item.get('name', '').strip()
-                if skill and name:
-                    merged.setdefault(skill, []).append(name)
-        if merged:
-            data['skill_specialties'] = merged
+    from app.character_sheet import _merge_cc_specialties
+    _merge_cc_specialties(data)
 
     if not data.get('convictions'):
         conv_from_ts = [

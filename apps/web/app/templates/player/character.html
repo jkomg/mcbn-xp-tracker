@@ -682,6 +682,9 @@
                             <label for="trait_name" class="form-label fw-bold">Trait Name</label>
                             <input type="text" class="form-control" name="trait_name" id="trait_name"
                                    placeholder="e.g., Strength, Dominate, Allies" required>
+                            <!-- Populated by JS with skills rated >= 1 when Skill Specialty is
+                                 selected — client-side convenience only, server-side is the gate. -->
+                            <datalist id="specialty-skill-options"></datalist>
                         </div>
 
                         <!-- Power Name (discipline spends) / Faction-Group (Status advantage) -->
@@ -1300,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Loresheet':                   { level_mult: 3, min: 0, max: 5 },
         'Ghoul Discipline':            { flat: 10, min: 0, max: 1 },
         'Humanity':                    { multiplier: 2, min: 1, max: 10 },
+        'Skill Specialty':             { flat: 3, min: 0, max: 1 },
     };
 
     function calcCost() {
@@ -1405,6 +1409,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const traitLower = traitNameInput ? traitNameInput.value.trim().toLowerCase() : '';
         const subcategoryLabel = (cat === 'Advantage (Merit/Background)') ? SUBCATEGORY_ADVANTAGES[traitLower] : undefined;
         const needsSubcategory = !!subcategoryLabel;
+        // Skill Specialty also shares the power_name field (for the specialty
+        // name), gated by category alone rather than a trait-name lookup —
+        // the skill name in Trait Name varies freely, unlike the fixed
+        // SUBCATEGORY_ADVANTAGES trigger set. Mirrors subcategory_label_for_trait
+        // in character_sheet.py.
+        const needsSpecialty = cat === 'Skill Specialty';
         if (powerNameGroup) {
             if (needsPowerName) {
                 powerNameGroup.classList.remove('d-none');
@@ -1418,12 +1428,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     'e.g., Tremere, Anarch Movement, Cult of Set',
                     'Enter which faction, clan, cult, or group this Status applies to.');
                 if (powerNameInput) powerNameInput.required = true;
+            } else if (needsSpecialty) {
+                powerNameGroup.classList.remove('d-none');
+                setPowerNameLabel('Specialty Name', '',
+                    'e.g., Quickdraw, Interrogation, Hot-Wiring',
+                    'Enter the specialty name. The skill in Trait Name must already be rated at least 1.');
+                if (powerNameInput) powerNameInput.required = true;
             } else {
                 powerNameGroup.classList.add('d-none');
                 if (powerNameInput) {
                     powerNameInput.required = false;
                     powerNameInput.value = '';
                 }
+            }
+        }
+
+        // Skill Specialty: constrain Trait Name to skills rated >= 1 via a
+        // datalist (client-side convenience only — the real gate is
+        // server-side in submit_spend, since a client-supplied rating can't
+        // be trusted).
+        if (traitNameInput) {
+            if (needsSpecialty) {
+                traitNameInput.setAttribute('list', 'specialty-skill-options');
+                populateSpecialtySkillOptions();
+            } else {
+                traitNameInput.removeAttribute('list');
             }
         }
 
@@ -1437,6 +1466,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 traitNameInput.readOnly = false;
             }
         }
+    }
+
+    function populateSpecialtySkillOptions() {
+        const datalist = document.getElementById('specialty-skill-options');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        const skills = (SHEET_DATA && SHEET_DATA.skills) || {};
+        Object.keys(skills).forEach(function(key) {
+            if ((skills[key] || 0) >= 1) {
+                const opt = document.createElement('option');
+                opt.value = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                datalist.appendChild(opt);
+            }
+        });
     }
 
     // ═══ Living Sheet — pre-fill current dots from imported sheet data ═══
