@@ -40,7 +40,6 @@ import { memberHasAnyRole, requiredRoleIds } from './services/roleGate';
 import {
   handleApproveWizardStringSelect,
   handleApproveWizardButton,
-  handleApproveNameModal,
   isApproveWizardButton,
 } from './approveWizard';
 import {
@@ -629,11 +628,6 @@ void applyStartupConfigOverrides().then(() => {
     }
 
     if (interaction.isModalSubmit()) {
-      const approveNameHandled = await handleApproveNameModal(interaction, { client, adapter });
-      if (approveNameHandled) {
-        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
-        return;
-      }
       const updateHandled = await handleUpdateModal(interaction);
       if (updateHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
