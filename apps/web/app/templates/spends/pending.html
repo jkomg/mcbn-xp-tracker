@@ -42,14 +42,14 @@
     {% set valid = r.validation.matches %}
     {% set blocked = r.depends_on_spend and r.depends_on_spend.status|lower == 'pending' %}
     <div>
-      <div style="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);">
         <input type="checkbox" name="spend_ids" value="{{ spend.row_index }}" form="bulk-spend-form" class="dp-checkbox spend-checkbox" {% if blocked %}disabled{% endif %}>
         <div class="dp-urgency-bar {% if r.days >= 5 %}dp-urgency-bar--high{% elif r.days >= 3 %}dp-urgency-bar--med{% else %}dp-urgency-bar--low{% endif %}"></div>
-        <div style="width:150px;flex-shrink:0;font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ spend.character_name }}</div>
-        <div style="width:170px;flex-shrink:0;font-size:12.5px;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        <div style="flex:0 1 150px;min-width:90px;font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ spend.character_name }}</div>
+        <div style="flex:0 1 170px;min-width:110px;font-size:12.5px;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {{ spend.trait_name }} <span style="color:var(--text-faint);">({{ spend.current_dots }}→{{ spend.new_dots }})</span>
         </div>
-        <div style="width:85px;flex-shrink:0;">
+        <div style="flex-shrink:0;">
           <span class="dp-pill {{ 'dp-pill--green' if valid else 'dp-pill--amber' }}">{{ '✓ Valid' if valid else '⚠ Mismatch' }}</span>
         </div>
         {% if r.depends_on_spend %}
