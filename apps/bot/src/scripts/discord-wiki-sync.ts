@@ -50,6 +50,7 @@ import {
   wikiSlug,
 } from './notionSync/wikiSyncHelpers';
 import { WebWikiClient } from './notionSync/webWikiClient';
+import { errorToMessage } from '../logger';
 
 // ---------------------------------------------------------------------------
 // Public API — call this from the bot process or from the CLI
@@ -73,7 +74,7 @@ export async function runWikiSync(opts: WikiSyncOptions): Promise<{ success: boo
     await main(opts);
     return { success: true };
   } catch (err) {
-    return { success: false, error: String(err) };
+    return { success: false, error: errorToMessage(err) };
   }
 }
 

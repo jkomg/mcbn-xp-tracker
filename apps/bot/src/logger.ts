@@ -37,6 +37,16 @@ export function logEvent(level: LogLevel, event: string, context: Record<string,
 
 export function errorToMessage(error: unknown): string {
   if (error instanceof Error) {
+    // Node's fetch (undici) always throws a generic "TypeError: fetch
+    // failed" for any connection-level failure (DNS, connection refused,
+    // TLS, connect timeout) — the actual reason lives in .cause and was
+    // previously dropped, making every network error indistinguishable in
+    // logs. cause can itself be an Error or an arbitrary value.
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause !== undefined) {
+      const causeMessage = cause instanceof Error ? cause.message : String(cause);
+      return `${error.message} (${causeMessage})`;
+    }
     return error.message;
   }
   return String(error);
