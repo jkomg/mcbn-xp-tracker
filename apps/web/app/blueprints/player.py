@@ -1031,20 +1031,8 @@ def _normalize_sheet_data(data: dict) -> dict:
     Always produces skill_specialties (dict) and convictions (list) so
     templates have one format to handle.
     """
-    if 'skill_specialties' not in data:
-        cc_specs = list(data.get('skillSpecialties') or [])
-        predator = data.get('predatorType')
-        if isinstance(predator, dict):
-            cc_specs = cc_specs + list(predator.get('pickedSpecialties') or [])
-        merged: dict[str, list[str]] = {}
-        for item in cc_specs:
-            if isinstance(item, dict):
-                skill = item.get('skill', '').replace(' ', '_')
-                name = item.get('name', '').strip()
-                if skill and name:
-                    merged.setdefault(skill, []).append(name)
-        if merged:
-            data['skill_specialties'] = merged
+    from app.character_sheet import _merge_cc_specialties
+    _merge_cc_specialties(data)
 
     if not data.get('convictions'):
         conv_from_ts = [

@@ -7,6 +7,8 @@ import app as app_module
 from app.character_sheet import (
     _apply_patch,
     _apply_reverse_patch,
+    _merge_cc_specialties,
+    _normalize_skill_key,
     character_has_specialty,
     character_skill_rating,
     find_trait_sheet_match,
@@ -402,3 +404,112 @@ def test_character_has_specialty_false_when_absent(app_ctx):
 def test_subcategory_label_for_trait_specialty_for_skill_specialty_category():
     assert subcategory_label_for_trait('Firearms', _SKILL_SPECIALTY) == 'Specialty'
     assert subcategory_label_for_trait('Anything', _SKILL_SPECIALTY) == 'Specialty'
+
+
+# ── _normalize_skill_key (Codex P2: multiword skills like Animal Ken) ──────
+
+
+def test_normalize_skill_key_lowercases():
+    assert _normalize_skill_key('Firearms') == 'firearms'
+
+
+def test_normalize_skill_key_collapses_spaces_to_underscore():
+    assert _normalize_skill_key('Animal Ken') == 'animal_ken'
+    assert _normalize_skill_key('animal ken') == 'animal_ken'
+    assert _normalize_skill_key('  Animal   Ken  ') == 'animal_ken'
+
+
+def test_normalize_skill_key_blank():
+    assert _normalize_skill_key('') == ''
+    assert _normalize_skill_key(None) == ''
+
+
+def test_character_skill_rating_multiword_skill(app_ctx):
+    """Regression test: a plain .lower() with no space handling would look
+    up 'animal ken' against a sheet keyed 'animal_ken' and always miss."""
+    _seed_approved_character('Beast Whisperer', {'skills': {'animal_ken': 3}})
+    assert character_skill_rating('Beast Whisperer', 'Animal Ken') == 3
+
+
+def test_apply_patch_specialty_multiword_skill_matches_rating_key():
+    """The Skill Specialty patch branch must key skill_specialties the same
+    way the sheet's skills dict and player/sheet.html's fixed key lists do
+    ('animal_ken'), or a purchased specialty would be stored under a key the
+    sheet template never looks at."""
+    data = {'skills': {'animal_ken': 2}, 'skill_specialties': {}}
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Animal Ken', 'Big Cats', 1)
+    assert patched is True
+    assert data['skill_specialties']['animal_ken'] == ['Big Cats']
+
+
+# ── _merge_cc_specialties (Codex P1: CC-format skillSpecialties list) ──────
+
+
+def test_merge_cc_specialties_populates_from_cc_list():
+    data = {'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}]}
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Quickdraw']}
+
+
+def test_merge_cc_specialties_multiword_skill_normalized():
+    data = {'skillSpecialties': [{'skill': 'Animal Ken', 'name': 'Big Cats'}]}
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'animal_ken': ['Big Cats']}
+
+
+def test_merge_cc_specialties_includes_predator_type_picks():
+    data = {
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+        'predatorType': {'pickedSpecialties': [{'skill': 'Stealth', 'name': 'Shadowing'}]},
+    }
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Quickdraw'], 'stealth': ['Shadowing']}
+
+
+def test_merge_cc_specialties_noop_when_skill_specialties_already_present():
+    """Once skill_specialties exists (e.g. from a RoD import or a prior
+    patch), the CC list is never consulted again — this is the existing,
+    intentional guard in player.py's _normalize_sheet_data."""
+    data = {
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+        'skill_specialties': {'firearms': ['Already Here']},
+    }
+    _merge_cc_specialties(data)
+    assert data['skill_specialties'] == {'firearms': ['Already Here']}
+
+
+def test_merge_cc_specialties_noop_when_no_cc_data():
+    data = {'skills': {'firearms': 2}}
+    _merge_cc_specialties(data)
+    assert 'skill_specialties' not in data
+
+
+def test_character_has_specialty_sees_cc_format_specialty(app_ctx):
+    """Regression test for the Codex P1 finding: without merging CC-format
+    specialties, a character whose specialty only exists as
+    skillSpecialties: [{skill, name}] would look unspecialized, letting the
+    same specialty be purchased again."""
+    _seed_approved_character('CC Imported Casey', {
+        'skills': {'firearms': 3},
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+    })
+    assert character_has_specialty('CC Imported Casey', 'Firearms', 'Quickdraw') is True
+
+
+def test_apply_patch_preserves_cc_specialties_when_adding_new_one():
+    """Regression test for the Codex P1 finding: patching a new specialty
+    onto a sheet that already has CC-format specialties must not create a
+    skill_specialties dict from scratch and silently drop them — this test
+    exercises _merge_cc_specialties directly the way _do_patch calls it
+    before _apply_patch."""
+    data = {
+        'skills': {'firearms': 3, 'stealth': 2},
+        'skillSpecialties': [{'skill': 'Firearms', 'name': 'Quickdraw'}],
+    }
+    _merge_cc_specialties(data)
+    patched = _apply_patch(data, _SKILL_SPECIALTY, 'Stealth', 'Shadowing', 1)
+    assert patched is True
+    assert data['skill_specialties'] == {
+        'firearms': ['Quickdraw'],
+        'stealth': ['Shadowing'],
+    }
