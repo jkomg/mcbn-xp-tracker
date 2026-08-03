@@ -910,12 +910,14 @@ def edit_sheet(name):
     ).first()
 
     if request.method == 'GET':
-        sheet_json = json.dumps(json.loads(draft.character_data), indent=2) if draft else ''
+        sheet_data = json.loads(draft.character_data) if draft else {}
+        sheet_json = json.dumps(sheet_data, indent=2) if draft else ''
         return render_template(
             'roster/edit_sheet.html',
             char=char,
             draft=draft,
             sheet_json=sheet_json,
+            skill_specialties=sheet_data.get('skill_specialties', {}),
         )
 
     action = request.form.get('action', 'save')
@@ -975,3 +977,69 @@ def edit_sheet(name):
     db.session.commit()
     flash('Character sheet saved.', 'success')
     return redirect(url_for('roster.detail', name=name))
+
+
+@bp.route('/<name>/skill-specialty', methods=['POST'])
+@require_staff
+def edit_skill_specialty(name):
+    """Staff: directly add or remove a skill specialty on the living sheet.
+
+    No XP is charged and no spend-request row is created — this is a direct
+    administrative correction, the same trust tier as the raw sheet-JSON
+    editor above, not a player-facing purchase shortcut.
+    """
+    char_row = DbCharacter.query.filter(DbCharacter.character_name.ilike(name)).first()
+    if not char_row:
+        abort(404)
+
+    draft = CharacterDraft.query.filter_by(
+        roster_character_id=char_row.id,
+        status='approved',
+    ).first()
+    if not draft or not draft.character_data:
+        flash('No living sheet exists for this character yet.', 'danger')
+        return redirect(url_for('roster.edit_sheet', name=name))
+
+    action = request.form.get('action', '').strip()
+    skill = request.form.get('skill', '').strip()
+    specialty = request.form.get('specialty', '').strip()
+
+    if action not in ('add', 'remove') or not skill or not specialty:
+        flash('Skill and specialty name are required.', 'danger')
+        return redirect(url_for('roster.edit_sheet', name=name))
+
+    try:
+        data = json.loads(draft.character_data)
+    except (json.JSONDecodeError, TypeError):
+        flash('Living sheet JSON is invalid; fix it in the editor first.', 'danger')
+        return redirect(url_for('roster.edit_sheet', name=name))
+
+    skill_key = skill.lower()
+    specialties = data.setdefault('skill_specialties', {}).setdefault(skill_key, [])
+    staff = get_staff_user()
+
+    if action == 'add':
+        if any((s or '').strip().lower() == specialty.lower() for s in specialties):
+            flash(f'{skill} already has a "{specialty}" specialty.', 'danger')
+            return redirect(url_for('roster.edit_sheet', name=name))
+        specialties.append(specialty)
+        details = f'Staff added specialty "{specialty}" to {skill}'
+    else:
+        match = next((s for s in specialties if (s or '').strip().lower() == specialty.lower()), None)
+        if match is None:
+            flash(f'{skill} has no "{specialty}" specialty to remove.', 'danger')
+            return redirect(url_for('roster.edit_sheet', name=name))
+        specialties.remove(match)
+        details = f'Staff removed specialty "{specialty}" from {skill}'
+
+    draft.character_data = json.dumps(data)
+    draft.updated_at = datetime.now(timezone.utc)
+    db_service.log_action(
+        staff_user=staff,
+        action_type='staff_skill_specialty_edit',
+        target=name,
+        details=details,
+    )
+    db.session.commit()
+    flash(details + '.', 'success')
+    return redirect(url_for('roster.edit_sheet', name=name))

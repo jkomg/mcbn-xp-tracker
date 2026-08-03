@@ -10,6 +10,7 @@ from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
 from app.character_sheet import (
     patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
+    character_has_specialty,
 )
 
 bp = Blueprint('spends', __name__)
@@ -173,6 +174,23 @@ def approve(row_id):
         flash(
             f'Cannot approve — insufficient XP. {spend.character_name} has '
             f'{available_xp} XP available, this costs {verified_cost} XP.',
+            'danger',
+        )
+        return redirect(url_for('spends.review', row_id=row_id))
+
+    # Two identical Skill Specialty requests can both pass submit_spend's
+    # duplicate check if submitted before either is approved (neither sheet
+    # has the specialty yet). Re-check live, right before charging, so the
+    # second approval is rejected instead of silently charging XP for a
+    # patch that will no-op (character_sheet.py's staleness/duplicate guard).
+    if (
+        spend.spend_category == 'Skill Specialty'
+        and character_has_specialty(spend.character_name, spend.trait_name, spend.power_name)
+    ):
+        flash(
+            f'Cannot approve — {spend.character_name} already has a '
+            f'"{spend.power_name}" specialty in {spend.trait_name}. '
+            'This looks like a duplicate of an already-approved request.',
             'danger',
         )
         return redirect(url_for('spends.review', row_id=row_id))
@@ -392,6 +410,20 @@ def bulk_approve():
             skipped.append(
                 f'{spend.character_name} / {spend.trait_name} '
                 f'(insufficient XP: has {available_xp}, needs {verified_cost})'
+            )
+            continue
+
+        # Same re-check as the single-approve path: two identical Skill
+        # Specialty requests can both pass submit_spend's duplicate check
+        # before either is approved, so re-validate live right before
+        # charging rather than trusting the submit-time check still holds.
+        if (
+            spend.spend_category == 'Skill Specialty'
+            and character_has_specialty(spend.character_name, spend.trait_name, spend.power_name)
+        ):
+            skipped.append(
+                f'{spend.character_name} / {spend.trait_name} '
+                f'(duplicate "{spend.power_name}" specialty — already approved elsewhere)'
             )
             continue
 
