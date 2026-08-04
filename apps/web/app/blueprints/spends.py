@@ -140,6 +140,29 @@ def approve(row_id):
     original_trait_name = spend.trait_name
     corrected_trait_name = request.form.get('trait_name', '').strip()[:100]
     if corrected_trait_name and corrected_trait_name != spend.trait_name:
+        # The corrected name must refer to a trait currently at
+        # spend.current_dots — otherwise this spend's submitted dot range
+        # (and the XP cost derived from it) no longer describes the entry
+        # being patched. e.g. selecting a level-3 "Retainer (Bob)" for a
+        # submitted 1→2 spend would charge for 1→2 while patch_character_draft
+        # unconditionally sets that entry to new_dots, silently lowering it.
+        sheet_match = find_trait_sheet_match(
+            spend.character_name, spend.spend_category, original_trait_name, spend.power_name,
+        )
+        matched_entry = next(
+            (m for m in (sheet_match or {}).get('close_matches', [])
+             if m.get('name') == corrected_trait_name),
+            None,
+        )
+        if matched_entry and matched_entry.get('level') != spend.current_dots:
+            flash(
+                f'Cannot approve — "{corrected_trait_name}" is currently at '
+                f'{matched_entry.get("level")} dots on the sheet, not '
+                f'{spend.current_dots}. Correct the submitted dot range or '
+                'choose the right match.',
+                'danger',
+            )
+            return redirect(url_for('spends.review', row_id=row_id))
         spend.trait_name = corrected_trait_name
     else:
         corrected_trait_name = None  # signal to approve_spend: no rename needed
@@ -234,6 +257,7 @@ def approve(row_id):
             verified_cost=verified_cost,
             reviewer=staff,
             notes=notes,
+            original_trait_name=original_trait_name,
         )
         sheets_sync.sync_log_action(
             staff_user=staff,
