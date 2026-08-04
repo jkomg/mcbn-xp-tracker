@@ -65,7 +65,7 @@ def fetch_monthly_gcp_costs(config, months: int = 12) -> list[dict]:
                SUM(cost) + SUM((SELECT COALESCE(SUM(c.amount), 0)
                                 FROM UNNEST(credits) AS c)) AS net_cost
         FROM `{table}`
-        WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {int(months)} MONTH)
+        WHERE DATE(usage_start_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL {int(months)} MONTH)
         GROUP BY month
         ORDER BY month
     """
