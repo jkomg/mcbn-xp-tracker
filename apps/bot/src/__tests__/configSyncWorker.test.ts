@@ -35,6 +35,7 @@ vi.mock('../config', () => ({
 
 vi.mock('../logger', () => ({
   logEvent: vi.fn(),
+  errorToMessage: (err: unknown) => String(err),
 }));
 
 vi.mock('../scripts/discord-wiki-sync', () => ({

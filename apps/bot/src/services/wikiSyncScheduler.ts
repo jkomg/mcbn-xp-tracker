@@ -161,7 +161,7 @@ export class WikiSyncScheduler {
       }
     } catch (error) {
       logEvent('warn', 'wiki_sync_scheduler_error', { error: errorToMessage(error) });
-      try { await this.adapter.ackWikiSync('error', String(error), 'scheduled', runId); } catch { /* ignore */ }
+      try { await this.adapter.ackWikiSync('error', errorToMessage(error), 'scheduled', runId); } catch { /* ignore */ }
     } finally {
       lease?.release();
       this.running = false;

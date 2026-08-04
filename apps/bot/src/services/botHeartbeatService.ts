@@ -1,4 +1,4 @@
-import { logEvent } from '../logger';
+import { errorToMessage, logEvent } from '../logger';
 import { liveConfig } from '../liveConfig';
 import type { TrackerAdapter } from './adapter';
 
@@ -27,7 +27,7 @@ export class BotHeartbeatService {
         ...this.staticState,
       });
     } catch (err) {
-      logEvent('warn', 'heartbeat_failed', { error: String(err) });
+      logEvent('warn', 'heartbeat_failed', { error: errorToMessage(err) });
     }
   }
 

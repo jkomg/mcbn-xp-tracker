@@ -1,5 +1,5 @@
 import { liveConfig } from '../liveConfig';
-import { logEvent } from '../logger';
+import { errorToMessage, logEvent } from '../logger';
 import { config } from '../config';
 import { randomUUID } from 'node:crypto';
 import type { TrackerAdapter } from './adapter';
@@ -97,7 +97,7 @@ export class ConfigSyncWorker {
           await this.adapter.ackBotRestart();
           process.exit(0);
         } catch (ackErr) {
-          logEvent('warn', 'config_sync_restart_ack_failed_skipping_exit', { error: String(ackErr) });
+          logEvent('warn', 'config_sync_restart_ack_failed_skipping_exit', { error: errorToMessage(ackErr) });
         }
       }
 
@@ -105,7 +105,7 @@ export class ConfigSyncWorker {
         void this.runWikiSyncBackground();
       }
     } catch (err) {
-      logEvent('warn', 'config_sync_failed', { error: String(err) });
+      logEvent('warn', 'config_sync_failed', { error: errorToMessage(err) });
     }
   }
 
@@ -126,7 +126,7 @@ export class ConfigSyncWorker {
     try {
       await this.adapter.ackWikiSync('running', undefined, 'manual', runId);
     } catch (err) {
-      logEvent('warn', 'wiki_sync_ack_running_failed', { error: String(err) });
+      logEvent('warn', 'wiki_sync_ack_running_failed', { error: errorToMessage(err) });
       lease.release();
       this.wikiSyncRunning = false;
       return;
@@ -147,8 +147,8 @@ export class ConfigSyncWorker {
         await this.adapter.ackWikiSync('error', result.error, 'manual', runId);
       }
     } catch (err) {
-      logEvent('warn', 'wiki_sync_error', { error: String(err) });
-      try { await this.adapter.ackWikiSync('error', String(err), 'manual', runId); } catch { /* ignore */ }
+      logEvent('warn', 'wiki_sync_error', { error: errorToMessage(err) });
+      try { await this.adapter.ackWikiSync('error', errorToMessage(err), 'manual', runId); } catch { /* ignore */ }
     } finally {
       lease.release();
       this.wikiSyncRunning = false;
