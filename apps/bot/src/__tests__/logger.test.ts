@@ -32,4 +32,32 @@ describe('errorToMessage', () => {
     expect(errorToMessage(null)).toBe('null');
     expect(errorToMessage(undefined)).toBe('undefined');
   });
+
+  it('formats an AggregateError cause by its sub-errors, not its own empty message', () => {
+    // When a hostname resolves to multiple addresses (IPv4 + IPv6) and every
+    // connection attempt fails, Node sets fetch's TypeError.cause to an
+    // AggregateError whose own .message is empty — the real per-attempt
+    // reasons (e.g. ECONNREFUSED) live in .errors. Codex review finding on
+    // PR #400.
+    const aggregate = new AggregateError(
+      [new Error('connect ECONNREFUSED 127.0.0.1:443'), new Error('connect ECONNREFUSED ::1:443')],
+      '',
+    );
+    const err = new Error('fetch failed', { cause: aggregate });
+    expect(errorToMessage(err)).toBe(
+      'fetch failed (AggregateError: connect ECONNREFUSED 127.0.0.1:443; connect ECONNREFUSED ::1:443)',
+    );
+  });
+
+  it('formats an AggregateError with a non-empty message too', () => {
+    const aggregate = new AggregateError([new Error('ECONNREFUSED')], 'all promises rejected');
+    const err = new Error('fetch failed', { cause: aggregate });
+    expect(errorToMessage(err)).toBe('fetch failed (all promises rejected: ECONNREFUSED)');
+  });
+
+  it('formats an AggregateError with no sub-errors using just its own message', () => {
+    const aggregate = new AggregateError([], 'nothing to report');
+    const err = new Error('fetch failed', { cause: aggregate });
+    expect(errorToMessage(err)).toBe('fetch failed (nothing to report)');
+  });
 });
