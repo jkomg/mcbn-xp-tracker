@@ -180,7 +180,13 @@
                     </p>
                     <ul class="mb-0 small">
                         {% for m in sheet_match.close_matches %}
-                        <li><strong>{{ m.name }}</strong> (currently {{ m.level }})</li>
+                        <li>
+                            <strong>{{ m.name }}</strong> (currently {{ m.level }})
+                            <button type="button" class="btn btn-sm btn-outline-secondary use-match-name-btn ms-1"
+                                    data-target="trait_name" data-name="{{ m.name }}" style="font-size:11px;padding:1px 6px;">
+                                Use this name
+                            </button>
+                        </li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -194,6 +200,13 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}">
+                        {% if sheet_match and not sheet_match.exact and sheet_match.close_matches %}
+                        <div class="mb-3">
+                            <label for="trait_name" class="form-label small">Sheet Name <span class="text-muted">(fixes the close-match warning above)</span></label>
+                            <input type="text" class="form-control" id="trait_name" name="trait_name"
+                                   value="{{ spend.trait_name }}" maxlength="100">
+                        </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="verified_cost" class="form-label small">Verified Cost (XP)</label>
                             <input type="number" class="form-control" id="verified_cost"
@@ -233,4 +246,17 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.use-match-name-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const input = document.getElementById(btn.dataset.target);
+            if (input) input.value = btn.dataset.name;
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -131,6 +131,19 @@ def approve(row_id):
         flash('This spend request has already been approved.', 'warning')
         return redirect(url_for('spends.pending'))
 
+    # Staff can correct the trait name at approval time — e.g. resolving a
+    # "close match" warning (submitted as "Retainer" when the sheet already
+    # has "Retainer (Mortal Steve)") without needing to hand-edit the
+    # character's JSON afterward. Applied immediately so every downstream
+    # check/log/sync below (duplicate-specialty check, patch, audit log,
+    # Sheets mirror, flash message) sees the corrected name consistently.
+    original_trait_name = spend.trait_name
+    corrected_trait_name = request.form.get('trait_name', '').strip()[:100]
+    if corrected_trait_name and corrected_trait_name != spend.trait_name:
+        spend.trait_name = corrected_trait_name
+    else:
+        corrected_trait_name = None  # signal to approve_spend: no rename needed
+
     # Same queue-order and cost-validity guards bulk_approve() already
     # enforces — the single-spend path (both the classic review page and
     # the inline pending-queue expand panel) posted straight through
@@ -198,14 +211,15 @@ def approve(row_id):
     notes = request.form.get('notes', '')[:1000]
     staff = get_staff_user()
 
-    db_service.approve_spend(row_id, verified_cost, staff, notes)
+    db_service.approve_spend(row_id, verified_cost, staff, notes, trait_name=corrected_trait_name)
     patch_character_draft(spend)
+    rename_note = f' (renamed from "{original_trait_name}" to resolve a close-match warning)' if corrected_trait_name else ''
     db_service.log_action(
         staff_user=staff,
         action_type='approve_spend',
         target=spend.character_name,
         details=(
-            f'Approved spend: {spend.trait_name} '
+            f'Approved spend: {spend.trait_name}{rename_note} '
             f'({spend.current_dots}→{spend.new_dots}) '
             f'for {verified_cost} XP. {notes}'
         ).strip(),
