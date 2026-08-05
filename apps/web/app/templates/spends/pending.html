@@ -94,6 +94,18 @@
         <div style="display:flex;gap:20px;flex-wrap:wrap;">
           {% if not (blocked or not r.validation.valid) %}
           <form method="POST" action="{{ url_for('spends.approve', row_id=spend.row_index) }}" style="min-width:220px;flex:1;">
+            {% if r.sheet_match and not r.sheet_match.exact and r.sheet_match.close_matches %}
+            <div style="margin-bottom:8px;">
+              <label for="trait_name-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Sheet Name <span style="text-transform:none;font-weight:400;">(fixes the close-match warning above)</span></label>
+              <input type="text" class="form-control form-control-sm" id="trait_name-{{ spend.row_index }}"
+                     name="trait_name" value="{{ spend.trait_name }}" maxlength="100">
+              <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
+                {% for m in r.sheet_match.close_matches %}
+                <button type="button" class="dp-btn use-match-name-btn" data-target="trait_name-{{ spend.row_index }}" data-name="{{ m.name }}" style="font-size:11px;padding:2px 8px;">Use "{{ m.name }}"</button>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
             <div style="display:flex;gap:8px;align-items:end;margin-bottom:8px;">
               <div style="flex:1;">
                 <label for="verified_cost-{{ spend.row_index }}" class="dp-detail-label" style="display:block;margin-bottom:4px;">Verified Cost (XP)</label>
@@ -157,6 +169,13 @@ document.addEventListener('DOMContentLoaded', function () {
     bulkClear.addEventListener('click', function () {
         checkboxes.forEach(function (cb) { cb.checked = false; });
         updateBulkBar();
+    });
+
+    document.querySelectorAll('.use-match-name-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const input = document.getElementById(btn.dataset.target);
+            if (input) input.value = btn.dataset.name;
+        });
     });
 });
 </script>

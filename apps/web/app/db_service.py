@@ -741,10 +741,20 @@ class DBService:
         return _row_to_spend(row) if row else None
 
     def approve_spend(self, row_index: int, verified_cost: int,
-                      reviewer: str, notes: str = '') -> None:
+                      reviewer: str, notes: str = '', trait_name: str | None = None) -> None:
+        """Approve a spend request.
+
+        trait_name, when provided, corrects the stored trait name before the
+        sheet patch is applied — lets staff resolve a "close match" warning
+        (e.g. submitted as "Retainer" when the sheet already has "Retainer
+        (Mortal Steve)") by fixing the name at approval time instead of
+        needing to hand-edit the character's JSON afterward.
+        """
         row = db.session.get(DbSpendRequest, row_index)
         if not row:
             raise ValueError(f'Spend request not found: {row_index}')
+        if trait_name is not None:
+            row.trait_name = trait_name.strip()[:100]
         row.status = 'Approved'
         row.verified_cost = verified_cost
         row.reviewed_by = reviewer
