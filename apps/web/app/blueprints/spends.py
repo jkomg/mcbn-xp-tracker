@@ -10,7 +10,7 @@ from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
 from app.character_sheet import (
     patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
-    character_has_specialty,
+    character_has_specialty, advantage_sheet_level,
 )
 
 bp = Blueprint('spends', __name__)
@@ -146,18 +146,21 @@ def approve(row_id):
         # being patched. e.g. selecting a level-3 "Retainer (Bob)" for a
         # submitted 1→2 spend would charge for 1→2 while patch_character_draft
         # unconditionally sets that entry to new_dots, silently lowering it.
-        sheet_match = find_trait_sheet_match(
-            spend.character_name, spend.spend_category, original_trait_name, spend.power_name,
+        # Looked up the same way _apply_patch itself resolves the name
+        # (case-insensitive, against both backgrounds and merits) — not
+        # find_trait_sheet_match's close_matches, which is prefix-filtered
+        # against the *original* submitted name and can miss a casing
+        # variant or an entry outside that prefix that the patch would still
+        # find and silently overwrite.
+        matched_level = (
+            advantage_sheet_level(spend.character_name, corrected_trait_name)
+            if spend.spend_category == 'Advantage (Merit/Background)'
+            else None
         )
-        matched_entry = next(
-            (m for m in (sheet_match or {}).get('close_matches', [])
-             if m.get('name') == corrected_trait_name),
-            None,
-        )
-        if matched_entry and matched_entry.get('level') != spend.current_dots:
+        if matched_level is not None and matched_level != spend.current_dots:
             flash(
                 f'Cannot approve — "{corrected_trait_name}" is currently at '
-                f'{matched_entry.get("level")} dots on the sheet, not '
+                f'{matched_level} dots on the sheet, not '
                 f'{spend.current_dots}. Correct the submitted dot range or '
                 'choose the right match.',
                 'danger',

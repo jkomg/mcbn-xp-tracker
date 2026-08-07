@@ -206,6 +206,31 @@ def character_has_specialty(character_name: str, skill_name: str, specialty_name
     return any((s or '').strip().lower() == specialty_key for s in existing)
 
 
+def advantage_sheet_level(character_name: str, trait_name: str, power_name: str = '') -> int | None:
+    """Return the current dot level of an existing Advantage (Merit/Background)
+    entry matching trait_name/power_name, or None if there's no such entry.
+
+    Mirrors _apply_patch's own lookup exactly (same effective_name folding,
+    same case-insensitive match against both the backgrounds and merits
+    arrays) so a caller validating a name *before* patching sees precisely
+    the entry the patch would find and overwrite — a prefix-filtered check
+    like find_trait_sheet_match's close_matches can miss a casing variant or
+    an existing entry outside the submitted name's prefix.
+    """
+    data = _load_approved_sheet_data(character_name)
+    if data is None:
+        return None
+    key = _effective_advantage_name(trait_name, power_name).lower()
+    for array_name in ('backgrounds', 'merits'):
+        items = data.get(array_name)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if (item.get('name') or '').lower() == key:
+                return item.get('level')
+    return None
+
+
 def find_trait_sheet_match(
     character_name: str, category: str, trait_name: str, power_name: str = '',
 ) -> dict | None:
