@@ -88,7 +88,7 @@ const LORE_CHANNEL_NAMES = [
   'anarch-mandates',
   'hecata-notices',
   'backgrounds',            // forum
-  'children-of-the-night',  // forum
+  'player-characters',      // forum — PC profiles (formerly named "children-of-the-night")
   'retired',                // forum — processed as retired character wiki pages
   'spc-profiles',
 ];
@@ -141,7 +141,8 @@ interface PcProfile { image: string | null; markdown: string; }
 
 /**
  * Build a map of normalised character name → { image, markdown } by scanning
- * forum threads in the PC background channel (children-of-the-night).
+ * forum threads in the PC profile forum (player-characters — formerly named
+ * children-of-the-night before a server reorg renamed it).
  */
 async function buildPcProfileMap(
   rest: REST,
@@ -149,7 +150,7 @@ async function buildPcProfileMap(
   channelByName: Map<string, DiscordChannel>,
 ): Promise<Map<string, PcProfile>> {
   const map = new Map<string, PcProfile>();
-  const ch = channelByName.get('children-of-the-night');
+  const ch = channelByName.get('player-characters');
   if (!ch || ch.type !== CH_FORUM) return map;
   let threads: DiscordThread[] = [];
   try { threads = await fetchForumThreads(rest, guildId, ch.id); }
@@ -419,14 +420,14 @@ async function main(opts: WikiSyncOptions) {
   }
 
   // ------------------------------------------------------------------
-  // 5.5 Build PC profile map from #children-of-the-night forum
+  // 5.5 Build PC profile map from #player-characters forum
   // ------------------------------------------------------------------
-  console.log('\n[5.5/7] Building PC profile map from #children-of-the-night…');
+  console.log('\n[5.5/7] Building PC profile map from #player-characters…');
   const pcProfileMap = await buildPcProfileMap(rest, GUILD_ID, channelByName);
   console.log(`  Found profiles for ${pcProfileMap.size} character(s).`);
 
   // ------------------------------------------------------------------
-  // 5.6 Remove stale lore pages created from #children-of-the-night
+  // 5.6 Remove stale lore pages created from #player-characters
   //     (these were created by earlier syncs before PC profiles were
   //     merged into character pages — delete them by slug)
   // ------------------------------------------------------------------
@@ -610,10 +611,10 @@ async function main(opts: WikiSyncOptions) {
           const messages = await fetchAllMessages(rest, thread.id, 100);
           await sleep(200);
           const cover = firstImage(messages);
-          // children-of-the-night threads are PC profiles — merged into character
+          // player-characters threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
           // backgrounds forum gets its own wiki category.
-          if (chanName !== 'children-of-the-night') {
+          if (chanName !== 'player-characters') {
             const pageCategory = chanName === 'backgrounds' ? 'backgrounds' : 'lore';
             await wikiClient.upsertPage({
               slug: wikiSlug('lore', title),
