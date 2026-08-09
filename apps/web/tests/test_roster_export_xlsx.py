@@ -125,3 +125,29 @@ def test_export_respects_clan_filter():
     ws = wb.active
     names = [row[0].value for row in ws.iter_rows(min_row=2) if row[0].value]
     assert names == ['Bram Stoker']
+
+
+def test_export_neutralizes_formula_injection_in_free_text_fields():
+    """A player-supplied name/player/enemy/notes value starting with "="
+    must not open the workbook as an evaluated formula — openpyxl
+    auto-flags leading "=" strings as formulas unless forced back to
+    plain text (see export_roster_xlsx)."""
+    app = _app()
+    with app.app_context():
+        db.session.add(DbCharacter(
+            character_name='=1+1', player_discord_name='=cmd|calc',
+            clan='', age_category='', sect='', active=True, status='active',
+            creation_xp=0, enemy='=SUM(A1:A9)', date_added='', notes='=HYPERLINK("evil")',
+        ))
+        db.session.commit()
+    client = _staff_client(app)
+
+    resp = client.get('/roster/export.xlsx?show=all')
+    wb = _load_workbook(resp)
+    ws = wb.active
+    row = next(r for r in ws.iter_rows(min_row=2) if r[0].value == '=1+1')
+
+    assert row[0].data_type == 's'
+    assert row[1].value == '=cmd|calc' and row[1].data_type == 's'
+    assert row[11].value == '=SUM(A1:A9)' and row[11].data_type == 's'
+    assert row[13].value == '=HYPERLINK("evil")' and row[13].data_type == 's'

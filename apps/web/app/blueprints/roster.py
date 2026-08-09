@@ -176,6 +176,14 @@ def export_roster_xlsx():
             c.date_added or '',
             c.notes or '',
         ])
+        # openpyxl auto-flags any string cell starting with "=" as a formula
+        # (see Cell._bind_value) — character_name, player, enemy, and notes
+        # are all free text a player or staff can set to anything, so force
+        # every text cell in this row back to plain string type rather than
+        # letting Excel evaluate attacker-controlled spreadsheet formulas.
+        for cell in ws[ws.max_row]:
+            if cell.data_type == 'f':
+                cell.data_type = 's'
 
     widths = [24, 18, 14, 12, 12, 10, 11, 11, 15, 13, 14, 16, 12, 40]
     for i, width in enumerate(widths, start=1):
