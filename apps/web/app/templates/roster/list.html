@@ -5,6 +5,7 @@
   <h2>Character Roster</h2>
   <span class="dp-count-badge" style="background:rgba(255,255,255,.06);color:var(--text-muted);">{{ char_data|length }} shown</span>
   <div class="dp-head-actions">
+    <a href="{{ url_for('roster.export_roster_xlsx', show=show, clan=clan_filter, sect=sect_filter, portrait=portrait_filter) }}" class="dp-btn">Export to Excel</a>
     <a href="{{ url_for('roster.import_csv') }}" class="dp-btn">Import CSV</a>
     <a href="{{ url_for('roster.add_form') }}" class="dp-btn dp-btn--accent" style="border-color:rgba(216,58,74,.4);background:rgba(216,58,74,.12);">+ Add Character</a>
   </div>

@@ -38,19 +38,18 @@ def _parse_creation_xp(raw_value: str | None) -> int:
     return int(value)
 
 
-@bp.route('/')
-@require_staff
-def list_characters():
-    """List all characters with filtering."""
+def _filtered_roster(show: str, clan_filter: str, sect_filter: str, portrait_filter: str) -> list[dict]:
+    """Shared filtering behind the roster list page and its Excel export, so
+    exporting always matches exactly what staff currently see on-screen.
+
+    Returns dicts with keys: char, dashboard (full get_dashboard_data() row),
+    portrait ('yes' | 'no' | 'none').
+    """
     from app.db import WikiPage
-    show = request.args.get('show', 'active')  # active, inactive, all
-    clan_filter = request.args.get('clan', request.args.get('clan_filter', ''))
-    sect_filter = request.args.get('sect', request.args.get('sect_filter', ''))
-    portrait_filter = request.args.get('portrait', '')  # '' | 'missing'
 
     characters = db_service.get_all_characters()
-    xp_by_character = {
-        row['character_name'].lower(): row['available_xp']
+    dashboard_by_name = {
+        row['character_name'].lower(): row
         for row in db_service.get_dashboard_data()
     }
 
@@ -77,13 +76,34 @@ def list_characters():
         characters = [c for c in characters
                       if _portrait_status(c.character_name) != 'yes']
 
-    char_data = []
-    for c in characters:
-        char_data.append({
+    return [
+        {
             'char': c,
-            'available_xp': xp_by_character.get(c.character_name.lower(), 0),
+            'dashboard': dashboard_by_name.get(c.character_name.lower(), {}),
             'portrait': _portrait_status(c.character_name),
-        })
+        }
+        for c in characters
+    ]
+
+
+@bp.route('/')
+@require_staff
+def list_characters():
+    """List all characters with filtering."""
+    show = request.args.get('show', 'active')  # active, inactive, all
+    clan_filter = request.args.get('clan', request.args.get('clan_filter', ''))
+    sect_filter = request.args.get('sect', request.args.get('sect_filter', ''))
+    portrait_filter = request.args.get('portrait', '')  # '' | 'missing'
+
+    rows = _filtered_roster(show, clan_filter, sect_filter, portrait_filter)
+    char_data = [
+        {
+            'char': row['char'],
+            'available_xp': row['dashboard'].get('available_xp', 0),
+            'portrait': row['portrait'],
+        }
+        for row in rows
+    ]
 
     return render_template(
         'roster/list.html',
@@ -94,6 +114,90 @@ def list_characters():
         portrait_filter=portrait_filter,
         clans=CLANS,
         sects=SECTS,
+    )
+
+
+@bp.route('/export.xlsx')
+@require_staff
+def export_roster_xlsx():
+    """Download the (optionally filtered) roster as an Excel workbook.
+
+    Honors the same show/clan/sect/portrait query params as the list page,
+    so exporting from a filtered view exports exactly what's on screen.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+
+    show = request.args.get('show', 'active')
+    clan_filter = request.args.get('clan', '')
+    sect_filter = request.args.get('sect', '')
+    portrait_filter = request.args.get('portrait', '')
+
+    rows = _filtered_roster(show, clan_filter, sect_filter, portrait_filter)
+    rows.sort(key=lambda r: r['char'].character_name.lower())
+
+    headers = [
+        'Character Name', 'Player', 'Clan', 'Age Category', 'Sect', 'Status',
+        'Creation XP', 'Earned XP', 'Approved Spends', 'Available XP',
+        'Portrait', 'Enemy', 'Date Added', 'Notes',
+    ]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Roster'
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    ws.freeze_panes = 'A2'
+
+    for row in rows:
+        c = row['char']
+        d = row['dashboard']
+        if c.status == 'deceased':
+            status = 'Deceased'
+        elif c.status == 'retired' or not c.active:
+            status = 'Retired'
+        else:
+            status = 'Active'
+        ws.append([
+            c.character_name,
+            c.player_discord_name or '',
+            c.clan or '',
+            c.age_category or '',
+            c.sect or '',
+            status,
+            d.get('creation_xp', c.creation_xp or 0),
+            d.get('earned_xp', 0),
+            d.get('approved_spends', 0),
+            d.get('available_xp', 0),
+            {'yes': 'Yes', 'no': 'No', 'none': 'No wiki page'}[row['portrait']],
+            c.enemy or '',
+            c.date_added or '',
+            c.notes or '',
+        ])
+        # openpyxl auto-flags any string cell starting with "=" as a formula
+        # (see Cell._bind_value) — character_name, player, enemy, and notes
+        # are all free text a player or staff can set to anything, so force
+        # every text cell in this row back to plain string type rather than
+        # letting Excel evaluate attacker-controlled spreadsheet formulas.
+        for cell in ws[ws.max_row]:
+            if cell.data_type == 'f':
+                cell.data_type = 's'
+
+    widths = [24, 18, 14, 12, 12, 10, 11, 11, 15, 13, 14, 16, 12, 40]
+    for i, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
+    return Response(
+        buf.getvalue(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="roster_{show}_{date_str}.xlsx"'},
     )
 
 

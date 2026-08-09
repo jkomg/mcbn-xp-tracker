@@ -12,3 +12,4 @@ gunicorn==26.*
 pytest==9.*
 pytest-cov==7.*
 Markdown==3.*
+openpyxl==3.*
