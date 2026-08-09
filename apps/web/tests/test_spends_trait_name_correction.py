@@ -180,6 +180,124 @@ def test_approve_with_blank_trait_name_field_keeps_original_name():
         assert row.trait_name == 'Iron Will'
 
 
+class _FakeSheetsSync:
+    def __init__(self):
+        self.approve_calls = []
+
+    def sync_approve_spend(self, **kwargs):
+        self.approve_calls.append(kwargs)
+
+    def sync_log_action(self, **kwargs):
+        pass
+
+
+def test_approve_with_corrected_trait_name_passes_original_name_for_sheet_matching():
+    """sync_approve_spend must be told the pre-correction name too — the
+    mirrored Sheets row is still filed under the name it was submitted as,
+    so matching on the corrected name alone would find nothing and leave a
+    stray pending row behind (see sheets_sync.sync_approve_spend)."""
+    app = _app()
+    _seed(app, {
+        'merits': [{'name': 'Retainer (Mortal Steve)', 'level': 1, 'summary': '', 'excludes': [], 'type': 'merit'}],
+    })
+    row_id = _submit(app, trait_name='Retainer', current_dots=1, new_dots=2)
+    fake_sync = _FakeSheetsSync()
+    spends_module.sheets_sync = fake_sync
+    client = _staff_client(app)
+
+    client.post(
+        f'/spends/{row_id}/approve',
+        data={'verified_cost': '3', 'trait_name': 'Retainer (Mortal Steve)'},
+    )
+
+    spends_module.sheets_sync = None
+
+    assert len(fake_sync.approve_calls) == 1
+    call = fake_sync.approve_calls[0]
+    assert call['trait_name'] == 'Retainer (Mortal Steve)'
+    assert call['original_trait_name'] == 'Retainer'
+
+
+def test_approve_without_rename_passes_matching_trait_and_original_name():
+    """No rename happened, so original_trait_name should equal trait_name —
+    sync_approve_spend must treat this as a no-op rename, not try to
+    relabel the mirrored Sheets row."""
+    app = _app()
+    _seed(app, {'merits': []})
+    row_id = _submit(app, trait_name='Iron Will', current_dots=0, new_dots=1)
+    fake_sync = _FakeSheetsSync()
+    spends_module.sheets_sync = fake_sync
+    client = _staff_client(app)
+
+    client.post(f'/spends/{row_id}/approve', data={'verified_cost': '3'})
+
+    spends_module.sheets_sync = None
+
+    assert len(fake_sync.approve_calls) == 1
+    call = fake_sync.approve_calls[0]
+    assert call['trait_name'] == 'Iron Will'
+    assert call['original_trait_name'] == 'Iron Will'
+
+
+def test_approve_with_corrected_trait_name_rejects_mismatched_level():
+    """The matched sheet entry must currently be at spend.current_dots — a
+    level-3 "Retainer (Bob)" can't stand in for a submitted 1->2 spend,
+    since approving would charge for 1->2 while silently dropping the
+    existing entry from 3 to 2."""
+    app = _app()
+    _seed(app, {
+        'merits': [{'name': 'Retainer (Bob)', 'level': 3, 'summary': '', 'excludes': [], 'type': 'merit'}],
+    })
+    row_id = _submit(app, trait_name='Retainer', current_dots=1, new_dots=2)
+    client = _staff_client(app)
+
+    resp = client.post(
+        f'/spends/{row_id}/approve',
+        data={'verified_cost': '3', 'trait_name': 'Retainer (Bob)'},
+    )
+    assert resp.status_code == 302
+
+    with app.app_context():
+        row = DbSpendRequest.query.get(row_id)
+        assert row.status == 'Pending'
+        assert row.trait_name == 'Retainer'
+
+    data = _sheet_data(app)
+    assert data['merits'] == [
+        {'name': 'Retainer (Bob)', 'level': 3, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+
+def test_approve_with_casing_variant_correction_rejects_mismatched_level():
+    """A casing variant of an existing entry's name isn't picked up by
+    find_trait_sheet_match's prefix-filtered close_matches (it only surfaces
+    entries starting with the *original* submitted name), but _apply_patch
+    still matches it case-insensitively and would silently overwrite it —
+    so the level check must catch this case too, not just exact-cased
+    close-match suggestions."""
+    app = _app()
+    _seed(app, {
+        'merits': [{'name': 'Retainer (Bob)', 'level': 3, 'summary': '', 'excludes': [], 'type': 'merit'}],
+    })
+    row_id = _submit(app, trait_name='Retainer', current_dots=1, new_dots=2)
+    client = _staff_client(app)
+
+    resp = client.post(
+        f'/spends/{row_id}/approve',
+        data={'verified_cost': '3', 'trait_name': 'retainer (bob)'},
+    )
+    assert resp.status_code == 302
+
+    with app.app_context():
+        row = DbSpendRequest.query.get(row_id)
+        assert row.status == 'Pending'
+
+    data = _sheet_data(app)
+    assert data['merits'] == [
+        {'name': 'Retainer (Bob)', 'level': 3, 'summary': '', 'excludes': [], 'type': 'merit'},
+    ]
+
+
 def test_approve_with_same_trait_name_is_a_no_op_rename():
     """Submitting trait_name identical to the current value shouldn't log a
     spurious rename note."""

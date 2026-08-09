@@ -817,9 +817,18 @@ class SheetsClient:
         return None
 
     def approve_spend(self, row_index: int, verified_cost: int,
-                      reviewer: str, notes: str = '') -> None:
+                      reviewer: str, notes: str = '',
+                      trait_name: str | None = None) -> None:
         ws = self._ws(TAB_SPEND_REQUESTS)
         row_num = row_index + 2
+
+        if trait_name:
+            trait_col = SPEND_REQUESTS_HEADERS.index('trait_name') + 1
+            ws.update(
+                gspread.utils.rowcol_to_a1(row_num, trait_col),
+                [[trait_name]],
+                value_input_option='RAW',
+            )
 
         status_col = SPEND_REQUESTS_HEADERS.index('status') + 1
         end_col = status_col + 4
