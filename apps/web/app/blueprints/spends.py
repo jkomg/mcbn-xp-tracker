@@ -10,7 +10,7 @@ from app.auth import require_staff, get_staff_user
 from app.xp_rules import validate_spend_request
 from app.character_sheet import (
     patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
-    character_has_specialty,
+    character_has_specialty, advantage_sheet_level,
 )
 
 bp = Blueprint('spends', __name__)
@@ -140,6 +140,32 @@ def approve(row_id):
     original_trait_name = spend.trait_name
     corrected_trait_name = request.form.get('trait_name', '').strip()[:100]
     if corrected_trait_name and corrected_trait_name != spend.trait_name:
+        # The corrected name must refer to a trait currently at
+        # spend.current_dots — otherwise this spend's submitted dot range
+        # (and the XP cost derived from it) no longer describes the entry
+        # being patched. e.g. selecting a level-3 "Retainer (Bob)" for a
+        # submitted 1→2 spend would charge for 1→2 while patch_character_draft
+        # unconditionally sets that entry to new_dots, silently lowering it.
+        # Looked up the same way _apply_patch itself resolves the name
+        # (case-insensitive, against both backgrounds and merits) — not
+        # find_trait_sheet_match's close_matches, which is prefix-filtered
+        # against the *original* submitted name and can miss a casing
+        # variant or an entry outside that prefix that the patch would still
+        # find and silently overwrite.
+        matched_level = (
+            advantage_sheet_level(spend.character_name, corrected_trait_name)
+            if spend.spend_category == 'Advantage (Merit/Background)'
+            else None
+        )
+        if matched_level is not None and matched_level != spend.current_dots:
+            flash(
+                f'Cannot approve — "{corrected_trait_name}" is currently at '
+                f'{matched_level} dots on the sheet, not '
+                f'{spend.current_dots}. Correct the submitted dot range or '
+                'choose the right match.',
+                'danger',
+            )
+            return redirect(url_for('spends.review', row_id=row_id))
         spend.trait_name = corrected_trait_name
     else:
         corrected_trait_name = None  # signal to approve_spend: no rename needed
@@ -234,6 +260,7 @@ def approve(row_id):
             verified_cost=verified_cost,
             reviewer=staff,
             notes=notes,
+            original_trait_name=original_trait_name,
         )
         sheets_sync.sync_log_action(
             staff_user=staff,

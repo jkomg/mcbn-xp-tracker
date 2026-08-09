@@ -184,13 +184,21 @@ class SheetsSyncWorker:
 
     def sync_approve_spend(self, character_name: str, trait_name: str,
                            spend_category: str, current_dots: int, new_dots: int,
-                           verified_cost: int, reviewer: str, notes: str = '') -> None:
+                           verified_cost: int, reviewer: str, notes: str = '',
+                           original_trait_name: str | None = None) -> None:
+        # original_trait_name is the name the row was submitted/mirrored
+        # under — needed when staff renamed the trait at approval time, since
+        # the mirrored Sheets row still has the pre-correction name and won't
+        # match on the corrected trait_name.
+        match_trait_name = original_trait_name or trait_name
+        rename = trait_name if original_trait_name and original_trait_name != trait_name else None
+
         def _task():
             try:
                 match = next(
                     (s for s in self._sheets.get_all_spends()
                      if s.character_name.lower() == character_name.lower()
-                     and s.trait_name == trait_name
+                     and s.trait_name == match_trait_name
                      and s.spend_category == spend_category
                      and s.current_dots == current_dots
                      and s.new_dots == new_dots
@@ -199,9 +207,11 @@ class SheetsSyncWorker:
                 )
                 if match is None:
                     logger.warning('sheets_sync: approve_spend no match for %s / %s',
-                                   character_name, trait_name)
+                                   character_name, match_trait_name)
                     return
-                self._sheets.approve_spend(match.row_index, verified_cost, reviewer, notes)
+                self._sheets.approve_spend(
+                    match.row_index, verified_cost, reviewer, notes, trait_name=rename
+                )
             except Exception as exc:
                 logger.warning('sheets_sync_failed: approve_spend — %s', exc)
         _executor.submit(_task)
