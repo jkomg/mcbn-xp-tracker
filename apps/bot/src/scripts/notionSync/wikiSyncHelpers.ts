@@ -3,7 +3,30 @@ export type DiscordMessageForWiki = {
   author: { username: string; global_name?: string };
   timestamp: string;
   attachments?: { url: string; content_type?: string; filename: string }[];
+  embeds?: { type?: string; url?: string; image?: { url: string }; thumbnail?: { url: string } }[];
 };
+
+/**
+ * Finds the first portrait image across a thread's messages, checking both
+ * uploaded file attachments and pasted image links (which Discord turns
+ * into embeds rather than attachments — a common way players post
+ * portraits instead of uploading a file).
+ */
+export function firstImage(messages: DiscordMessageForWiki[]): string | null {
+  for (const msg of messages) {
+    for (const a of msg.attachments ?? []) {
+      if (a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename)) {
+        return a.url;
+      }
+    }
+    for (const e of msg.embeds ?? []) {
+      if (e.image?.url) return e.image.url;
+      if (e.type === 'image' && e.url) return e.url;
+      if (e.thumbnail?.url) return e.thumbnail.url;
+    }
+  }
+  return null;
+}
 
 export function slugify(text: string): string {
   return text

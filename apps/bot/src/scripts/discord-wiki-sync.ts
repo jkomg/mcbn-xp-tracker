@@ -41,9 +41,11 @@ import {
   fetchForumThreads,
   fetchGuildMember,
   fetchPins,
+  fetchThreadStarterMessage,
 } from './notionSync/discordIngest';
 import {
   FACTIONS,
+  firstImage,
   inferSpcType,
   mapDomain,
   messagesToMarkdown,
@@ -137,6 +139,20 @@ function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
+/**
+ * Portrait lookup for a thread's already-fetched recent messages, falling
+ * back to a direct fetch of the thread's opening post. fetchAllMessages
+ * pages backward from the newest message up to its limit, so a portrait
+ * posted as the original message of a thread that has since grown past
+ * that limit would otherwise never be seen.
+ */
+async function firstImageInThread(rest: REST, threadId: string, msgs: DiscordMessage[]): Promise<string | null> {
+  const found = firstImage(msgs);
+  if (found) return found;
+  const starter = await fetchThreadStarterMessage(rest, threadId);
+  return starter ? firstImage([starter]) : null;
+}
+
 interface PcProfile { image: string | null; markdown: string; }
 
 /**
@@ -159,7 +175,7 @@ async function buildPcProfileMap(
     const msgs = await fetchAllMessages(rest, thread.id, 50);
     await sleep(150);
     map.set(thread.name.toLowerCase().trim(), {
-      image: firstImage(msgs),
+      image: await firstImageInThread(rest, thread.id, msgs),
       markdown: messagesToMarkdown(msgs),
     });
   }
@@ -230,17 +246,6 @@ async function fetchCoteries(webBase: string, webReadToken: string): Promise<Api
     console.log(`  [warn] Could not reach coteries API: ${err}`);
     return [];
   }
-}
-
-function firstImage(messages: DiscordMessage[]): string | null {
-  for (const msg of messages) {
-    for (const a of msg.attachments ?? []) {
-      if (a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename)) {
-        return a.url;
-      }
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -380,7 +385,7 @@ async function main(opts: WikiSyncOptions) {
       if (!DRY_RUN) {
         const messages = await fetchAllMessages(rest, thread.id, 50);
         await sleep(200);
-        const cover = firstImage(messages);
+        const cover = await firstImageInThread(rest, thread.id, messages);
         await wikiClient.upsertPage({
           slug: wikiSlug('spcs', name),
           title: name,
@@ -565,7 +570,7 @@ async function main(opts: WikiSyncOptions) {
       const name = thread.name.trim();
       const msgs = await fetchAllMessages(rest, thread.id, 50);
       await sleep(150);
-      const image = firstImage(msgs);
+      const image = await firstImageInThread(rest, thread.id, msgs);
       const bodyMarkdown = messagesToMarkdown(msgs);
       console.log(`  → ${name}`);
       await wikiClient.upsertPage({
@@ -610,7 +615,7 @@ async function main(opts: WikiSyncOptions) {
         if (!DRY_RUN) {
           const messages = await fetchAllMessages(rest, thread.id, 100);
           await sleep(200);
-          const cover = firstImage(messages);
+          const cover = await firstImageInThread(rest, thread.id, messages);
           // player-characters threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
           // backgrounds forum gets its own wiki category.

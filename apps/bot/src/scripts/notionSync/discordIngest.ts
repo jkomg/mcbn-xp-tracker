@@ -22,12 +22,20 @@ export interface DiscordAttachment {
   filename: string;
 }
 
+export interface DiscordEmbed {
+  type?: string;
+  url?: string;
+  image?: { url: string };
+  thumbnail?: { url: string };
+}
+
 export interface DiscordMessage {
   id: string;
   content: string;
   author: { id: string; username: string; global_name?: string };
   timestamp: string;
   attachments?: DiscordAttachment[];
+  embeds?: DiscordEmbed[];
 }
 
 export interface DiscordGuildMember {
@@ -63,6 +71,21 @@ export async function fetchAllMessages(
 
 export async function fetchPins(rest: REST, channelId: string): Promise<DiscordMessage[]> {
   return rest.get(Routes.channelPins(channelId)) as Promise<DiscordMessage[]>;
+}
+
+/**
+ * Fetches a thread's opening post directly. For a forum thread, the thread's
+ * own ID is also the ID of the message that created it, so this is the
+ * reliable way to reach that message — fetchAllMessages pages backward from
+ * the newest message and can hit its limit before ever reaching the start
+ * of a long thread.
+ */
+export async function fetchThreadStarterMessage(rest: REST, threadId: string): Promise<DiscordMessage | null> {
+  try {
+    return await rest.get(Routes.channelMessage(threadId, threadId)) as DiscordMessage;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchGuildMember(
