@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHAR_TO_COTERIE,
+  firstImage,
   inferSpcType,
   mapDomain,
   messagesToMarkdown,
@@ -52,5 +53,52 @@ describe('wikiSyncHelpers', () => {
   it('includes reverse coterie membership lookups', () => {
     expect(CHAR_TO_COTERIE.get('alice')).toBe('Pillars of Community');
     expect(CHAR_TO_COTERIE.get('not-a-member')).toBeUndefined();
+  });
+
+  it('finds a portrait from an uploaded file attachment', () => {
+    const image = firstImage([
+      {
+        content: 'here she is',
+        author: { username: 'player1' },
+        timestamp: '2026-04-18T10:00:00.000Z',
+        attachments: [{ url: 'https://cdn.discord.com/portrait.png', filename: 'portrait.png' }],
+      },
+    ]);
+    expect(image).toBe('https://cdn.discord.com/portrait.png');
+  });
+
+  it('finds a portrait from a pasted image link (Discord embed, no attachment)', () => {
+    const image = firstImage([
+      {
+        content: 'https://imgur.com/big-joey.jpg',
+        author: { username: 'player2' },
+        timestamp: '2026-04-18T10:00:00.000Z',
+        embeds: [{ type: 'image', url: 'https://imgur.com/big-joey.jpg' }],
+      },
+    ]);
+    expect(image).toBe('https://imgur.com/big-joey.jpg');
+  });
+
+  it('returns null when no message has an image', () => {
+    const image = firstImage([
+      {
+        content: 'no portrait here',
+        author: { username: 'player3' },
+        timestamp: '2026-04-18T10:00:00.000Z',
+      },
+    ]);
+    expect(image).toBeNull();
+  });
+
+  it('ignores thumbnails from non-image embeds like article/video link previews', () => {
+    const image = firstImage([
+      {
+        content: 'https://news.example.com/some-article',
+        author: { username: 'player4' },
+        timestamp: '2026-04-18T10:00:00.000Z',
+        embeds: [{ type: 'link', url: 'https://news.example.com/some-article', thumbnail: { url: 'https://news.example.com/og-image.jpg' } }],
+      },
+    ]);
+    expect(image).toBeNull();
   });
 });

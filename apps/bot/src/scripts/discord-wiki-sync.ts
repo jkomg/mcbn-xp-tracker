@@ -41,9 +41,11 @@ import {
   fetchForumThreads,
   fetchGuildMember,
   fetchPins,
+  fetchThreadStarterMessage,
 } from './notionSync/discordIngest';
 import {
   FACTIONS,
+  firstImage,
   inferSpcType,
   mapDomain,
   messagesToMarkdown,
@@ -137,6 +139,28 @@ function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
+/**
+ * Portrait lookup for a thread, preferring its opening post.
+ *
+ * fetchAllMessages pages backward from the newest message and stops once it
+ * hits fetchLimit, so `msgs.length >= fetchLimit` means the window may be
+ * missing the start of the thread. In that case the starter message must be
+ * checked *and preferred* — otherwise an unrelated later image in the
+ * (chronologically later) recent-message window would win over the actual
+ * portrait in the opening post. When the whole thread fit in the window,
+ * the starter is already the first element of msgs and needs no extra fetch.
+ */
+export async function firstImageInThread(
+  rest: REST, threadId: string, msgs: DiscordMessage[], fetchLimit: number,
+): Promise<string | null> {
+  if (msgs.length >= fetchLimit) {
+    const starter = await fetchThreadStarterMessage(rest, threadId);
+    const starterImage = starter ? firstImage([starter]) : null;
+    if (starterImage) return starterImage;
+  }
+  return firstImage(msgs);
+}
+
 interface PcProfile { image: string | null; markdown: string; }
 
 /**
@@ -159,7 +183,7 @@ async function buildPcProfileMap(
     const msgs = await fetchAllMessages(rest, thread.id, 50);
     await sleep(150);
     map.set(thread.name.toLowerCase().trim(), {
-      image: firstImage(msgs),
+      image: await firstImageInThread(rest, thread.id, msgs, 50),
       markdown: messagesToMarkdown(msgs),
     });
   }
@@ -230,17 +254,6 @@ async function fetchCoteries(webBase: string, webReadToken: string): Promise<Api
     console.log(`  [warn] Could not reach coteries API: ${err}`);
     return [];
   }
-}
-
-function firstImage(messages: DiscordMessage[]): string | null {
-  for (const msg of messages) {
-    for (const a of msg.attachments ?? []) {
-      if (a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.filename)) {
-        return a.url;
-      }
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -380,7 +393,7 @@ async function main(opts: WikiSyncOptions) {
       if (!DRY_RUN) {
         const messages = await fetchAllMessages(rest, thread.id, 50);
         await sleep(200);
-        const cover = firstImage(messages);
+        const cover = await firstImageInThread(rest, thread.id, messages, 50);
         await wikiClient.upsertPage({
           slug: wikiSlug('spcs', name),
           title: name,
@@ -565,7 +578,7 @@ async function main(opts: WikiSyncOptions) {
       const name = thread.name.trim();
       const msgs = await fetchAllMessages(rest, thread.id, 50);
       await sleep(150);
-      const image = firstImage(msgs);
+      const image = await firstImageInThread(rest, thread.id, msgs, 50);
       const bodyMarkdown = messagesToMarkdown(msgs);
       console.log(`  → ${name}`);
       await wikiClient.upsertPage({
@@ -610,7 +623,7 @@ async function main(opts: WikiSyncOptions) {
         if (!DRY_RUN) {
           const messages = await fetchAllMessages(rest, thread.id, 100);
           await sleep(200);
-          const cover = firstImage(messages);
+          const cover = await firstImageInThread(rest, thread.id, messages, 100);
           // player-characters threads are PC profiles — merged into character
           // pages in step 6, not duplicated as lore wiki pages.
           // backgrounds forum gets its own wiki category.
