@@ -89,4 +89,16 @@ describe('wikiSyncHelpers', () => {
     ]);
     expect(image).toBeNull();
   });
+
+  it('ignores thumbnails from non-image embeds like article/video link previews', () => {
+    const image = firstImage([
+      {
+        content: 'https://news.example.com/some-article',
+        author: { username: 'player4' },
+        timestamp: '2026-04-18T10:00:00.000Z',
+        embeds: [{ type: 'link', url: 'https://news.example.com/some-article', thumbnail: { url: 'https://news.example.com/og-image.jpg' } }],
+      },
+    ]);
+    expect(image).toBeNull();
+  });
 });

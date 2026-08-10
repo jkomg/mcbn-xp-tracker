@@ -20,9 +20,12 @@ export function firstImage(messages: DiscordMessageForWiki[]): string | null {
       }
     }
     for (const e of msg.embeds ?? []) {
+      // .thumbnail.url is deliberately NOT treated as a portrait source on
+      // its own: Discord populates it for video/article/link-preview embeds
+      // too (e.g. a YouTube link's poster frame, a news article's og:image),
+      // none of which are the pasted image the player intended.
       if (e.image?.url) return e.image.url;
       if (e.type === 'image' && e.url) return e.url;
-      if (e.thumbnail?.url) return e.thumbnail.url;
     }
   }
   return null;
