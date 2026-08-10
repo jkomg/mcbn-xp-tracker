@@ -73,7 +73,10 @@ Archive a completed change in the experimental workflow.
 
 3. **Check task completion status**
 
-   Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
+   Resolve the task file from `artifactPaths.tasks.existingOutputPaths` in the
+   status JSON from step 2 (fall back to `<changeRoot>/tasks.md` only if that
+   entry is absent — do not assume a repo-root-relative `tasks.md`). Read it to
+   check for incomplete tasks.
 
    Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
 
