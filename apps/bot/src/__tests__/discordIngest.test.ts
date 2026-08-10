@@ -4,6 +4,7 @@ import {
   fetchAllMessages,
   fetchForumThreads,
   fetchGuildMember,
+  fetchThreadStarterMessage,
 } from '../scripts/notionSync/discordIngest';
 
 function message(id: string) {
@@ -49,6 +50,26 @@ describe('discordIngest helpers', () => {
     const rest = { get } as unknown as REST;
 
     const result = await fetchGuildMember(rest, 'guild-1', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('fetchThreadStarterMessage fetches the message with the same ID as the thread', async () => {
+    const starter = message('thread-1');
+    const get = vi.fn().mockResolvedValueOnce(starter);
+    const rest = { get } as unknown as REST;
+
+    const result = await fetchThreadStarterMessage(rest, 'thread-1');
+
+    expect(String(get.mock.calls[0][0])).toBe('/channels/thread-1/messages/thread-1');
+    expect(result).toEqual(starter);
+  });
+
+  it('fetchThreadStarterMessage returns null on API errors', async () => {
+    const get = vi.fn().mockRejectedValueOnce(new Error('unknown message'));
+    const rest = { get } as unknown as REST;
+
+    const result = await fetchThreadStarterMessage(rest, 'thread-1');
 
     expect(result).toBeNull();
   });
