@@ -49,3 +49,6 @@ apps/web/app/static/character-app/
 prod-snapshot.sql
 scripts/overwrite-snapshots/
 .claude/
+
+# understand-anything cache/output (generated analysis artifacts, not source)
+.ua/
