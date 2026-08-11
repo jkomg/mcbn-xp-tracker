@@ -264,7 +264,7 @@ export interface TrackerAdapter {
     },
   ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails }>;
   setRumorCubbyMessage(rumorId: number, channelId: string, messageId: string): Promise<void>;
-  setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<void>;
+  setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<boolean>;
   approveRumor(
     rumorId: number,
     requester: RequesterContext,
@@ -1988,10 +1988,15 @@ export class WebAppAdapter implements TrackerAdapter {
     // Best-effort — losing this mapping only means the approval message can't be edited later, not fatal.
   }
 
-  async setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<void> {
+  async setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<boolean> {
+    // Unlike setRumorCubbyMessage, this mapping isn't just cosmetic: losing it
+    // for an ephemeral rumor means RumorExpiryWorker has no message to delete,
+    // silently breaking the "this night only" guarantee. Reported back to the
+    // caller (rather than swallowed) so it can warn the approving ST instead
+    // of claiming the rumor posted cleanly.
     const requestTimestamp = Math.floor(Date.now() / 1000).toString();
     const requestNonce = randomUUID();
-    await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/${rumorId}/posted-message`, {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/${rumorId}/posted-message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2001,7 +2006,7 @@ export class WebAppAdapter implements TrackerAdapter {
       },
       body: JSON.stringify({ channelId, messageId }),
     }).catch(() => null);
-    // Best-effort — losing this mapping only means an ephemeral rumor's message can't be auto-deleted later, not fatal.
+    return !!resp?.ok;
   }
 
   async approveRumor(

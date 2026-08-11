@@ -224,13 +224,25 @@ function buildApprovalEmbed(rumor: RumorDetails): EmbedBuilder {
 }
 
 function buildApprovalButtons(rumor: RumorDetails): ActionRowBuilder<ButtonBuilder>[] {
-  if (rumor.status !== 'pending') return [];
-  return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`${APPROVE_PREFIX}${rumor.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`${REJECT_PREFIX}${rumor.id}`).setLabel('Reject').setStyle(ButtonStyle.Danger),
-    ),
-  ];
+  if (rumor.status === 'pending') {
+    return [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`${APPROVE_PREFIX}${rumor.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`${REJECT_PREFIX}${rumor.id}`).setLabel('Reject').setStyle(ButtonStyle.Danger),
+      ),
+    ];
+  }
+  // approve-side effects (posting to #rumors, recording the posted message)
+  // can fail after the rumor is already marked approved server-side, with no
+  // way back to 'pending' — keep a retry button up until it actually posted.
+  if (rumor.status === 'approved' && !rumor.posted_message_id) {
+    return [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`${APPROVE_PREFIX}${rumor.id}`).setLabel('Retry Post').setStyle(ButtonStyle.Success),
+      ),
+    ];
+  }
+  return [];
 }
 
 function describeCurrentState(rumor: RumorDetails): string {
@@ -499,29 +511,40 @@ export async function handleRumorButton(interaction: ButtonInteraction, ctx: Com
 
 async function handleApprove(interaction: ButtonInteraction, ctx: CommandContext, id: number): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
+  const client = interaction.client as BotClient;
 
   const result = await ctx.adapter.approveRumor(id, {
     requesterDiscordId: interaction.user.id,
     requesterDiscordName: interaction.user.username,
   });
 
-  if (!result.ok) {
-    if (result.rumor) await updateCubbyMessage(interaction.client as BotClient, result.rumor);
+  let rumor: RumorDetails;
+  if (result.ok) {
+    rumor = result.rumor!;
+  } else if (result.rumor && result.rumor.status === 'approved' && !result.rumor.posted_message_id) {
+    // Already approved server-side (there's no path back to 'pending'), but a
+    // prior attempt's post to #rumors or its mapping write failed — retry just
+    // the posting step instead of treating this as "already resolved."
+    rumor = result.rumor;
+  } else {
+    if (result.rumor) await updateCubbyMessage(client, result.rumor);
     const label = result.rumor ? describeCurrentState(result.rumor) : result.message;
     await interaction.editReply(`Could not approve: ${label}`);
     return;
   }
 
-  const rumor = result.rumor!;
-  const client = interaction.client as BotClient;
   const channelId = liveConfig.correspondenceRumorChannelId || config.correspondenceRumorChannelId;
+  let posted = false;
+  let mappingSaved = false;
   if (channelId) {
     try {
       const fetched = await client.channels.fetch(channelId).catch(() => null);
       if (fetched && fetched.isTextBased() && 'send' in fetched) {
         const lines = buildPublicRumorLines(rumor.discovery, rumor.rumor_text, rumor.location, rumor.point_of_contact, rumor.roll);
         const message = await (fetched as TextChannel).send({ content: lines.join('\n') });
-        await ctx.adapter.setRumorPostedMessage(rumor.id, fetched.id, message.id);
+        posted = true;
+        mappingSaved = await ctx.adapter.setRumorPostedMessage(rumor.id, fetched.id, message.id);
+        if (mappingSaved) rumor = { ...rumor, posted_channel_id: fetched.id, posted_message_id: message.id };
       }
     } catch (err) {
       logEvent('warn', 'rumor_post_after_approve_failed', { error: errorToMessage(err), rumorId: rumor.id });
@@ -529,6 +552,21 @@ async function handleApprove(interaction: ButtonInteraction, ctx: CommandContext
   }
 
   await updateCubbyMessage(client, rumor);
+
+  if (!posted) {
+    await interaction.editReply(
+      `Rumor #${rumor.id} is approved, but posting to #rumors failed — click Approve again in the cubby to retry.`,
+    );
+    return;
+  }
+  if (!mappingSaved && rumor.kind === 'ephemeral') {
+    logEvent('warn', 'rumor_posted_message_mapping_lost', { rumorId: rumor.id });
+    await interaction.editReply(
+      `Approved rumor #${rumor.id} — it's live in #rumors, but I couldn't record its location, so automatic ` +
+      'expiry for this ephemeral rumor may not work. Flag it to staff if it needs manual cleanup after tonight.',
+    );
+    return;
+  }
   await interaction.editReply(`Approved rumor #${rumor.id} — it's live in #rumors.`);
 }
 

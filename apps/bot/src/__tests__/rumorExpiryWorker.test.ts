@@ -8,12 +8,7 @@ const mockConfig = vi.hoisted(() => ({
   passageSunsetAnchorDate: '2026-01-06', // a Tuesday
 }));
 
-const mockLiveConfig = vi.hoisted(() => ({
-  rumorApprovalEnabled: true,
-}));
-
 vi.mock('../config', () => ({ config: mockConfig }));
-vi.mock('../liveConfig', () => ({ liveConfig: mockLiveConfig }));
 
 import { RumorExpiryWorker } from '../services/rumorExpiryWorker';
 
@@ -61,7 +56,6 @@ function makeClient(channel: unknown = null) {
 }
 
 beforeEach(() => {
-  mockLiveConfig.rumorApprovalEnabled = true;
   // 2026-01-20 18:00 UTC = noon CT on a cadence Tuesday two weeks after the
   // anchor -- currentIcNightKey should resolve to '2026-01-20' at this instant.
   vi.useFakeTimers();
@@ -73,14 +67,20 @@ afterEach(() => {
 });
 
 describe('RumorExpiryWorker', () => {
-  it('does nothing when rumorApprovalEnabled is off', async () => {
-    mockLiveConfig.rumorApprovalEnabled = false;
-    const adapter = makeAdapter();
-    const worker = new RumorExpiryWorker(makeClient() as never, adapter as never, { intervalMs: 60_000 });
+  it('runs cleanup unconditionally — not gated on the approval feature flag', async () => {
+    // Disabling BOT_RUMOR_APPROVAL_ENABLED only stops *new* rumors from
+    // going through approval; it must not orphan already-approved ephemeral
+    // rumors created while it was on. The worker has no dependency on that
+    // flag at all — this just confirms it still queries and would act.
+    const stale = rumor({ id: 5, ic_night_key: '2026-01-06' });
+    const channel = { isTextBased: () => true, messages: { delete: vi.fn().mockResolvedValue(undefined) } };
+    const adapter = makeAdapter({ listActiveEphemeralRumors: vi.fn().mockResolvedValue([stale]) });
+    const worker = new RumorExpiryWorker(makeClient(channel) as never, adapter as never, { intervalMs: 60_000 });
 
     await (worker as unknown as { tick: () => Promise<void> }).tick();
 
-    expect(adapter.listActiveEphemeralRumors).not.toHaveBeenCalled();
+    expect(adapter.listActiveEphemeralRumors).toHaveBeenCalled();
+    expect(adapter.expireRumor).toHaveBeenCalledWith(5, { requesterDiscordId: 'bot-1', requesterDiscordName: 'lasombra-bot' });
   });
 
   it('expires a rumor whose night key no longer matches the current night, deleting its message', async () => {
@@ -123,6 +123,38 @@ describe('RumorExpiryWorker', () => {
     await (worker as unknown as { tick: () => Promise<void> }).tick();
 
     expect(adapter.expireRumor).toHaveBeenCalledWith(3, { requesterDiscordId: 'bot-1', requesterDiscordName: 'lasombra-bot' });
+  });
+
+  it('does not mark expired when message deletion fails for a reason other than "already gone"', async () => {
+    const channel = {
+      isTextBased: () => true,
+      messages: { delete: vi.fn().mockRejectedValue(Object.assign(new Error('rate limited'), { code: 429 })) },
+    };
+    const client = makeClient(channel);
+    const stale = rumor({ id: 6, ic_night_key: '2026-01-06' });
+    const adapter = makeAdapter({ listActiveEphemeralRumors: vi.fn().mockResolvedValue([stale]) });
+    const worker = new RumorExpiryWorker(client as never, adapter as never, { intervalMs: 60_000 });
+
+    await (worker as unknown as { tick: () => Promise<void> }).tick();
+
+    // Must retry next tick rather than silently dropping the rumor as
+    // "cleaned up" while its message is still publicly visible.
+    expect(adapter.expireRumor).not.toHaveBeenCalled();
+  });
+
+  it('treats "Unknown Message" (already deleted) as success and proceeds to expire', async () => {
+    const channel = {
+      isTextBased: () => true,
+      messages: { delete: vi.fn().mockRejectedValue(Object.assign(new Error('Unknown Message'), { code: 10008 })) },
+    };
+    const client = makeClient(channel);
+    const stale = rumor({ id: 7, ic_night_key: '2026-01-06' });
+    const adapter = makeAdapter({ listActiveEphemeralRumors: vi.fn().mockResolvedValue([stale]) });
+    const worker = new RumorExpiryWorker(client as never, adapter as never, { intervalMs: 60_000 });
+
+    await (worker as unknown as { tick: () => Promise<void> }).tick();
+
+    expect(adapter.expireRumor).toHaveBeenCalledWith(7, { requesterDiscordId: 'bot-1', requesterDiscordName: 'lasombra-bot' });
   });
 
   it('does not re-enter while a tick is already running', async () => {

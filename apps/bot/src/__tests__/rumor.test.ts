@@ -48,7 +48,7 @@ function makeAdapter(overrides: Record<string, unknown> = {}) {
     }),
     createRumor: vi.fn().mockResolvedValue({ ok: true, rumor: baseRumor() }),
     setRumorCubbyMessage: vi.fn().mockResolvedValue(undefined),
-    setRumorPostedMessage: vi.fn().mockResolvedValue(undefined),
+    setRumorPostedMessage: vi.fn().mockResolvedValue(true),
     approveRumor: vi.fn().mockResolvedValue({
       ok: true,
       rumor: baseRumor({ status: 'approved', approved_by_discord_id: 'st-1', approved_by_name: 'storyteller' }),
@@ -646,6 +646,63 @@ describe('rumor Approve button', () => {
 
     expect(cubbyMessage.edit).toHaveBeenCalledTimes(1);
     expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('already rejected by otherST'));
+  });
+
+  it('keeps a retry button and warns instead of claiming success when posting to #rumors fails', async () => {
+    const rumorChannel = { id: 'rumor-channel-1', isTextBased: () => true, send: vi.fn().mockRejectedValue(new Error('Discord outage')) };
+    const cubbyMessage = makeCubbyMessage();
+    const client = makeApprovalClient(rumorChannel, makeCubbyChannel(cubbyMessage));
+    const interaction = makeButtonInteraction('RUMOR_APPROVE:9', staffMember, client);
+    const adapter = makeAdapter();
+
+    await handleRumorButton(interaction as never, { adapter } as never);
+
+    expect(adapter.setRumorPostedMessage).not.toHaveBeenCalled();
+    expect(cubbyMessage.edit).toHaveBeenCalledTimes(1);
+    // Retry Post button, not stripped — the rumor is stuck 'approved' server-side
+    // with nothing posted, so the only way forward is clicking Approve again.
+    expect(cubbyMessage.edit.mock.calls[0][0].components).toHaveLength(1);
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('click Approve again in the cubby to retry'));
+  });
+
+  it('retries just the post (not a full re-approve) when clicked again after an approved-but-unposted rumor', async () => {
+    const rumorChannel = makeRumorChannel();
+    const cubbyMessage = makeCubbyMessage();
+    const client = makeApprovalClient(rumorChannel, makeCubbyChannel(cubbyMessage));
+    const interaction = makeButtonInteraction('RUMOR_APPROVE:9', staffMember, client);
+    const adapter = makeAdapter({
+      approveRumor: vi.fn().mockResolvedValue({
+        ok: false,
+        alreadyResolved: true,
+        message: 'Rumor is already approved — nothing to do',
+        rumor: baseRumor({ status: 'approved', approved_by_name: 'firstST', posted_message_id: null }),
+      }),
+    });
+
+    await handleRumorButton(interaction as never, { adapter } as never);
+
+    expect(rumorChannel.send).toHaveBeenCalledTimes(1);
+    expect(adapter.setRumorPostedMessage).toHaveBeenCalledWith(9, 'rumor-channel-1', 'public-msg-1');
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('Approved rumor #9'));
+  });
+
+  it('warns that automatic expiry may not work when the posted-message mapping fails to save for an ephemeral rumor', async () => {
+    const rumorChannel = makeRumorChannel();
+    const cubbyMessage = makeCubbyMessage();
+    const client = makeApprovalClient(rumorChannel, makeCubbyChannel(cubbyMessage));
+    const interaction = makeButtonInteraction('RUMOR_APPROVE:9', staffMember, client);
+    const adapter = makeAdapter({
+      approveRumor: vi.fn().mockResolvedValue({
+        ok: true,
+        rumor: baseRumor({ status: 'approved', kind: 'ephemeral', approved_by_name: 'storyteller' }),
+      }),
+      setRumorPostedMessage: vi.fn().mockResolvedValue(false),
+    });
+
+    await handleRumorButton(interaction as never, { adapter } as never);
+
+    expect(rumorChannel.send).toHaveBeenCalledTimes(1);
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('automatic expiry for this ephemeral rumor may not work'));
   });
 });
 

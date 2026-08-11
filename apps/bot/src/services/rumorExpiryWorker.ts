@@ -1,6 +1,5 @@
 import type { Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
-import { liveConfig } from '../liveConfig';
 import { currentIcNightKey } from './icNightTracker';
 import { activeSunsetSchedule } from './sunsetSchedule';
 import type { TrackerAdapter } from './adapter';
@@ -51,7 +50,11 @@ export class RumorExpiryWorker {
   }
 
   private async tick() {
-    if (!liveConfig.rumorApprovalEnabled) return;
+    // Deliberately NOT gated on liveConfig.rumorApprovalEnabled: that flag only
+    // controls whether *new* rumors go through approval. Turning it off must
+    // not orphan ephemeral rumors that were already approved while it was on —
+    // cleanup keeps running; listActiveEphemeralRumors() just returns nothing
+    // once there's nothing left to expire.
     if (this.running) {
       return;
     }
@@ -80,12 +83,38 @@ export class RumorExpiryWorker {
       let failed = 0;
       for (const rumor of stale) {
         try {
+          // Only mark expired once the message is confirmed gone (deleted here,
+          // already gone — Discord's "Unknown Message", or the channel itself no
+          // longer exists). Any other failure (rate limit, transient permission
+          // issue) must NOT be treated as success: expireRumor drops the rumor
+          // from listActiveEphemeralRumors(), so a false-positive here means the
+          // "one night only" message stays visible forever with no retry.
+          let messageGone = true;
           if (rumor.posted_channel_id && rumor.posted_message_id) {
             const channel = await this.client.channels.fetch(rumor.posted_channel_id).catch(() => null);
             if (channel && channel.isTextBased() && 'messages' in channel) {
-              await channel.messages.delete(rumor.posted_message_id).catch(() => {});
+              messageGone = false;
+              try {
+                await channel.messages.delete(rumor.posted_message_id);
+                messageGone = true;
+              } catch (delErr) {
+                const code = (delErr as { code?: number } | null)?.code;
+                if (code === 10008) {
+                  // Unknown Message — already deleted (e.g. manually). Fine to proceed.
+                  messageGone = true;
+                } else {
+                  logEvent('warn', 'rumor_expiry_worker_delete_failed', { rumorId: rumor.id, error: errorToMessage(delErr) });
+                }
+              }
             }
+            // else: channel itself is gone/unreachable — nothing left to delete.
           }
+
+          if (!messageGone) {
+            failed += 1;
+            continue;
+          }
+
           const result = await this.adapter.expireRumor(rumor.id, requester);
           if (result.ok) {
             expired += 1;
