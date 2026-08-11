@@ -153,8 +153,8 @@ export class WikiSyncScheduler {
       });
 
       if (result.success) {
-        logEvent('info', 'wiki_sync_scheduled_complete', { dateKey: parts.dateKey });
-        try { await this.adapter.ackWikiSync('success', undefined, 'scheduled', runId); } catch { /* ignore */ }
+        logEvent('info', 'wiki_sync_scheduled_complete', { dateKey: parts.dateKey, warningCount: result.warnings?.length ?? 0 });
+        try { await this.adapter.ackWikiSync('success', undefined, 'scheduled', runId, result.warnings); } catch { /* ignore */ }
       } else {
         logEvent('warn', 'wiki_sync_scheduled_failed', { dateKey: parts.dateKey, error: result.error });
         try { await this.adapter.ackWikiSync('error', result.error, 'scheduled', runId); } catch { /* ignore */ }

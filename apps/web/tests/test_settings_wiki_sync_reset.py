@@ -148,6 +148,43 @@ def test_settings_index_shows_sync_run_summary_rows():
         assert 'sync failed' in body
 
 
+def test_settings_index_shows_warnings_on_successful_run():
+    app = _app()
+    with app.app_context():
+        db.session.add(
+            WikiSyncEvent(
+                ts='2026-08-11T00:00:00+00:00',
+                run_id='run-warn-1',
+                source='manual',
+                status='running',
+                error='',
+                warnings='',
+                created_at=datetime.fromisoformat('2026-08-11T00:00:00+00:00'),
+            )
+        )
+        db.session.add(
+            WikiSyncEvent(
+                ts='2026-08-11T00:05:00+00:00',
+                run_id='run-warn-1',
+                source='manual',
+                status='success',
+                error='',
+                warnings='["No #player-characters thread matched \\"Big Joey Puttanesca\\""]',
+                created_at=datetime.fromisoformat('2026-08-11T00:05:00+00:00'),
+            )
+        )
+        db.session.commit()
+
+    with app.test_client() as client:
+        _set_session(client, '12345')
+        res = client.get('/settings/')
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert 'run-warn-1' in body
+        assert 'Success (1 warning)' in body
+        assert 'Big Joey Puttanesca' in body
+
+
 def test_request_wiki_sync_denied_when_bot_reports_missing_prereqs():
     app = _app()
     with app.app_context():

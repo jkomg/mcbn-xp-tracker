@@ -140,8 +140,8 @@ export class ConfigSyncWorker {
         webWriteToken: config.webAppApiWriteToken ?? config.webAppApiToken,
       });
       if (result.success) {
-        logEvent('info', 'wiki_sync_completed', {});
-        await this.adapter.ackWikiSync('success', undefined, 'manual', runId);
+        logEvent('info', 'wiki_sync_completed', { warningCount: result.warnings?.length ?? 0 });
+        await this.adapter.ackWikiSync('success', undefined, 'manual', runId, result.warnings);
       } else {
         logEvent('warn', 'wiki_sync_failed', { error: result.error });
         await this.adapter.ackWikiSync('error', result.error, 'manual', runId);

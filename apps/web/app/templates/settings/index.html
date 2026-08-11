@@ -288,7 +288,7 @@
               <table class="table table-dark table-sm mb-0 align-middle">
                 <thead>
                   <tr>
-                    <th>Run ID</th><th>Started</th><th>Finished</th><th>Duration</th><th>Source</th><th>Status</th><th>Error</th>
+                    <th>Run ID</th><th>Started</th><th>Finished</th><th>Duration</th><th>Source</th><th>Status</th><th>Error / Warnings</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -300,11 +300,22 @@
                     <td class="small text-muted">{{ run.duration_display }}</td>
                     <td>{% if run.source == 'scheduled' %}<span class="badge bg-secondary">Scheduled</span>{% else %}<span class="badge bg-dark border border-secondary">Manual</span>{% endif %}</td>
                     <td>
-                      {% if run.status == 'success' %}<span class="badge bg-success">Success</span>
+                      {% if run.status == 'success' and run.warnings %}<span class="badge bg-warning text-dark">Success ({{ run.warnings|length }} warning{{ 's' if run.warnings|length != 1 else '' }})</span>
+                      {% elif run.status == 'success' %}<span class="badge bg-success">Success</span>
                       {% elif run.status == 'error' %}<span class="badge bg-danger">Error</span>
                       {% else %}<span class="badge bg-info text-dark">Running</span>{% endif %}
                     </td>
-                    <td class="small {% if run.status == 'error' and run.error %}text-danger{% else %}text-muted{% endif %}">{{ run.error if run.error else '—' }}</td>
+                    <td class="small">
+                      {% if run.status == 'error' and run.error %}<span class="text-danger">{{ run.error }}</span>{% endif %}
+                      {% if run.warnings %}
+                      <details {% if run.status == 'error' %}class="mt-1"{% endif %}>
+                        <summary class="text-warning-emphasis" style="cursor:pointer;">{{ run.warnings|length }} warning{{ 's' if run.warnings|length != 1 else '' }} — details</summary>
+                        <ul class="mb-0 ps-3 text-muted">
+                          {% for w in run.warnings %}<li>{{ w }}</li>{% endfor %}
+                        </ul>
+                      </details>
+                      {% elif not run.error %}<span class="text-muted">—</span>{% endif %}
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>

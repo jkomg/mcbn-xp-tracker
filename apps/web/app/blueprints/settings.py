@@ -4,6 +4,7 @@ Settings admins (SETTINGS_ADMIN_DISCORD_IDS) may also toggle feature flags
 and update tuning parameters at runtime without a redeploy.
 """
 
+import json
 from datetime import datetime, timezone
 
 from flask import (
@@ -951,6 +952,16 @@ def index():
             (r for r in reversed(rows_sorted) if r.status == 'error' and str(r.error or '').strip()),
             None,
         )
+        warn_row = next(
+            (r for r in reversed(rows_sorted) if str(r.warnings or '').strip()),
+            None,
+        )
+        warnings = []
+        if warn_row:
+            try:
+                warnings = json.loads(warn_row.warnings)
+            except (TypeError, ValueError):
+                warnings = []
         wiki_sync_runs.append(
             {
                 'run_key': run_key,
@@ -963,6 +974,7 @@ def index():
                 'duration_seconds': duration_seconds,
                 'duration_display': _format_duration(duration_seconds),
                 'error': (err_row.error if err_row else ''),
+                'warnings': warnings,
                 'event_count': len(rows_sorted),
             }
         )
