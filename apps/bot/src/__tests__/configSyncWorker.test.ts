@@ -93,7 +93,11 @@ describe('ConfigSyncWorker sync orchestration', () => {
   afterEach(() => {
     expect(currentWikiSyncOwner()).toBeNull();
     vi.restoreAllMocks();
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks) — clearAllMocks leaves queued
+    // mockResolvedValueOnce values in place, so an unconsumed queued value
+    // from a test that short-circuits before calling runWikiSync (e.g. the
+    // lock-busy test) silently leaks into whichever test runs next.
+    vi.resetAllMocks();
   });
 
   it('skips manual sync when shared wiki lock is already held', async () => {
@@ -133,7 +137,27 @@ describe('ConfigSyncWorker sync orchestration', () => {
     expect(firstRunId).toEqual(expect.any(String));
     expect(secondRunId).toBe(firstRunId);
     expect(adapter.ackWikiSync).toHaveBeenNthCalledWith(1, 'running', undefined, 'manual', firstRunId);
-    expect(adapter.ackWikiSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'manual', firstRunId);
+    expect(adapter.ackWikiSync).toHaveBeenNthCalledWith(2, 'success', undefined, 'manual', firstRunId, undefined);
+  });
+
+  it('forwards non-fatal warnings from a successful run to ackWikiSync', async () => {
+    const adapter = makeAdapter(baseBotConfig({ wikiSyncRequested: true }));
+    vi.mocked(runWikiSync).mockResolvedValueOnce({
+      success: true,
+      warnings: ['No #player-characters thread matched "Big Joey Puttanesca"'],
+    });
+
+    const worker = new ConfigSyncWorker(adapter);
+    await worker.sync();
+
+    await vi.waitFor(() => {
+      expect(adapter.ackWikiSync).toHaveBeenCalledTimes(2);
+    });
+    const runId = vi.mocked(adapter.ackWikiSync).mock.calls[1][3];
+    expect(adapter.ackWikiSync).toHaveBeenNthCalledWith(
+      2, 'success', undefined, 'manual', runId,
+      ['No #player-characters thread matched "Big Joey Puttanesca"'],
+    );
   });
 
   it('does not start sync when running ack fails', async () => {

@@ -1,5 +1,7 @@
 """Tests for POST /api/wiki-sync-ack source-aware behavior."""
 
+import json
+
 from flask import Flask
 
 from app.blueprints.api import bp as api_bp
@@ -135,3 +137,88 @@ def test_error_ack_persists_event_error_message():
         assert event.source == 'scheduled'
         assert event.run_id == 'run-scheduled-9'
         assert event.error == 'sync exploded'
+
+
+def test_success_ack_persists_warnings_list():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/wiki-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={
+                'status': 'success',
+                'source': 'manual',
+                'runId': 'run-warn-1',
+                'warnings': [
+                    'No #player-characters thread matched "Big Joey Puttanesca"',
+                    '"Rosie Day"\'s #player-characters thread was matched but had no portrait image.',
+                ],
+            },
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        event = WikiSyncEvent.query.order_by(WikiSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.status == 'success'
+        stored = json.loads(event.warnings)
+        assert stored == [
+            'No #player-characters thread matched "Big Joey Puttanesca"',
+            '"Rosie Day"\'s #player-characters thread was matched but had no portrait image.',
+        ]
+
+
+def test_success_ack_without_warnings_stores_empty_warnings():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/wiki-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={'status': 'success', 'source': 'manual', 'runId': 'run-clean-1'},
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        event = WikiSyncEvent.query.order_by(WikiSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.warnings == ''
+
+
+def test_ack_ignores_non_list_warnings_payload():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/wiki-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={'status': 'success', 'source': 'manual', 'runId': 'run-bad-warn', 'warnings': 'not-a-list'},
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        event = WikiSyncEvent.query.order_by(WikiSyncEvent.id.desc()).first()
+        assert event is not None
+        assert event.warnings == ''
+
+
+def test_ack_caps_warnings_count_and_length():
+    app = _app()
+    with app.test_client() as client:
+        res = client.post(
+            '/api/wiki-sync-ack',
+            headers={'Authorization': 'Bearer write-token'},
+            json={
+                'status': 'success',
+                'source': 'manual',
+                'runId': 'run-many-warn',
+                'warnings': ['x' * 600] + [f'warning {i}' for i in range(60)],
+            },
+        )
+        assert res.status_code == 200
+
+    with app.app_context():
+        event = WikiSyncEvent.query.order_by(WikiSyncEvent.id.desc()).first()
+        assert event is not None
+        stored = json.loads(event.warnings)
+        assert len(stored) == 50
+        assert all(len(w) <= 500 for w in stored)
+        assert stored[0] == 'x' * 500

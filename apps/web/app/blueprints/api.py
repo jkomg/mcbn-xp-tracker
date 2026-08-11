@@ -1226,6 +1226,8 @@ def wiki_sync_ack():
     run_id = str(data.get('runId', '')).strip()
     if len(run_id) > 64:
         return jsonify({'error': 'runId must be at most 64 characters'}), 400
+    raw_warnings = data.get('warnings')
+    warnings_list = [str(w)[:500] for w in raw_warnings][:50] if isinstance(raw_warnings, list) else []
     now = datetime.now(timezone.utc).isoformat()
 
     def upsert(key, value):
@@ -1294,6 +1296,8 @@ def wiki_sync_ack():
         upsert('BOT_WIKI_SYNC_ERROR', data.get('error', 'unknown error'))
         retirement_jobs_synced = 0
 
+    import json
+
     db.session.add(
         WikiSyncEvent(
             ts=now,
@@ -1301,6 +1305,7 @@ def wiki_sync_ack():
             source=source,
             status=status,
             error=(str(data.get('error') or '')[:2000]),
+            warnings=(json.dumps(warnings_list) if warnings_list else ''),
             created_at=datetime.now(timezone.utc),
         )
     )

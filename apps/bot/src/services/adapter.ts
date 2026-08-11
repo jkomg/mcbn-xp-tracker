@@ -128,6 +128,7 @@ export interface TrackerAdapter {
     error?: string,
     source?: 'manual' | 'scheduled',
     runId?: string,
+    warnings?: string[],
   ): Promise<void>;
   postBotLog(entries: Array<Record<string, unknown>>): Promise<void>;
   postHeartbeat(liveState?: Record<string, boolean>): Promise<void>;
@@ -1183,12 +1184,19 @@ export class WebAppAdapter implements TrackerAdapter {
     error?: string,
     source: 'manual' | 'scheduled' = 'manual',
     runId?: string,
+    warnings?: string[],
   ): Promise<void> {
     const url = `${this.baseUrl}/api/wiki-sync-ack`;
     const res = await this.fetchWithTimeout(url, {
       method: 'POST',
       headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, source, ...(runId ? { runId } : {}), ...(error ? { error } : {}) }),
+      body: JSON.stringify({
+        status,
+        source,
+        ...(runId ? { runId } : {}),
+        ...(error ? { error } : {}),
+        ...(warnings?.length ? { warnings } : {}),
+      }),
     });
     if (!res.ok) throw new Error(`wiki-sync-ack POST failed: ${res.status}`);
   }

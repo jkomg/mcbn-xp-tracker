@@ -161,6 +161,7 @@ class WikiSyncEvent(db.Model):
     source = db.Column(String(16), nullable=False)  # manual | scheduled
     status = db.Column(String(16), nullable=False)  # running | success | error
     error = db.Column(Text, default='')
+    warnings = db.Column(Text, default='')  # JSON list of non-fatal warning strings
     created_at = db.Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 

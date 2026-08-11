@@ -68,13 +68,13 @@ export interface WikiSyncOptions {
   dryRun?: boolean;
 }
 
-export async function runWikiSync(opts: WikiSyncOptions): Promise<{ success: boolean; error?: string }> {
+export async function runWikiSync(opts: WikiSyncOptions): Promise<{ success: boolean; error?: string; warnings?: string[] }> {
   if (!opts.botToken) return { success: false, error: 'botToken is required' };
   if (!opts.guildId) return { success: false, error: 'guildId is required' };
   if (!opts.webWriteToken && !opts.dryRun) return { success: false, error: 'WEB_APP_API_WRITE_TOKEN is required for wiki sync — set the token or use --dry-run' };
   try {
-    await main(opts);
-    return { success: true };
+    const { warnings } = await main(opts);
+    return { success: true, warnings: warnings.length ? warnings : undefined };
   } catch (err) {
     return { success: false, error: errorToMessage(err) };
   }
@@ -225,9 +225,11 @@ interface ActiveRosterEntry {
   sect: string | null;
 }
 
-async function fetchActiveRoster(webBase: string, webReadToken: string): Promise<ActiveRosterEntry[]> {
+async function fetchActiveRoster(webBase: string, webReadToken: string, warnings: string[]): Promise<ActiveRosterEntry[]> {
   if (!webReadToken) {
-    console.log('  [warn] No WEB_APP_API_READ_TOKEN — PC Tracker will have no player names');
+    const msg = 'No WEB_APP_API_READ_TOKEN — PC Tracker will have no player names';
+    console.log(`  [warn] ${msg}`);
+    warnings.push(msg);
     return [];
   }
   try {
@@ -235,13 +237,20 @@ async function fetchActiveRoster(webBase: string, webReadToken: string): Promise
       headers: { Authorization: `Bearer ${webReadToken}` },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) { console.log(`  [warn] Active roster API returned ${res.status}`); return []; }
+    if (!res.ok) {
+      const msg = `Active roster API returned ${res.status}`;
+      console.log(`  [warn] ${msg}`);
+      warnings.push(msg);
+      return [];
+    }
     const body = await res.json() as { characters: (ActiveRosterEntry | string)[] };
     return (body.characters ?? []).map((c): ActiveRosterEntry =>
       typeof c === 'string' ? { name: c, discordId: null, clan: null, sect: null } : c,
     );
   } catch (err) {
-    console.log(`  [warn] Could not reach web API: ${err}`);
+    const msg = `Could not reach web API: ${err}`;
+    console.log(`  [warn] ${msg}`);
+    warnings.push(msg);
     return [];
   }
 }
@@ -254,18 +263,25 @@ interface ApiCoterie {
   members: Array<{ character_name: string; clan: string; player_discord_id: string }>;
 }
 
-async function fetchCoteries(webBase: string, webReadToken: string): Promise<ApiCoterie[]> {
+async function fetchCoteries(webBase: string, webReadToken: string, warnings: string[]): Promise<ApiCoterie[]> {
   if (!webReadToken) return [];
   try {
     const res = await fetch(`${webBase}/api/coteries`, {
       headers: { Authorization: `Bearer ${webReadToken}` },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) { console.log(`  [warn] Coteries API returned ${res.status}`); return []; }
+    if (!res.ok) {
+      const msg = `Coteries API returned ${res.status}`;
+      console.log(`  [warn] ${msg}`);
+      warnings.push(msg);
+      return [];
+    }
     const body = await res.json() as { coteries: ApiCoterie[] };
     return body.coteries ?? [];
   } catch (err) {
-    console.log(`  [warn] Could not reach coteries API: ${err}`);
+    const msg = `Could not reach coteries API: ${err}`;
+    console.log(`  [warn] ${msg}`);
+    warnings.push(msg);
     return [];
   }
 }
@@ -274,13 +290,20 @@ async function fetchCoteries(webBase: string, webReadToken: string): Promise<Api
 // Main
 // ---------------------------------------------------------------------------
 
-async function main(opts: WikiSyncOptions) {
+async function main(opts: WikiSyncOptions): Promise<{ warnings: string[] }> {
   const GUILD_ID = opts.guildId;
   const MSG_LIMIT = 200;
   const DRY_RUN = opts.dryRun ?? false;
   const WEB_BASE = (opts.webBase ?? 'http://127.0.0.1:5001').replace(/\/+$/, '');
   const WEB_READ_TOKEN = opts.webReadToken ?? '';
   const WEB_WRITE_TOKEN = opts.webWriteToken ?? '';
+
+  // Non-fatal issues (missed name matches, per-thread fetch failures, etc.)
+  // that a run can still succeed despite. Collected here instead of only
+  // console.log'd so they survive past the Docker log and reach the
+  // dashboard's run-history view via runWikiSync's return value.
+  const warnings: string[] = [];
+  const warn = (msg: string) => { console.log(`  [warn] ${msg}`); warnings.push(msg); };
 
   console.log(`discord-wiki-sync${DRY_RUN ? ' [DRY RUN]' : ''}`);
   console.log(`Guild: ${GUILD_ID}`);
@@ -320,10 +343,10 @@ async function main(opts: WikiSyncOptions) {
   // 2. Active PC roster + coteries from web API
   // ------------------------------------------------------------------
   console.log('\n[2/7] Fetching active roster and coteries from web API…');
-  const activeRoster = await fetchActiveRoster(WEB_BASE, WEB_READ_TOKEN);
+  const activeRoster = await fetchActiveRoster(WEB_BASE, WEB_READ_TOKEN, warnings);
   console.log(`  Active characters: ${activeRoster.length}`);
 
-  const dbCoteries = await fetchCoteries(WEB_BASE, WEB_READ_TOKEN);
+  const dbCoteries = await fetchCoteries(WEB_BASE, WEB_READ_TOKEN, warnings);
   console.log(`  Active coteries: ${dbCoteries.length}`);
 
   // Build char→coterie lookup from DB data
@@ -358,7 +381,7 @@ async function main(opts: WikiSyncOptions) {
     const locationName = toTitleCase(ch.name);
     let pins: DiscordMessage[] = [];
     try { pins = await fetchPins(rest, ch.id); await sleep(200); }
-    catch (err) { console.log(`  [warn] Pins fetch failed for #${ch.name}: ${err}`); continue; }
+    catch (err) { warn(`Pins fetch failed for #${ch.name}: ${err}`); continue; }
 
     if (!pins.length) { console.log(`  #${ch.name}: no pins`); }
     else { console.log(`  #${ch.name}: ${pins.length} pin(s)`); }
@@ -489,8 +512,13 @@ async function main(opts: WikiSyncOptions) {
       }
       const coterie = CHAR_TO_COTERIE.get(name.toLowerCase()) ?? null;
       console.log(`  → ${name}${playerName ? ` (${playerName})` : ''}${coterie ? ` [${coterie}]` : ''}`);
+      const pcProfile = lookupPcProfile(pcProfileMap, name);
+      if (!pcProfile) {
+        warn(`No #player-characters thread matched "${name}" — no profile markdown or portrait was applied. Check the thread title against the roster name.`);
+      } else if (!pcProfile.image) {
+        warn(`"${name}"'s #player-characters thread was matched but had no portrait image.`);
+      }
       if (!DRY_RUN) {
-        const pcProfile = lookupPcProfile(pcProfileMap, name);
         const metaParts = [
           clan && `**Clan:** ${clan}`,
           sect && `**Sect:** ${sect}`,
@@ -585,7 +613,7 @@ async function main(opts: WikiSyncOptions) {
   } else {
     let retiredThreads: DiscordThread[] = [];
     try { retiredThreads = await fetchForumThreads(rest, GUILD_ID, retiredCh.id); }
-    catch (err) { console.log(`  [warn] Could not fetch #retired threads: ${err}`); }
+    catch (err) { warn(`Could not fetch #retired threads: ${err}`); }
 
     let retiredCount = 0;
     for (const thread of retiredThreads) {
@@ -618,14 +646,14 @@ async function main(opts: WikiSyncOptions) {
 
   for (const chanName of LORE_CHANNEL_NAMES) {
     const ch = channelByName.get(chanName);
-    if (!ch) { console.log(`  [warn] #${chanName} not found — skipping.`); continue; }
+    if (!ch) { warn(`#${chanName} not found — skipping.`); continue; }
 
     if (ch.type === CH_FORUM) {
       let threads: DiscordThread[] = [];
       try {
         threads = await fetchForumThreads(rest, GUILD_ID, ch.id);
       } catch (err) {
-        console.log(`  [warn] Could not fetch threads from #${chanName}: ${err}`);
+        warn(`Could not fetch threads from #${chanName}: ${err}`);
         continue;
       }
       console.log(`  #${chanName} (forum): ${threads.length} post(s)`);
@@ -659,7 +687,7 @@ async function main(opts: WikiSyncOptions) {
       try {
         messages = await fetchAllMessages(rest, ch.id, MSG_LIMIT);
       } catch (err) {
-        console.log(`  [warn] Could not read #${chanName}: ${err}`);
+        warn(`Could not read #${chanName}: ${err}`);
         continue;
       }
       if (!messages.length) { console.log(`  #${chanName}: no messages`); continue; }
@@ -681,4 +709,5 @@ async function main(opts: WikiSyncOptions) {
   }
 
   console.log(`\nDone!${DRY_RUN ? ' (dry-run: nothing written)' : ''}`);
+  return { warnings };
 }
