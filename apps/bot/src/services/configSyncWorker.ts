@@ -80,6 +80,7 @@ export class ConfigSyncWorker {
       liveConfig.correspondenceCobwebChannelId = cfg.correspondenceCobwebChannelId ?? config.correspondenceCobwebChannelId;
       liveConfig.correspondenceRumorChannelId = cfg.correspondenceRumorChannelId ?? config.correspondenceRumorChannelId;
       liveConfig.correspondenceSceneRequestChannelId = cfg.correspondenceSceneRequestChannelId ?? config.correspondenceSceneRequestChannelId;
+      if (cfg.rumorApprovalEnabled !== null) liveConfig.rumorApprovalEnabled = cfg.rumorApprovalEnabled;
       // Rebuild testerDiscordIds each sync so removals are respected:
       // start from the env-seeded snapshot, then union in current DB staff.
       config.testerDiscordIds = new Set(config.envTesterDiscordIds);

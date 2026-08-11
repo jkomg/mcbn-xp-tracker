@@ -484,6 +484,36 @@ class SceneRequest(db.Model):
     requester = db.relationship('DbCharacter', foreign_keys=[requester_character_id])
 
 
+class Rumor(db.Model):
+    """A player-submitted rumor, queued for ST approval before it posts to #rumors."""
+    __tablename__ = 'rumors'
+    __table_args__ = (
+        db.Index('ix_rumors_status_created', 'status', 'created_at'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    discovery = db.Column(String(50), nullable=False)  # Kindred | Underworld | High Society | Streets
+    rumor_text = db.Column(Text, nullable=False)
+    location = db.Column(String(200), default='')
+    point_of_contact = db.Column(String(300), default='')
+    roll = db.Column(String(200), default='')
+    kind = db.Column(String(16), nullable=False, default='permanent')  # permanent | ephemeral
+    ic_night_key = db.Column(String(32), default='')  # stamped at creation for ephemeral rumors
+    status = db.Column(String(20), nullable=False, default='pending', index=True)  # pending | approved | rejected | expired
+    requester_discord_id = db.Column(String(30), default='')
+    requester_character_name = db.Column(String(200), default='')
+    cubby_channel_id = db.Column(String(32), nullable=True)
+    cubby_message_id = db.Column(String(32), nullable=True)
+    posted_channel_id = db.Column(String(32), nullable=True)
+    posted_message_id = db.Column(String(32), nullable=True)
+    approved_by_discord_id = db.Column(String(30), default='')
+    approved_by_name = db.Column(String(100), default='')
+    rejected_by_discord_id = db.Column(String(30), default='')
+    rejected_by_name = db.Column(String(100), default='')
+    rejected_reason = db.Column(Text, default='')
+    created_at = db.Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    resolved_at = db.Column(DateTime, nullable=True)
+
+
 class DbContactThread(db.Model):
     """A #kindred-contact conversation between two or more characters."""
     __tablename__ = 'contact_threads'

@@ -57,4 +57,6 @@ export const liveConfig = {
   correspondenceCobwebChannelId: '',
   correspondenceRumorChannelId: '',
   correspondenceSceneRequestChannelId: '',
+  /** When on, /rumor queues for ST approval in the poster's cubby instead of posting to #rumors immediately. */
+  rumorApprovalEnabled: false,
 };

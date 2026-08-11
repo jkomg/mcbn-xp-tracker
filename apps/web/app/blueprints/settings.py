@@ -489,6 +489,15 @@ def index():
             'editable': True,
             **_bot_flag_status('BOT_NEW_NIGHT_BROADCAST_ENABLED', overrides),
         },
+        {
+            'label': 'Rumor Approval',
+            'key': 'BOT_RUMOR_APPROVAL_ENABLED',
+            'env': 'RUMOR_APPROVAL_ENABLED',
+            'interval_env': None,
+            'description': "When on, /rumor no longer posts to #rumors immediately — it queues the rumor and pings @system-helper with Approve/Reject buttons in the poster's own cubby first. When off, /rumor keeps posting instantly as it does today.",
+            'editable': True,
+            **_bot_flag_status('BOT_RUMOR_APPROVAL_ENABLED', overrides),
+        },
     ]
 
     # ── Bot command kill switches (DB-backed CSV; polled by bot via /api/bot-config) ──
@@ -1278,6 +1287,7 @@ def update():
         'BOT_MENTION_BREAKER_ENABLED',
         'BOT_NEW_MEMBER_GATE_ENABLED',
         'BOT_NEW_NIGHT_BROADCAST_ENABLED',
+        'BOT_RUMOR_APPROVAL_ENABLED',
     }
 
     if action == 'reset':

@@ -785,6 +785,7 @@ def bot_config():
         'BOT_MENTION_BREAKER_ENABLED': 'mentionBreakerEnabled',
         'BOT_NEW_MEMBER_GATE_ENABLED': 'newMemberGateEnabled',
         'BOT_NEW_NIGHT_BROADCAST_ENABLED': 'newNightBroadcastEnabled',
+        'BOT_RUMOR_APPROVAL_ENABLED': 'rumorApprovalEnabled',
     }
     INT_KEYS = {
         'BOT_PASSAGE_OF_TIME_INTERVAL_MS': 'passageOfTimeIntervalMs',
@@ -2841,6 +2842,266 @@ def scene_request_reject_action(request_id: int):
         }
 
     return _scene_request_action(request_id, _reject)
+
+
+# --- Rumor API ---
+
+_RUMOR_DISCOVERIES = {'Kindred', 'Underworld', 'High Society', 'Streets'}
+_RUMOR_KINDS = {'permanent', 'ephemeral'}
+
+
+def _rumor_to_dict(rumor) -> dict:
+    return {
+        'id': rumor.id,
+        'discovery': rumor.discovery,
+        'rumor_text': rumor.rumor_text,
+        'location': rumor.location or '',
+        'point_of_contact': rumor.point_of_contact or '',
+        'roll': rumor.roll or '',
+        'kind': rumor.kind,
+        'ic_night_key': rumor.ic_night_key or '',
+        'status': rumor.status,
+        'requester_discord_id': rumor.requester_discord_id or '',
+        'requester_character_name': rumor.requester_character_name or '',
+        'cubby_channel_id': rumor.cubby_channel_id,
+        'cubby_message_id': rumor.cubby_message_id,
+        'posted_channel_id': rumor.posted_channel_id,
+        'posted_message_id': rumor.posted_message_id,
+        'approved_by_discord_id': rumor.approved_by_discord_id or '',
+        'approved_by_name': rumor.approved_by_name or '',
+        'rejected_by_discord_id': rumor.rejected_by_discord_id or '',
+        'rejected_by_name': rumor.rejected_by_name or '',
+        'rejected_reason': rumor.rejected_reason or '',
+        'created_at': rumor.created_at.isoformat() if rumor.created_at else None,
+        'resolved_at': rumor.resolved_at.isoformat() if rumor.resolved_at else None,
+    }
+
+
+@bp.route('/rumors', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def create_rumor():
+    """Queue a player-submitted rumor for ST approval.
+
+    Body: { discovery, rumorText, location, pointOfContact, roll, kind,
+            icNightKey, requesterCharacterName, requesterDiscordId, requesterDiscordName }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, _, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from app.db import Rumor, db
+
+    discovery = str(payload.get('discovery', '')).strip()
+    rumor_text = str(payload.get('rumorText', '')).strip()
+    roll = str(payload.get('roll', '')).strip()
+    kind = str(payload.get('kind', '')).strip().lower()
+    requester_character_name = str(payload.get('requesterCharacterName', '')).strip()
+
+    if discovery not in _RUMOR_DISCOVERIES:
+        return jsonify({'error': f'discovery must be one of {sorted(_RUMOR_DISCOVERIES)}'}), 400
+    if not rumor_text:
+        return jsonify({'error': 'rumorText is required'}), 400
+    if not roll:
+        return jsonify({'error': 'roll is required'}), 400
+    if kind not in _RUMOR_KINDS:
+        return jsonify({'error': f'kind must be one of {sorted(_RUMOR_KINDS)}'}), 400
+    if not requester_character_name:
+        return jsonify({'error': 'requesterCharacterName is required'}), 400
+
+    rumor = Rumor(
+        discovery=discovery,
+        rumor_text=rumor_text,
+        location=str(payload.get('location', '')).strip(),
+        point_of_contact=str(payload.get('pointOfContact', '')).strip(),
+        roll=roll,
+        kind=kind,
+        ic_night_key=(str(payload.get('icNightKey', '')).strip() if kind == 'ephemeral' else ''),
+        requester_discord_id=effective_discord_id,
+        requester_character_name=requester_character_name,
+    )
+    db.session.add(rumor)
+    db.session.commit()
+
+    return jsonify({'ok': True, 'rumor': _rumor_to_dict(rumor)}), 201
+
+
+@bp.route('/rumors/<int:rumor_id>/cubby-message', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def set_rumor_cubby_message(rumor_id: int):
+    """Record where the approval-request message was posted, so it can be edited later.
+
+    Body: { channelId, messageId }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    from app.db import Rumor, db
+
+    rumor = Rumor.query.get(rumor_id)
+    if not rumor:
+        return jsonify({'error': 'Rumor not found'}), 404
+
+    rumor.cubby_channel_id = str(payload.get('channelId', '')).strip() or None
+    rumor.cubby_message_id = str(payload.get('messageId', '')).strip() or None
+    db.session.commit()
+
+    return jsonify({'ok': True})
+
+
+def _rumor_action(rumor_id: int, expected_status: str, build_updates):
+    """Shared atomic action plumbing, mirroring _scene_request_action: 404 if
+    missing, 409 if not currently in *expected_status* — the UPDATE only
+    applies `WHERE status = expected_status`, so concurrent actions can't
+    both pass a status check before either commits.
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    _, requester_discord_name, effective_discord_id, _, _, error = _requester_from_payload(payload)
+    if error:
+        return error
+
+    from sqlalchemy import update as sa_update
+    from app.db import Rumor, db
+
+    rumor = Rumor.query.get(rumor_id)
+    if not rumor:
+        return jsonify({'error': 'Rumor not found'}), 404
+
+    updates = build_updates(effective_discord_id, requester_discord_name, payload)
+    result = db.session.execute(
+        sa_update(Rumor)
+        .where(Rumor.id == rumor_id, Rumor.status == expected_status)
+        .values(**updates)
+    )
+    if result.rowcount == 0:
+        db.session.rollback()
+        db.session.refresh(rumor)
+        return jsonify({
+            'error': f'Rumor is already {rumor.status} — nothing to do',
+            'rumor': _rumor_to_dict(rumor),
+        }), 409
+
+    db.session.commit()
+    db.session.refresh(rumor)
+    return jsonify({'ok': True, 'rumor': _rumor_to_dict(rumor)})
+
+
+@bp.route('/rumors/<int:rumor_id>/approve-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def rumor_approve_action(rumor_id: int):
+    """An ST approves a pending rumor.
+
+    Body: { requesterDiscordId, requesterDiscordName }
+    """
+    def _approve(effective_discord_id, requester_discord_name, _payload):
+        return {
+            'status': 'approved',
+            'approved_by_discord_id': effective_discord_id,
+            'approved_by_name': requester_discord_name or effective_discord_id,
+            'resolved_at': datetime.now(timezone.utc),
+        }
+
+    return _rumor_action(rumor_id, 'pending', _approve)
+
+
+@bp.route('/rumors/<int:rumor_id>/reject-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def rumor_reject_action(rumor_id: int):
+    """An ST rejects a pending rumor.
+
+    Body: { requesterDiscordId, requesterDiscordName, reason }
+    """
+    def _reject(effective_discord_id, requester_discord_name, payload):
+        return {
+            'status': 'rejected',
+            'rejected_by_discord_id': effective_discord_id,
+            'rejected_by_name': requester_discord_name or effective_discord_id,
+            'rejected_reason': str(payload.get('reason', '')).strip(),
+            'resolved_at': datetime.now(timezone.utc),
+        }
+
+    return _rumor_action(rumor_id, 'pending', _reject)
+
+
+@bp.route('/rumors/<int:rumor_id>/posted-message', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("20 per minute")
+def set_rumor_posted_message(rumor_id: int):
+    """Record where the approved rumor was posted in #rumors, so an ephemeral
+    rumor's message can be found and deleted once its IC night ends.
+
+    Body: { channelId, messageId }
+    """
+    backend = _require_db()
+    if backend:
+        return backend
+
+    payload = request.get_json(silent=True) or {}
+    from app.db import Rumor, db
+
+    rumor = Rumor.query.get(rumor_id)
+    if not rumor:
+        return jsonify({'error': 'Rumor not found'}), 404
+
+    rumor.posted_channel_id = str(payload.get('channelId', '')).strip() or None
+    rumor.posted_message_id = str(payload.get('messageId', '')).strip() or None
+    db.session.commit()
+
+    return jsonify({'ok': True})
+
+
+@bp.route('/rumors/ephemeral-active', methods=['GET'])
+@require_bot_scope('read')
+@_limit("60 per minute")
+def list_active_ephemeral_rumors():
+    """Approved ephemeral rumors not yet expired, for the bot's expiry worker
+    to compare each `ic_night_key` against the current night."""
+    backend = _require_db()
+    if backend:
+        return backend
+
+    from app.db import Rumor
+
+    rumors = Rumor.query.filter_by(status='approved', kind='ephemeral').all()
+    return jsonify({'rumors': [_rumor_to_dict(r) for r in rumors]})
+
+
+@bp.route('/rumors/<int:rumor_id>/expire-action', methods=['POST'])
+@require_bot_scope('write')
+@require_replay_protection
+@_limit("60 per minute")
+def rumor_expire_action(rumor_id: int):
+    """The bot's expiry worker marks an approved ephemeral rumor expired once
+    its IC night has ended.
+
+    Body: { requesterDiscordId, requesterDiscordName }
+    """
+    def _expire(_effective_discord_id, _requester_discord_name, _payload):
+        return {
+            'status': 'expired',
+            'resolved_at': datetime.now(timezone.utc),
+        }
+
+    return _rumor_action(rumor_id, 'approved', _expire)
 
 
 # --- Contact Thread API ---

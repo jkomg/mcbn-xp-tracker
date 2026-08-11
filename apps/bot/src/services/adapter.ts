@@ -63,6 +63,7 @@ export interface BotConfigResponse {
   correspondenceCobwebChannelId: string | null;
   correspondenceRumorChannelId: string | null;
   correspondenceSceneRequestChannelId: string | null;
+  rumorApprovalEnabled: boolean | null;
 }
 
 export interface TrackerAdapter {
@@ -249,6 +250,35 @@ export interface TrackerAdapter {
     requester: RequesterContext,
     reason: string,
   ): Promise<{ ok: boolean; message: string; request?: SceneRequestDetails; alreadyResolved?: boolean }>;
+  createRumor(
+    requester: RequesterContext,
+    payload: {
+      discovery: string;
+      rumorText: string;
+      location: string;
+      pointOfContact: string;
+      roll: string;
+      kind: 'permanent' | 'ephemeral';
+      icNightKey: string;
+      requesterCharacterName: string;
+    },
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails }>;
+  setRumorCubbyMessage(rumorId: number, channelId: string, messageId: string): Promise<void>;
+  setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<void>;
+  approveRumor(
+    rumorId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }>;
+  rejectRumor(
+    rumorId: number,
+    requester: RequesterContext,
+    reason: string,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }>;
+  listActiveEphemeralRumors(): Promise<RumorDetails[]>;
+  expireRumor(
+    rumorId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }>;
 }
 
 export type BoonTier = 'trivial' | 'minor' | 'major' | 'life';
@@ -287,6 +317,31 @@ export type SceneRequestDetails = {
   rejected_reason: string;
   queue_channel_id: string | null;
   queue_message_id: string | null;
+  created_at: string | null;
+  resolved_at: string | null;
+};
+
+export type RumorDetails = {
+  id: number;
+  discovery: string;
+  rumor_text: string;
+  location: string;
+  point_of_contact: string;
+  roll: string;
+  kind: 'permanent' | 'ephemeral';
+  ic_night_key: string;
+  status: string;
+  requester_discord_id: string;
+  requester_character_name: string;
+  cubby_channel_id: string | null;
+  cubby_message_id: string | null;
+  posted_channel_id: string | null;
+  posted_message_id: string | null;
+  approved_by_discord_id: string;
+  approved_by_name: string;
+  rejected_by_discord_id: string;
+  rejected_by_name: string;
+  rejected_reason: string;
   created_at: string | null;
   resolved_at: string | null;
 };
@@ -1872,6 +1927,151 @@ export class WebAppAdapter implements TrackerAdapter {
     if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
     const data = await resp.json() as { ok: boolean; request: SceneRequestDetails };
     return { ok: data.ok, message: successMessage, request: data.request };
+  }
+
+  async createRumor(
+    requester: RequesterContext,
+    payload: {
+      discovery: string;
+      rumorText: string;
+      location: string;
+      pointOfContact: string;
+      roll: string;
+      kind: 'permanent' | 'ephemeral';
+      icNightKey: string;
+      requesterCharacterName: string;
+    },
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/rumors`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        discovery: payload.discovery,
+        rumorText: payload.rumorText,
+        location: payload.location,
+        pointOfContact: payload.pointOfContact,
+        roll: payload.roll,
+        kind: payload.kind,
+        icNightKey: payload.icNightKey,
+        requesterCharacterName: payload.requesterCharacterName,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; rumor: RumorDetails };
+    return { ok: data.ok, message: 'Rumor queued.', rumor: data.rumor };
+  }
+
+  async setRumorCubbyMessage(rumorId: number, channelId: string, messageId: string): Promise<void> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/${rumorId}/cubby-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({ channelId, messageId }),
+    }).catch(() => null);
+    // Best-effort — losing this mapping only means the approval message can't be edited later, not fatal.
+  }
+
+  async setRumorPostedMessage(rumorId: number, channelId: string, messageId: string): Promise<void> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/${rumorId}/posted-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({ channelId, messageId }),
+    }).catch(() => null);
+    // Best-effort — losing this mapping only means an ephemeral rumor's message can't be auto-deleted later, not fatal.
+  }
+
+  async approveRumor(
+    rumorId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }> {
+    return this.rumorAction(`${rumorId}/approve-action`, requester, {}, 'Rumor approved.');
+  }
+
+  async rejectRumor(
+    rumorId: number,
+    requester: RequesterContext,
+    reason: string,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }> {
+    return this.rumorAction(`${rumorId}/reject-action`, requester, { reason }, 'Rumor rejected.');
+  }
+
+  async expireRumor(
+    rumorId: number,
+    requester: RequesterContext,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }> {
+    return this.rumorAction(`${rumorId}/expire-action`, requester, {}, 'Rumor expired.');
+  }
+
+  async listActiveEphemeralRumors(): Promise<RumorDetails[]> {
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/ephemeral-active`, {
+      method: 'GET',
+      headers: this.readAuthHeaders(),
+    }).catch(() => null);
+    if (!resp || !resp.ok) return [];
+    const data = await resp.json().catch(() => null) as { rumors: RumorDetails[] } | null;
+    return data?.rumors ?? [];
+  }
+
+  private async rumorAction(
+    pathSuffix: string,
+    requester: RequesterContext,
+    extraBody: Record<string, unknown>,
+    successMessage: string,
+  ): Promise<{ ok: boolean; message: string; rumor?: RumorDetails; alreadyResolved?: boolean }> {
+    const requestTimestamp = Math.floor(Date.now() / 1000).toString();
+    const requestNonce = randomUUID();
+    const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/rumors/${pathSuffix}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Timestamp': requestTimestamp,
+        'X-Request-Nonce': requestNonce,
+        ...this.writeAuthHeaders(),
+      },
+      body: JSON.stringify({
+        requesterDiscordId: requester.requesterDiscordId,
+        requesterDiscordName: requester.requesterDiscordName,
+        ...extraBody,
+      }),
+    }).catch(() => null);
+
+    if (!resp) return { ok: false, message: 'Unable to reach web app API.' };
+    if (resp.status === 409) {
+      const body = await resp.json().catch(() => ({})) as { error?: string; rumor?: RumorDetails };
+      return {
+        ok: false,
+        message: body.error ?? 'Rumor already resolved.',
+        rumor: body.rumor,
+        alreadyResolved: true,
+      };
+    }
+    if (!resp.ok) return { ok: false, message: await this.errorMessageFrom(resp, `Request failed (${resp.status}).`) };
+    const data = await resp.json() as { ok: boolean; rumor: RumorDetails };
+    return { ok: data.ok, message: successMessage, rumor: data.rumor };
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

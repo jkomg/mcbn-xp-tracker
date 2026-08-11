@@ -77,6 +77,7 @@ function baseBotConfig(overrides: Partial<BotConfigResponse> = {}): BotConfigRes
     verifiedMemberRoleId: null,
     staffDiscordIds: null,
     disabledCommands: null,
+    rumorApprovalEnabled: null,
     ...overrides,
   };
 }

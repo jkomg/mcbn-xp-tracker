@@ -7,6 +7,7 @@ import { WebAppAdapter } from './services/adapter';
 import { ReviewNotifier } from './services/reviewNotifier';
 import { AutoPeriodCreator } from './services/autoPeriodCreator';
 import { AutoPeriodCloser } from './services/autoPeriodCloser';
+import { RumorExpiryWorker } from './services/rumorExpiryWorker';
 import { ClaimReminderService } from './services/claimReminderService';
 import path from 'node:path';
 import {
@@ -33,7 +34,7 @@ import { handleDeliveryModal, handleDeliveryReplyButton } from './commands/deliv
 import { handleContactSendModal, handleContactReplyModal, handleContactReplyButton } from './commands/contact';
 import { handlePostModal, handlePostReplyButton } from './commands/post';
 import { handleCobwebModal, handleCobwebReplyButton } from './commands/cobweb';
-import { handleRumorModal } from './commands/rumor';
+import { handleRumorButton, handleRumorModal, handleRumorRejectModal, isRumorButton } from './commands/rumor';
 import { handleSceneRequestButton, handleSceneRequestRejectModal, isSceneRequestButton } from './commands/scene';
 import { buildDisableTokens, isAnyTokenDisabled } from './services/commandGating';
 import { memberHasAnyRole, requiredRoleIds } from './services/roleGate';
@@ -90,6 +91,7 @@ liveConfig.passageOfTimeEnabled = config.passageOfTimeEnabled;
 liveConfig.newNightBroadcastEnabled = config.passageNewNightBroadcastEnabled;
 liveConfig.newNightBroadcastMessage = config.passageNewNightBroadcastMessage;
 liveConfig.huntConsequenceEnabled = config.huntConsequenceEnabled;
+liveConfig.rumorApprovalEnabled = config.rumorApprovalEnabled;
 liveConfig.honeypotEnabled = config.honeypotEnabled;
 liveConfig.honeypotRequireYoungAccount = config.honeypotRequireYoungAccount;
 liveConfig.honeypotMaxAccountAgeDays = config.honeypotMaxAccountAgeDays;
@@ -231,6 +233,10 @@ void applyStartupConfigOverrides().then(() => {
     enabled: config.autoPeriodCloserEnabled,
     guildId: config.autoPeriodCloserGuildId,
     intervalMs: config.autoPeriodCloserIntervalMs,
+  });
+
+  const rumorExpiryWorker = new RumorExpiryWorker(client, adapter, {
+    intervalMs: config.rumorExpiryIntervalMs,
   });
 
   const submissionNotifier = new SubmissionNotifier(client, adapter, {
@@ -426,6 +432,7 @@ void applyStartupConfigOverrides().then(() => {
     botLogForwarder.start();
     autoPeriodCreator.start();
     autoPeriodCloser.start();
+    rumorExpiryWorker.start();
     claimReminderService.start();
     passageOfTimeService.start();
     sheetsReconcileService.start();
@@ -595,6 +602,11 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_scene_request_button', { ...baseMeta, customId: interaction.customId });
         return;
       }
+      if (isRumorButton(interaction.customId)) {
+        await handleRumorButton(interaction, { client, adapter });
+        logEvent('info', 'interaction_handled_rumor_button', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
       const reminderHandled = await handleClaimReminderButton(interaction, adapter);
       if (reminderHandled) {
         logEvent('info', 'interaction_handled_reminder_button', { ...baseMeta, customId: interaction.customId });
@@ -678,8 +690,13 @@ void applyStartupConfigOverrides().then(() => {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }
-      const rumorHandled = await handleRumorModal(interaction);
+      const rumorHandled = await handleRumorModal(interaction, { client, adapter });
       if (rumorHandled) {
+        logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
+        return;
+      }
+      const rumorRejectHandled = await handleRumorRejectModal(interaction, { client, adapter });
+      if (rumorRejectHandled) {
         logEvent('info', 'interaction_handled_modal', { ...baseMeta, customId: interaction.customId });
         return;
       }

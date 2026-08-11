@@ -1,7 +1,7 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
-import { config } from '../config';
 import { currentIcNightKey } from '../services/icNightTracker';
+import { activeSunsetSchedule } from '../services/sunsetSchedule';
 
 // Nashville, TN — the only location this command supports for now.
 const LATITUDE = 36.1627;
@@ -68,17 +68,6 @@ export function __resetWeatherCacheForTests() {
   cache = null;
 }
 
-function sunsetSchedule() {
-  return {
-    timezone: config.passageOfTimeTimezone,
-    weekdayLocal: config.passageSunsetWeekdayLocal,
-    hourLocal: config.passageSunsetHourLocal,
-    minuteLocal: config.passageSunsetMinuteLocal,
-    anchorDate: config.passageSunsetAnchorDate,
-    cadenceWeeks: 2,
-  };
-}
-
 async function fetchOpenMeteo(): Promise<OpenMeteoCurrent> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
@@ -100,7 +89,7 @@ async function fetchOpenMeteo(): Promise<OpenMeteoCurrent> {
  * this falls back to fetching live every call.
  */
 export async function fetchCurrentWeather(now: Date = new Date()): Promise<OpenMeteoCurrent> {
-  const nightKey = currentIcNightKey(now, sunsetSchedule());
+  const nightKey = currentIcNightKey(now, activeSunsetSchedule());
 
   if (nightKey && cache && cache.nightKey === nightKey) {
     return cache.data;
