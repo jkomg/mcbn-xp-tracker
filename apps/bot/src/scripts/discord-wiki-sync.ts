@@ -161,7 +161,7 @@ export async function firstImageInThread(
   return firstImage(msgs);
 }
 
-interface PcProfile { image: string | null; markdown: string; }
+export interface PcProfile { image: string | null; markdown: string; }
 
 /**
  * Build a map of normalised character name → { image, markdown } by scanning
@@ -182,7 +182,7 @@ async function buildPcProfileMap(
   for (const thread of threads) {
     const msgs = await fetchAllMessages(rest, thread.id, 50);
     await sleep(150);
-    map.set(thread.name.toLowerCase().trim(), {
+    map.set(normalizeForMatch(thread.name), {
       image: await firstImageInThread(rest, thread.id, msgs, 50),
       markdown: messagesToMarkdown(msgs),
     });
@@ -190,12 +190,26 @@ async function buildPcProfileMap(
   return map;
 }
 
-/** Best-effort profile lookup: exact match, then substring. */
-function lookupPcProfile(map: Map<string, PcProfile>, charName: string): PcProfile | null {
-  const key = charName.toLowerCase().trim();
+/**
+ * Normalises a name for matching: lowercase, and strip quote/apostrophe
+ * characters that players commonly wrap around a nickname in a thread title
+ * (e.g. `"Big" Joey Puttanesca`, `Margaret 'Maggie' Carter`) but that the DB
+ * character name doesn't include, so they'd otherwise break the substring
+ * match despite the names being the same character.
+ */
+function normalizeForMatch(name: string): string {
+  return name.toLowerCase().replace(/["'‘’“”]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/** Best-effort profile lookup: exact match, then substring. Normalizes both
+ *  sides itself, so it doesn't depend on the map's keys already being
+ *  normalized by the caller. */
+export function lookupPcProfile(map: Map<string, PcProfile>, charName: string): PcProfile | null {
+  const key = normalizeForMatch(charName);
   if (map.has(key)) return map.get(key)!;
   for (const [threadName, profile] of map) {
-    if (threadName.includes(key) || key.includes(threadName)) return profile;
+    const normalizedThreadName = normalizeForMatch(threadName);
+    if (normalizedThreadName.includes(key) || key.includes(normalizedThreadName)) return profile;
   }
   return null;
 }
