@@ -460,6 +460,10 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         data['humanity'] = new_dots
         return True
 
+    if category == 'Blood Potency':
+        data['bloodPotency'] = new_dots
+        return True
+
     return False
 
 
@@ -603,7 +607,17 @@ def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name:
             return True
         return False
 
+    if category == 'Blood Potency':
+        if data.get('bloodPotency') == new_dots:
+            data['bloodPotency'] = current_dots
+            return True
+        return False
+
     return False
+
+
+# Humanity and Blood Potency are rated 0-10; every other dotted trait is 0-5.
+_VITALS_MAX_DOTS = 10
 
 
 def _dots_str(n: int, max_dots: int = 5) -> str:
@@ -618,10 +632,12 @@ def _generate_stats_markdown(data: dict) -> str:
     humanity = data.get('humanity', 0)
     if bp or humanity:
         parts = []
+        # Both tracks run 0-10, unlike the 0-5 traits below — render the full
+        # ten-dot track so a rating above 5 isn't silently clamped to 5.
         if bp:
-            parts.append(f'Blood Potency {_dots_str(bp)}')
+            parts.append(f'Blood Potency {_dots_str(bp, _VITALS_MAX_DOTS)}')
         if humanity:
-            parts.append(f'Humanity {_dots_str(humanity)}')
+            parts.append(f'Humanity {_dots_str(humanity, _VITALS_MAX_DOTS)}')
         lines.append('  '.join(parts))
         lines.append('')
 

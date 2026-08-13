@@ -1,3 +1,5 @@
+import pytest
+
 from app.xp_rules import calculate_xp_cost
 
 
@@ -16,3 +18,22 @@ def test_progressive_categories_still_use_progressive_math():
 def test_loresheet_uses_selected_dot_times_three():
     assert calculate_xp_cost("Loresheet", 0, 3) == 9
     assert calculate_xp_cost("Loresheet", 0, 5) == 15
+
+
+def test_blood_potency_uses_progressive_math():
+    assert calculate_xp_cost("Blood Potency", 0, 1) == 10
+    assert calculate_xp_cost("Blood Potency", 1, 2) == 20
+    assert calculate_xp_cost("Blood Potency", 2, 3) == 30
+    assert calculate_xp_cost("Blood Potency", 1, 3) == 50
+
+
+def test_blood_potency_rejects_non_increasing_dots():
+    with pytest.raises(ValueError):
+        calculate_xp_cost("Blood Potency", 2, 2)
+    with pytest.raises(ValueError):
+        calculate_xp_cost("Blood Potency", 3, 1)
+
+
+def test_blood_potency_rejects_dots_above_max():
+    with pytest.raises(ValueError):
+        calculate_xp_cost("Blood Potency", 9, 11)

@@ -5,8 +5,11 @@ from flask import Flask
 
 import app as app_module
 from app.character_sheet import (
+    _DOT,
+    _EMPTY,
     _apply_patch,
     _apply_reverse_patch,
+    _generate_stats_markdown,
     _merge_cc_specialties,
     _normalize_skill_key,
     character_has_specialty,
@@ -513,3 +516,61 @@ def test_apply_patch_preserves_cc_specialties_when_adding_new_one():
         'firearms': ['Quickdraw'],
         'stealth': ['Shadowing'],
     }
+
+
+# ── Blood Potency ────────────────────────────────────────────────────────
+# trait_name is the fixed-trait category name itself here — the player.html
+# form auto-fills and read-onlys the trait name field for Humanity/Blood
+# Potency spends (FIXED_TRAIT_CATEGORIES), so _apply_patch is always called
+# with trait_name == 'Blood Potency', mirroring the existing Humanity branch.
+
+_BLOOD_POTENCY = 'Blood Potency'
+
+
+def test_apply_patch_sets_blood_potency():
+    data = {'bloodPotency': 1}
+    patched = _apply_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 2)
+    assert patched is True
+    assert data['bloodPotency'] == 2
+
+
+def test_apply_patch_sets_blood_potency_when_missing_from_draft():
+    data = {}
+    patched = _apply_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1)
+    assert patched is True
+    assert data['bloodPotency'] == 1
+
+
+def test_apply_reverse_patch_restores_prior_blood_potency():
+    data = {'bloodPotency': 2}
+    reverted = _apply_reverse_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1, 2)
+    assert reverted is True
+    assert data['bloodPotency'] == 1
+
+
+def test_apply_reverse_patch_blood_potency_no_op_when_stale():
+    """Staleness guard: if bloodPotency no longer equals new_dots (e.g. a
+    later spend raised it further), the reversal is a no-op that leaves the
+    newer value untouched — mirrors the existing Humanity staleness guard."""
+    data = {'bloodPotency': 3}
+    reverted = _apply_reverse_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1, 2)
+    assert reverted is False
+    assert data['bloodPotency'] == 3
+
+
+# ── Vitals dot rendering (Humanity / Blood Potency are 0-10, not 0-5) ────────
+
+def test_stats_markdown_renders_vitals_on_a_ten_dot_track():
+    """Humanity and Blood Potency are rated 0-10, unlike every other dotted
+    trait. They must render a full ten-dot track, or a rating above 5 gets
+    silently clamped to 5 in the wiki stats block."""
+    markdown = _generate_stats_markdown({'bloodPotency': 7, 'humanity': 8})
+    assert f'Blood Potency {_DOT * 7}{_EMPTY * 3}' in markdown
+    assert f'Humanity {_DOT * 8}{_EMPTY * 2}' in markdown
+
+
+def test_stats_markdown_still_renders_five_dot_traits_on_a_five_dot_track():
+    """The 0-10 track applies only to the vitals — Attributes and Skills keep
+    their five-dot rendering."""
+    markdown = _generate_stats_markdown({'attributes': {'strength': 3}})
+    assert f'Strength {_DOT * 3}{_EMPTY * 2}' in markdown
