@@ -320,8 +320,14 @@ Production secrets are managed via GCP Secret Manager:
 ```bash
 cd apps/web
 ./setup-secrets.sh    # interactive: reads values from .env, pushes to Secret Manager
-./deploy.sh           # build/push image and deploy new Cloud Run revision
+./deploy.sh           # trigger the prod deploy workflow so Cloud Run picks up :latest
 ```
+
+Cloud Run resolves `secret:latest` at deploy time, so rotating a secret in
+Secret Manager does **not** take effect until the service redeploys — that is
+what the `./deploy.sh` step above is for. It triggers
+`.github/workflows/deploy-web.yml` via `workflow_dispatch`; it does not build
+or deploy anything locally.
 
 To add or remove staff Discord IDs without a full redeploy:
 

@@ -71,6 +71,12 @@
     "min_dots": 1,
     "max_dots": 10
   },
+  "Blood Potency": {
+    "multiplier": 10,
+    "description": "New rating × 10",
+    "min_dots": 0,
+    "max_dots": 10
+  },
   "Skill Specialty": {
     "flat_cost": 3,
     "description": "3 XP (0 → 1)",

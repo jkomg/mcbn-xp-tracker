@@ -12,12 +12,15 @@ XP tracking and management for **Music City by Night** (MCbN), a Vampire: the Ma
 mcbn-xp-tracker/
   apps/
     web/          # Flask app (Python 3.12) — admin UI + REST API, Cloud Run deploy target
-    bot/          # Discord bot (Node 20/TypeScript) — locally hosted
+    bot/          # Discord bot (Node 20/TypeScript) — locally hosted on Ursula
+    character-app/# React character-creator SPA, built into the web image at deploy time
   packages/
     api-contract/ # Shared request/response schemas and enums
     rules/        # Shared XP/spend formulas and fixtures
   infra/
-    cloudrun/     # Deploy scripts and service config
+    ursula/       # Bot host: agents, dashboard, failover (Cloud Run config lives in CI)
+    bot-hosting/  # systemd / launchd unit templates for the bot
+    web-hosting/  # launchd template for a local dev web instance
   docs/           # Runbooks, architecture, API reference
   scripts/        # Local bootstrap and ops scripts
   compose.web.yml   # Docker profile: web only
@@ -45,9 +48,14 @@ Non-Docker alternative: `cd apps/web && python -m flask run --port 5001` / `cd a
 
 ## Production Deploy
 
+Deploys are automatic via GitHub Actions — dev on any CI-passing push, prod
+after a dev deploy succeeds on `main`. The commands below are only for forcing
+a redeploy without a new commit (e.g. after rotating a secret):
+
 ```bash
-cd apps/web && ./deploy.sh           # build/push image, deploy Cloud Run revision
 cd apps/web && ./setup-secrets.sh    # sync env values to GCP Secret Manager
+cd apps/web && ./deploy.sh           # trigger the prod deploy workflow (needs gh CLI)
+cd apps/web && ./deploy.sh dev       # trigger the dev deploy workflow
 ```
 
 The current production web app runs on Cloud Run as `mcbn-xp-tracker` and the dev web

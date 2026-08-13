@@ -62,6 +62,15 @@ _DISCIPLINE_CATEGORIES = frozenset({
 
 _SKILL_CATEGORIES = frozenset({'Skill', 'New Skill'})
 
+# Fixed-trait "vital" categories: the category itself names the trait, and the
+# sheet stores it as a plain scalar rather than an entry in a named collection.
+# Maps spend category -> character_data field. Mirrored client-side by
+# FIXED_TRAIT_CATEGORIES in player/character.html.
+_VITAL_SHEET_FIELDS = {
+    'Humanity': 'humanity',
+    'Blood Potency': 'bloodPotency',
+}
+
 # Advantages (Merits/Backgrounds) that track a required sub-category/faction
 # via a parenthetical suffix on the plain sheet name — e.g. "Status (Tremere)"
 # is the existing informal convention already present in sheet data, not a
@@ -191,6 +200,36 @@ def character_skill_rating(character_name: str, skill_name: str) -> int:
         return int(data.get('skills', {}).get(_normalize_skill_key(skill_name), 0))
     except (TypeError, ValueError):
         return 0
+
+
+def character_vital_rating(character_name: str, category: str) -> int | None:
+    """Return the sheet's current rating for a fixed-trait vital, or None.
+
+    Covers the categories in _VITAL_SHEET_FIELDS (Humanity, Blood Potency) —
+    the ones whose trait is fixed by the category itself and stored as a plain
+    scalar on the sheet, so the current rating is unambiguous with no name
+    matching involved.
+
+    None means "cannot be determined" — a different category, no roster
+    character, no approved draft, unparseable JSON, or the field simply absent
+    from the sheet. Callers must treat None as "skip the check" rather than
+    zero: a character with no imported sheet must still be able to submit
+    spends, and `data.get(field)` returning None is not the same as a sheet
+    that genuinely records 0.
+    """
+    field = _VITAL_SHEET_FIELDS.get(category)
+    if field is None:
+        return None
+    data = _load_approved_sheet_data(character_name)
+    if data is None:
+        return None
+    raw = data.get(field)
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def character_has_specialty(character_name: str, skill_name: str, specialty_name: str) -> bool:
@@ -456,8 +495,8 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         specialties.append(power_name)
         return True
 
-    if category == 'Humanity':
-        data['humanity'] = new_dots
+    if category in _VITAL_SHEET_FIELDS:
+        data[_VITAL_SHEET_FIELDS[category]] = new_dots
         return True
 
     return False
@@ -597,13 +636,18 @@ def _apply_reverse_patch(data: dict, category: str, trait_name: str, power_name:
                 return True
         return False
 
-    if category == 'Humanity':
-        if data.get('humanity') == new_dots:
-            data['humanity'] = current_dots
+    if category in _VITAL_SHEET_FIELDS:
+        field = _VITAL_SHEET_FIELDS[category]
+        if data.get(field) == new_dots:
+            data[field] = current_dots
             return True
         return False
 
     return False
+
+
+# Humanity and Blood Potency are rated 0-10; every other dotted trait is 0-5.
+_VITALS_MAX_DOTS = 10
 
 
 def _dots_str(n: int, max_dots: int = 5) -> str:
@@ -618,10 +662,12 @@ def _generate_stats_markdown(data: dict) -> str:
     humanity = data.get('humanity', 0)
     if bp or humanity:
         parts = []
+        # Both tracks run 0-10, unlike the 0-5 traits below — render the full
+        # ten-dot track so a rating above 5 isn't silently clamped to 5.
         if bp:
-            parts.append(f'Blood Potency {_dots_str(bp)}')
+            parts.append(f'Blood Potency {_dots_str(bp, _VITALS_MAX_DOTS)}')
         if humanity:
-            parts.append(f'Humanity {_dots_str(humanity)}')
+            parts.append(f'Humanity {_dots_str(humanity, _VITALS_MAX_DOTS)}')
         lines.append('  '.join(parts))
         lines.append('')
 

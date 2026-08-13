@@ -5,12 +5,16 @@ from flask import Flask
 
 import app as app_module
 from app.character_sheet import (
+    _DOT,
+    _EMPTY,
     _apply_patch,
     _apply_reverse_patch,
+    _generate_stats_markdown,
     _merge_cc_specialties,
     _normalize_skill_key,
     character_has_specialty,
     character_skill_rating,
+    character_vital_rating,
     find_trait_sheet_match,
     subcategory_label_for_trait,
 )
@@ -513,3 +517,161 @@ def test_apply_patch_preserves_cc_specialties_when_adding_new_one():
         'firearms': ['Quickdraw'],
         'stealth': ['Shadowing'],
     }
+
+
+# ── Blood Potency ────────────────────────────────────────────────────────
+# trait_name is the fixed-trait category name itself here — the player.html
+# form auto-fills and read-onlys the trait name field for Humanity/Blood
+# Potency spends (FIXED_TRAIT_CATEGORIES), so _apply_patch is always called
+# with trait_name == 'Blood Potency', mirroring the existing Humanity branch.
+
+_BLOOD_POTENCY = 'Blood Potency'
+
+
+def test_apply_patch_sets_blood_potency():
+    data = {'bloodPotency': 1}
+    patched = _apply_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 2)
+    assert patched is True
+    assert data['bloodPotency'] == 2
+
+
+def test_apply_patch_sets_blood_potency_when_missing_from_draft():
+    data = {}
+    patched = _apply_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1)
+    assert patched is True
+    assert data['bloodPotency'] == 1
+
+
+def test_apply_reverse_patch_restores_prior_blood_potency():
+    data = {'bloodPotency': 2}
+    reverted = _apply_reverse_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1, 2)
+    assert reverted is True
+    assert data['bloodPotency'] == 1
+
+
+def test_apply_reverse_patch_blood_potency_no_op_when_stale():
+    """Staleness guard: if bloodPotency no longer equals new_dots (e.g. a
+    later spend raised it further), the reversal is a no-op that leaves the
+    newer value untouched — mirrors the existing Humanity staleness guard."""
+    data = {'bloodPotency': 3}
+    reverted = _apply_reverse_patch(data, _BLOOD_POTENCY, _BLOOD_POTENCY, '', 1, 2)
+    assert reverted is False
+    assert data['bloodPotency'] == 3
+
+
+# ── Vitals dot rendering (Humanity / Blood Potency are 0-10, not 0-5) ────────
+
+def test_stats_markdown_renders_vitals_on_a_ten_dot_track():
+    """Humanity and Blood Potency are rated 0-10, unlike every other dotted
+    trait. They must render a full ten-dot track, or a rating above 5 gets
+    silently clamped to 5 in the wiki stats block."""
+    markdown = _generate_stats_markdown({'bloodPotency': 7, 'humanity': 8})
+    assert f'Blood Potency {_DOT * 7}{_EMPTY * 3}' in markdown
+    assert f'Humanity {_DOT * 8}{_EMPTY * 2}' in markdown
+
+
+def test_stats_markdown_still_renders_five_dot_traits_on_a_five_dot_track():
+    """The 0-10 track applies only to the vitals — Attributes and Skills keep
+    their five-dot rendering."""
+    markdown = _generate_stats_markdown({'attributes': {'strength': 3}})
+    assert f'Strength {_DOT * 3}{_EMPTY * 2}' in markdown
+
+
+# ── Fixed-trait vitals: current_dots must match the sheet ────────────────────
+
+def test_character_vital_rating_reads_both_vitals(app_ctx):
+    _seed_approved_character('Vitals Vera', {'bloodPotency': 4, 'humanity': 6})
+    assert character_vital_rating('Vitals Vera', 'Blood Potency') == 4
+    assert character_vital_rating('Vitals Vera', 'Humanity') == 6
+
+
+def test_character_vital_rating_none_for_other_categories(app_ctx):
+    _seed_approved_character('Vitals Vera', {'bloodPotency': 4})
+    assert character_vital_rating('Vitals Vera', 'Attribute') is None
+
+
+def test_character_vital_rating_none_when_field_absent(app_ctx):
+    """Absent field must read as unknown, not 0 — a character whose sheet
+    never recorded the vital must still be able to submit spends."""
+    _seed_approved_character('No Vitals Nick', {'attributes': {'strength': 2}})
+    assert character_vital_rating('No Vitals Nick', 'Blood Potency') is None
+
+
+def test_character_vital_rating_none_without_a_sheet(app_ctx):
+    assert character_vital_rating('Ghost Who Has No Draft', 'Blood Potency') is None
+
+
+def test_submit_spend_request_rejects_stale_blood_potency(app_ctx):
+    """The bug this guards: a wish-list item left at the default 0->1 would
+    charge 10 XP to 'raise' a Blood Potency 4 character and downgrade the
+    sheet to 1 on approval."""
+    _seed_approved_character('Potent Pete', {'bloodPotency': 4})
+    with pytest.raises(ValueError, match='Blood Potency is 4'):
+        app_module.db_service.submit_spend_request(
+            character_name='Potent Pete',
+            spend_category='Blood Potency',
+            trait_name='Blood Potency',
+            current_dots=0,
+            new_dots=1,
+            is_in_clan=False,
+            justification='stale wish-list default',
+        )
+
+
+def test_submit_spend_request_rejects_inflated_humanity(app_ctx):
+    """Same guard in the undercharge direction, on the pre-existing category."""
+    _seed_approved_character('Moral Mona', {'humanity': 6})
+    with pytest.raises(ValueError, match='Humanity is 6'):
+        app_module.db_service.submit_spend_request(
+            character_name='Moral Mona',
+            spend_category='Humanity',
+            trait_name='Humanity',
+            current_dots=8,
+            new_dots=9,
+            is_in_clan=False,
+            justification='inflated current rating',
+        )
+
+
+def test_submit_spend_request_allows_matching_blood_potency(app_ctx):
+    _seed_approved_character('Potent Pete', {'bloodPotency': 4})
+    cost = app_module.db_service.submit_spend_request(
+        character_name='Potent Pete',
+        spend_category='Blood Potency',
+        trait_name='Blood Potency',
+        current_dots=4,
+        new_dots=5,
+        is_in_clan=False,
+        justification='honest raise',
+    )
+    assert cost == 50
+
+
+def test_submit_spend_request_unaffected_without_a_sheet(app_ctx):
+    """No imported sheet means nothing to validate against — must not block."""
+    cost = app_module.db_service.submit_spend_request(
+        character_name='Sheetless Sam',
+        spend_category='Blood Potency',
+        trait_name='Blood Potency',
+        current_dots=1,
+        new_dots=2,
+        is_in_clan=False,
+        justification='no sheet on file',
+    )
+    assert cost == 20
+
+
+def test_submit_spend_request_does_not_gate_other_categories(app_ctx):
+    """The gate is scoped to fixed-trait vitals; named-collection traits still
+    go through unchecked, same as before this change."""
+    _seed_approved_character('Potent Pete', {'bloodPotency': 4, 'attributes': {'strength': 3}})
+    cost = app_module.db_service.submit_spend_request(
+        character_name='Potent Pete',
+        spend_category='Attribute',
+        trait_name='Strength',
+        current_dots=1,
+        new_dots=2,
+        is_in_clan=False,
+        justification='unchecked category',
+    )
+    assert cost == 10

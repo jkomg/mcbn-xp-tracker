@@ -1,8 +1,12 @@
 # Dev Environment Setup
 
-The dev Cloud Run service (`mcbn-xp-tracker-dev`) runs every commit that lands on `main`
-before (or alongside) the prod deploy. Its isolated Turso DB means migration errors and
-startup crashes surface in dev first.
+The dev Cloud Run service (`mcbn-xp-tracker-dev`) redeploys on **every CI-passing push, on
+any branch** — not just `main`, and not only when a PR is open. Its isolated Turso DB means
+migration errors and startup crashes surface in dev first.
+
+> **Dev is shared.** Because there is no branch filter, pushing a work-in-progress branch
+> replaces whatever is currently deployed to `dev.mcbn.jkomg.us` and pings Discord.
+> Coordinate before pushing if someone else is testing there.
 
 ## One-time setup
 
@@ -64,12 +68,16 @@ allowed redirect URI for the bot's OAuth application.
 
 ## How it works
 
-- `deploy-web-dev.yml` triggers after `CI` passes on `main` (same trigger as prod)
+- `deploy-web-dev.yml` triggers after `CI` completes — on **any branch**, deliberately
+  unfiltered so a PR can be tested on real infrastructure before it merges
 - Builds the same Docker image tagged with the commit SHA
 - Deploys to `mcbn-xp-tracker-dev` using `mcbn-dev-database-url` / `mcbn-dev-turso-auth-token`
 - Runs a 60s smoke test against `/api/health` — if the app crashes on startup (e.g. missing
   migration file), the smoke test fails and the Discord webhook posts a warning
-- Prod deploy (`deploy-web.yml`) runs in parallel — if dev smoke test fails, check prod logs
+- Prod deploy (`deploy-web.yml`) is **chained after this one, not parallel**: it triggers on
+  `Deploy Web to Cloud Run (Dev)` completing, filtered to `branches: [main]`. So dev acts as
+  a gate — prod only deploys after a dev deploy succeeds on `main`, and a feature-branch dev
+  deploy can never reach prod.
 
 ## Local dev rule
 
