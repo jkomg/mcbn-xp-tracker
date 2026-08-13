@@ -849,9 +849,30 @@ class DBService:
                              coterie_id: int | None = None) -> int:
         """Submit a new spend request. Returns the calculated XP cost.
 
-        Raises ValueError if the cost calculation fails.
+        Raises ValueError if the cost calculation fails, or if a fixed-trait
+        vital's current_dots contradicts the character sheet.
         """
+        from app.character_sheet import character_vital_rating
         from app.xp_rules import calculate_xp_cost
+
+        # Fixed-trait vitals (Humanity, Blood Potency) are stored on the sheet
+        # as unambiguous scalars, so a client-supplied current_dots can and
+        # must be checked against them rather than trusted. This is the shared
+        # chokepoint: both player.submit_spend and player.convert_wish_list_item
+        # land here, and the latter bypasses the route-level validation
+        # entirely — a wish-list item left at the default 0->1 would otherwise
+        # charge 10 XP to "raise" a Blood Potency 4 character and downgrade the
+        # sheet to 1 on approval. A None rating means unknown (no imported
+        # sheet, or the field is absent), so there is nothing to check against
+        # and the spend proceeds as before.
+        sheet_rating = character_vital_rating(character_name, spend_category)
+        if sheet_rating is not None and sheet_rating != current_dots:
+            raise ValueError(
+                f'{spend_category} is {sheet_rating} on the character sheet, '
+                f'but this request says {current_dots}. Re-submit with the '
+                f'correct current rating.'
+            )
+
         xp_cost = calculate_xp_cost(spend_category, current_dots, new_dots)
 
         row = DbSpendRequest(

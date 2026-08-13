@@ -63,7 +63,16 @@ case "${TARGET}" in
     WORKFLOW="deploy-web-dev.yml"
     SERVICE="mcbn-xp-tracker-dev"
     SITE="https://dev.mcbn.jkomg.us"
+    # --ref must name a branch or tag; on a detached HEAD this returns the
+    # literal string "HEAD", which gh cannot resolve. Fail with something
+    # actionable rather than letting the dispatch error out opaquely.
     REF="$(git rev-parse --abbrev-ref HEAD)"
+    if [ "${REF}" = "HEAD" ]; then
+      echo "ERROR: detached HEAD — cannot infer a branch to deploy." >&2
+      echo "Check out a branch, or dispatch explicitly:" >&2
+      echo "  gh workflow run ${WORKFLOW} --ref <branch-or-tag>" >&2
+      exit 1
+    fi
     ;;
   -h|--help|help)
     sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
