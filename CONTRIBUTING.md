@@ -181,6 +181,33 @@ deliberate (it lets you test a PR on real infrastructure pre-merge), but it
 means **dev is shared**: coordinate before pushing work-in-progress if someone
 else is testing there.
 
+### Rebase before you push, or dev will fail to boot
+
+**Dev has one database, shared by every branch that deploys to it.** Because
+`entrypoint.sh` runs `flask db upgrade` under `set -e` before gunicorn starts,
+a branch whose `migrations/versions/` is missing the revision the dev database
+is currently stamped at cannot boot at all: Alembic can't locate the current
+revision, the entrypoint exits, nothing listens on `$PORT`, and the deploy
+fails with
+
+```
+ERROR: (gcloud.run.deploy) The user-provided container failed the
+configured startup probe checks.
+```
+
+This looks like an application crash but is really a stale branch. If someone
+merges a migration to `main` after you branched, **rebase onto `main` and
+force-push** — that is the fix, not a retry:
+
+```bash
+git fetch origin
+git rebase origin/main
+git push --force-with-lease
+```
+
+The same failure mode hits prod only via `main`, which is always at head, so
+this is specifically a dev/PR-branch hazard.
+
 Prod is only reachable through `main`, and the bot only redeploys when
 `apps/bot/**` or `packages/**` actually changed.
 
