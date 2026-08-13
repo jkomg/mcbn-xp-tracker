@@ -1,12 +1,33 @@
 #!/bin/bash
-# MCbN XP Tracker — Cloud Run Deployment Script
-# Run this after completing the one-time GCP setup below.
+# MCbN XP Tracker — Cloud Run deploy trigger.
+#
+# This script no longer builds or deploys anything itself. It triggers the
+# GitHub Actions workflow that does, via workflow_dispatch.
+#
+# WHY: this script used to carry its own full `gcloud run deploy` invocation
+# targeting the same live service as .github/workflows/deploy-web.yml. Two
+# independent definitions of one service drift, and `--set-env-vars` REMOVES
+# any env var it does not list — so a manual run could silently revert config
+# set by CI. That happened: prod was bumped to 512Mi in a9c44f4 and this
+# script kept saying 256Mi. The workflows are now the single source of truth
+# for image build, resource flags, env vars, and secret bindings.
+#
+# Normal deploys are automatic and need no action here:
+#   - dev  (mcbn-xp-tracker-dev)  — every push that passes CI, on any branch
+#   - prod (mcbn-xp-tracker)      — after a dev deploy succeeds on main
+#
+# Use this only to force a redeploy without a new commit (e.g. after rotating
+# a secret in Secret Manager, since Cloud Run pins :latest at deploy time).
+#
+# Usage:
+#   ./deploy.sh            # redeploy prod from main
+#   ./deploy.sh dev        # redeploy dev from the current branch
 #
 # ============================================================
-# ONE-TIME GCP SETUP (do these steps first, only once):
+# ONE-TIME GCP SETUP (only needed when bootstrapping a new project):
 # ============================================================
 #
-# 1. Install Google Cloud CLI (if not already installed):
+# 1. Install Google Cloud CLI:
 #      brew install google-cloud-sdk
 #
 # 2. Log in and create/select a project:
@@ -14,126 +35,81 @@
 #      gcloud projects create mcbn-xp-tracker --name="MCbN XP Tracker"
 #      gcloud config set project mcbn-xp-tracker
 #
-#    NOTE: If "mcbn-xp-tracker" is taken, use a unique name and update
-#    PROJECT_ID below.
-#
 # 3. Enable required APIs (free):
 #      gcloud services enable run.googleapis.com
 #      gcloud services enable artifactregistry.googleapis.com
 #
-# 4. Create Artifact Registry repo (stores your Docker images, free tier):
+# 4. Create Artifact Registry repo (stores Docker images, free tier):
 #      gcloud artifacts repositories create mcbn-repo \
 #        --repository-format=docker \
 #        --location=us-central1
 #
-# 5. Configure Docker to push to Artifact Registry:
-#      gcloud auth configure-docker us-central1-docker.pkg.dev
-#
-# ============================================================
-# After the above, run this script to deploy (or re-deploy):
-#   ./deploy.sh
+# 5. Populate Secret Manager:
+#      ./setup-secrets.sh
 # ============================================================
 
-set -e
+set -euo pipefail
 
-# Ensure gcloud and docker are in PATH
-export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/usr/local/bin:$PATH"
+TARGET="${1:-prod}"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+case "${TARGET}" in
+  prod)
+    WORKFLOW="deploy-web.yml"
+    SERVICE="mcbn-xp-tracker"
+    SITE="https://mcbn.jkomg.us"
+    REF="main"
+    ;;
+  dev)
+    WORKFLOW="deploy-web-dev.yml"
+    SERVICE="mcbn-xp-tracker-dev"
+    SITE="https://dev.mcbn.jkomg.us"
+    REF="$(git rev-parse --abbrev-ref HEAD)"
+    ;;
+  -h|--help|help)
+    sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    echo "ERROR: unknown target '${TARGET}' (expected 'prod' or 'dev')." >&2
+    exit 1
+    ;;
+esac
 
-PROJECT_ID="mcbn-xp-tracker"
-REGION="us-central1"
-SERVICE_NAME="mcbn-xp-tracker"
-REPO="us-central1-docker.pkg.dev/${PROJECT_ID}/mcbn-repo"
-IMAGE="${REPO}/${SERVICE_NAME}:latest"
-SPREADSHEET_ID_VALUE="${SPREADSHEET_ID:-$(grep '^SPREADSHEET_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-WEB_APP_API_READ_TOKEN_VALUE="${WEB_APP_API_READ_TOKEN:-$(grep '^WEB_APP_API_READ_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-WEB_APP_API_WRITE_TOKEN_VALUE="${WEB_APP_API_WRITE_TOKEN:-$(grep '^WEB_APP_API_WRITE_TOKEN=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-CLOUD_SPEND_ADMIN_DISCORD_IDS_VALUE="${CLOUD_SPEND_ADMIN_DISCORD_IDS:-$(grep '^CLOUD_SPEND_ADMIN_DISCORD_IDS=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-CLOUD_SPEND_BILLING_TABLE_VALUE="${CLOUD_SPEND_BILLING_TABLE:-$(grep '^CLOUD_SPEND_BILLING_TABLE=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-CLOUD_SPEND_BILLING_PROJECT_ID_VALUE="${CLOUD_SPEND_BILLING_PROJECT_ID:-$(grep '^CLOUD_SPEND_BILLING_PROJECT_ID=' "${SCRIPT_DIR}/.env" 2>/dev/null | cut -d'=' -f2-)}"
-
-OPTIONAL_SECRET_ARGS=()
-if [ -n "${WEB_APP_API_READ_TOKEN_VALUE}" ]; then
-  OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_READ_TOKEN=mcbn-web-app-api-read-token:latest")
-fi
-if [ -n "${WEB_APP_API_WRITE_TOKEN_VALUE}" ]; then
-  OPTIONAL_SECRET_ARGS+=(--update-secrets "WEB_APP_API_WRITE_TOKEN=mcbn-web-app-api-write-token:latest")
-fi
-# CLOUD_SPEND_ADMIN_DISCORD_IDS is optional, like the two tokens above --
-# setup-secrets.sh's upsert_secret skips creating mcbn-cloud-spend-admin-ids
-# at all when the .env value is empty (the documented default, since the
-# whole pane is opt-in), and Cloud Run validates every --update-secrets
-# reference exists at deploy time. Binding it unconditionally would fail
-# the entire deploy for anyone who hasn't opted into Cloud Spend, not just
-# leave the pane disabled.
-if [ -n "${CLOUD_SPEND_ADMIN_DISCORD_IDS_VALUE}" ]; then
-  OPTIONAL_SECRET_ARGS+=(--update-secrets "CLOUD_SPEND_ADMIN_DISCORD_IDS=mcbn-cloud-spend-admin-ids:latest")
-fi
-if [ -n "${CLOUD_SPEND_BILLING_TABLE_VALUE}" ]; then
-  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_TABLE=${CLOUD_SPEND_BILLING_TABLE_VALUE}")
-fi
-if [ -n "${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}" ]; then
-  OPTIONAL_SECRET_ARGS+=(--set-env-vars "CLOUD_SPEND_BILLING_PROJECT_ID=${CLOUD_SPEND_BILLING_PROJECT_ID_VALUE}")
-fi
-
-if [ -z "${SPREADSHEET_ID_VALUE}" ]; then
-  echo "ERROR: SPREADSHEET_ID is required."
-  echo "Set it in your environment or in .env before running deploy.sh."
+if ! command -v gh >/dev/null 2>&1; then
+  echo "ERROR: the GitHub CLI (gh) is required to trigger a deploy." >&2
+  echo "  brew install gh && gh auth login" >&2
+  echo "Alternatively, trigger '${WORKFLOW}' by hand from the Actions tab." >&2
   exit 1
 fi
 
-echo "==> Building Docker image (linux/amd64 for Cloud Run)..."
-docker build \
-  --platform linux/amd64 \
-  -f "${SCRIPT_DIR}/Dockerfile" \
-  -t "${IMAGE}" \
-  "${REPO_ROOT}"
+if ! gh auth status >/dev/null 2>&1; then
+  echo "ERROR: gh is not authenticated. Run: gh auth login" >&2
+  exit 1
+fi
 
-echo "==> Pushing to Artifact Registry..."
-docker push "${IMAGE}"
+echo "==> Target:   ${TARGET} (${SERVICE})"
+echo "==> Site:     ${SITE}"
+echo "==> Workflow: ${WORKFLOW} @ ${REF}"
+echo
 
-echo "==> Deploying to Cloud Run..."
-gcloud run deploy "${SERVICE_NAME}" \
-  --image "${IMAGE}" \
-  --project "${PROJECT_ID}" \
-  --region "${REGION}" \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 256Mi \
-  --cpu 1 \
-  --min-instances 0 \
-  --max-instances 2 \
-  --concurrency 80 \
-  --timeout 120 \
-  --cpu-throttling \
-  --no-session-affinity \
-  --startup-probe "httpGet.path=/api/health,httpGet.port=8080,initialDelaySeconds=0,timeoutSeconds=5,periodSeconds=5,failureThreshold=30" \
-  --set-env-vars "FLASK_DEBUG=false" \
-  --set-env-vars "SPREADSHEET_ID=${SPREADSHEET_ID_VALUE}" \
-  --set-env-vars "SHEETS_CACHE_TTL=30" \
-  --set-env-vars "AUTO_CREATE_PERIODS_ENABLED=true" \
-  --set-env-vars "BOT_API_REPLAY_PROTECTION_ENABLED=true" \
-  --set-env-vars "DISCORD_REDIRECT_URI=https://mcbn.jkomg.us/auth/callback" \
-  --update-secrets "FLASK_SECRET_KEY=mcbn-flask-secret:latest" \
-  --update-secrets "GOOGLE_CREDENTIALS_JSON=mcbn-google-creds:latest" \
-  --update-secrets "DISCORD_CLIENT_ID=mcbn-discord-client-id:latest" \
-  --update-secrets "DISCORD_CLIENT_SECRET=mcbn-discord-client-secret:latest" \
-  --update-secrets "ALLOWED_DISCORD_IDS=mcbn-discord-allowed-ids:latest" \
-  --update-secrets "SETTINGS_ADMIN_DISCORD_IDS=mcbn-settings-admin-ids:latest" \
-  --update-secrets "WEB_APP_API_TOKEN=mcbn-web-app-api-token:latest" \
-  --update-secrets "DATABASE_URL=mcbn-database-url:latest" \
-  --update-secrets "TURSO_AUTH_TOKEN=mcbn-turso-auth-token:latest" \
-  --update-secrets "DISCORD_WEBHOOK_URL=mcbn-discord-webhook-url:latest" \
-  "${OPTIONAL_SECRET_ARGS[@]}"
+if [ "${TARGET}" = "prod" ]; then
+  echo "This redeploys PRODUCTION from '${REF}'."
+  echo "Normal releases happen automatically on merge to main — you only need"
+  echo "this to force a redeploy without a new commit (e.g. after a secret"
+  echo "rotation)."
+  read -r -p "Continue? [y/N] " reply
+  case "${reply}" in
+    [yY]|[yY][eE][sS]) ;;
+    *) echo "Aborted."; exit 1 ;;
+  esac
+fi
 
-echo "==> Routing 100% traffic to latest revision..."
-gcloud run services update-traffic "${SERVICE_NAME}" \
-  --project "${PROJECT_ID}" \
-  --region "${REGION}" \
-  --to-latest
+echo "==> Triggering ${WORKFLOW}..."
+gh workflow run "${WORKFLOW}" --ref "${REF}"
 
-echo ""
-echo "==> Deployed! Your app URL:"
-gcloud run services describe "${SERVICE_NAME}" --project "${PROJECT_ID}" --region "${REGION}" --format="value(status.url)"
+echo
+echo "==> Triggered. Watch it with:"
+echo "      gh run watch"
+echo "      gh run list --workflow=${WORKFLOW} --limit 5"
+echo
+echo "When it completes, verify at: ${SITE}/api/health"

@@ -17,7 +17,10 @@ mcbn/
     api-contract/             # Shared request/response schemas + enums
     rules/                    # Shared XP/spend formulas + fixtures
   infra/
-    cloudrun/                 # Deploy scripts, service config, release notes
+    ursula/                   # Bot host: agents, dashboard, failover
+    bot-hosting/              # systemd / launchd unit templates for the bot
+    web-hosting/              # launchd template for a local dev web instance
+                              # (Cloud Run service config lives in .github/workflows/)
   docs/
     MONOREPO_ARCHITECTURE.md
     MONOREPO_MIGRATION_PLAN.md

@@ -13,11 +13,14 @@ mcbn-xp-tracker/
   apps/
     web/          # Flask app (Python 3.12) — system of record
     bot/          # Discord bot (Node 20 / TypeScript)
+    character-app/# React character-creator SPA, built into the web image at deploy time
   packages/
     api-contract/ # Shared request/response schemas and enums
     rules/        # Shared XP/spend formulas and fixtures
   infra/
-    cloudrun/     # Deploy scripts and service config
+    ursula/       # Bot host: agents, dashboard, failover (Cloud Run config lives in CI)
+    bot-hosting/  # systemd / launchd unit templates for the bot
+    web-hosting/  # launchd template for a local dev web instance
   docs/           # Runbooks, architecture, release notes
   scripts/        # Local bootstrap and ops scripts
   compose.web.yml   # Docker profile: web only
@@ -76,9 +79,22 @@ Container names: `mcbn-xp-tracker-web`, `lasombra-bot`.
 
 ```bash
 cd apps/web
-./deploy.sh     # build/push image, deploy Cloud Run revision
 ./setup-secrets.sh  # sync env values to GCP Secret Manager
+./deploy.sh         # trigger prod deploy workflow (workflow_dispatch, needs gh)
+./deploy.sh dev     # trigger dev deploy workflow from the current branch
 ```
+
+`deploy.sh` no longer builds or deploys anything itself — it only triggers the
+GitHub Actions workflow. The workflows are the single source of truth for image
+build, Cloud Run resource flags, env vars, and secret bindings; do not add a
+second `gcloud run deploy` invocation anywhere.
+
+Deploys are normally automatic, not run by hand. GitHub Actions chains them:
+CI passing on **any branch** deploys to dev (`deploy-web-dev.yml` has no branch
+filter — dev is shared, and a feature-branch push replaces what's deployed
+there); a dev deploy succeeding **on `main`** then gates prod; the bot
+redeploys on CI passing **on `main`** via a self-hosted runner on Ursula. See
+[CONTRIBUTING.md](CONTRIBUTING.md#deploy-paths).
 
 Current deployment topology: production web runs on Cloud Run service
 `mcbn-xp-tracker` at `mcbn.jkomg.us`; dev web runs on the separate Cloud Run service
@@ -129,6 +145,8 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 
 ## Key Docs
 
+- `CONTRIBUTING.md` — **development rules and paths**: required toolchain versions, local setup, the exact test/lint commands CI gates on, migration workflow, branch/PR conventions, deploy paths per environment
+- `docs/REGRESSION_HYGIENE_CHECKLIST.md` — pre/post-change checklist; every item traces to a real incident
 - `docs/API_ENDPOINTS.md` — bot-facing API reference (auth, all routes, request/response schemas)
 - `docs/MONOREPO_ARCHITECTURE.md` — system boundaries and runtime model
 - `docs/ENV_AND_SECRETS.md` — env and secrets flow

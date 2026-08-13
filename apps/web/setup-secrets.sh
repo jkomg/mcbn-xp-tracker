@@ -116,4 +116,5 @@ done
 echo "  ✓ All secrets accessible by Cloud Run"
 
 echo ""
-echo "=== Done! Run ./deploy.sh to deploy. ==="
+echo "=== Done! Cloud Run pins secret:latest at deploy time, so run"
+echo "=== ./deploy.sh to trigger a redeploy and pick these up. ==="

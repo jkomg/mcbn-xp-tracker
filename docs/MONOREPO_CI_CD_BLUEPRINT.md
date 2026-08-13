@@ -1,5 +1,15 @@
 # Monorepo CI/CD Blueprint (Free-Tier Friendly)
 
+> **⚠️ HISTORICAL DESIGN DOC — not current behavior.** This was the plan written
+> during the monorepo migration. What actually got built differs in several
+> material ways: deploys chain off `workflow_run` rather than path-filtered
+> pushes, the bot deploys automatically via a self-hosted GitHub Actions runner
+> on Ursula (not a manual `git pull` + `systemctl restart`), `infra/cloudrun/`
+> never held any deploy config and has been removed, and the per-app release
+> tag scheme below was never adopted. For current behavior see [CONTRIBUTING.md](../CONTRIBUTING.md#deploy-paths)
+> and [DEV_ENVIRONMENT.md](DEV_ENVIRONMENT.md). The CI job/path-filter strategy
+> below *was* implemented and is still accurate.
+
 ## Objectives
 
 - Keep branch protection stable (`test-and-lint` required check).
