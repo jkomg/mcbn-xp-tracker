@@ -487,5 +487,9 @@ export const printFieldNames = async () => {
     const pdfDoc = await initPDFDocument(bytes)
     const form = pdfDoc.getForm()
 
-    console.log(JSON.stringify(getFields(form), null, 2))
+    // Dev aid: dump the PDF's form-field names when adding a new sheet
+    // template. Left commented rather than deleted — finding these names is
+    // otherwise guesswork against a binary.
+    // console.log(JSON.stringify(getFields(form), null, 2))
+    void getFields(form)
 }

@@ -8,22 +8,21 @@ import { Loresheet, LoresheetDot, LORESHEETS, loresheetDotCost } from "~/data/Lo
 import { RAW_RED, rgba } from "~/theme/colors"
 import { cc } from "~/utils/api"
 import {
+    attrLevelCost,
+    computeCcXpSpent,
+    cumulativeCost,
+    skillLevelCost,
+} from "../ccXp"
+import {
     generatorScrollableAreaStyle,
     generatorScrollableContentStyle,
     generatorScrollableShellStyle,
 } from "./sharedGeneratorScrollableLayout"
 import { nightfallScrollAreaStyles, nightfallScrollbarSize } from "./sharedScrollAreaStyles"
 
-// ─── XP cost functions (V5 table) ───────────────────────────────────────────
-const attrLevelCost = (newLevel: number) => newLevel * 5
-const skillLevelCost = (newLevel: number) => newLevel * 3
-
-function cumulativeCost(from: number, to: number, costFn: (l: number) => number): number {
-    if (to <= from) return 0
-    let total = 0
-    for (let l = from + 1; l <= to; l++) total += costFn(l)
-    return total
-}
+// XP cost functions and spend maths live in ../ccXp so the sidebar and this
+// step cannot drift apart again — they previously disagreed about whether
+// attribute/skill raises counted against the budget.
 
 // ─── Stat groupings ──────────────────────────────────────────────────────────
 const ATTR_GROUPS: { label: string; attrs: AttributesKey[] }[] = [
@@ -203,19 +202,27 @@ type LoresheetPickerProps = {
 export default function LoresheetPicker({ character, setCharacter, nextStep }: LoresheetPickerProps) {
     const budget = character.cc_xp_budget ?? 0
 
-    // Capture starting values so we can compute XP spent in this step
-    const [baseAttrs] = useState(() => ({ ...character.attributes }))
-    const [baseSkills] = useState(() => ({ ...character.skills }))
+    // Capture the pre-spend baseline ONCE and persist it onto the character,
+    // so it survives a reload. It used to live in useState only: on reload the
+    // baseline re-initialised from the already-raised ratings, spend read as 0,
+    // and the player could spend their whole budget again. Autosave picks this
+    // up like any other character change.
+    useEffect(() => {
+        if (character.cc_base_attributes && character.cc_base_skills) return
+        setCharacter({
+            ...character,
+            cc_base_attributes: character.cc_base_attributes ?? { ...character.attributes },
+            cc_base_skills: character.cc_base_skills ?? { ...character.skills },
+        })
+        // Runs once on entering the step; deliberately not reacting to later
+        // attribute/skill edits, which are exactly what we are measuring.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
-    // Spent tallies
-    const attrSpent = ATTR_GROUPS.flatMap(g => g.attrs).reduce(
-        (sum, key) => sum + cumulativeCost(baseAttrs[key], character.attributes[key], attrLevelCost), 0
-    )
-    const skillSpent = SKILL_GROUPS.flatMap(g => g.skills).reduce(
-        (sum, key) => sum + cumulativeCost(baseSkills[key], character.skills[key], skillLevelCost), 0
-    )
-    const lsSpent = (character.loresheet_purchases ?? []).reduce((sum, p) => sum + loresheetDotCost(p.dot), 0)
-    const spent = attrSpent + skillSpent + lsSpent
+    const baseAttrs = character.cc_base_attributes ?? character.attributes
+    const baseSkills = character.cc_base_skills ?? character.skills
+
+    const spent = computeCcXpSpent(character)
     const remaining = budget - spent
     const overBudget = remaining < 0
 
@@ -228,7 +235,11 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
     const toggleExpanded = (id: string) =>
         setExpandedIds(prev => {
             const next = new Set(prev)
-            next.has(id) ? next.delete(id) : next.add(id)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+            }
             return next
         })
     const [lsSearch, setLsSearch] = useState("")

@@ -37,6 +37,21 @@
     </div>
   </div>
 
+  {% if schema_outdated %}
+  <div class="alert alert-warning py-2 small">
+    <strong>Older character-creator format
+      ({% if schema_version %}v{{ schema_version }}{% else %}unversioned{% endif %}
+      vs current v{{ schema_current_version }}).</strong>
+    The player's browser upgrades the draft next time they open it, but until
+    then figures below may be computed from partial data.
+    {% if schema_changes %}
+    <ul class="mb-0 mt-1">
+      {% for change in schema_changes %}<li>{{ change }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {# ── Character overview ── #}
   <div class="card mb-3">
     <div class="card-body">
@@ -280,8 +295,23 @@
         {% endif %}
       {% endfor %}
       <div class="px-3 pt-2 pb-3">
-        <span class="fw-semibold small">Banked XP into play: </span>
-        <span class="badge bg-success">{{ char_data.get('cc_xp_budget', 0) }}</span>
+        <span class="fw-semibold small">Creation XP budget: </span>
+        <span class="badge bg-secondary">{{ cc_xp_budget }}</span>
+        <span class="fw-semibold small ms-3">Spent: </span>
+        <span class="badge bg-secondary">{{ cc_xp_spent }}</span>
+        <span class="fw-semibold small ms-3">Banks into play: </span>
+        <span class="badge bg-success">{{ cc_xp_banked }}</span>
+        {% if cc_xp_remaining > cc_xp_banked %}
+        <div class="text-warning small mt-1">
+          {{ cc_xp_remaining }} XP unspent, but only {{ cc_xp_banked }} banks into
+          play — the rest is forfeit. Players are expected to spend as much as
+          possible at creation.
+        </div>
+        {% elif cc_xp_remaining < 0 %}
+        <div class="text-danger small mt-1">
+          Over budget by {{ -cc_xp_remaining }} XP — nothing banks into play.
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

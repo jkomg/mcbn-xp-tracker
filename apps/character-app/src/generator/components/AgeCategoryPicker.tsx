@@ -9,6 +9,7 @@ import {
     generatorScrollableShellStyle,
 } from "./sharedGeneratorScrollableLayout"
 import { nightfallScrollAreaStyles, nightfallScrollbarSize } from "./sharedScrollAreaStyles"
+import { CC_XP_BUDGETS } from "../ccXp"
 
 type AgeCategoryPickerProps = {
     character: Character
@@ -73,14 +74,6 @@ const AGE_CATEGORIES: AgeCategory[] = [
     },
 ]
 
-const XP_BUDGETS: Record<string, number> = {
-    mortal: 0,
-    fledgling: 0,
-    ghoul: 0,
-    neonate: 15,
-    ancilla: 35,
-}
-
 const FONT_DISPLAY = "Cinzel, Georgia, serif"
 const FONT_BODY = "Crimson Text, Georgia, serif"
 const FONT_UI = "Inter, Segoe UI, sans-serif"
@@ -118,7 +111,7 @@ export default function AgeCategoryPicker({
         const updated = {
             ...character,
             age_category: cat.id,
-            cc_xp_budget: XP_BUDGETS[cat.id] ?? 0,
+            cc_xp_budget: CC_XP_BUDGETS[cat.id] ?? 0,
         }
         setCharacter(updated)
         nextStep(updated)

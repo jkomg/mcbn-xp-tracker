@@ -13,6 +13,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       bot: ${{ steps.filter.outputs.bot }}
+      character_app: ${{ steps.filter.outputs.character_app }}
       contract: ${{ steps.filter.outputs.contract }}
       docker_docs: ${{ steps.filter.outputs.docker_docs }}
     steps:
@@ -32,11 +33,26 @@ jobs:
               - 'apps/bot/**'
               - 'packages/**'
               - '.github/workflows/ci.yml'
+            character_app:
+              - 'apps/character-app/**'
+              # The creator reads packages/rules/cc_xp.json and asserts against
+              # packages/api-contract/cc_schema.json. Without these paths a PR
+              # touching only a shared file skips the very drift guards that
+              # exist to catch it changing.
+              - 'packages/**'
+              - '.github/workflows/ci.yml'
             contract:
               - 'packages/api-contract/**'
               - 'packages/rules/**'
               - '.github/workflows/ci.yml'
             docker_docs:
+              # The web image builds the SPA from packages/ + apps/character-app
+              # in stage 1, so a change to either can break the deploy build
+              # while every other job stays green. The smoke build here is the
+              # only thing that exercises the real Docker context.
+              - 'apps/character-app/**'
+              - 'packages/**'
+              - 'apps/web/Dockerfile'
               - 'compose.web.yml'
               - 'compose.full.yml'
               - 'apps/web/docker-compose.yml'
@@ -110,6 +126,45 @@ jobs:
 
       - name: Run bot checks
         run: cd apps/bot && npm run check
+
+  character-app-test-and-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: detect-changes
+    if: needs.detect-changes.outputs.character_app == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Node 22 matches apps/character-app/package.json `engines`. Keep this in
+      # step with apps/web/Dockerfile's spa-builder stage, which builds this
+      # same app into the web image on every deploy — if the two drift, CI
+      # stops predicting whether the deploy build will succeed.
+      - name: Setup Node (character-app)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/character-app/package-lock.json
+
+      - name: Install character-app dependencies
+        run: cd apps/character-app && npm ci
+
+      - name: Lint character-app (oxlint)
+        run: cd apps/character-app && npm run lint
+
+      - name: Test character-app (vitest)
+        run: cd apps/character-app && npm run test:run
+
+      # `vite build` does NOT type-check. A full `tsc --noEmit` currently
+      # reports 68 errors (30 are TS2307 on the vite-aliased analytics stubs,
+      # which tsconfig has no `paths` entry for; the rest are real, mostly
+      # leftovers from the upstream template's auth/profile API in MePage.tsx).
+      # Gating on it today would block every PR, so the build step below is the
+      # compile gate for now. Fixing those 68 and adding `tsc --noEmit` here is
+      # tracked separately.
+      - name: Build character-app
+        run: cd apps/character-app && npm run build
 
   contract-tests:
     runs-on: ubuntu-latest
@@ -198,6 +253,7 @@ jobs:
     needs:
       - web-test-and-lint
       - bot-test-and-lint
+      - character-app-test-and-lint
       - contract-tests
       - docker-and-docs-hygiene
     if: always()

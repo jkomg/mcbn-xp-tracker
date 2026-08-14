@@ -1,0 +1,12 @@
+{
+  "_comment": "Character-creation XP budgets and the banking cap. Per-trait costs are NOT duplicated here - they come from xp_costs.json (Attribute, Skill, Loresheet), the same table post-creation spends are priced from.",
+  "budgets": {
+    "mortal": 0,
+    "fledgling": 0,
+    "ghoul": 0,
+    "neonate": 15,
+    "ancilla": 35
+  },
+  "_in_memoriam_note": "In-Memoriam ancilla budgets are derived from the eras chosen during creation and stored on the draft as in_memoriam.total_xp, so they have no fixed entry above.",
+  "max_banked_xp": 5
+}

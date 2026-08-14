@@ -77,7 +77,7 @@ export const touchstoneSchema = z.object({
 
 export type Touchstone = z.infer<typeof touchstoneSchema>;
 
-export const schemaVersion = 7;
+export const schemaVersion = 8;
 
 export const characterSchema = z.object({
   id: z.string().optional().default(""),
@@ -130,6 +130,12 @@ export const characterSchema = z.object({
   age_category: z.enum(["", "mortal", "fledgling", "ghoul", "neonate", "ancilla"]).optional().default(""),
   cc_xp_budget: z.number().optional().default(0),
   inherited_xp: z.number().optional().default(0),
+  // Attribute/skill ratings as they stood when the XP-spending step was first
+  // entered. Persisted (not component state) so creation spend survives a
+  // reload — without this the baseline reset to the already-raised values and
+  // the player got their whole budget back. Absent on pre-v8 drafts.
+  cc_base_attributes: z.record(z.string(), z.number()).optional(),
+  cc_base_skills: z.record(z.string(), z.number()).optional(),
   submission_notes: z.string().optional().default(""),
   loresheet_purchases: z
     .array(z.object({
@@ -332,8 +338,28 @@ export const applyCharacterCompatibilityPatches = (
   patchV3ToV4Compatibility(parsed);
   patchV5ToV6Compatibility(parsed);
   patchV6ToV7Compatibility(parsed);
+  patchV7ToV8Compatibility(parsed);
 
   parsed["version"] = schemaVersion;
+};
+
+/**
+ * v8 persists the creation-XP baseline (cc_base_attributes/cc_base_skills).
+ *
+ * Deliberately does NOT backfill them from the character's current ratings.
+ * A pre-v8 draft may already have spent XP on attributes/skills, and seeding
+ * the baseline from the raised values would record that spend as zero —
+ * silently refunding the player. Leaving them absent makes computeCcXpSpent
+ * fall back to loresheet-only spend, which is what the sidebar already showed
+ * for those drafts, so nothing regresses. Baselines are captured for real when
+ * the player next enters the XP step.
+ */
+export const patchV7ToV8Compatibility = (
+  parsed: Record<string, unknown>,
+): void => {
+  const version = typeof parsed["version"] === "number" ? (parsed["version"] as number) : 0;
+  if (version >= 8) return;
+  // No data migration needed — the new fields are optional by design.
 };
 
 export const patchV2ToV3Compatibility = (

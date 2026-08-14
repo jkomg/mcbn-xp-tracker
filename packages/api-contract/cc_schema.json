@@ -1,0 +1,9 @@
+{
+  "_comment": "Character-creator character_data schema version. The creator writes `version` into every draft; the web app reads it to tell current drafts from ones written before a schema change. Bump current_version in the SAME commit that adds a patchVnToVn+1Compatibility function in apps/character-app/src/data/Character.ts - a test in each app asserts the two agree.",
+  "current_version": 8,
+  "minimum_supported_version": 2,
+  "history": {
+    "7": "Backgrounds split out of merits into their own array",
+    "8": "Creation-XP baselines (cc_base_attributes / cc_base_skills) persisted so spend survives a reload"
+  }
+}

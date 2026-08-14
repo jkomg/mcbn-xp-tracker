@@ -1,8 +1,19 @@
 # ── Stage 1: Build React character-creator SPA ───────────────────────────────
-FROM node:20-slim AS spa-builder
+# node:22 matches apps/character-app/package.json `engines` (>=22) and the
+# character-app CI job. This previously pinned node:20 while the app declared
+# >=22 — npm treats `engines` as advisory with no .npmrc engine-strict, so it
+# built anyway, but CI and the deploy build must agree or CI stops predicting
+# whether a deploy will succeed.
+FROM node:22-slim AS spa-builder
 WORKDIR /workspace/apps/character-app
 COPY apps/character-app/package*.json ./
 RUN npm ci
+# The SPA imports shared rule tables (packages/rules/cc_xp.json and
+# packages/api-contract/cc_schema.json) via the ~rules / ~contract aliases, so
+# packages/ must be in the build context. Without it `vite build` fails here
+# while CI stays green — the CI job builds from a full checkout where the
+# relative path resolves, so only the deploy build would break.
+COPY packages/ /workspace/packages/
 COPY apps/character-app/ ./
 # Output goes to ../web/app/static/character-app (relative to this dir)
 RUN npm run build

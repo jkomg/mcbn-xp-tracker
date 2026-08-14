@@ -166,7 +166,12 @@ CLANS = [
     'Mortal', 'Ghoul',
 ]
 
-AGE_CATEGORIES = ['Fledgling', 'Neonate', 'Ancilla', 'Elder', 'Mortal']
+# 'Ghoul' is a real category the rest of the system already assumed: the
+# character creator offers it, packages/rules/cc_xp.json gives it a 0 XP
+# budget, and player.py had to union it in by hand to stop ghoul sheets
+# falling back to 'ancilla'. It was missing here only because the roster list
+# predates the creator.
+AGE_CATEGORIES = ['Fledgling', 'Neonate', 'Ancilla', 'Elder', 'Mortal', 'Ghoul']
 
 SECTS = ['Camarilla', 'Anarch', 'Hecata', 'Autarkis', 'NA']
 

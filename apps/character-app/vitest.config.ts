@@ -33,7 +33,11 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            "~": resolve(__dirname, "./src")
+            "~": resolve(__dirname, "./src"),
+            // Keep in step with vite.config.ts — shared rule tables live in
+            // packages/ and are consumed by the web app and bot as well.
+            "~rules": resolve(__dirname, "../../packages/rules"),
+            "~contract": resolve(__dirname, "../../packages/api-contract")
         }
     }
 })

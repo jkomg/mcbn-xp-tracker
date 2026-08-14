@@ -42,11 +42,37 @@
 - `applyCharacterCompatibilityPatches` in `src/data/Character.ts` must be updated alongside any such schema change. Add a new `patchVnToVn+1Compatibility` function and call it from `applyCharacterCompatibilityPatches` so that characters saved under old versions are silently upgraded on load.
 - Every new patch function needs a corresponding test in `src/test/` that constructs a minimal old-version character object, runs it through `applyCharacterCompatibilityPatches`, and asserts the upgraded fields are correct. These tests are the safety net for production data that predates the change.
 
-## Generator Step Footgun
+## Generator Steps
 
-The Blood Sorcery ritual step (step 8) is **conditional** — it only appears when the character has Blood Sorcery disciplines. `Generator.tsx` compensates with a `patchedSelectedStep` offset: when Blood Sorcery is absent and `selectedStep >= 8`, it adds 1 to align the switch case.
+Steps are declared in `src/generator/steps.ts` as `allGeneratorSteps`, each with a
+string `GeneratorStepId`. Conditional steps (Blood Sorcery rituals, Oblivion
+ceremonies, the In-Memoriam ancilla path) are filtered by `isStepAvailable()`,
+and the current position lives in the URL hash rather than React state.
 
-**Impact:** adding, removing, or reordering steps near index 8 requires updating both the switch in `src/generator/Generator.tsx` and the stepper in `src/sidebar/AsideBar.tsx`. A step added at index 8 without accounting for this offset will silently render the wrong component for non-Blood-Sorcery characters.
+To add a step: add an entry to `allGeneratorSteps`, give it a case in
+`Generator.tsx`'s switch, and gate it in `isStepAvailable()` if conditional.
+Order comes from the array, so no index arithmetic is involved.
+
+> This section previously documented a `patchedSelectedStep` numeric-offset
+> footgun, where a conditional step at index 8 shifted every later step and had
+> to be kept in sync by hand between `Generator.tsx` and `AsideBar.tsx`. That
+> mechanism no longer exists — the string-ID refactor removed the whole class
+> of bug. Ignore any lingering references to it.
+
+## Character-Creation XP
+
+Budget maths lives in one place, `src/generator/ccXp.ts`, and is mirrored
+server-side by `apps/web/app/cc_xp.py`. Budgets and the banking cap come from
+`packages/rules/cc_xp.json`; per-trait costs come from
+`packages/rules/xp_costs.json`, the same table post-creation spends are priced
+from. Do not recompute spend inline — two call sites once disagreed about
+whether attribute and skill raises counted, and showed players contradictory
+"Remaining" figures.
+
+Attribute/skill spend is measured against `cc_base_attributes` /
+`cc_base_skills`, captured when the XP step is first entered and **persisted**
+onto the character. Keeping that baseline in component state (as it once was)
+means a reload resets it and hands the player their budget back.
 
 ## UI and Validation Conventions
 
