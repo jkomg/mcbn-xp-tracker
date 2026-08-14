@@ -37,7 +37,16 @@ export default defineConfig({
             // Keep in step with vite.config.ts — shared rule tables live in
             // packages/ and are consumed by the web app and bot as well.
             "~rules": resolve(__dirname, "../../packages/rules"),
-            "~contract": resolve(__dirname, "../../packages/api-contract")
+            "~contract": resolve(__dirname, "../../packages/api-contract"),
+            // Analytics stubs. vite.config.ts aliases these away at build time
+            // ("analytics removed for MCbN integration"), but this config did
+            // not — so importing ANY component that pulls in react-ga4 or
+            // posthog-js failed to resolve under vitest. That is a large part
+            // of why there are no component tests in this app: the test runner
+            // could not load a component at all.
+            "posthog-js/react": resolve(__dirname, "./src/stubs/posthog-react-stub.tsx"),
+            "posthog-js": resolve(__dirname, "./src/stubs/posthog-stub.ts"),
+            "react-ga4": resolve(__dirname, "./src/stubs/react-ga4-stub.ts")
         }
     }
 })
