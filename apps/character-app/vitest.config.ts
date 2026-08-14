@@ -23,7 +23,16 @@ export default defineConfig({
                 maxThreads: 2
             }
         },
-        isolate: false,
+        // Was false. Several test files assign shared globals at module scope
+        // (pdfCreator.test.ts and downloadConversion.test.ts both set
+        // global.fetch — one to a working mock, one to a bare vi.fn() that
+        // resolves undefined). Without isolation they share an environment and
+        // clobber each other, so pdfCreator failed roughly one run in eight
+        // with "Cannot read properties of undefined (reading 'getForm')" —
+        // initPDFDocument swallows the real error in its try/catch blocks and
+        // returns undefined, surfacing the failure far from its cause. That
+        // was the intermittent failure seen before this suite gated CI.
+        isolate: true,
         sequence: {
             shuffle: false
         },
