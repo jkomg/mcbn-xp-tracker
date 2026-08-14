@@ -79,19 +79,62 @@ def compute_spent(character_data: dict) -> int:
     )
 
 
-def compute_budget(character_data: dict) -> int:
-    """Total creation budget: age-category (or era-derived) budget + inherited."""
+def era_xp_spent(character_data: dict) -> int:
+    """XP an In-Memoriam ancilla spent during the era step.
+
+    EraXpPicker applies these purchases straight onto the sheet (attributes,
+    skills, disciplines, rituals, ceremonies) and records them in
+    in_memoriam.era_xp_spends. They happen BEFORE the XP step captures its
+    baseline, so compute_spent() cannot see them — they have to be subtracted
+    from the era budget here instead.
+    """
     in_memoriam = character_data.get('in_memoriam')
-    is_im_ancilla = (
-        character_data.get('age_category') == 'ancilla'
+    if not isinstance(in_memoriam, dict):
+        return 0
+    spends = in_memoriam.get('era_xp_spends')
+    if not isinstance(spends, list):
+        return 0
+    return sum(
+        _as_int(s.get('xp_cost')) for s in spends if isinstance(s, dict)
+    )
+
+
+def _is_in_memoriam_ancilla(character_data: dict) -> bool:
+    in_memoriam = character_data.get('in_memoriam')
+    return (
+        (character_data.get('age_category') or '').strip().lower() == 'ancilla'
         and isinstance(in_memoriam, dict)
         and not in_memoriam.get('use_standard')
     )
-    if is_im_ancilla:
-        base = _as_int(in_memoriam.get('total_xp'))
+
+
+def compute_budget(character_data: dict) -> int:
+    """Creation budget the server is willing to grant against.
+
+    Derived from the age category via CC_XP_BUDGETS, NOT read from the draft's
+    cc_xp_budget: character_data is client-authored, so trusting that field let
+    a mortal/fledgling/ghoul submit a nonzero budget and collect roster XP they
+    never had.
+
+    In-Memoriam ancilla budgets are era-derived and cannot be recomputed here
+    without reimplementing the era rules, so in_memoriam.total_xp is still
+    taken from the draft — but era spends are subtracted, and the banked result
+    is capped at MAX_BANKED_XP regardless, which bounds the exposure from an
+    inflated total to at most the cap. Staff also see budget/spent/banked on
+    the review screen before approving.
+
+    inherited_xp is deliberately ignored: nothing in the creator ever writes
+    it (it is read in two display spots and always defaults to 0), so there is
+    no legitimate non-zero source for it today. If banked inherited XP becomes
+    a real mechanic it needs a server-side origin, not a client-supplied number.
+    """
+    if _is_in_memoriam_ancilla(character_data):
+        in_memoriam = character_data.get('in_memoriam') or {}
+        base = _as_int(in_memoriam.get('total_xp')) - era_xp_spent(character_data)
     else:
-        base = _as_int(character_data.get('cc_xp_budget'))
-    return base + _as_int(character_data.get('inherited_xp'))
+        age = (character_data.get('age_category') or '').strip().lower()
+        base = CC_XP_BUDGETS.get(age, 0)
+    return max(0, base)
 
 
 def compute_banked_xp(character_data: dict) -> int:
@@ -105,6 +148,10 @@ def compute_banked_xp(character_data: dict) -> int:
     Note this is the *unspent* remainder, not the whole budget. Creation
     purchases never generate spend requests, so granting the full budget would
     hand out XP for traits the character already has on the sheet.
+
+    The cap is also the backstop on the one input still taken from the draft
+    (an In-Memoriam ancilla's era total): however inflated it is, at most
+    MAX_BANKED_XP can reach the roster.
     """
     if not isinstance(character_data, dict):
         return 0

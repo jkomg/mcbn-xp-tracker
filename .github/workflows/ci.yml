@@ -35,12 +35,24 @@ jobs:
               - '.github/workflows/ci.yml'
             character_app:
               - 'apps/character-app/**'
+              # The creator reads packages/rules/cc_xp.json and asserts against
+              # packages/api-contract/cc_schema.json. Without these paths a PR
+              # touching only a shared file skips the very drift guards that
+              # exist to catch it changing.
+              - 'packages/**'
               - '.github/workflows/ci.yml'
             contract:
               - 'packages/api-contract/**'
               - 'packages/rules/**'
               - '.github/workflows/ci.yml'
             docker_docs:
+              # The web image builds the SPA from packages/ + apps/character-app
+              # in stage 1, so a change to either can break the deploy build
+              # while every other job stays green. The smoke build here is the
+              # only thing that exercises the real Docker context.
+              - 'apps/character-app/**'
+              - 'packages/**'
+              - 'apps/web/Dockerfile'
               - 'compose.web.yml'
               - 'compose.full.yml'
               - 'apps/web/docker-compose.yml'

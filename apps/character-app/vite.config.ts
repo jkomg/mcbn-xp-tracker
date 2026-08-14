@@ -74,6 +74,11 @@ export default defineConfig({
     resolve: {
         alias: {
             "~": path.resolve(__dirname, "src"),
+            // Shared rule tables, read by the web app and bot too. Aliased so
+            // the creator consumes the same file rather than keeping its own
+            // copy of chronicle rules that can drift out of sync.
+            "~rules": path.resolve(__dirname, "../../packages/rules"),
+            "~contract": path.resolve(__dirname, "../../packages/api-contract"),
             "posthog-js/react": path.resolve(__dirname, "src/stubs/posthog-react-stub.tsx"),
             "posthog-js": path.resolve(__dirname, "src/stubs/posthog-stub.ts"),
             "react-ga4": path.resolve(__dirname, "src/stubs/react-ga4-stub.ts")

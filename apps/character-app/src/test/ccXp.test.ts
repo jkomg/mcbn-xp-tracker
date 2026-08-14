@@ -18,7 +18,7 @@ function character(overrides: Partial<Character>): Character {
     return { ...base(), ...overrides } as Character
 }
 
-function inMemoriam(totalXp: number) {
+function inMemoriam(totalXp: number, spends: { xp_cost: number }[] = []) {
     return {
         use_standard: false,
         embrace_age: "" as const,
@@ -27,7 +27,7 @@ function inMemoriam(totalXp: number) {
         total_humanity_loss: 0,
         humanity_sacrifice: false,
         starting_touchstones: [],
-        era_xp_spends: [],
+        era_xp_spends: spends as never[],
     }
 }
 
@@ -86,9 +86,23 @@ describe("computeCcXpSpent", () => {
 })
 
 describe("computeCcXpBudget", () => {
-    it("adds inherited XP to the age-category budget", () => {
+    it("derives the budget from the age category, not the stored field", () => {
+        // cc_xp_budget is client-authored; the budget comes from the shared
+        // rules table keyed by age so a tampered field cannot inflate it.
+        const c = character({ age_category: "ancilla", cc_xp_budget: 999 })
+        expect(computeCcXpBudget(c)).toBe(35)
+    })
+
+    it("gives zero-budget ages nothing regardless of the stored field", () => {
+        for (const age of ["mortal", "fledgling", "ghoul"] as const) {
+            const c = character({ age_category: age, cc_xp_budget: 50 })
+            expect(computeCcXpBudget(c)).toBe(0)
+        }
+    })
+
+    it("ignores inherited_xp, which nothing in the creator ever writes", () => {
         const c = character({ age_category: "ancilla", cc_xp_budget: 35, inherited_xp: 10 })
-        expect(computeCcXpBudget(c)).toBe(45)
+        expect(computeCcXpBudget(c)).toBe(35)
     })
 
     it("uses era XP for an In-Memoriam ancilla", () => {
@@ -98,6 +112,27 @@ describe("computeCcXpBudget", () => {
             in_memoriam: inMemoriam(42),
         })
         expect(computeCcXpBudget(c)).toBe(42)
+    })
+
+    it("subtracts era spends from an In-Memoriam budget", () => {
+        const c = character({
+            age_category: "ancilla",
+            cc_xp_budget: 0,
+            in_memoriam: inMemoriam(60, [{ xp_cost: 40 }, { xp_cost: 20 }]),
+        })
+        // EraXpPicker already applied those purchases to the sheet, and they
+        // land before the XP step captures its baseline — so they must come
+        // off the budget here or the character banks XP it already spent.
+        expect(computeCcXpBudget(c)).toBe(0)
+        expect(computeCcXpBanked(c)).toBe(0)
+    })
+
+    it("never returns a negative budget", () => {
+        const c = character({
+            age_category: "ancilla",
+            in_memoriam: inMemoriam(10, [{ xp_cost: 40 }]),
+        })
+        expect(computeCcXpBudget(c)).toBe(0)
     })
 })
 

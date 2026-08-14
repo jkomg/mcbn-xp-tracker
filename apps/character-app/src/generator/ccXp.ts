@@ -13,21 +13,20 @@
  */
 import { Character } from "~/data/Character"
 import { loresheetDotCost } from "~/data/Loresheets"
-
-/** Starting XP budget by age category. Mirrors XP_BUDGETS in AgeCategoryPicker. */
-export const CC_XP_BUDGETS: Record<string, number> = {
-    mortal: 0,
-    fledgling: 0,
-    ghoul: 0,
-    neonate: 15,
-    ancilla: 35,
-}
+import ccXpRules from "~rules/cc_xp.json"
 
 /**
- * Most unspent creation XP a character may carry into play. Chronicle rule:
- * spend as much as possible at creation and bank only what you must.
+ * Starting XP budget by age category, and the most unspent XP a character may
+ * carry into play (chronicle rule: spend as much as possible at creation and
+ * bank only what you must).
+ *
+ * Read from packages/rules/cc_xp.json — the same file apps/web/app/cc_xp.py
+ * loads — so a rules change lands on both sides at once. These were previously
+ * hardcoded here AND again in AgeCategoryPicker, which meant editing the
+ * shared file updated the server while the creator kept storing old budgets.
  */
-export const CC_MAX_BANKED_XP = 5
+export const CC_XP_BUDGETS: Record<string, number> = ccXpRules.budgets
+export const CC_MAX_BANKED_XP: number = ccXpRules.max_banked_xp
 
 export const attrLevelCost = (newLevel: number): number => newLevel * 5
 export const skillLevelCost = (newLevel: number): number => newLevel * 3
@@ -82,16 +81,31 @@ export function computeCcXpSpent(character: Character): number {
     )
 }
 
-/** Total budget available: age-category budget plus any inherited XP. */
+/**
+ * XP an In-Memoriam ancilla already spent during the era step.
+ *
+ * EraXpPicker applies those purchases straight onto the sheet and records them
+ * in in_memoriam.era_xp_spends. They land before the XP step captures its
+ * baseline, so computeCcXpSpent cannot see them — they come off the era budget
+ * instead. Mirrors era_xp_spent in apps/web/app/cc_xp.py.
+ */
+export function eraXpSpent(character: Character): number {
+    return (character.in_memoriam?.era_xp_spends ?? []).reduce(
+        (sum, s) => sum + (s.xp_cost ?? 0),
+        0,
+    )
+}
+
+/** Budget available to spend, by age category (era-derived for In-Memoriam). */
 export function computeCcXpBudget(character: Character): number {
     const isImAncilla =
         character.age_category === "ancilla" &&
         !!character.in_memoriam &&
         !character.in_memoriam.use_standard
     const base = isImAncilla
-        ? (character.in_memoriam?.total_xp ?? 0)
-        : (character.cc_xp_budget ?? 0)
-    return base + (character.inherited_xp ?? 0)
+        ? (character.in_memoriam?.total_xp ?? 0) - eraXpSpent(character)
+        : (CC_XP_BUDGETS[character.age_category ?? ""] ?? 0)
+    return Math.max(0, base)
 }
 
 /** Unspent budget, which may go negative while the player is over budget. */
