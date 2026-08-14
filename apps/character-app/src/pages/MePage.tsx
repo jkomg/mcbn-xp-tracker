@@ -793,18 +793,14 @@ const MePage = () => {
     }
 
     const handleLoadFromFile = async (file: File | null) => {
-        console.log("handleLoadFromFile called with:", file)
         if (!file) {
-            console.log("No file provided")
             return
         }
-        console.log("Setting loadedFile and opening modal")
         setLoadedFile(file)
         setLoadJsonModalOpened(true)
     }
 
     const handleConfirmLoadJson = async () => {
-        console.log("handleConfirmLoadJson", loadedFile)
         if (!loadedFile) {
             notifications.show({
                 title: "Error",
@@ -905,13 +901,11 @@ const MePage = () => {
             }
 
             const loadedCharacter = await loadCharacterFromJson(json)
-            console.log("Loaded character from JSON:", loadedCharacter)
 
             // Set id to empty string since this is a new character from JSON
             const characterToSet = { ...loadedCharacter, id: "" }
 
             setCharacter(characterToSet)
-            console.log("Character set in state")
 
             setLoadJsonModalOpened(false)
             setLoadedFile(null)
@@ -922,7 +916,6 @@ const MePage = () => {
                 color: "green",
                 autoClose: 3000
             })
-            console.log("Notification shown")
         } catch (e) {
             console.error("Error loading JSON:", e)
             if (e instanceof z.ZodError) {
