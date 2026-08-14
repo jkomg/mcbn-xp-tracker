@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, Flask
 from flask_wtf.csrf import CSRFProtect
 
+from app.blueprints import character_creator as cc_module
 from app.blueprints import player as player_module
 from app.db import DbCharacter, db
 from app.db_service import DBService
@@ -32,6 +33,9 @@ def _app():
     CSRFProtect().init_app(app)
     player_module.db_service = DBService(sheets_client=None)
     app.register_blueprint(player_module.bp, url_prefix='/player')
+    # my_characters.html links to the character creator; url_for needs the
+    # blueprint registered even though these tests do not exercise it.
+    app.register_blueprint(cc_module.bp)
     app.register_blueprint(_fake_dashboard_bp)
     with app.app_context():
         db.create_all()

@@ -109,7 +109,11 @@
             </div>
             {% endfor %}
         </div>
-        <div class="text-center mb-4">
+        <div class="text-center mb-4 d-flex flex-wrap justify-content-center gap-2">
+            <a href="{{ url_for('character_creator.character_creator_new') }}"
+               class="btn btn-sm btn-danger">
+                <i class="bi bi-person-plus"></i> Create a new character
+            </a>
             <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-link-45deg"></i> Link another character
             </a>
@@ -123,9 +127,19 @@
         {% else %}
         <div class="text-center text-muted mb-4">
             <p>No characters linked to your Discord account yet.</p>
-            <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-danger">
-                <i class="bi bi-link-45deg"></i> Link a Character
-            </a>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a href="{{ url_for('character_creator.character_creator_new') }}"
+                   class="btn btn-danger">
+                    <i class="bi bi-person-plus"></i> Create a Character
+                </a>
+                <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-link-45deg"></i> Link an Existing Character
+                </a>
+            </div>
+            <div class="small mt-2">
+                New to the chronicle? Create a character. Already approved on the
+                roster? Link it instead.
+            </div>
         </div>
         {% endif %}
 
