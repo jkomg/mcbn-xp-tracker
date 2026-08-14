@@ -37,6 +37,21 @@
     </div>
   </div>
 
+  {% if schema_outdated %}
+  <div class="alert alert-warning py-2 small">
+    <strong>Older character-creator format
+      ({% if schema_version %}v{{ schema_version }}{% else %}unversioned{% endif %}
+      vs current v{{ schema_current_version }}).</strong>
+    The player's browser upgrades the draft next time they open it, but until
+    then figures below may be computed from partial data.
+    {% if schema_changes %}
+    <ul class="mb-0 mt-1">
+      {% for change in schema_changes %}<li>{{ change }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {# ── Character overview ── #}
   <div class="card mb-3">
     <div class="card-body">

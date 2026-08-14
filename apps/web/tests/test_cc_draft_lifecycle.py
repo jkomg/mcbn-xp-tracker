@@ -6,10 +6,6 @@ shares the CharacterDraft table but is a separate flow) is well covered by
 test_sheet_import_approval.py — these tests give the creation flow the same
 treatment, following that file's conventions.
 
-One behavior here is pinned as *current* rather than ideal, and says so:
-draft_approve copies clan/age_category/sect onto the roster row without
-validating them. Pinning it means a later correctness pass changes the
-assertion on purpose instead of discovering the behavior by accident.
 """
 
 import json
@@ -22,6 +18,7 @@ import app.blueprints.cc_admin as cc_admin_module
 from app.blueprints.cc_admin import bp as cc_admin_bp
 from app.blueprints.character_creator import bp as character_creator_bp
 from app.db import CharacterDraft, DbCharacter, db
+from app.models import AGE_CATEGORIES, CLANS
 from app.db_service import DBService
 
 # require_staff redirects unauthenticated requests to 'dashboard.login'; the
@@ -212,8 +209,95 @@ def test_approve_copies_clan_and_derives_sect():
             DbCharacter.character_name.ilike('Fiona Vale')
         ).first()
         assert row.clan == 'Toreador'
-        assert row.age_category == 'Neonate'  # capitalized from 'neonate'
+        assert row.age_category == 'Neonate'  # normalized from 'neonate'
         assert row.sect == 'Camarilla'         # derived from the clan->sect map
+
+
+def test_approve_normalizes_clan_spellings_the_creator_and_roster_disagree_on():
+    """The SPA emits "Ministry"/"Thin-blood"; models.CLANS has "The Ministry"/
+    "Thin-Blood". Approval used to copy the creator's spelling verbatim, so
+    those characters were invisible to clan filters and would be rejected by
+    the bot's own roster endpoint, which validates against CLANS."""
+    app = _app()
+    draft_id = _seed_draft(app, name='Serpent Sam', character_data=json.dumps(
+        {'clan': 'Ministry', 'age_category': 'neonate'}))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Serpent Sam')
+        ).first()
+        assert row.clan == 'The Ministry'
+        assert row.clan in CLANS
+        assert row.sect == 'Anarch'  # sect lookup still resolves after renaming
+
+
+def test_approve_stores_ghoul_as_a_real_age_category():
+    """'Ghoul' is offered by the creator and now present in AGE_CATEGORIES.
+    It previously capitalized to a value the roster's own list did not contain,
+    so player.py had to special-case it to stop ghouls reading as ancilla."""
+    app = _app()
+    draft_id = _seed_draft(app, name='Renfield Ray', character_data=json.dumps(
+        {'clan': 'Ventrue', 'age_category': 'ghoul'}))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Renfield Ray')
+        ).first()
+        assert row.age_category == 'Ghoul'
+        assert row.age_category in AGE_CATEGORIES
+
+
+def test_approve_stores_blank_clan_rather_than_an_unmatchable_one():
+    """An unrecognised clan is stored empty — visibly wrong to staff — instead
+    of a value no filter or validator will ever match."""
+    app = _app()
+    draft_id = _seed_draft(app, name='Mystery Mel', character_data=json.dumps(
+        {'clan': 'Definitely Not A Clan', 'age_category': 'neonate'}))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Mystery Mel')
+        ).first()
+        assert row.clan == ''
+
+
+def test_approve_falls_back_to_neonate_for_an_unknown_age_category():
+    app = _app()
+    draft_id = _seed_draft(app, name='Odd Olive', character_data=json.dumps(
+        {'clan': 'Brujah', 'age_category': 'methuselah'}))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Odd Olive')
+        ).first()
+        assert row.age_category == 'Neonate'
+
+
+def test_every_clan_the_creator_offers_normalizes_into_CLANS():
+    """Guards against the two lists drifting apart again: every clan the SPA's
+    clanNameSchema can emit must map onto a canonical roster clan."""
+    from app.blueprints.cc_admin import normalize_cc_clan
+    creator_clans = [
+        'Brujah', 'Gangrel', 'Nosferatu', 'Malkavian', 'Tremere', 'Ventrue',
+        'Toreador', 'Lasombra', 'Banu Haqim', 'Ministry', 'Ravnos', 'Tzimisce',
+        'Hecata', 'Salubri', 'Caitiff', 'Thin-blood',
+    ]
+    for clan in creator_clans:
+        normalized = normalize_cc_clan(clan)
+        assert normalized in CLANS, f'{clan!r} normalized to {normalized!r}'
+
+
+def test_every_clan_the_creator_offers_has_a_sect():
+    from app.blueprints.cc_admin import _CLAN_SECT, normalize_cc_clan
+    from app.models import SECTS
+    creator_clans = [
+        'Brujah', 'Gangrel', 'Nosferatu', 'Malkavian', 'Tremere', 'Ventrue',
+        'Toreador', 'Lasombra', 'Banu Haqim', 'Ministry', 'Ravnos', 'Tzimisce',
+        'Hecata', 'Salubri', 'Caitiff', 'Thin-blood',
+    ]
+    for clan in creator_clans:
+        sect = _CLAN_SECT.get(normalize_cc_clan(clan).lower(), '')
+        assert sect in SECTS, f'{clan!r} produced sect {sect!r}'
 
 
 def test_approve_banks_unspent_starting_xp():

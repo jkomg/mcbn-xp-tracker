@@ -1046,14 +1046,14 @@ def _normalize_sheet_data(data: dict) -> dict:
     return data
 
 
-# Lowercased app.models.AGE_CATEGORIES (the roster's canonical list, e.g.
-# includes 'elder') plus 'ghoul' — a valid CC-approval-flow value
-# (cc_admin.draft_approve capitalizes character_data['age_category'] straight
-# into DbCharacter.age_category without validating against AGE_CATEGORIES).
-# Derived rather than hand-listed so this can't silently drift out of sync
-# and re-introduce the same "unrecognized category falls back to ancilla"
-# bug this allowlist exists to prevent.
-_ROSTER_AGE_CATEGORIES = frozenset({c.lower() for c in AGE_CATEGORIES} | {'ghoul'})
+# Lowercased app.models.AGE_CATEGORIES (the roster's canonical list). 'Ghoul'
+# used to be unioned in by hand here, because cc_admin.draft_approve wrote it
+# straight into DbCharacter.age_category while AGE_CATEGORIES didn't list it —
+# so a ghoul read back as unrecognized and fell through to 'ancilla'. Both
+# halves are fixed at source now: AGE_CATEGORIES includes 'Ghoul', and approval
+# normalizes through normalize_cc_age_category. Derived rather than hand-listed
+# so it can't drift out of sync again.
+_ROSTER_AGE_CATEGORIES = frozenset(c.lower() for c in AGE_CATEGORIES)
 
 
 def _map_rod_to_cc(rod: dict, age_category: str = 'ancilla') -> dict:
