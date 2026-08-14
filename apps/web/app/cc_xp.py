@@ -130,7 +130,14 @@ def compute_budget(character_data: dict) -> int:
     """
     if _is_in_memoriam_ancilla(character_data):
         in_memoriam = character_data.get('in_memoriam') or {}
-        base = _as_int(in_memoriam.get('total_xp')) - era_xp_spent(character_data)
+        era_remainder = _as_int(in_memoriam.get('total_xp')) - era_xp_spent(character_data)
+        # The cap applies to what survives the ERA step, before any Starting-XP
+        # spending — EraXpPicker shows the player exactly this (banked, with the
+        # rest marked wasted) and writes it into cc_xp_budget. Clamping only at
+        # the end instead would refund era XP the player already forfeited: a
+        # 60 XP pool with 40 spent leaves 20, of which 5 banks and 15 is lost,
+        # so spending 3 more here must leave 2 — not 5.
+        base = min(max(0, era_remainder), MAX_BANKED_XP)
     else:
         age = (character_data.get('age_category') or '').strip().lower()
         base = CC_XP_BUDGETS.get(age, 0)

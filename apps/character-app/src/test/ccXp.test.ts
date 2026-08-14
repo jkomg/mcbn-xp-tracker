@@ -105,13 +105,23 @@ describe("computeCcXpBudget", () => {
         expect(computeCcXpBudget(c)).toBe(35)
     })
 
-    it("uses era XP for an In-Memoriam ancilla", () => {
+    it("caps an In-Memoriam budget at what the era step banked", () => {
+        // The era step forfeits anything above the cap, so the Starting XP
+        // step gets the capped remainder rather than the whole era pool.
         const c = character({
             age_category: "ancilla",
             cc_xp_budget: 0,
             in_memoriam: inMemoriam(42),
         })
-        expect(computeCcXpBudget(c)).toBe(42)
+        expect(computeCcXpBudget(c)).toBe(CC_MAX_BANKED_XP)
+    })
+
+    it("keeps a small era remainder intact rather than inflating it", () => {
+        const c = character({
+            age_category: "ancilla",
+            in_memoriam: inMemoriam(60, [{ xp_cost: 58 }]),
+        })
+        expect(computeCcXpBudget(c)).toBe(2)
     })
 
     it("subtracts era spends from an In-Memoriam budget", () => {

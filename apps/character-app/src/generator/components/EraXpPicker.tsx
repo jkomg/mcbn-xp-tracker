@@ -15,6 +15,7 @@ import {
     generatorScrollableShellStyle,
 } from "./sharedGeneratorScrollableLayout"
 import { nightfallScrollAreaStyles, nightfallScrollbarSize } from "./sharedScrollAreaStyles"
+import { CC_MAX_BANKED_XP } from "../ccXp"
 
 type EraXpPickerProps = {
     character: Character
@@ -858,7 +859,8 @@ export default function EraXpPicker({ character, setCharacter, nextStep }: EraXp
     for (const s of spends) spentPerPool[s.pool] += s.xp_cost
     const totalSpent = (Object.values(spentPerPool) as number[]).reduce((a, b) => a + b, 0)
     const totalRemaining = totalPool - totalSpent
-    const bankedXp = Math.min(totalRemaining, 5)
+    // Cap comes from packages/rules/cc_xp.json, same as the server grant.
+    const bankedXp = Math.min(totalRemaining, CC_MAX_BANKED_XP)
     const wastedXp = totalRemaining - bankedXp
 
     const addSpend = (spend: EraXpSpend) => setSpends(prev => [...prev, spend])
