@@ -5,6 +5,7 @@ Exposes /api/auth/me for session auth and /api/cc/* for draft management.
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -13,6 +14,8 @@ from flask import Blueprint, jsonify, request, send_from_directory, session
 from app.auth import is_staff, require_login, require_character_owner, require_staff
 from app.date_utils import parse_date_added
 from app.db import CharacterDraft, DbCharacter, db
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('character_creator', __name__)
 
@@ -31,6 +34,26 @@ def _discord_id():
     return session.get('discord_id', '')
 
 
+def _draft_character_data(draft):
+    """Parse character_data for the API, returning None rather than raising.
+
+    A bare json.loads here meant one corrupt blob 500'd the player's own draft
+    list, locking them out of every draft instead of just the broken one. The
+    SPA already handles a null character_data (it treats the draft as empty and
+    the player can start over), so degrading is strictly better than a 500.
+    """
+    if not draft.character_data:
+        return None
+    try:
+        return json.loads(draft.character_data)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        logger.warning(
+            'CC: unparseable character_data on draft %s (%s)',
+            draft.id, draft.character_name,
+        )
+        return None
+
+
 def _draft_to_dict(draft):
     return {
         'id': draft.id,
@@ -40,7 +63,7 @@ def _draft_to_dict(draft):
         'status': draft.status,
         'is_spc': draft.is_spc,
         'ticket_channel_id': draft.ticket_channel_id,
-        'character_data': json.loads(draft.character_data) if draft.character_data else None,
+        'character_data': _draft_character_data(draft),
         'created_at': draft.created_at.isoformat() if draft.created_at else None,
         'updated_at': draft.updated_at.isoformat() if draft.updated_at else None,
         'submitted_at': draft.submitted_at.isoformat() if draft.submitted_at else None,

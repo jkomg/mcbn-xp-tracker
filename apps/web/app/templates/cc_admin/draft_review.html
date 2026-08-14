@@ -280,13 +280,23 @@
         {% endif %}
       {% endfor %}
       <div class="px-3 pt-2 pb-3">
-        {# Creation-budget XP is spent building the sheet; it is NOT granted to
-           the roster character on approval (creation_xp stays 0, and creation
-           purchases never generate spend requests). Label it as the budget it
-           is — the old "Banked XP into play" wording read as a grant. #}
         <span class="fw-semibold small">Creation XP budget: </span>
-        <span class="badge bg-success">{{ char_data.get('cc_xp_budget', 0) }}</span>
-        <span class="text-muted small">(spent during creation; not added to available XP)</span>
+        <span class="badge bg-secondary">{{ cc_xp_budget }}</span>
+        <span class="fw-semibold small ms-3">Spent: </span>
+        <span class="badge bg-secondary">{{ cc_xp_spent }}</span>
+        <span class="fw-semibold small ms-3">Banks into play: </span>
+        <span class="badge bg-success">{{ cc_xp_banked }}</span>
+        {% if cc_xp_remaining > cc_xp_banked %}
+        <div class="text-warning small mt-1">
+          {{ cc_xp_remaining }} XP unspent, but only {{ cc_xp_banked }} banks into
+          play — the rest is forfeit. Players are expected to spend as much as
+          possible at creation.
+        </div>
+        {% elif cc_xp_remaining < 0 %}
+        <div class="text-danger small mt-1">
+          Over budget by {{ -cc_xp_remaining }} XP — nothing banks into play.
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

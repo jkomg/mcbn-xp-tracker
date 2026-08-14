@@ -25,11 +25,35 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 import logging
 
 from app.auth import require_staff
+from app.cc_xp import compute_banked_xp, compute_budget, compute_spent
 from app.db import CharacterDraft, CcRestriction, DbCharacter, DbCharacterBackground, db
 from app import db_service, sheets_sync
 from app.models import Character
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_char_data(draft) -> dict:
+    """Parse a draft's character_data, degrading to {} rather than raising.
+
+    character_data is a client-authored JSON blob and can be partial or
+    corrupt (an interrupted autosave, or a hand-edit via roster.edit_sheet).
+    Several call sites used a bare json.loads, so ONE bad row would 500 the
+    whole staff drafts list instead of just that row. Always return a dict so
+    callers can use .get() chains unconditionally.
+    """
+    raw = getattr(draft, 'character_data', None)
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        logger.warning(
+            'CC: unparseable character_data on draft %s (%s)',
+            getattr(draft, 'id', '?'), getattr(draft, 'character_name', '?'),
+        )
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 # Map CC clan name → default sect
 _CLAN_SECT: dict[str, str] = {
@@ -223,7 +247,7 @@ def draft_list():
 
     rows = []
     for d in drafts:
-        char_data = json.loads(d.character_data) if d.character_data else {}
+        char_data = _safe_char_data(d)
         days_waiting = (now - d.submitted_at).days if d.submitted_at else 0
         urgent = d.status == 'submitted' and days_waiting >= 5
         warn = d.status == 'submitted' and days_waiting >= 3
@@ -259,12 +283,20 @@ def draft_review(draft_id):
     if draft is None:
         abort(404)
     catalog_by_id = {e['id']: e for e in _load_loresheet_catalog()}
-    char_data = json.loads(draft.character_data) if draft.character_data else {}
+    char_data = _safe_char_data(draft)
+    # Computed server-side with the same maths approval uses, so the figure
+    # staff sign off on is the figure that lands on the roster.
+    cc_xp_budget = compute_budget(char_data)
+    cc_xp_spent = compute_spent(char_data)
     return render_template(
         'cc_admin/draft_review.html',
         draft=draft,
         char_data=char_data,
         catalog_by_id=catalog_by_id,
+        cc_xp_budget=cc_xp_budget,
+        cc_xp_spent=cc_xp_spent,
+        cc_xp_remaining=cc_xp_budget - cc_xp_spent,
+        cc_xp_banked=compute_banked_xp(char_data),
     )
 
 
@@ -281,12 +313,7 @@ def draft_approve(draft_id):
     draft.approved_at = datetime.now(timezone.utc)
 
     # Apply any ST-edited specialty overrides (IM ancilla archaic specialties)
-    char_data = {}
-    if draft.character_data:
-        try:
-            char_data = json.loads(draft.character_data)
-        except Exception:
-            pass
+    char_data = _safe_char_data(draft)
     specialty_overrides = []
     i = 0
     while True:
@@ -314,22 +341,22 @@ def draft_approve(draft_id):
         if existing_row:
             draft.roster_character_id = existing_row.id
         else:
-            char_data = {}
-            if draft.character_data:
-                try:
-                    char_data = json.loads(draft.character_data)
-                except Exception:
-                    pass
+            char_data = _safe_char_data(draft)
             clan = (char_data.get('clan') or '').strip()
             age_cat = (char_data.get('age_category') or 'neonate').strip().capitalize()
             sect = _CLAN_SECT.get(clan.lower(), '')
             try:
+                # Unspent creation XP the character carries into play, capped
+                # at MAX_BANKED_XP. Recomputed here rather than read off the
+                # draft: character_data is authored by the browser app.
+                banked_xp = compute_banked_xp(char_data)
                 new_char = Character(
                     character_name=char_name,
                     player_discord=draft.player_discord_id or '',
                     clan=clan,
                     age_category=age_cat,
                     sect=sect,
+                    creation_xp=banked_xp,
                     active=True,
                     status='active',
                 )

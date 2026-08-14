@@ -6,18 +6,16 @@ shares the CharacterDraft table but is a separate flow) is well covered by
 test_sheet_import_approval.py — these tests give the creation flow the same
 treatment, following that file's conventions.
 
-Several tests here pin *current* behavior rather than ideal behavior, and say
-so: draft_approve copies clan/age_category/sect onto the roster row without
-validating them, and creation_xp is deliberately left at 0. Pinning them means
-a later correctness pass changes these assertions on purpose instead of
-discovering the behavior by accident.
+One behavior here is pinned as *current* rather than ideal, and says so:
+draft_approve copies clan/age_category/sect onto the roster row without
+validating them. Pinning it means a later correctness pass changes the
+assertion on purpose instead of discovering the behavior by accident.
 """
 
 import json
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-import pytest
 from flask import Blueprint, Flask
 
 import app.blueprints.cc_admin as cc_admin_module
@@ -218,15 +216,89 @@ def test_approve_copies_clan_and_derives_sect():
         assert row.sect == 'Camarilla'         # derived from the clan->sect map
 
 
-def test_approve_does_not_grant_creation_xp():
-    """Confirmed intended: creation-budget XP is spent building the sheet and
-    never becomes spendable roster XP. creation_xp feeds total_xp directly
-    (db_service._xp_totals), so granting it here would hand out free XP for
-    purchases that never generated spend requests."""
+def test_approve_banks_unspent_starting_xp():
+    """A neonate has a 15 XP budget; 9 spent on loresheets leaves 6 unspent,
+    which the 5 XP cap trims to 5. That reaches the roster as creation_xp,
+    which feeds total_xp directly in db_service._xp_totals."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=json.dumps({
+        'clan': 'Toreador',
+        'age_category': 'neonate',
+        'cc_xp_budget': 15,
+        'loresheet_purchases': [{'loresheet_id': 'descendant-of', 'dot': 1},
+                                {'loresheet_id': 'descendant-of', 'dot': 2}],
+    }))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Fiona Vale')
+        ).first()
+        assert (row.creation_xp or 0) == 5
+
+
+def test_approve_banks_only_the_unspent_remainder_under_the_cap():
+    """Spending nearly the whole budget banks only what is left, not the cap."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=json.dumps({
+        'clan': 'Toreador',
+        'age_category': 'neonate',
+        'cc_xp_budget': 15,
+        # 4 + 1 dots = 12 + 3 = 15 spent... leave 2 unspent instead:
+        'loresheet_purchases': [{'loresheet_id': 'a', 'dot': 4},
+                                {'loresheet_id': 'b', 'dot': 1}],
+        'cc_base_attributes': {'strength': 2},
+        'attributes': {'strength': 2},
+    }))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Fiona Vale')
+        ).first()
+        assert (row.creation_xp or 0) == 0  # 12 + 3 = 15 spent, nothing left
+
+
+def test_approve_counts_attribute_raises_against_the_budget():
+    """Trait raises measured against the persisted v8 baseline count as spend,
+    so they reduce what can be banked."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=json.dumps({
+        'clan': 'Toreador',
+        'age_category': 'ancilla',
+        'cc_xp_budget': 35,
+        'cc_base_attributes': {'strength': 2},
+        'attributes': {'strength': 4},  # (3x5) + (4x5) = 35 spent
+    }))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Fiona Vale')
+        ).first()
+        assert (row.creation_xp or 0) == 0
+
+
+def test_approve_caps_banked_xp_for_in_memoriam_ancilla():
+    """The 5 XP cap applies on the era-derived In-Memoriam path too."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=json.dumps({
+        'clan': 'Nosferatu',
+        'age_category': 'ancilla',
+        'cc_xp_budget': 0,
+        'in_memoriam': {'use_standard': False, 'total_xp': 60, 'eras': []},
+    }))
+    _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
+    with app.app_context():
+        row = DbCharacter.query.filter(
+            DbCharacter.character_name.ilike('Fiona Vale')
+        ).first()
+        assert (row.creation_xp or 0) == 5
+
+
+def test_approve_grants_no_xp_to_zero_budget_ages():
+    """Ghoul/Mortal/Fledgling get a 0 XP budget, so 0 is correct for them —
+    this half of the rule already holds today."""
     app = _app()
     draft_id = _seed_draft(app, character_data=json.dumps(
-        {'clan': 'Toreador', 'age_category': 'neonate', 'cc_xp_budget': 60,
-         'inherited_xp': 15}))
+        {'clan': 'Caitiff', 'age_category': 'fledgling', 'cc_xp_budget': 0}))
     _staff_client(app).post(f'/cc-admin/drafts/{draft_id}/approve')
     with app.app_context():
         row = DbCharacter.query.filter(
@@ -293,14 +365,25 @@ def test_approve_of_pre_v7_draft_without_backgrounds_key():
 
 # ── Known gap: unguarded json.loads in the staff drafts list ────────────────
 
-@pytest.mark.xfail(
-    reason='Known gap: cc_admin.draft_list parses character_data with a bare '
-           'json.loads, so ONE corrupt draft 500s the whole staff list rather '
-           'than just that row. Deliberately left failing to pin the bug; '
-           'fixing it turns this green.',
-    strict=True,
-)
+def test_player_draft_list_tolerates_one_corrupt_draft():
+    """Same guard on the player-facing API: a corrupt blob must degrade that
+    draft to character_data=null, not lock the player out of every draft."""
+    app = _app()
+    _seed_draft(app, status='draft', name='Good Draft')
+    _seed_draft(app, status='draft', name='Corrupt Draft',
+                character_data='{not valid json')
+    res = _player_client(app).get('/api/cc/characters')
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert len(payload) == 2
+    by_name = {d['character_name']: d for d in payload}
+    assert by_name['Corrupt Draft']['character_data'] is None
+    assert by_name['Good Draft']['character_data']['clan'] == 'Toreador'
+
+
 def test_draft_list_tolerates_one_corrupt_draft():
+    """One corrupt character_data used to 500 the entire staff drafts list via
+    a bare json.loads; _safe_char_data degrades that row to {} instead."""
     app = _app()
     _seed_draft(app, name='Good Draft')
     _seed_draft(app, name='Corrupt Draft', character_data='{not valid json')
