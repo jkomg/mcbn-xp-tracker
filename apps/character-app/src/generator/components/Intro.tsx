@@ -177,7 +177,7 @@ const Intro = ({ setCharacter, nextStep, setSelectedStep }: IntroProps) => {
                                 <Button
                                     leftSection={<FontAwesomeIcon icon={faPlay} />}
                                     size="xl"
-                                    onClick={nextStep}
+                                    onClick={() => nextStep()}
                                     styles={{
                                         root: {
                                             fontFamily: "Cinzel, Georgia, serif",

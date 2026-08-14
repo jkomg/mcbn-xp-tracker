@@ -34,7 +34,19 @@ export type GeneratorProps = {
 
 const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, draftId, onReset }: GeneratorProps) => {
     const nextStep = (characterOverride?: Character) => {
-        setSelectedStep(getNextGeneratorStepId(characterOverride ?? character, selectedStep))
+        // Ignore anything that is not actually a Character. `onClick={nextStep}`
+        // is a natural thing to write, and React then hands the MouseEvent in
+        // as the override — so step availability was evaluated against an event
+        // object, every conditional step disappeared from the visible list,
+        // findIndex returned -1, and getNextGeneratorStepId re-selected the
+        // current step. The button silently did nothing, with no error.
+        const override =
+            characterOverride &&
+            typeof characterOverride === "object" &&
+            "attributes" in characterOverride
+                ? characterOverride
+                : undefined
+        setSelectedStep(getNextGeneratorStepId(override ?? character, selectedStep))
     }
 
     const getStepComponent = () => {

@@ -564,7 +564,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                     }}
                 >
                     <Button
-                        onClick={nextStep}
+                        onClick={() => nextStep()}
                         variant="filled"
                         color="red.8"
                         disabled={overBudget}

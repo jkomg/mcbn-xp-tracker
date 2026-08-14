@@ -157,7 +157,20 @@ export const getNextGeneratorStepId = (character: Character, stepId: GeneratorSt
     const visibleSteps = getVisibleGeneratorSteps(character)
     const currentIndex = visibleSteps.findIndex((step) => step.id === stepId)
 
-    if (currentIndex === -1 || currentIndex === visibleSteps.length - 1) {
+    if (currentIndex === -1) {
+        // Being asked to advance from a step this character cannot see means
+        // the caller and the character disagree. Staying put is the safe
+        // fallback, but doing it silently is how a dead Continue button went
+        // unnoticed: the step was resolved against a MouseEvent, so every
+        // conditional step vanished from the visible list. Say so.
+        console.warn(
+            `[generator] cannot advance from "${stepId}": it is not a visible step for this character`,
+            { visibleSteps: visibleSteps.map((s) => s.id) }
+        )
+        return stepId
+    }
+
+    if (currentIndex === visibleSteps.length - 1) {
         return stepId
     }
 
