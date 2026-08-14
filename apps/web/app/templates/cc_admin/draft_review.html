@@ -280,8 +280,13 @@
         {% endif %}
       {% endfor %}
       <div class="px-3 pt-2 pb-3">
-        <span class="fw-semibold small">Banked XP into play: </span>
+        {# Creation-budget XP is spent building the sheet; it is NOT granted to
+           the roster character on approval (creation_xp stays 0, and creation
+           purchases never generate spend requests). Label it as the budget it
+           is — the old "Banked XP into play" wording read as a grant. #}
+        <span class="fw-semibold small">Creation XP budget: </span>
         <span class="badge bg-success">{{ char_data.get('cc_xp_budget', 0) }}</span>
+        <span class="text-muted small">(spent during creation; not added to available XP)</span>
       </div>
     </div>
   </div>
