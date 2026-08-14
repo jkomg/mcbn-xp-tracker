@@ -162,6 +162,7 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                             fontWeight: 600,
                             textShadow: C_RED_GLOW,
                         }}
+                        data-testid="final-character-name"
                     >
                         {charName || "Unnamed Character"}
                     </h2>
@@ -508,6 +509,7 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                         </div>
 
                         <button
+                            data-testid="final-submit-button"
                             onClick={handleSubmit}
                             disabled={submitStatus === "submitting"}
                             style={{

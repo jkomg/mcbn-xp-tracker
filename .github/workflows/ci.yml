@@ -166,6 +166,24 @@ jobs:
       - name: Build character-app
         run: cd apps/character-app && npm run build
 
+      # Browsers are installed from the same @playwright/test the lockfile
+      # pins, so the runtime and the browser build cannot drift. The e2e spec
+      # stubs every /api/cc/* call, so no Flask app is needed — Playwright
+      # starts the Vite dev server itself (see playwright.config.ts).
+      - name: Install Playwright browsers
+        run: cd apps/character-app && npx playwright install --with-deps chromium
+
+      - name: E2E character creation (playwright)
+        run: cd apps/character-app && npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/character-app/playwright-report/
+          retention-days: 7
+
   contract-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -142,6 +142,9 @@ const MeritOrFlawCard = memo(
             return (
                 <Button
                     key={meritOrFlaw.name + level}
+                    data-testid={`${type}-${meritOrFlaw.name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}-level-${level}-button`}
                     disabled={
                         isExcluded ||
                         (meritInPredatorType && meritInPredatorType.level >= level) ||

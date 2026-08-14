@@ -351,13 +351,13 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                 }}
             >
                 <Tabs.List>
-                    <Tabs.Tab value="attributes" style={activeTab === "attributes" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-attributes-tab" value="attributes" style={activeTab === "attributes" ? activeTabStyle : undefined}>
                         Attributes
                     </Tabs.Tab>
-                    <Tabs.Tab value="skills" style={activeTab === "skills" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-skills-tab" value="skills" style={activeTab === "skills" ? activeTabStyle : undefined}>
                         Skills
                     </Tabs.Tab>
-                    <Tabs.Tab value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-loresheets-tab" value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
                         Loresheets
                     </Tabs.Tab>
                 </Tabs.List>
@@ -564,6 +564,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                     }}
                 >
                     <Button
+                        data-testid="starting-xp-continue-button"
                         onClick={() => nextStep()}
                         variant="filled"
                         color="red.8"

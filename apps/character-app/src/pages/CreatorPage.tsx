@@ -39,8 +39,28 @@ export default function CreatorPage() {
     const [character, setCharacter] = useCharacterLocalStorage()
     const [showAsideBar, setShowAsideBar] = useState(!globals.isSmallScreen)
 
-    // Draft persistence — stored in a ref (no re-renders) + localStorage for reload survival
+    // Draft persistence — localStorage for reload survival.
+    //
+    // The ref exists so the debounced auto-save closure always reads the
+    // current id without re-subscribing; the state exists so components that
+    // RENDER the id (Final's submit button) actually update when it changes.
+    // It used to be ref-only and passed straight to Final as a prop, so after
+    // the first auto-save created a draft React never re-rendered and Final
+    // still saw "" — its submit refused with "No draft found. Try making a
+    // change to trigger an auto-save, then submit again", a message written to
+    // work around this rather than fix it. Always go through setDraftId.
     const draftIdRef = useRef(localStorage.getItem(DRAFT_ID_KEY) ?? "")
+    const [draftId, setDraftIdState] = useState(draftIdRef.current)
+
+    const setDraftId = (id: string) => {
+        draftIdRef.current = id
+        setDraftIdState(id)
+        if (id) {
+            localStorage.setItem(DRAFT_ID_KEY, id)
+        } else {
+            localStorage.removeItem(DRAFT_ID_KEY)
+        }
+    }
     const saveInFlightRef = useRef(false)
 
     // Ticket channel ID from ?ticket= URL param (set by Lasombra's welcome message link).
@@ -102,8 +122,7 @@ export default function CreatorPage() {
                         character_data: charData,
                         ...(ticketChannelIdRef.current ? { ticket_channel_id: ticketChannelIdRef.current } : {}),
                     })
-                    draftIdRef.current = draft.id
-                    localStorage.setItem(DRAFT_ID_KEY, draft.id)
+                    setDraftId(draft.id)
                 } else {
                     await cc.saveDraft(draftIdRef.current, {
                         character_name: charName,
@@ -130,8 +149,7 @@ export default function CreatorPage() {
                 const parsed = characterSchema.safeParse(draft.character_data)
                 if (parsed.success) {
                     setCharacter(parsed.data)
-                    draftIdRef.current = draftId
-                    localStorage.setItem(DRAFT_ID_KEY, draftId)
+                    setDraftId(draftId)
                     setSelectedStep(defaultGeneratorStepId)
                 }
             }
@@ -145,8 +163,7 @@ export default function CreatorPage() {
     // ---------------------------------------------------------------------------
     const handleNewCharacter = async () => {
         setCharacter(getEmptyCharacter())
-        draftIdRef.current = ""
-        localStorage.removeItem(DRAFT_ID_KEY)
+        setDraftId("")
         setSelectedStep(defaultGeneratorStepId)
     }
 
@@ -154,8 +171,7 @@ export default function CreatorPage() {
     // Reset (called from Final's "Start over" button)
     // ---------------------------------------------------------------------------
     const handleReset = () => {
-        draftIdRef.current = ""
-        localStorage.removeItem(DRAFT_ID_KEY)
+        setDraftId("")
     }
 
     return (
@@ -279,7 +295,7 @@ export default function CreatorPage() {
                                 setCharacter={setCharacter}
                                 selectedStep={selectedStep}
                                 setSelectedStep={setSelectedStep}
-                                draftId={draftIdRef.current}
+                                draftId={draftId}
                                 onReset={handleReset}
                             />
                         </RenderProfiler>
