@@ -29,6 +29,19 @@ const getNerdbertTemplate = () => {
 const initPDFDocument = async (bytes: ArrayBufferLike): Promise<PDFDocument> => {
     const pdfDoc = await PDFDocument.load(bytes as ArrayBuffer)
 
+    // Fail here, naming the actual problem, rather than returning something
+    // unusable. The two try/catch blocks below are deliberate — fontkit and
+    // the custom font are genuinely optional — but they used to swallow the
+    // TypeErrors thrown by calling methods on a missing document too, so a
+    // load that produced nothing returned undefined from this function and
+    // only blew up later as "Cannot read properties of undefined (reading
+    // 'getForm')" at an unrelated line in whichever caller happened to run.
+    if (!pdfDoc || typeof pdfDoc.getForm !== "function") {
+        throw new Error(
+            "PDFDocument.load did not return a usable document — the sheet template is missing or corrupt"
+        )
+    }
+
     try {
         if (fontkit && typeof fontkit === "object" && typeof fontkit.create === "function") {
             pdfDoc.registerFontkit(fontkit)
