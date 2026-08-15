@@ -63,11 +63,14 @@ export const Route = createRootRoute({
                     defaults: "2025-05-24",
                     capture_exceptions: true,
                     cookieless_mode: "on_reject",
-                    before_send: (event) => {
+                    before_send: (event: { event?: string; properties?: Record<string, unknown> } | null) => {
                         if (event && event.event === "$exception") {
                             const exceptionType = event.properties?.$exception_type
                             const exceptionMessage = event.properties?.$exception_message
-                            const exceptionValue = event.properties?.$exception_values?.[0]
+                            const exceptionValues = event.properties?.$exception_values
+                            const exceptionValue = Array.isArray(exceptionValues)
+                                ? exceptionValues[0]
+                                : undefined
 
                             if (
                                 exceptionType === "CustomEvent" ||

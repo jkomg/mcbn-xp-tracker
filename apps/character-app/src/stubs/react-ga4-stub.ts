@@ -1,5 +1,7 @@
 // No-op react-ga4 stub — analytics removed for MCbN integration
-const noop = () => {}
+// Accepts and discards any arguments: callers pass real analytics
+// payloads, and a zero-arity stub makes every call site a type error.
+const noop = (..._args: unknown[]) => {}
 
 const ReactGA = {
     initialize: noop,

@@ -796,7 +796,7 @@ export default function InMemoriamPicker({
 }: InMemoriamPickerProps) {
     const im = character.in_memoriam!
     const [embraceAge, setEmbraceAge] = useState<EmbraceAge | null>(
-        im.embrace_age && im.embrace_age !== "" ? (im.embrace_age as EmbraceAge) : null
+        im.embrace_age ? (im.embrace_age as EmbraceAge) : null
     )
     const [eras, setEras] = useState<(InMemoriamEra | null)[]>(
         im.eras?.length ? im.eras : []

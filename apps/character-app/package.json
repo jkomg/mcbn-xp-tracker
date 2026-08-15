@@ -15,7 +15,8 @@
         "pdf-to-base64": "pnpm exec ts-node --project ./scripts/tsconfig.json ./scripts/pdfToBase64.ts",
         "test": "vitest",
         "test:run": "vitest run",
-        "test:e2e": "playwright test"
+        "test:e2e": "playwright test",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@emotion/babel-plugin": "^11.13.5",

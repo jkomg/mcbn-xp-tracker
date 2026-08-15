@@ -22,7 +22,7 @@ export const AuthButton = () => {
                     variant="subtle"
                     color="red"
                 >
-                    {user.firstName || user.email}
+                    {user.display_name || user.username}
                 </Button>
                 <Button onClick={signOut} variant="outline" color="red">
                     Sign Out
