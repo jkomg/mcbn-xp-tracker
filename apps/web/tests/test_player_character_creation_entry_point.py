@@ -86,6 +86,39 @@ def test_empty_state_still_offers_linking():
     assert 'Link an Existing Character' in body
 
 
+def test_retired_only_player_still_gets_creation_actions():
+    """A player whose only characters are retired falls into the
+    `elif retired_count` branch with an empty my_characters list. The actions
+    used to live inside the other two branches, so that player saw only
+    "Show retired/deceased" and no way into the creator."""
+    app = _app()
+    with app.app_context():
+        db.session.add(DbCharacter(
+            character_name='Ghost Of Sessions Past',
+            player_discord='111',
+            active=False,
+            status='retired',
+        ))
+        db.session.commit()
+    res = _player_client(app).get('/player/')
+    assert res.status_code == 200
+    body = res.get_data(as_text=True)
+    assert '/player/new' in body
+    assert 'Show 1 retired/deceased' in body
+
+
+def test_creation_link_signals_a_fresh_draft():
+    """The creator restores the last character and draft id from localStorage,
+    so a bare /player/new resumes it — and the autosave then writes over that
+    draft, which may already be submitted. ?new=1 tells the SPA to start
+    clean; without it the "create" action silently edits the previous
+    character."""
+    app = _app()
+    _seed_character(app)
+    body = _player_client(app).get('/player/').get_data(as_text=True)
+    assert '/player/new?new=1' in body
+
+
 def test_existing_characters_page_offers_creation():
     """A player with characters must still be able to create another."""
     app = _app()

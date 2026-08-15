@@ -168,6 +168,38 @@ export default function CreatorPage() {
     }
 
     // ---------------------------------------------------------------------------
+    // ?new=1 — start a fresh draft rather than resuming the stored one
+    // ---------------------------------------------------------------------------
+    // Both `character` and the draft id are restored from localStorage on
+    // mount, so navigating to the creator resumes whatever was last worked on.
+    // That is right for "Edit draft", but wrong for "Create a new character":
+    // without a signal the new-character link resumed the previous draft and
+    // the 1.5s autosave then wrote over it — including a draft already
+    // submitted or awaiting revision, since cc_update_draft still accepts
+    // edits in those states.
+    //
+    // The flag is consumed once and stripped from the URL, so a refresh does
+    // not wipe the character the player has just started.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("new") !== "1") return
+
+        setCharacter(getEmptyCharacter())
+        setDraftId("")
+        setSelectedStep(defaultGeneratorStepId)
+
+        params.delete("new")
+        const query = params.toString()
+        window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}${query ? `?${query}` : ""}`
+        )
+        // Mount only: re-running would discard work in progress.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // ---------------------------------------------------------------------------
     // Reset (called from Final's "Start over" button)
     // ---------------------------------------------------------------------------
     const handleReset = () => {

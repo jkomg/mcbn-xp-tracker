@@ -64,9 +64,29 @@ These are the behaviors most recently changed. Each has an expected result.
 
 ### Tampering checks
 
-The server no longer trusts the draft's own budget. To confirm, edit
-`character_data` directly (staff sheet editor at `/roster/<name>/sheet`, or the
-API) and approve:
+The server no longer trusts the draft's own budget. To confirm, edit the
+**pending draft's** `character_data` and then approve it.
+
+`/roster/<name>/edit-sheet` is the wrong tool here: it loads the *approved*
+draft attached to an existing roster character, which a not-yet-approved
+character does not have. Use the authenticated draft API instead — the same
+endpoint the creator autosaves through, so the edit lands on the data approval
+actually reads:
+
+```bash
+# Signed in as the draft's owner (or staff); <draft_id> is in the URL of the
+# staff review page, /cc-admin/drafts/<draft_id>.
+curl -X PUT "https://dev.mcbn.jkomg.us/api/cc/characters/<draft_id>" \
+  -H "Content-Type: application/json" \
+  -b "session=<your session cookie>" \
+  -d '{"character_data": { ...the draft JSON with your edits... }}'
+```
+
+Fetch the current JSON first with `GET /api/cc/characters/<draft_id>`, change
+one field, and PUT it back. The staff draft editor at `/st/draft/<draft_id>`
+works too if you would rather do it in the UI.
+
+Then approve and check the roster row:
 
 - Set `cc_xp_budget: 500` on a neonate → still banks at most 5.
 - Set `cc_xp_budget: 50` on a ghoul → banks 0.

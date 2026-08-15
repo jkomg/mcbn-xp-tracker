@@ -109,15 +109,6 @@
             </div>
             {% endfor %}
         </div>
-        <div class="text-center mb-4 d-flex flex-wrap justify-content-center gap-2">
-            <a href="{{ url_for('character_creator.character_creator_new') }}"
-               class="btn btn-sm btn-danger">
-                <i class="bi bi-person-plus"></i> Create a new character
-            </a>
-            <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-link-45deg"></i> Link another character
-            </a>
-        </div>
         {% elif retired_count %}
         <div class="d-flex justify-content-end mb-2">
             <a href="{{ url_for('player.my_characters', show='all') }}" class="small text-muted text-decoration-none">
@@ -127,21 +118,29 @@
         {% else %}
         <div class="text-center text-muted mb-4">
             <p>No characters linked to your Discord account yet.</p>
-            <div class="d-flex flex-wrap justify-content-center gap-2">
-                <a href="{{ url_for('character_creator.character_creator_new') }}"
-                   class="btn btn-danger">
-                    <i class="bi bi-person-plus"></i> Create a Character
-                </a>
-                <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-link-45deg"></i> Link an Existing Character
-                </a>
-            </div>
             <div class="small mt-2">
                 New to the chronicle? Create a character. Already approved on the
                 roster? Link it instead.
             </div>
         </div>
         {% endif %}
+
+        {# Outside the branches above on purpose: a player whose only characters
+           are retired falls into the `elif retired_count` case with an empty
+           list, and would otherwise see no way into the creator at all.
+           ?new=1 tells the SPA to start a fresh draft — without it the creator
+           restores the last one from localStorage and autosaves over it. #}
+        <div class="text-center mb-4 d-flex flex-wrap justify-content-center gap-2">
+            <a href="{{ url_for('character_creator.character_creator_new') }}?new=1"
+               class="btn btn-sm btn-danger">
+                <i class="bi bi-person-plus"></i>
+                {% if my_characters or retired_count %}Create a new character{% else %}Create a Character{% endif %}
+            </a>
+            <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-link-45deg"></i>
+                {% if my_characters or retired_count %}Link another character{% else %}Link an Existing Character{% endif %}
+            </a>
+        </div>
 
         {% if calendar %}
         <div class="cal-widget mb-4">
