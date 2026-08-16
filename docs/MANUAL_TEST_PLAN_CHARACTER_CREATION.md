@@ -154,9 +154,27 @@ approve.
 
 ## Set 8 — Volume
 
-Use `scripts/generate-test-data.py` (dev only; refuses to run against prod).
-Everything it creates is prefixed `ZZTest_`, and `--cleanup` removes exactly
-that.
+Use `scripts/generate-test-data.py` (dev only; refuses to run against prod,
+and fails closed on any host it cannot confirm is non-production). Everything
+it creates is prefixed `ZZTest_`, and `--cleanup` removes exactly that.
+
+Needs Python 3.10+ — macOS `python3` is 3.9 and fails at import:
+
+```bash
+# Dry run first; it makes no network calls and needs no credentials.
+./apps/web/venv/bin/python scripts/generate-test-data.py \
+  --mode db --characters 50 --claims 100 --spends 100
+
+# Then for real, against dev.
+DATABASE_URL=<dev libsql url> TURSO_AUTH_TOKEN=<dev token> \
+./apps/web/venv/bin/python scripts/generate-test-data.py \
+  --mode db --characters 50 --claims 100 --spends 100 --yes
+```
+
+`--mode api` exercises real server-side validation but is paced under the
+20/min rate limit, so it is slow for volume; `--mode db` is the fast path.
+`--cleanup` requires `--mode db`, because the roster delete endpoint refuses
+characters that have claim or spend history.
 
 | # | Step | Expected |
 |---|------|----------|
