@@ -58,3 +58,6 @@ apps/character-app/test-results/
 apps/character-app/playwright-report/
 apps/character-app/blob-report/
 apps/character-app/playwright/.cache/
+
+# Live e2e captured Discord session (never commit a session cookie)
+apps/character-app/e2e-live/.auth/
