@@ -13,14 +13,14 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from collections import deque
+from collections import Counter, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.sheets import SheetsClient
-    from app.models import Character, XPClaim, SpendRequest, LedgerEntry
+    from app.models import AuditEntry, Character, XPClaim, SpendRequest, LedgerEntry
     from app.db_service import DBService
 
 logger = logging.getLogger(__name__)
@@ -37,18 +37,93 @@ def get_recent_sync_errors() -> list[dict]:
         return list(reversed(_sync_errors))
 
 
-def _claim_categories_dict(claim: XPClaim) -> dict:
-    return {
-        'posted_once': claim.posted_once_link if claim.posted_once else '',
-        'hunting_awakening': claim.hunting_awakening_link if claim.hunting_awakening else '',
-        'scene_with_another': claim.scene_with_another_link if claim.scene_with_another else '',
-        'conflict': claim.conflict_link if claim.conflict else '',
-        'combat': claim.combat_link if claim.combat else '',
-        'unmitigated_stain': claim.unmitigated_stain_link if claim.unmitigated_stain else '',
-        'wildcard': claim.wildcard_link if claim.wildcard else '',
-        'wildcard_amount': str(claim.wildcard_amount) if claim.wildcard else '0',
-        'wildcard_reason': claim.wildcard_reason if claim.wildcard else '',
-    }
+# A mirrored row's timestamp is written by a separate call from the DB record's,
+# so the two drift by a second or two — occasionally more when Sheets is slow.
+_PAIR_TIMESTAMP_TOLERANCE_SECONDS = 120
+
+
+def _parse_row_timestamp(value: str):
+    """Parse a 'YYYYMMDD HH:MM:SS' cell, or None if it isn't one."""
+    try:
+        return datetime.strptime(str(value).strip(), '%Y%m%d %H:%M:%S')
+    except (TypeError, ValueError):
+        return None
+
+
+def _pair_within_groups(db_records: list, sheet_records: list, group_key) -> tuple[list, list]:
+    """Pair DB records with their mirror rows, one identity group at a time.
+
+    The group key alone is not an identity.  A character denied for a period who
+    then resubmits has two DB records that a (character, period) key collapses
+    onto one row — which is what made reconciliation rewrite the same rows every
+    night: each record in turn flipped the shared row to its own status, and the
+    second record was never appended because its key already "existed".
+
+    Sheet rows carry no stable id, so records are paired on their timestamps:
+    first the pairs whose timestamps agree within tolerance, closest first, then
+    whatever is left over in chronological order.  Timestamp-first matters when a
+    group's rows are incomplete — a lone row belongs to whichever record it was
+    written for, not automatically to the earliest one.
+
+    Extra sheet rows beyond the DB's count for a group are left alone; the mirror
+    is append-only, so leftovers are historical rows the DB no longer carries.
+
+    Returns (pairs, unmatched) where pairs is a list of (db_record, sheet_row)
+    and unmatched is the DB records that have no row of their own yet.
+    """
+    grouped_rows: dict = defaultdict(list)
+    for sr in sheet_records:
+        grouped_rows[group_key(sr)].append(sr)
+    for rows in grouped_rows.values():
+        rows.sort(key=lambda r: (r.timestamp, r.row_index))
+
+    grouped_records: dict = defaultdict(list)
+    for dr in db_records:
+        grouped_records[group_key(dr)].append(dr)
+
+    pairs: list = []
+    unmatched: list = []
+
+    for key, records in grouped_records.items():
+        records.sort(key=lambda r: (r.timestamp, r.row_index))
+        rows = grouped_rows.get(key, [])
+        matched: dict = {}
+        taken: set = set()
+
+        candidates = []
+        for record_i, dr in enumerate(records):
+            record_time = _parse_row_timestamp(dr.timestamp)
+            if record_time is None:
+                continue
+            for row_i, sr in enumerate(rows):
+                row_time = _parse_row_timestamp(sr.timestamp)
+                if row_time is None:
+                    continue
+                drift = abs((row_time - record_time).total_seconds())
+                if drift <= _PAIR_TIMESTAMP_TOLERANCE_SECONDS:
+                    candidates.append((drift, record_i, row_i))
+
+        for _, record_i, row_i in sorted(candidates):
+            if record_i in matched or row_i in taken:
+                continue
+            matched[record_i] = row_i
+            taken.add(row_i)
+
+        spare = [row_i for row_i in range(len(rows)) if row_i not in taken]
+        for record_i in range(len(records)):
+            if record_i not in matched and spare:
+                matched[record_i] = spare.pop(0)
+
+        for record_i, dr in enumerate(records):
+            row_i = matched.get(record_i)
+            if row_i is None:
+                unmatched.append(dr)
+            else:
+                pairs.append((dr, rows[row_i]))
+
+    pairs.sort(key=lambda p: (p[0].timestamp, p[0].row_index))
+    unmatched.sort(key=lambda r: (r.timestamp, r.row_index))
+    return pairs, unmatched
 
 
 class SheetsSyncWorker:
@@ -144,16 +219,31 @@ class SheetsSyncWorker:
         self._run(self._sheets.log_action, staff_user=staff_user, action_type=action_type,
                   target=target, details=details)
 
+    def _find_claim_row(self, character_name: str, play_period: str):
+        """Find the mirror row a claim review should write to.
+
+        A character can have more than one row for a period — a denial followed
+        by a resubmission — so taking the first match would write the review onto
+        the older, already-decided row.  Prefer the row still awaiting a decision,
+        and fall back to the most recent one (an amendment re-reviews a claim that
+        is already Approved, so no pending row exists).  This mirrors the
+        status == 'pending' guard the spend path already uses.
+        """
+        matches = [
+            c for c in self._sheets.get_all_claims()
+            if c.character_name.lower() == character_name.lower()
+            and c.play_period == play_period
+        ]
+        if not matches:
+            return None
+        pending = [c for c in matches if c.status.strip().lower() == 'pending']
+        return pending[0] if pending else matches[-1]
+
     def sync_approve_claim(self, character_name: str, play_period: str,
                            approved_xp: int, reviewer: str, notes: str = '') -> None:
         def _task():
             try:
-                match = next(
-                    (c for c in self._sheets.get_all_claims()
-                     if c.character_name.lower() == character_name.lower()
-                     and c.play_period == play_period),
-                    None,
-                )
+                match = self._find_claim_row(character_name, play_period)
                 if match is None:
                     logger.warning('sheets_sync: approve_claim no match for %s / %s',
                                    character_name, play_period)
@@ -167,12 +257,7 @@ class SheetsSyncWorker:
                         reviewer: str, notes: str = '') -> None:
         def _task():
             try:
-                match = next(
-                    (c for c in self._sheets.get_all_claims()
-                     if c.character_name.lower() == character_name.lower()
-                     and c.play_period == play_period),
-                    None,
-                )
+                match = self._find_claim_row(character_name, play_period)
                 if match is None:
                     logger.warning('sheets_sync: deny_claim no match for %s / %s',
                                    character_name, play_period)
@@ -310,7 +395,7 @@ class SheetsSyncWorker:
 
     # ── Nightly reconciliation ────────────────────────────────────────────────
 
-    def reconcile(self, db_service: DBService) -> dict:  # pragma: no cover
+    def reconcile(self, db_service: DBService) -> dict:
         """Full diff reconciliation: compare DB state to Sheets and sync gaps.
 
         Appends missing rows, updates stale statuses, and returns a summary.
@@ -324,182 +409,22 @@ class SheetsSyncWorker:
             'spends_status_updated': 0,
             'ledger_appended': 0,
             'characters_appended': 0,
+            'audit_appended': 0,
             'errors': [],
         }
 
-        # ── Claims ──
-        try:
-            db_claims = db_service.get_all_claims()
-            sheets_claims = self._sheets.get_all_claims()
-            sheets_map = {
-                (c.character_name.lower(), c.play_period): c
-                for c in sheets_claims
-            }
-
-            missing = [dc for dc in db_claims
-                       if (dc.character_name.lower(), dc.play_period) not in sheets_map]
-
-            for dc in missing:
-                try:
-                    self._sheets.submit_xp_claim(
-                        dc.character_name, dc.play_period, _claim_categories_dict(dc)
-                    )
-                    summary['claims_appended'] += 1
-                except ValueError:
-                    pass  # Duplicate caught by Sheets — already there
-                except Exception as exc:
-                    summary['errors'].append(
-                        f'append claim {dc.character_name}/{dc.play_period}: {exc}'
-                    )
-
-            # Re-read after appends to get current row indices
-            if missing:
-                sheets_claims = self._sheets.get_all_claims()
-                sheets_map = {
-                    (c.character_name.lower(), c.play_period): c
-                    for c in sheets_claims
-                }
-
-            # Status updates for rows that exist but are stale
-            for dc in db_claims:
-                sc = sheets_map.get((dc.character_name.lower(), dc.play_period))
-                if sc is None or sc.status.lower() == dc.status.lower():
-                    continue
-                try:
-                    if dc.status.lower() == 'approved':
-                        self._sheets.approve_claim(
-                            sc.row_index, dc.approved_xp, dc.reviewed_by, dc.st_notes or ''
-                        )
-                        summary['claims_status_updated'] += 1
-                    elif dc.status.lower() == 'denied':
-                        self._sheets.deny_claim(
-                            sc.row_index, dc.reviewed_by, dc.st_notes or ''
-                        )
-                        summary['claims_status_updated'] += 1
-                except Exception as exc:
-                    summary['errors'].append(
-                        f'update claim status {dc.character_name}/{dc.play_period}: {exc}'
-                    )
-
-        except Exception as exc:
-            logger.warning('sheets_reconcile_claims_error: %s', exc)
-            summary['errors'].append(f'claims phase failed: {exc}')
-
-        # ── Spends ──
-        try:
-            db_spends = db_service.get_all_spends()
-            sheets_spends = self._sheets.get_all_spends()
-
-            def _spend_key(s: SpendRequest) -> tuple:
-                return (
-                    s.character_name.lower(),
-                    s.trait_name.lower(),
-                    s.spend_category.lower(),
-                    s.current_dots,
-                    s.new_dots,
-                )
-
-            sheets_spend_map = {_spend_key(s): s for s in sheets_spends}
-
-            missing_spends = [ds for ds in db_spends if _spend_key(ds) not in sheets_spend_map]
-
-            for ds in missing_spends:
-                try:
-                    self._sheets.submit_spend_request(
-                        character_name=ds.character_name,
-                        spend_category=ds.spend_category,
-                        trait_name=ds.trait_name,
-                        current_dots=ds.current_dots,
-                        new_dots=ds.new_dots,
-                        is_in_clan=ds.is_in_clan,
-                        justification=ds.justification,
-                    )
-                    summary['spends_appended'] += 1
-                except Exception as exc:
-                    summary['errors'].append(
-                        f'append spend {ds.character_name}/{ds.trait_name}: {exc}'
-                    )
-
-            if missing_spends:
-                sheets_spends = self._sheets.get_all_spends()
-                sheets_spend_map = {_spend_key(s): s for s in sheets_spends}
-
-            for ds in db_spends:
-                ss = sheets_spend_map.get(_spend_key(ds))
-                if ss is None or ss.status.lower() == ds.status.lower():
-                    continue
-                try:
-                    if ds.status.lower() == 'approved':
-                        self._sheets.approve_spend(
-                            ss.row_index, ds.verified_cost, ds.reviewed_by, ds.st_notes or ''
-                        )
-                        summary['spends_status_updated'] += 1
-                    elif ds.status.lower() == 'denied':
-                        self._sheets.deny_spend(
-                            ss.row_index, ds.reviewed_by, ds.st_notes or ''
-                        )
-                        summary['spends_status_updated'] += 1
-                    elif ds.status.lower() == 'pending' and ss.status.lower() == 'approved':
-                        # A reversed spend — DB is back to Pending after
-                        # having been Approved. sync_reverse_spend() should
-                        # have already caught this at reversal time; this is
-                        # the self-heal path if that call was missed/failed.
-                        self._sheets.reverse_spend(ss.row_index, ds.st_notes or '')
-                        summary['spends_status_updated'] += 1
-                except Exception as exc:
-                    summary['errors'].append(
-                        f'update spend status {ds.character_name}/{ds.trait_name}: {exc}'
-                    )
-
-        except Exception as exc:
-            logger.warning('sheets_reconcile_spends_error: %s', exc)
-            summary['errors'].append(f'spends phase failed: {exc}')
-
-        # ── Ledger entries ──
-        try:
-            db_ledger = db_service.get_all_ledger_entries()
-            sheets_ledger = self._sheets.get_all_ledger_entries()
-
-            def _ledger_key(e: LedgerEntry) -> tuple:
-                return (e.character_name.lower(), e.date, e.awarded, e.spent, e.reason[:80].lower())
-
-            sheets_ledger_keys = {_ledger_key(e) for e in sheets_ledger}
-
-            for dl in db_ledger:
-                if _ledger_key(dl) in sheets_ledger_keys:
-                    continue
-                try:
-                    self._sheets.add_ledger_entry(
-                        dl.character_name, dl.date, dl.awarded, dl.spent,
-                        dl.reason, dl.entered_by,
-                    )
-                    summary['ledger_appended'] += 1
-                except Exception as exc:
-                    summary['errors'].append(
-                        f'append ledger {dl.character_name}/{dl.date}: {exc}'
-                    )
-
-        except Exception as exc:
-            logger.warning('sheets_reconcile_ledger_error: %s', exc)
-            summary['errors'].append(f'ledger phase failed: {exc}')
-
-        # ── Characters ──
-        try:
-            db_chars = db_service.get_all_characters()
-            sheets_chars = self._sheets.get_all_characters()
-            sheets_char_names = {c.character_name.lower() for c in sheets_chars}
-
-            for dc in db_chars:
-                if dc.character_name.lower() not in sheets_char_names:
-                    try:
-                        self._sheets.add_character(dc)
-                        summary['characters_appended'] += 1
-                    except Exception as exc:
-                        summary['errors'].append(f'append character {dc.character_name}: {exc}')
-
-        except Exception as exc:
-            logger.warning('sheets_reconcile_characters_error: %s', exc)
-            summary['errors'].append(f'characters phase failed: {exc}')
+        for phase, run in (
+            ('claims', self._reconcile_claims),
+            ('spends', self._reconcile_spends),
+            ('ledger', self._reconcile_ledger),
+            ('characters', self._reconcile_characters),
+            ('audit', self._reconcile_audit),
+        ):
+            try:
+                run(db_service, summary)
+            except Exception as exc:
+                logger.warning('sheets_reconcile_%s_error: %s', phase, exc)
+                summary['errors'].append(f'{phase} phase failed: {exc}')
 
         summary['finished_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         self._log_reconcile_result(summary)
@@ -507,3 +432,178 @@ class SheetsSyncWorker:
             k: v for k, v in summary.items() if k != 'errors'
         }))
         return summary
+
+    # ── Reconciliation phases ─────────────────────────────────────────────────
+
+    def _reconcile_claims(self, db_service: DBService, summary: dict) -> None:
+        db_claims = db_service.get_all_claims()
+        sheets_claims = self._sheets.get_all_claims()
+
+        def _group(c: XPClaim) -> tuple:
+            return (c.character_name.strip().lower(), c.play_period.strip())
+
+        pairs, missing = _pair_within_groups(db_claims, sheets_claims, _group)
+
+        for dc in missing:
+            try:
+                self._sheets.append_claim_row(dc)
+                summary['claims_appended'] += 1
+            except Exception as exc:
+                summary['errors'].append(
+                    f'append claim {dc.character_name}/{dc.play_period}: {exc}'
+                )
+
+        # Status updates for rows that exist but are stale.  Backfilled rows are
+        # written with their final status already, so they never land here.
+        for dc, sc in pairs:
+            if sc.status.strip().lower() == dc.status.strip().lower():
+                continue
+            try:
+                if dc.status.lower() == 'approved':
+                    self._sheets.approve_claim(
+                        sc.row_index, dc.approved_xp, dc.reviewed_by, dc.st_notes or ''
+                    )
+                    summary['claims_status_updated'] += 1
+                elif dc.status.lower() == 'denied':
+                    self._sheets.deny_claim(
+                        sc.row_index, dc.reviewed_by, dc.st_notes or ''
+                    )
+                    summary['claims_status_updated'] += 1
+            except Exception as exc:
+                summary['errors'].append(
+                    f'update claim status {dc.character_name}/{dc.play_period}: {exc}'
+                )
+
+    def _reconcile_spends(self, db_service: DBService, summary: dict) -> None:
+        db_spends = db_service.get_all_spends()
+        sheets_spends = self._sheets.get_all_spends()
+
+        def _group(s: SpendRequest) -> tuple:
+            return (
+                s.character_name.strip().lower(),
+                s.trait_name.strip().lower(),
+                s.spend_category.strip().lower(),
+                s.current_dots,
+                s.new_dots,
+            )
+
+        pairs, missing = _pair_within_groups(db_spends, sheets_spends, _group)
+
+        for ds in missing:
+            try:
+                self._sheets.append_spend_row(ds)
+                summary['spends_appended'] += 1
+            except Exception as exc:
+                summary['errors'].append(
+                    f'append spend {ds.character_name}/{ds.trait_name}: {exc}'
+                )
+
+        for ds, ss in pairs:
+            if ss.status.strip().lower() == ds.status.strip().lower():
+                continue
+            try:
+                if ds.status.lower() == 'approved':
+                    self._sheets.approve_spend(
+                        ss.row_index, ds.verified_cost, ds.reviewed_by, ds.st_notes or ''
+                    )
+                    summary['spends_status_updated'] += 1
+                elif ds.status.lower() == 'denied':
+                    self._sheets.deny_spend(
+                        ss.row_index, ds.reviewed_by, ds.st_notes or ''
+                    )
+                    summary['spends_status_updated'] += 1
+                elif ds.status.lower() == 'pending' and ss.status.lower() == 'approved':
+                    # A reversed spend — DB is back to Pending after
+                    # having been Approved. sync_reverse_spend() should
+                    # have already caught this at reversal time; this is
+                    # the self-heal path if that call was missed/failed.
+                    self._sheets.reverse_spend(ss.row_index, ds.st_notes or '')
+                    summary['spends_status_updated'] += 1
+            except Exception as exc:
+                summary['errors'].append(
+                    f'update spend status {ds.character_name}/{ds.trait_name}: {exc}'
+                )
+
+    def _reconcile_ledger(self, db_service: DBService, summary: dict) -> None:
+        db_ledger = db_service.get_all_ledger_entries()
+        sheets_ledger = self._sheets.get_all_ledger_entries()
+
+        def _ledger_key(e: LedgerEntry) -> tuple:
+            return (e.character_name.lower(), e.date, e.awarded, e.spent, e.reason[:80].lower())
+
+        sheets_ledger_keys = {_ledger_key(e) for e in sheets_ledger}
+
+        for dl in db_ledger:
+            if _ledger_key(dl) in sheets_ledger_keys:
+                continue
+            try:
+                self._sheets.add_ledger_entry(
+                    dl.character_name, dl.date, dl.awarded, dl.spent,
+                    dl.reason, dl.entered_by,
+                )
+                summary['ledger_appended'] += 1
+            except Exception as exc:
+                summary['errors'].append(
+                    f'append ledger {dl.character_name}/{dl.date}: {exc}'
+                )
+
+    def _reconcile_audit(self, db_service: DBService, summary: dict) -> None:
+        """Backfill audit rows the real-time mirror dropped.
+
+        The audit log had no reconciliation phase at all, so a failed
+        sync_log_action was simply lost — 371 of 1933 entries were missing when
+        this was added.  Entries carry no id and are not updatable, so this is
+        an append-only diff.
+
+        The timestamp is deliberately *not* part of the key.  log_action stamps
+        the row with the moment of the Sheets write, not the moment of the DB
+        write, so a mirrored row's timestamp trails its record's by a second or
+        two and exact matching would declare nearly every entry missing.  (Rows
+        appended here do carry the record's own timestamp, which is strictly
+        more accurate.)
+
+        Entries are compared as a multiset rather than a set: the same staff
+        member can legitimately repeat an action, and deduping those away would
+        leave the mirror permanently short.
+        """
+        db_entries = db_service.get_all_audit_entries()
+        sheet_entries = self._sheets.get_all_audit_entries()
+
+        def _key(entry: AuditEntry) -> tuple:
+            return (
+                entry.staff_user.strip(),
+                entry.action_type.strip(),
+                entry.target_character.strip(),
+                entry.details.strip()[:80],
+            )
+
+        mirrored = Counter(_key(e) for e in sheet_entries)
+        missing = []
+        for entry in db_entries:
+            key = _key(entry)
+            if mirrored[key]:
+                mirrored[key] -= 1
+            else:
+                missing.append(entry)
+
+        if not missing:
+            return
+        try:
+            self._sheets.append_audit_rows(missing)
+            summary['audit_appended'] += len(missing)
+        except Exception as exc:
+            summary['errors'].append(f'append {len(missing)} audit rows: {exc}')
+
+    def _reconcile_characters(self, db_service: DBService, summary: dict) -> None:
+        db_chars = db_service.get_all_characters()
+        sheets_chars = self._sheets.get_all_characters()
+        sheets_char_names = {c.character_name.lower() for c in sheets_chars}
+
+        for dc in db_chars:
+            if dc.character_name.lower() in sheets_char_names:
+                continue
+            try:
+                self._sheets.add_character(dc)
+                summary['characters_appended'] += 1
+            except Exception as exc:
+                summary['errors'].append(f'append character {dc.character_name}: {exc}')
