@@ -361,6 +361,26 @@ class SheetsClient:
         self._next_row_cache[tab_name] = next_row + 1
         self._cache.invalidate(tab_name)
 
+    def _safe_append_rows(self, tab_name: str, rows: list[list],
+                          chunk_size: int = 500) -> None:
+        """Append a block of rows by writing to explicit row numbers.
+
+        The bulk counterpart to _safe_append_row, with the same reason for
+        existing: the Sheets API's table-range auto-detection can overwrite
+        data, so the target range is computed rather than inferred.  Rows go up
+        in chunks so a large backfill stays inside the request size limit.
+        """
+        if not rows:
+            return
+        ws = self._ws(tab_name)
+        next_row = self._get_next_row(tab_name)
+        for start in range(0, len(rows), chunk_size):
+            block = rows[start:start + chunk_size]
+            ws.update(f'A{next_row}', block, value_input_option='RAW')
+            next_row += len(block)
+        self._next_row_cache[tab_name] = next_row
+        self._cache.invalidate(tab_name)
+
     def _get_next_row(self, tab_name: str) -> int:
         """Return the next write row for a tab, with lightweight caching."""
         cached = self._next_row_cache.get(tab_name)
@@ -697,6 +717,75 @@ class SheetsClient:
             value_input_option='RAW',
         )
         self._cache.invalidate(TAB_XP_RESPONSES)
+
+    def append_claim_row(self, claim: XPClaim) -> None:
+        """Append a claim row verbatim from a DB record (reconciliation backfill).
+
+        Differs from submit_xp_claim in three ways that matter for reconciliation:
+
+        - It writes the record's *own* timestamp rather than the wall clock, so
+          the appended row can be matched back to its DB record on later runs.
+        - It writes the record's final status, not 'Pending', so a backfilled
+          row needs no follow-up status write.
+        - It performs no duplicate check.  A character legitimately has more
+          than one claim for a period when a denial is followed by a
+          resubmission, and both belong in the mirror.
+        """
+        row = [
+            claim.timestamp,
+            claim.character_name,
+            claim.play_period,
+        ]
+        for flag, link in (
+            (claim.posted_once, claim.posted_once_link),
+            (claim.hunting_awakening, claim.hunting_awakening_link),
+            (claim.scene_with_another, claim.scene_with_another_link),
+            (claim.conflict, claim.conflict_link),
+            (claim.combat, claim.combat_link),
+            (claim.unmitigated_stain, claim.unmitigated_stain_link),
+        ):
+            row.append('TRUE' if flag else 'FALSE')
+            row.append(link if flag else '')
+        row.extend([
+            'TRUE' if claim.wildcard else 'FALSE',
+            claim.wildcard_link if claim.wildcard else '',
+            claim.wildcard_reason if claim.wildcard else '',
+            claim.wildcard_amount if claim.wildcard else 0,
+            claim.xp_claimed,
+            claim.status,
+            claim.approved_xp if claim.status.lower() == 'approved' else '',
+            claim.reviewed_by,
+            claim.review_date,
+            claim.st_notes,
+        ])
+
+        self._safe_append_row(TAB_XP_RESPONSES, row)
+
+    def append_spend_row(self, spend: SpendRequest) -> None:
+        """Append a spend row verbatim from a DB record (reconciliation backfill).
+
+        The spend-side counterpart to append_claim_row: preserves the record's
+        timestamp and final status, and uses the stored xp_cost rather than
+        recalculating it, so the mirror matches what was actually charged.
+        """
+        row = [
+            spend.timestamp,
+            spend.character_name,
+            spend.spend_category,
+            spend.trait_name,
+            spend.current_dots,
+            spend.new_dots,
+            spend.xp_cost,
+            'TRUE' if spend.is_in_clan else 'FALSE',
+            spend.justification,
+            spend.status,
+            spend.verified_cost if spend.status.lower() == 'approved' else '',
+            spend.reviewed_by,
+            spend.review_date,
+            spend.st_notes,
+        ]
+
+        self._safe_append_row(TAB_SPEND_REQUESTS, row)
 
     def submit_xp_claim(self, character_name: str, play_period: str,
                          categories: dict[str, str]) -> None:
@@ -1544,6 +1633,36 @@ class SheetsClient:
         self._safe_append_row(TAB_AUDIT_LOG,
                               [_now_str(), staff_user, action_type,
                                target, details])
+
+    def get_all_audit_entries(self) -> list[AuditEntry]:
+        """Every audit row, in sheet order — for reconciliation.
+
+        get_audit_log() is the dashboard's view: newest first and capped.  A diff
+        needs the whole tab and its natural order.
+        """
+        return [
+            AuditEntry(
+                timestamp=str(r.get('timestamp', '')),
+                staff_user=str(r.get('staff_user', '')),
+                action_type=str(r.get('action_type', '')),
+                target_character=str(r.get('target_character', '')),
+                details=str(r.get('details', '')),
+            )
+            for r in self._get_all_rows(TAB_AUDIT_LOG) if r.get('timestamp')
+        ]
+
+    def append_audit_rows(self, entries: list[AuditEntry]) -> None:
+        """Append many audit rows in as few writes as possible.
+
+        Reconciliation can find hundreds of unmirrored entries at once — one
+        API call each would blow through the per-minute write quota, so they go
+        up in blocks.
+        """
+        rows = [
+            [e.timestamp, e.staff_user, e.action_type, e.target_character, e.details]
+            for e in entries
+        ]
+        self._safe_append_rows(TAB_AUDIT_LOG, rows)
 
     def get_audit_log(self, limit: int = 100) -> list[AuditEntry]:
         rows = self._get_all_rows(TAB_AUDIT_LOG)

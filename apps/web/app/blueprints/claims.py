@@ -221,6 +221,11 @@ def bulk_approve():
                     staff_user=staff,
                 )
 
+        # One string for both sides. They used to differ — the mirror got
+        # "Approved …" while the DB got "Bulk approved …" — which left 151 audit
+        # rows that reconciliation could not match to their record.
+        bulk_details = f'Bulk approved {approved_xp} XP for {claim.play_period}. {notes}'.strip()
+
         if sheets_sync:
             sheets_sync.sync_approve_claim(
                 character_name=claim.character_name,
@@ -233,14 +238,14 @@ def bulk_approve():
                 staff_user=staff,
                 action_type='approve_claim',
                 target=claim.character_name,
-                details=f'Approved {approved_xp} XP for {claim.play_period}. {notes}'.strip(),
+                details=bulk_details,
             )
 
         db_service.log_action(
             staff_user=staff,
             action_type='approve_claim',
             target=claim.character_name,
-            details=f'Bulk approved {approved_xp} XP for {claim.play_period}. {notes}'.strip(),
+            details=bulk_details,
         )
 
         approved_count += 1

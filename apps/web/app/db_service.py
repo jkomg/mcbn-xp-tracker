@@ -1206,6 +1206,20 @@ class DBService:
         db.session.add(row)
         db.session.commit()
 
+    def get_all_audit_entries(self) -> list[AuditEntry]:
+        """Every audit entry, oldest first — for Sheets reconciliation."""
+        rows = DbAuditLog.query.order_by(DbAuditLog.id.asc()).all()
+        return [
+            AuditEntry(
+                timestamp=r.timestamp or '',
+                staff_user=r.staff_user or '',
+                action_type=r.action_type or '',
+                target_character=r.target_character or '',
+                details=r.details or '',
+            )
+            for r in rows
+        ]
+
     def get_audit_log(self, limit: int = 100) -> list[AuditEntry]:
         rows = DbAuditLog.query.order_by(DbAuditLog.id.desc()).limit(limit).all()
         return [
