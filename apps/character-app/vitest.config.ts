@@ -13,7 +13,10 @@ export default defineConfig({
     ],
     test: {
         environment: "jsdom",
-        exclude: [...configDefaults.exclude, "e2e/**"],
+        // Both Playwright suites must be excluded, not just ./e2e: their specs
+        // call test.describe(), which throws "Playwright Test did not expect
+        // test.describe() to be called here" the moment vitest collects them.
+        exclude: [...configDefaults.exclude, "e2e/**", "e2e-live/**"],
         globals: true,
         pool: "threads",
         poolOptions: {
