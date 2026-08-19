@@ -10,7 +10,12 @@ import {
 import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
-import { isCubbyCategoryName, normalizeChannelName } from './cubbyChannels';
+import {
+  isCubbyCategoryName,
+  normalizeChannelName,
+  pickRetiredCubbyCategoryWithSpace,
+  resolveRetiredCubbyCategoryIds,
+} from './cubbyChannels';
 import { messagesToMarkdown, type DiscordMessageForWiki } from '../scripts/notionSync/wikiSyncHelpers';
 
 export type RetirementAutomationConfig = {
@@ -18,6 +23,7 @@ export type RetirementAutomationConfig = {
   intervalMs: number;
   guildId: string;
   retiredCubbyCategoryId: string;
+  retiredCubbyCategoryIds?: string[];
   childrenForumId: string;
   retiredForumId: string;
   wikiBatchEnabled: boolean;
@@ -300,18 +306,48 @@ export class RetirementAutomationWorker {
       return null;
     }
 
+    const retiredCategoryIds = resolveRetiredCubbyCategoryIds(
+      allChannels,
+      this.cfg.retiredCubbyCategoryIds && this.cfg.retiredCubbyCategoryIds.length > 0
+        ? this.cfg.retiredCubbyCategoryIds
+        : [this.cfg.retiredCubbyCategoryId],
+    );
+
     if (
       channel &&
       'setParent' in channel &&
       typeof channel.setParent === 'function' &&
       'parentId' in channel &&
-      channel.parentId !== this.cfg.retiredCubbyCategoryId
+      !retiredCategoryIds.includes(channel.parentId ?? '')
     ) {
+      // Discord caps a category at 50 channels, and this one only ever grows.
+      // Once it filled, every retirement failed with CHANNEL_PARENT_MAX_CHANNELS
+      // and retried forever against a condition retrying cannot clear.
+      const targetCategoryId = pickRetiredCubbyCategoryWithSpace(allChannels, retiredCategoryIds);
+      if (!targetCategoryId) {
+        const primary = retiredCategoryIds[0]
+          ? allChannels.get(retiredCategoryIds[0])
+          : null;
+        const primaryName = primary?.name ?? 'the retired cubby category';
+        throw new Error(
+          `Every retired cubby category is full — Discord allows 50 channels each, ` +
+            `and ${retiredCategoryIds.length} categor${retiredCategoryIds.length === 1 ? 'y is' : 'ies are'} at the cap. ` +
+            `Create another category in Discord whose name starts with "${primaryName}" ` +
+            `(e.g. "${primaryName} 2") and retirements will use it automatically — no redeploy needed.`,
+        );
+      }
+
       const previousParentId = channel.parentId;
-      await channel.setParent(this.cfg.retiredCubbyCategoryId, {
+      await channel.setParent(targetCategoryId, {
         lockPermissions: false,
         reason: `Character retired: ${characterName}`,
       });
+      if (targetCategoryId !== retiredCategoryIds[0]) {
+        logEvent('info', 'retirement_cubby_overflow_category_used', {
+          characterName,
+          categoryId: targetCategoryId,
+        });
+      }
       rollbackActions.push({
         label: 'restore_cubby_parent',
         run: async () => {

@@ -11,7 +11,11 @@
 import { ChannelType, type Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
-import { isCubbyCategoryName, normalizeChannelName } from './cubbyChannels';
+import {
+  isCubbyCategoryName,
+  normalizeChannelName,
+  resolveRetiredCubbyCategoryIds,
+} from './cubbyChannels';
 
 type CubbySyncConfig = {
   enabled: boolean;
@@ -19,6 +23,7 @@ type CubbySyncConfig = {
   guildId: string;
   staffChannelId: string;
   retiredCategoryId: string;
+  retiredCategoryIds?: string[];
 };
 
 export type CubbySyncReport = {
@@ -95,10 +100,23 @@ export class CubbySyncWorker {
     // Build:
     //  activeCubbyChannelIds: Set<channelId> — channels inside active cubby categories
     //  activeCubbyNameMap:    Map<normalizedName, channelId> — for name-based backfill
-    //  retiredCubbyChannelIds: Set<channelId> — channels inside the retired category
+    //  retiredCubbyChannelIds: Set<channelId> — channels inside any retired category
     const activeCubbyChannelIds = new Set<string>();
     const activeCubbyNameMap = new Map<string, string>();
     const retiredCubbyChannelIds = new Set<string>();
+
+    // Read the same category list the retirement worker moves cubbies into.
+    // It overflows into further categories once one hits Discord's 50-channel
+    // cap, and a cubby sitting in an overflow category would otherwise be read
+    // here as "cubby channel no longer exists".
+    const retiredCategoryIds = new Set(
+      resolveRetiredCubbyCategoryIds(
+        allChannels,
+        this.cfg.retiredCategoryIds && this.cfg.retiredCategoryIds.length > 0
+          ? this.cfg.retiredCategoryIds
+          : [this.cfg.retiredCategoryId],
+      ),
+    );
 
     for (const channel of allChannels.values()) {
       if (!channel || channel.type !== ChannelType.GuildText) continue;
@@ -106,7 +124,7 @@ export class CubbySyncWorker {
       if (activeCubbyParentIds.has(parentId)) {
         activeCubbyChannelIds.add(channel.id);
         activeCubbyNameMap.set(normalizeChannelName(channel.name), channel.id);
-      } else if (parentId === this.cfg.retiredCategoryId) {
+      } else if (retiredCategoryIds.has(parentId)) {
         retiredCubbyChannelIds.add(channel.id);
       }
     }
