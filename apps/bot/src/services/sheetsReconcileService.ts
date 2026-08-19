@@ -133,6 +133,7 @@ export class SheetsReconcileService {
         spendsStatusUpdated: summary.spends_status_updated,
         ledgerAppended: summary.ledger_appended,
         charactersAppended: summary.characters_appended,
+        auditAppended: summary.audit_appended,
         errorCount: summary.errors.length,
         errors: summary.errors.length > 0 ? summary.errors : undefined,
       });

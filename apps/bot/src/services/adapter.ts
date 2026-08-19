@@ -374,6 +374,7 @@ export interface SheetsReconcileSummary {
   spends_status_updated: number;
   ledger_appended: number;
   characters_appended: number;
+  audit_appended: number;
   errors: string[];
 }
 
