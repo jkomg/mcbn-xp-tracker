@@ -29,10 +29,12 @@ export type GeneratorProps = {
     setSelectedStep: (step: GeneratorStepId) => void
 
     draftId?: string
+    /** Persist the current character and resolve to its draft id. */
+    onFlushSave?: () => Promise<string>
     onReset?: () => void
 }
 
-const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, draftId, onReset }: GeneratorProps) => {
+const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, draftId, onFlushSave, onReset }: GeneratorProps) => {
     const nextStep = (characterOverride?: Character) => {
         // Ignore anything that is not actually a Character. `onClick={nextStep}`
         // is a natural thing to write, and React then hands the MouseEvent in
@@ -197,6 +199,7 @@ const Generator = ({ character, setCharacter, selectedStep, setSelectedStep, dra
                         setCharacter={setCharacter}
                         setSelectedStep={setSelectedStep}
                         draftId={draftId}
+                        onFlushSave={onFlushSave}
                         onReset={onReset}
                     />
                 )

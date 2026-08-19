@@ -59,21 +59,32 @@ async function stubCharacterCreatorApi(page: Page, capture: SubmitCapture) {
         })
     )
 
-    await page.route("**/api/cc/characters/*/submit", async (route) => {
-        capture.submitted = true
-        await route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ id: "draft-1", status: "submitted" }),
-        })
-    })
+    // Draft create, autosave and submit, all under one pattern.
+    //
+    // These were two routes, and the create/autosave one matched
+    // "**/api/cc/characters*" — which does not match "/api/cc/characters/<id>",
+    // because a glob "*" stops at a path separator. Every autosave PUT
+    // therefore fell through to the dev server's proxy and a Flask that is not
+    // running under this suite, so the only body ever captured was the initial
+    // POST. Whether cc_base_attributes appeared in it depended on how far the
+    // wizard had got when the 1.5 s debounce first fired: the flake.
+    await page.route("**/api/cc/characters**", async (route) => {
+        const request = route.request()
+        const method = request.method()
 
-    // Draft create/autosave. The last body seen is the draft as the wizard
-    // would have persisted it.
-    await page.route("**/api/cc/characters*", async (route) => {
-        const method = route.request().method()
+        if (new URL(request.url()).pathname.endsWith("/submit")) {
+            capture.submitted = true
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ id: "draft-1", status: "submitted" }),
+            })
+            return
+        }
+
         if (method === "POST" || method === "PUT") {
-            capture.draftBody = route.request().postDataJSON()
+            // The last body seen is the draft as the wizard would have persisted it.
+            capture.draftBody = request.postDataJSON()
             await route.fulfill({
                 status: method === "POST" ? 201 : 200,
                 contentType: "application/json",
@@ -86,6 +97,7 @@ async function stubCharacterCreatorApi(page: Page, capture: SubmitCapture) {
             })
             return
         }
+
         await route.fulfill({
             status: 200,
             contentType: "application/json",

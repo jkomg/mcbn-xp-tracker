@@ -5,6 +5,7 @@ import React from "react"
 import { useLocation, useNavigate } from "@tanstack/react-router"
 import RenderProfiler from "~/components/RenderProfiler"
 import { characterSchema, getEmptyCharacter, type Character as CharacterType } from "~/data/Character"
+import { createSaveQueue } from "~/utils/saveQueue"
 import Generator from "~/generator/Generator"
 import {
     defaultGeneratorStepId,
@@ -61,11 +62,18 @@ export default function CreatorPage() {
             localStorage.removeItem(DRAFT_ID_KEY)
         }
     }
-    const saveInFlightRef = useRef(false)
+    // Latest character, so the debounced save and the pre-submit flush both
+    // write what is on screen now rather than what was there when they were set up.
+    const characterRef = useRef(character)
+    const enqueueSave = useRef(createSaveQueue<string>()).current
 
     // Ticket channel ID from ?ticket= URL param (set by Lasombra's welcome message link).
     // Captured once on mount; stored in a ref so it's available when the first draft is created.
     const ticketChannelIdRef = useRef(new URLSearchParams(location.search).get("ticket") ?? "")
+
+    useEffect(() => {
+        characterRef.current = character
+    }, [character])
 
     useEffect(() => {
         setShowAsideBar(!globals.isSmallScreen)
@@ -106,38 +114,48 @@ export default function CreatorPage() {
         )
     }
 
+    // One write path, used by both the debounce and the pre-submit flush.
+    const persistCharacter = async (char: CharacterType): Promise<string> => {
+        const charName = char.name?.trim() ?? ""
+        const charData = { ...char }
+
+        if (!draftIdRef.current) {
+            const draft = await cc.createDraft({
+                character_name: charName,
+                character_data: charData,
+                ...(ticketChannelIdRef.current ? { ticket_channel_id: ticketChannelIdRef.current } : {}),
+            })
+            setDraftId(draft.id)
+            return draft.id
+        }
+        await cc.saveDraft(draftIdRef.current, {
+            character_name: charName,
+            character_data: charData,
+        })
+        return draftIdRef.current
+    }
+
+    // Queued, not skipped — see createSaveQueue for why that distinction cost
+    // us the creation-XP baseline.
+    const runSave = (char: CharacterType): Promise<string> => enqueueSave(() => persistCharacter(char))
+
     useEffect(() => {
         if (isCharacterEmpty()) return
 
-        const timer = setTimeout(async () => {
-            if (saveInFlightRef.current) return
-            saveInFlightRef.current = true
-            try {
-                const charName = character.name?.trim() ?? ""
-                const charData = { ...character }
-
-                if (!draftIdRef.current) {
-                    const draft = await cc.createDraft({
-                        character_name: charName,
-                        character_data: charData,
-                        ...(ticketChannelIdRef.current ? { ticket_channel_id: ticketChannelIdRef.current } : {}),
-                    })
-                    setDraftId(draft.id)
-                } else {
-                    await cc.saveDraft(draftIdRef.current, {
-                        character_name: charName,
-                        character_data: charData,
-                    })
-                }
-            } catch (e) {
-                console.warn("Auto-save failed:", e)
-            } finally {
-                saveInFlightRef.current = false
-            }
+        const timer = setTimeout(() => {
+            void runSave(characterRef.current).catch((e) => console.warn("Auto-save failed:", e))
         }, 1500)
 
         return () => clearTimeout(timer)
     }, [character])
+
+    // Write the current character and resolve to its draft id. Final calls this
+    // before submitting: submission flips the stored draft to "submitted", so
+    // anything the 1.5 s debounce had not yet written would never reach the STs.
+    const flushSave = async (): Promise<string> => {
+        if (isCharacterEmpty()) return draftIdRef.current
+        return runSave(characterRef.current)
+    }
 
     // ---------------------------------------------------------------------------
     // Load a draft by ID (used by Sidebar character-switch)
@@ -328,6 +346,7 @@ export default function CreatorPage() {
                                 selectedStep={selectedStep}
                                 setSelectedStep={setSelectedStep}
                                 draftId={draftId}
+                                onFlushSave={flushSave}
                                 onReset={handleReset}
                             />
                         </RenderProfiler>
