@@ -7,6 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Prod deploys must not overlap. Two chains finishing close together were free
+# to build and push concurrently, and whichever `gcloud run deploy` landed last
+# won — which is not necessarily the newer commit.
+concurrency:
+  group: deploy-web-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Deploy
@@ -23,32 +30,64 @@ jobs:
       REGISTRY: us-central1-docker.pkg.dev/mcbn-xp-tracker/mcbn-repo/mcbn-xp-tracker
 
     steps:
+      # This workflow is triggered by the dev deploy finishing, and it builds
+      # that run's commit — not whatever main points at now. When merges land
+      # close together those differ, so a run triggered by an older commit's dev
+      # deploy would rebuild and redeploy that older commit, even though a newer
+      # one is already on main. Production went backwards a step, and the check
+      # on the *newer* commit went green while shipping the older one.
+      #
+      # A superseded run now stops here. The newer commit has its own chain and
+      # will deploy itself, so skipping loses nothing and keeps the green check
+      # honest about what is live.
       - name: Resolve deploy SHA
         id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            SHA="${{ github.event.workflow_run.head_sha }}"
           else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            SHA="${{ github.sha }}"
+          fi
+          TIP=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+          # A manual dispatch is deliberate — a rollback, say — so it always proceeds.
+          if [ "${{ github.event_name }}" != "workflow_run" ] || [ "$SHA" = "$TIP" ]; then
+            echo "superseded=false" >> "$GITHUB_OUTPUT"
+            echo "Deploying $SHA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Skipped — superseded"
+              echo "This run would have deployed \`$SHA\`, but main is now at \`$TIP\`."
+              echo "That commit has its own deploy chain; deploying here would ship an older build."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Checkout
+        if: steps.sha.outputs.superseded == 'false'
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.sha.outputs.sha }}
 
       - name: Authenticate to GCP
+        if: steps.sha.outputs.superseded == 'false'
         uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up gcloud CLI
+        if: steps.sha.outputs.superseded == 'false'
         uses: google-github-actions/setup-gcloud@v3
 
       - name: Configure Docker for Artifact Registry
+        if: steps.sha.outputs.superseded == 'false'
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build image (linux/amd64 for Cloud Run)
+        if: steps.sha.outputs.superseded == 'false'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -58,11 +97,13 @@ jobs:
             .
 
       - name: Push image to Artifact Registry
+        if: steps.sha.outputs.superseded == 'false'
         run: |
           docker push ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }}
           docker push ${{ env.REGISTRY }}:latest
 
       - name: Deploy to Cloud Run
+        if: steps.sha.outputs.superseded == 'false'
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
@@ -101,19 +142,24 @@ jobs:
             --update-secrets "DISCORD_WEBHOOK_URL=mcbn-discord-webhook-url:latest"
 
       - name: Route 100% traffic to latest revision
+        if: steps.sha.outputs.superseded == 'false'
         run: |
           gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --to-latest
 
       - name: Print deployed URL
+        if: steps.sha.outputs.superseded == 'false'
         run: |
           gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format="value(status.url)"
 
       - name: Notify Discord
-        if: always()
+        # Not on a superseded run: nothing was deployed, and announcing "live"
+        # for a build that never happened is exactly the confusion this change
+        # exists to remove.
+        if: always() && steps.sha.outputs.superseded == 'false'
         continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
