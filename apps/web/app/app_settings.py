@@ -71,6 +71,9 @@ EDITABLE_KEYS = {
     'BOT_HONEYPOT_MAX_ACCOUNT_AGE_DAYS',
     'BOT_MENTION_BREAKER_MAX_MENTIONS',
     'BOT_MENTION_BREAKER_TIMEOUT_MINUTES',
+    # Character-creation rollout gate (see app/cc_access.py)
+    'CHARACTER_CREATION_MODE',
+    'CHARACTER_CREATION_PILOT_DISCORD_IDS',
     # Chronicle settings
     'CHRONICLE_TENETS',
     # Integer tuning

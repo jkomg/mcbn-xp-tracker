@@ -10,6 +10,16 @@ separate Discord OAuth app. Nothing you do here touches production data.
 > are mid-test and the page changes under you, someone pushed. Check
 > `gh run list --workflow=deploy-web-dev.yml --limit 3`.
 
+> **The creator is gated.** `CHARACTER_CREATION_MODE` defaults to `off`, which
+> hides every entry point and makes `/player/new` redirect and the CC API return
+> 403 — including for staff. If the "Create a Character" button is missing or the
+> wizard bounces you to the dashboard, that is the gate, not a bug. Set it in
+> **Settings → Web App · Flags & Tuning → Character Creation** (no redeploy):
+> `staff` to test yourself, plus **Pilot Discord IDs** for specific players, or
+> `everyone` once it is live. Note that **View As** drops staff to the player
+> gate on purpose, so previewing as a player in `staff` mode shows no button
+> unless that player's id is on the pilot list.
+
 ## Getting in
 
 1. Go to `https://dev.mcbn.jkomg.us` and sign in with Discord. Dev uses its own

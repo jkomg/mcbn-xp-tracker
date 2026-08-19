@@ -19,6 +19,7 @@ from app.app_settings import (
     set_app_setting,
 )
 from app.bot_commands_catalog import BOT_COMMAND_CATALOG, flattened_tokens
+from app.cc_access import CHARACTER_CREATION_MODES, character_creation_mode
 from app.db import RetirementAutomationJob
 from app.retirement_automation import retirement_next_retry_at
 
@@ -1062,6 +1063,15 @@ def index():
         'tenets_overridden': 'CHRONICLE_TENETS' in overrides,
     }
 
+    # ── Character-creation rollout ─────────────────────────────────────────
+    character_creation = {
+        'mode': character_creation_mode(),
+        'modes': CHARACTER_CREATION_MODES,
+        'mode_overridden': 'CHARACTER_CREATION_MODE' in overrides,
+        'pilot_ids': get_app_setting('CHARACTER_CREATION_PILOT_DISCORD_IDS', ''),
+        'pilot_overridden': 'CHARACTER_CREATION_PILOT_DISCORD_IDS' in overrides,
+    }
+
     # ── Nav counts + search index ──────────────────────────────────────────
     nav_counts = {
         'bot_channels': len(bot_channels),
@@ -1079,6 +1089,8 @@ def index():
         search_index.append({'label': t['label'], 'description': t['description'], 'section': 'web-flags-tuning', 'section_label': 'Web App · Flags & Tuning'})
     for i in integrations:
         search_index.append({'label': i['label'], 'description': i['description'], 'section': 'web-integrations', 'section_label': 'Web App · Integrations'})
+    search_index.append({'label': 'Character Creation', 'description': 'Rollout gate for the player character creator (off / staff / everyone).', 'section': 'web-flags-tuning', 'section_label': 'Web App · Flags & Tuning'})
+    search_index.append({'label': 'Character Creation Pilot IDs', 'description': 'Discord IDs allowed into the creator while the mode is staff.', 'section': 'web-flags-tuning', 'section_label': 'Web App · Flags & Tuning'})
     search_index.append({'label': 'Chronicle Tenets', 'description': 'Chronicle-wide tenets shown on player sheets.', 'section': 'web-chronicle', 'section_label': 'Web App · Chronicle'})
     if cloud_spend_admin:
         search_index.append({'label': 'Cloud Spend', 'description': 'Monthly GCP costs compared with captured application errors.', 'section': 'cloud-spend', 'section_label': 'Owner · Cloud Spend'})
@@ -1117,6 +1129,7 @@ def index():
         bot_channels=bot_channels,
         bot_tuning=bot_tuning,
         chronicle_settings=chronicle_settings,
+        character_creation=character_creation,
         can_edit=can_edit,
         bot_heartbeat_age=bot_heartbeat_age,
         bot_heartbeat_ts=bot_heartbeat_ts,
@@ -1266,6 +1279,8 @@ def update():
         'BOT_ACTIVITY_IC_CATEGORY_IDS',
         'BOT_ACTIVITY_OOC_CATEGORY_IDS',
         'BOT_ACTIVITY_ROLLS_CATEGORY_IDS',
+        'CHARACTER_CREATION_MODE',
+        'CHARACTER_CREATION_PILOT_DISCORD_IDS',
     }
 
     # Keys that are always boolean regardless of whether they appear in app.config.

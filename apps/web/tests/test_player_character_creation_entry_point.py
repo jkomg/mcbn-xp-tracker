@@ -14,6 +14,7 @@ from flask_wtf.csrf import CSRFProtect
 
 from app.blueprints import character_creator as cc_module
 from app.blueprints import player as player_module
+from app.cc_access import can_create_characters
 from app.db import DbCharacter, db
 from app.db_service import DBService
 
@@ -28,14 +29,26 @@ def login():
     return 'login', 200
 
 
-def _app():
+def _app(mode='everyone'):
+    """Build the player app.
+
+    Defaults to an open creator because these tests are about the entry point
+    existing at all; the gated states are covered further down.
+    """
     app = Flask(__name__, template_folder=_TEMPLATES_DIR, static_folder=_STATIC_DIR)
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = 'test'
     app.config['ALLOWED_DISCORD_IDS'] = set()
+    app.config['CHARACTER_CREATION_MODE'] = mode
     db.init_app(app)
+
+    # Mirrors create_app's inject_auth, which templates read for this flag.
+    @app.context_processor
+    def _inject_cc_gate():
+        return {'can_create_characters': can_create_characters()}
+
     CSRFProtect().init_app(app)
     player_module.db_service = DBService(sheets_client=None)
     app.register_blueprint(player_module.bp, url_prefix='/player')
@@ -147,3 +160,45 @@ def test_link_page_also_offers_creation():
     res = _player_client(app).get('/player/link')
     assert res.status_code == 200
     assert '/player/new' in res.get_data(as_text=True)
+
+
+# ── Rollout gate ──────────────────────────────────────────────────────────
+
+def test_entry_point_is_hidden_when_creation_is_off():
+    """The feature deploys dark: no button until it is switched on."""
+    app = _app(mode='off')
+    _seed_character(app)
+    body = _player_client(app).get('/player/').get_data(as_text=True)
+    assert '/player/new' not in body
+    assert 'Create a new character' not in body
+
+
+def test_empty_state_still_offers_linking_when_creation_is_off():
+    """A gated creator must not strand a player who has a roster character."""
+    app = _app(mode='off')
+    body = _player_client(app).get('/player/').get_data(as_text=True)
+    assert 'Link an Existing Character' in body
+    assert "isn't open yet" in body
+
+
+def test_link_page_hides_creation_when_off():
+    app = _app(mode='off')
+    body = _player_client(app).get('/player/link').get_data(as_text=True)
+    assert '/player/new' not in body
+
+
+def test_pilot_player_sees_the_entry_point_in_staff_mode():
+    """The pilot list is how a few players get in before launch."""
+    app = _app(mode='staff')
+    app.config['CHARACTER_CREATION_PILOT_DISCORD_IDS'] = '111'
+    _seed_character(app)
+    body = _player_client(app, discord_id='111').get('/player/').get_data(as_text=True)
+    assert '/player/new?new=1' in body
+
+
+def test_non_pilot_player_does_not_see_it_in_staff_mode():
+    app = _app(mode='staff')
+    app.config['CHARACTER_CREATION_PILOT_DISCORD_IDS'] = '999'
+    _seed_character(app, discord_id='111')
+    body = _player_client(app, discord_id='111').get('/player/').get_data(as_text=True)
+    assert '/player/new' not in body

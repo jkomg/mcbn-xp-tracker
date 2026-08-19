@@ -47,10 +47,12 @@
         {% endif %}
 
         <div class="text-center mt-4">
+            {% if can_create_characters %}
             <a href="{{ url_for('character_creator.character_creator_new') }}"
                class="btn btn-sm btn-danger">
                 <i class="bi bi-person-plus"></i> Create a new character instead
             </a>
+            {% endif %}
             <div class="mt-2">
                 <small class="text-muted">
                     Linking is for characters already approved on the roster.

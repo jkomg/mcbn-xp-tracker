@@ -39,6 +39,9 @@ def _app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = 'test'
+    # These cover the draft lifecycle, not the rollout gate, so open the
+    # creator; the gate itself is covered in test_character_creation_gate.py.
+    app.config['CHARACTER_CREATION_MODE'] = 'everyone'
     db.init_app(app)
     app.register_blueprint(cc_admin_bp)
     app.register_blueprint(character_creator_bp)
