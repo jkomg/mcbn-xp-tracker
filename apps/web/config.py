@@ -124,6 +124,16 @@ class Config:
         os.environ.get('AUTO_CREATE_PERIODS_DEFAULT_GAP_DAYS', '0')
     )
 
+    # Character-creation rollout gate. Defaults to off so the feature stays
+    # dark on deploy; flip it in Settings (no redeploy) when ready.
+    # off | staff | everyone — see app/cc_access.py.
+    CHARACTER_CREATION_MODE = os.environ.get(
+        'CHARACTER_CREATION_MODE', 'off'
+    ).strip().lower()
+    CHARACTER_CREATION_PILOT_DISCORD_IDS = os.environ.get(
+        'CHARACTER_CREATION_PILOT_DISCORD_IDS', ''
+    )
+
     # Database (SQLite for local dev, Turso/libSQL for production)
     # libsql-experimental is a DB-API driver, not a SQLAlchemy dialect.
     # When DATABASE_URL is a libsql URL, store the real URL in TURSO_CONNECT_URL

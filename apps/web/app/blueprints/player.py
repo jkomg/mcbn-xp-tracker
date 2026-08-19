@@ -45,7 +45,6 @@ def my_characters():
     """Player landing page showing their linked characters."""
     discord_id = get_player_discord_id()
     my_chars = db_service.get_characters_by_discord_id(discord_id)
-    has_linked_chars = bool(my_chars)
 
     # Retired/deceased characters are hidden by default so a player's
     # dashboard doesn't accumulate every character they've ever played.
@@ -108,9 +107,12 @@ def my_characters():
             chars_with_sheet=chars_with_sheet,
         )
 
-    if not has_linked_chars and not pending_drafts:
-        # No linked characters and no drafts — show linking flow
-        return redirect(url_for('player.link_character'))
+    # A player with nothing yet used to be redirected straight into the
+    # link-character flow. That predates the character creator, and it dead-ends
+    # a genuinely new player: with no unlinked roster character to claim, that
+    # page just says "contact an ST" and offers no way to create one. Render the
+    # landing page instead, whose empty state offers both journeys — create a
+    # character, or link one that already exists on the roster.
 
     # Show character list with option to link more
     return render_template(

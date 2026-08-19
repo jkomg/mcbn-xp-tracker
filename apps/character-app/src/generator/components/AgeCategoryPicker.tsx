@@ -185,6 +185,7 @@ export default function AgeCategoryPicker({
                             const card = (
                                 <button
                                     key={cat.id}
+                                    data-testid={`age-category-${cat.id}-card`}
                                     onClick={() => handlePick(cat)}
                                     disabled={ineligible}
                                     style={{

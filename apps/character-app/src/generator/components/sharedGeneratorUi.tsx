@@ -17,7 +17,9 @@ type GeneratorStepHeroProps = {
 type GeneratorSectionDividerProps = {
     label: string
     lineHeight?: 1 | 2
-    accentAlpha?: 0.3 | 0.32 | 0.38
+    // Any alpha is valid here; this was a literal union of the three values
+    // that happened to be in use, which rejected new ones for no reason.
+    accentAlpha?: number
     titleSize?: "0.88rem" | "0.95rem" | "0.96rem"
     marginY?: "xs" | "sm" | "md" | "lg"
 }

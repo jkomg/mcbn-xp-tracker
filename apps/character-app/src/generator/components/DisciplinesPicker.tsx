@@ -34,6 +34,23 @@ type DisciplinesPickerProps = {
     nextStep: (characterOverride?: Character) => void
 }
 
+/**
+ * Highest power level worth rendering in a discipline column group.
+ *
+ * A level N power needs N-1 powers already taken in the SAME discipline
+ * (see missingPrerequisites). Clan sections cap at 2 picks per discipline
+ * (alreadyPickedTwoPowers), so a level 3 clan power can never be both
+ * prerequisite-satisfied and takeable. The predator-type slot is one further
+ * dot stacked on whatever clan dots went into that same discipline, so its
+ * ceiling moves as the player allocates.
+ *
+ * Exported for tests. Mirrors ptMaxLevel in DisciplinesPickerIM.
+ */
+export const maxReachableLevel = (
+    isPredatorType: boolean,
+    clanPicksInThisDiscipline: number
+): number => (isPredatorType ? Math.min(3, clanPicksInThisDiscipline + 1) : 2)
+
 const DisciplineDots = ({ count }: { count: number }) => {
     if (count <= 0) return null
 
@@ -384,18 +401,35 @@ const DisciplinesPicker = ({ character, setCharacter, nextStep }: DisciplinesPic
             }
             return true
         }
-        const clanHasDiscipline = (name: DisciplineName) => disciplinesForClan[name] !== undefined
-
         const eligiblePowers = discipline.powers.filter(clanHasPrereqDisciplines)
         const lvl1 = eligiblePowers.filter((p) => p.level === 1)
         const lvl2 = eligiblePowers.filter((p) => p.level === 2)
         const lvl3 = eligiblePowers.filter((p) => p.level === 3)
 
-        const canReachLvl3 =
-            disciplineName === character.predatorType.pickedDiscipline &&
-            !(isPredatorType && !clanHasDiscipline(disciplineName))
+        // Highest power level actually reachable here, so we don't render
+        // cards with TAKE buttons that can never work.
+        //
+        // A level N power needs N-1 powers already taken in the SAME
+        // discipline (missingPrerequisites). In a clan section that caps out
+        // at 2, because alreadyPickedTwoPowers stops a third pick in one
+        // discipline. The predator-type slot is one further dot on top of
+        // whatever clan dots went into that same discipline, so its ceiling
+        // moves as the player allocates.
+        //
+        // This was previously a static guess — level 3 was shown whenever the
+        // PT discipline happened to also be a clan discipline, regardless of
+        // whether any dots went there. A Toreador who put their clan dots in
+        // Auspex and Celerity still saw level 2 and 3 Presence cards under
+        // Predator Type, greyed out and untakeable, which reads as a bug
+        // rather than as "you have no Presence dots". DisciplinesPickerIM
+        // already filtered by actual dots; this brings the standard path in
+        // line with it.
+        const clanPicksInThisDiscipline = pickedPowers.filter(
+            (p) => p.discipline === disciplineName
+        ).length
+        const levelCeiling = maxReachableLevel(isPredatorType, clanPicksInThisDiscipline)
 
-        const columnGroups = canReachLvl3 ? [lvl1, lvl2, lvl3] : [lvl1, lvl2]
+        const columnGroups = [lvl1, lvl2, lvl3].slice(0, levelCeiling)
         const colWidth = phoneScreen ? "100%" : `${Math.floor(100 / columnGroups.length)}%`
         const pickedPowerCount = getPickedPowerCountForDiscipline(disciplineName)
 
@@ -438,6 +472,21 @@ const DisciplinesPicker = ({ character, setCharacter, nextStep }: DisciplinesPic
                     </Group>
                 </Accordion.Control>
                 <Accordion.Panel>
+                    {isPredatorType && levelCeiling < 3 && (
+                        <Text
+                            size="xs"
+                            mb={8}
+                            style={{ color: "rgba(220, 210, 205, 0.55)" }}
+                        >
+                            Your predator type grants one dot of{" "}
+                            {upcase(disciplineName)}
+                            {clanPicksInThisDiscipline > 0
+                                ? `, on top of the ${clanPicksInThisDiscipline} you took as clan dots`
+                                : ""}
+                            . Higher-level powers open up if you spend clan dots
+                            on {upcase(disciplineName)} too.
+                        </Text>
+                    )}
                     <div
                         style={{
                             display: "flex",

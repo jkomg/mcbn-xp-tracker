@@ -13,7 +13,6 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as PlayerNewRouteImport } from './routes/player.new'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AdminImpersonationRouteImport } from './routes/admin.impersonation'
 import { Route as StDraftDraftIdRouteImport } from './routes/st.draft.$draftId'
 
 const SheetRoute = SheetRouteImport.update({
@@ -46,11 +45,6 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminImpersonationRoute = AdminImpersonationRouteImport.update({
-  id: '/admin/impersonation',
-  path: '/admin/impersonation',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StDraftDraftIdRoute = StDraftDraftIdRouteImport.update({
   id: '/st/draft/$draftId',
   path: '/st/draft/$draftId',
@@ -64,7 +58,6 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/sheet': typeof SheetRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/st/draft/$draftId': typeof StDraftDraftIdRoute
 }
 export interface FileRoutesByTo {
@@ -74,7 +67,6 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/sheet': typeof SheetRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/st/draft/$draftId': typeof StDraftDraftIdRoute
 }
 export interface FileRoutesById {
@@ -85,15 +77,14 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/sheet': typeof SheetRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/st/draft/$draftId': typeof StDraftDraftIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/admin/impersonation' | '/st/draft/$draftId'
+  fullPaths: '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/st/draft/$draftId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/admin/impersonation' | '/st/draft/$draftId'
-  id: '__root__' | '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/admin/impersonation' | '/st/draft/$draftId'
+  to: '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/st/draft/$draftId'
+  id: '__root__' | '/' | '/create' | '/player/new' | '/me' | '/sheet' | '/auth/callback' | '/st/draft/$draftId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -103,7 +94,6 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   SheetRoute: typeof SheetRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
-  AdminImpersonationRoute: typeof AdminImpersonationRoute
   StDraftDraftIdRoute: typeof StDraftDraftIdRoute
 }
 
@@ -151,13 +141,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/impersonation': {
-      id: '/admin/impersonation'
-      path: '/admin/impersonation'
-      fullPath: '/admin/impersonation'
-      preLoaderRoute: typeof AdminImpersonationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/st/draft/$draftId': {
       id: '/st/draft/$draftId'
       path: '/st/draft/$draftId'
@@ -175,7 +158,6 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   SheetRoute: SheetRoute,
   AuthCallbackRoute: AuthCallbackRoute,
-  AdminImpersonationRoute: AdminImpersonationRoute,
   StDraftDraftIdRoute: StDraftDraftIdRoute,
 }
 export const routeTree = rootRouteImport

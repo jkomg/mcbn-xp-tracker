@@ -147,6 +147,8 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 
 - `CONTRIBUTING.md` — **development rules and paths**: required toolchain versions, local setup, the exact test/lint commands CI gates on, migration workflow, branch/PR conventions, deploy paths per environment
 - `docs/REGRESSION_HYGIENE_CHECKLIST.md` — pre/post-change checklist; every item traces to a real incident
+- `docs/TESTING_CHARACTER_CREATION.md` — how to exercise the character-creation pipeline on dev, what to try to break, and where to look when it fails
+- `docs/MANUAL_TEST_PLAN_CHARACTER_CREATION.md` — numbered end-to-end manual test sets (onboarding, neonate, staff approval, revision, In-Memoriam, normalisation, tampering, volume)
 - `docs/API_ENDPOINTS.md` — bot-facing API reference (auth, all routes, request/response schemas)
 - `docs/MONOREPO_ARCHITECTURE.md` — system boundaries and runtime model
 - `docs/ENV_AND_SECRETS.md` — env and secrets flow

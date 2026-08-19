@@ -322,7 +322,20 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                 onChange={setActiveTab}
                 style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
                 styles={{
-                    list: { gap: 10, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 10, padding: "0 20px 10px" },
+                    // The header above and every panel below are centred in a
+                    // 960px column (generatorScrollableContentStyle). The tab
+                    // row was not, so it spanned the full shell width and sat
+                    // visibly left of the content it belongs to.
+                    list: {
+                        gap: 10,
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        padding: "0 20px 10px",
+                        maxWidth: generatorScrollableContentStyle.maxWidth + 40,
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        width: "100%",
+                        boxSizing: "border-box",
+                    },
                     tab: {
                         borderRadius: 999,
                         border: "1px solid rgba(255,255,255,0.08)",
@@ -338,13 +351,13 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                 }}
             >
                 <Tabs.List>
-                    <Tabs.Tab value="attributes" style={activeTab === "attributes" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-attributes-tab" value="attributes" style={activeTab === "attributes" ? activeTabStyle : undefined}>
                         Attributes
                     </Tabs.Tab>
-                    <Tabs.Tab value="skills" style={activeTab === "skills" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-skills-tab" value="skills" style={activeTab === "skills" ? activeTabStyle : undefined}>
                         Skills
                     </Tabs.Tab>
-                    <Tabs.Tab value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
+                    <Tabs.Tab data-testid="starting-xp-loresheets-tab" value="loresheets" style={activeTab === "loresheets" ? activeTabStyle : undefined}>
                         Loresheets
                     </Tabs.Tab>
                 </Tabs.List>
@@ -537,10 +550,22 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
             </Tabs>
 
             {/* ── Continue button ── */}
-            <div style={{ flexShrink: 0, padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
-                <div style={generatorScrollableContentStyle}>
+            {/* The outer justifyContent was inert: the inner column is
+                width:100%, so it filled the row and the button simply sat at
+                its left edge. Other steps centre their confirm button
+                (Group justify="center"), so centre it inside the same 960px
+                column the rest of the step uses. */}
+            <div style={{ flexShrink: 0, padding: "12px 20px", display: "flex" }}>
+                <div
+                    style={{
+                        ...generatorScrollableContentStyle,
+                        display: "flex",
+                        justifyContent: "center",
+                    }}
+                >
                     <Button
-                        onClick={nextStep}
+                        data-testid="starting-xp-continue-button"
+                        onClick={() => nextStep()}
                         variant="filled"
                         color="red.8"
                         disabled={overBudget}

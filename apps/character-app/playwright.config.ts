@@ -14,7 +14,13 @@ export default defineConfig({
         video: "retain-on-failure"
     },
     webServer: {
-        command: "node ./node_modules/vite/bin/vite.js --host 127.0.0.1",
+        // --base=/ overrides vite.config.ts's "/static/character-app/", which
+        // exists so the built bundle can be served from Flask's static mount.
+        // The router is created without a basepath (routes are absolute, e.g.
+        // "/create"), and in production Flask serves index.html at a matching
+        // URL. Under the dev server's base the router matches nothing and
+        // renders Not Found — which is what the previous spec silently hit.
+        command: "node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --base=/",
         url: "http://127.0.0.1:3000",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000

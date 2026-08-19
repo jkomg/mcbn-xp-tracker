@@ -150,6 +150,16 @@ export const getBasicTestCharacter = (): Character => {
             experienceSpent: 0
         },
         version: 1,
+        // MCbN character-creator extensions. This fixture predates them, so it was
+        // not actually a Character — every test using it typed around the gap.
+        draft_id: "",
+        age_category: "neonate",
+        cc_xp_budget: 15,
+        inherited_xp: 0,
+        submission_notes: "",
+        loresheet_purchases: [],
+        im_generation: "",
+        im_discipline_spread: "",
         characterVersion: 1
     }
 }

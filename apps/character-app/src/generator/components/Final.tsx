@@ -49,6 +49,8 @@ type FinalProps = {
     setCharacter: (character: Character) => void
     setSelectedStep: (step: GeneratorStepId) => void
     draftId?: string
+    /** Persist the current character and resolve to its draft id. */
+    onFlushSave?: () => Promise<string>
     onReset?: () => void
 }
 
@@ -76,7 +78,7 @@ const CATEGORY_LABELS: Record<string, string> = {
     ancilla: "Ancilla",
 }
 
-const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: FinalProps) => {
+const Final = ({ character, setCharacter, setSelectedStep, draftId, onFlushSave, onReset }: FinalProps) => {
     const [submitError, setSubmitError] = useState<Error | undefined>()
     const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "submitted">("idle")
     const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false)
@@ -108,14 +110,20 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
     const hasImManualItems = imManualItems.length > 0
 
     const handleSubmit = async () => {
-        if (!draftId) {
-            setSubmitError(new Error("No draft found. Try making a change to trigger an auto-save, then submit again."))
-            return
-        }
         setSubmitStatus("submitting")
         setSubmitError(undefined)
         try {
-            await cc.submitDraft(draftId)
+            // Submitting flips whatever the server has stored, so the current
+            // character has to be written first. Relying on the 1.5 s autosave
+            // meant any late edit was dropped from what the STs then reviewed —
+            // the creation-XP baseline set on the Starting XP step among them.
+            const id = (await onFlushSave?.()) || draftId
+            if (!id) {
+                setSubmitError(new Error("No draft found. Try making a change, then submit again."))
+                setSubmitStatus("idle")
+                return
+            }
+            await cc.submitDraft(id)
             setSubmitStatus("submitted")
         } catch (e) {
             setSubmitError(e as Error)
@@ -162,6 +170,7 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                             fontWeight: 600,
                             textShadow: C_RED_GLOW,
                         }}
+                        data-testid="final-character-name"
                     >
                         {charName || "Unnamed Character"}
                     </h2>
@@ -508,6 +517,7 @@ const Final = ({ character, setCharacter, setSelectedStep, draftId, onReset }: F
                         </div>
 
                         <button
+                            data-testid="final-submit-button"
                             onClick={handleSubmit}
                             disabled={submitStatus === "submitting"}
                             style={{

@@ -39,10 +39,15 @@
                         {% endif %}
                     </div>
                     <div class="d-flex gap-2 align-items-center">
+                        {# The draft stays listed when the creator is gated, so a
+                           player can still see and delete it — only editing goes
+                           away, since the save endpoint would refuse anyway. #}
+                        {% if can_create_characters %}
                         <a href="{{ url_for('character_creator.character_creator_new') }}"
                            class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
+                        {% endif %}
                         <button class="btn btn-sm btn-outline-danger draft-delete-btn"
                                 data-draft-id="{{ draft.id }}"
                                 data-draft-name="{{ draft.character_name or 'Untitled Draft' }}">
@@ -109,11 +114,6 @@
             </div>
             {% endfor %}
         </div>
-        <div class="text-center mb-4">
-            <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-link-45deg"></i> Link another character
-            </a>
-        </div>
         {% elif retired_count %}
         <div class="d-flex justify-content-end mb-2">
             <a href="{{ url_for('player.my_characters', show='all') }}" class="small text-muted text-decoration-none">
@@ -123,11 +123,40 @@
         {% else %}
         <div class="text-center text-muted mb-4">
             <p>No characters linked to your Discord account yet.</p>
-            <a href="{{ url_for('player.link_character') }}" class="btn btn-outline-danger">
-                <i class="bi bi-link-45deg"></i> Link a Character
-            </a>
+            <div class="small mt-2">
+                {% if can_create_characters %}
+                New to the chronicle? Create a character. Already approved on the
+                roster? Link it instead.
+                {% else %}
+                Already approved on the roster? Link it below. Character creation
+                isn't open yet — an ST can get you started.
+                {% endif %}
+            </div>
         </div>
         {% endif %}
+
+        {# Outside the branches above on purpose: a player whose only characters
+           are retired falls into the `elif retired_count` case with an empty
+           list, and would otherwise see no way into the creator at all.
+           ?new=1 tells the SPA to start a fresh draft — without it the creator
+           restores the last one from localStorage and autosaves over it. #}
+        <div class="text-center mb-4 d-flex flex-wrap justify-content-center gap-2">
+            {# The creator is gated on a rollout mode (Settings → Web App ·
+               Flags). Hiding the button is only half of it — the endpoints
+               refuse too, from the same can_create_characters() answer — but a
+               button that 403s is worse than no button. #}
+            {% if can_create_characters %}
+            <a href="{{ url_for('character_creator.character_creator_new') }}?new=1"
+               class="btn btn-sm btn-danger">
+                <i class="bi bi-person-plus"></i>
+                {% if my_characters or retired_count %}Create a new character{% else %}Create a Character{% endif %}
+            </a>
+            {% endif %}
+            <a href="{{ url_for('player.link_character') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-link-45deg"></i>
+                {% if my_characters or retired_count %}Link another character{% else %}Link an Existing Character{% endif %}
+            </a>
+        </div>
 
         {% if calendar %}
         <div class="cal-widget mb-4">

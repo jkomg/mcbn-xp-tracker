@@ -77,10 +77,16 @@ def test_inherited_xp_is_ignored():
     assert compute_budget(data) == 35
 
 
-def test_in_memoriam_budget_comes_from_eras():
+def test_in_memoriam_budget_comes_from_eras_not_the_age_table():
+    """An In-Memoriam ancilla's pool is era-derived rather than the flat 35 —
+    but what reaches the Starting XP step is the capped remainder, not the
+    whole pool."""
     data = {'age_category': 'ancilla', 'cc_xp_budget': 0,
             'in_memoriam': {'use_standard': False, 'total_xp': 42}}
-    assert compute_budget(data) == 42
+    assert compute_budget(data) == MAX_BANKED_XP
+    # A standard ancilla with the same age category gets the flat table value,
+    # which is what makes this path distinguishable at all.
+    assert compute_budget({'age_category': 'ancilla'}) == 35
 
 
 def test_in_memoriam_budget_subtracts_era_spends():
@@ -101,6 +107,38 @@ def test_in_memoriam_partial_era_spend_still_caps():
                             'era_xp_spends': [{'xp_cost': 57}]}}
     assert compute_budget(data) == 3
     assert compute_banked_xp(data) == 3
+
+
+def test_in_memoriam_cap_applies_before_starting_xp_spending():
+    """Ordering matters. EraXpPicker caps what carries out of the era step and
+    marks the rest wasted, so a 60 XP pool with 40 spent banks 5 and forfeits
+    15. Spending 3 more at the Starting XP step must leave 2 — clamping only at
+    the end would hand back the forfeited XP and return 5."""
+    data = {
+        'age_category': 'ancilla',
+        'in_memoriam': {'use_standard': False, 'total_xp': 60,
+                        'era_xp_spends': [{'xp_cost': 40}]},
+        'loresheet_purchases': [{'loresheet_id': 'a', 'dot': 1}],  # 3 XP
+    }
+    assert compute_budget(data) == 5
+    assert compute_spent(data) == 3
+    assert compute_banked_xp(data) == 2
+
+
+def test_in_memoriam_budget_is_capped_even_with_no_era_spending():
+    data = {'age_category': 'ancilla',
+            'in_memoriam': {'use_standard': False, 'total_xp': 60,
+                            'era_xp_spends': []}}
+    assert compute_budget(data) == MAX_BANKED_XP
+    assert compute_banked_xp(data) == MAX_BANKED_XP
+
+
+def test_in_memoriam_small_remainder_is_not_inflated_to_the_cap():
+    data = {'age_category': 'ancilla',
+            'in_memoriam': {'use_standard': False, 'total_xp': 60,
+                            'era_xp_spends': [{'xp_cost': 58}]}}
+    assert compute_budget(data) == 2
+    assert compute_banked_xp(data) == 2
 
 
 def test_budget_never_goes_negative():

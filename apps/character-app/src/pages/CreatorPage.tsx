@@ -5,6 +5,7 @@ import React from "react"
 import { useLocation, useNavigate } from "@tanstack/react-router"
 import RenderProfiler from "~/components/RenderProfiler"
 import { characterSchema, getEmptyCharacter, type Character as CharacterType } from "~/data/Character"
+import { createSaveQueue } from "~/utils/saveQueue"
 import Generator from "~/generator/Generator"
 import {
     defaultGeneratorStepId,
@@ -39,13 +40,40 @@ export default function CreatorPage() {
     const [character, setCharacter] = useCharacterLocalStorage()
     const [showAsideBar, setShowAsideBar] = useState(!globals.isSmallScreen)
 
-    // Draft persistence — stored in a ref (no re-renders) + localStorage for reload survival
+    // Draft persistence — localStorage for reload survival.
+    //
+    // The ref exists so the debounced auto-save closure always reads the
+    // current id without re-subscribing; the state exists so components that
+    // RENDER the id (Final's submit button) actually update when it changes.
+    // It used to be ref-only and passed straight to Final as a prop, so after
+    // the first auto-save created a draft React never re-rendered and Final
+    // still saw "" — its submit refused with "No draft found. Try making a
+    // change to trigger an auto-save, then submit again", a message written to
+    // work around this rather than fix it. Always go through setDraftId.
     const draftIdRef = useRef(localStorage.getItem(DRAFT_ID_KEY) ?? "")
-    const saveInFlightRef = useRef(false)
+    const [draftId, setDraftIdState] = useState(draftIdRef.current)
+
+    const setDraftId = (id: string) => {
+        draftIdRef.current = id
+        setDraftIdState(id)
+        if (id) {
+            localStorage.setItem(DRAFT_ID_KEY, id)
+        } else {
+            localStorage.removeItem(DRAFT_ID_KEY)
+        }
+    }
+    // Latest character, so the debounced save and the pre-submit flush both
+    // write what is on screen now rather than what was there when they were set up.
+    const characterRef = useRef(character)
+    const enqueueSave = useRef(createSaveQueue<string>()).current
 
     // Ticket channel ID from ?ticket= URL param (set by Lasombra's welcome message link).
     // Captured once on mount; stored in a ref so it's available when the first draft is created.
     const ticketChannelIdRef = useRef(new URLSearchParams(location.search).get("ticket") ?? "")
+
+    useEffect(() => {
+        characterRef.current = character
+    }, [character])
 
     useEffect(() => {
         setShowAsideBar(!globals.isSmallScreen)
@@ -86,39 +114,48 @@ export default function CreatorPage() {
         )
     }
 
+    // One write path, used by both the debounce and the pre-submit flush.
+    const persistCharacter = async (char: CharacterType): Promise<string> => {
+        const charName = char.name?.trim() ?? ""
+        const charData = { ...char }
+
+        if (!draftIdRef.current) {
+            const draft = await cc.createDraft({
+                character_name: charName,
+                character_data: charData,
+                ...(ticketChannelIdRef.current ? { ticket_channel_id: ticketChannelIdRef.current } : {}),
+            })
+            setDraftId(draft.id)
+            return draft.id
+        }
+        await cc.saveDraft(draftIdRef.current, {
+            character_name: charName,
+            character_data: charData,
+        })
+        return draftIdRef.current
+    }
+
+    // Queued, not skipped — see createSaveQueue for why that distinction cost
+    // us the creation-XP baseline.
+    const runSave = (char: CharacterType): Promise<string> => enqueueSave(() => persistCharacter(char))
+
     useEffect(() => {
         if (isCharacterEmpty()) return
 
-        const timer = setTimeout(async () => {
-            if (saveInFlightRef.current) return
-            saveInFlightRef.current = true
-            try {
-                const charName = character.name?.trim() ?? ""
-                const charData = { ...character }
-
-                if (!draftIdRef.current) {
-                    const draft = await cc.createDraft({
-                        character_name: charName,
-                        character_data: charData,
-                        ...(ticketChannelIdRef.current ? { ticket_channel_id: ticketChannelIdRef.current } : {}),
-                    })
-                    draftIdRef.current = draft.id
-                    localStorage.setItem(DRAFT_ID_KEY, draft.id)
-                } else {
-                    await cc.saveDraft(draftIdRef.current, {
-                        character_name: charName,
-                        character_data: charData,
-                    })
-                }
-            } catch (e) {
-                console.warn("Auto-save failed:", e)
-            } finally {
-                saveInFlightRef.current = false
-            }
+        const timer = setTimeout(() => {
+            void runSave(characterRef.current).catch((e) => console.warn("Auto-save failed:", e))
         }, 1500)
 
         return () => clearTimeout(timer)
     }, [character])
+
+    // Write the current character and resolve to its draft id. Final calls this
+    // before submitting: submission flips the stored draft to "submitted", so
+    // anything the 1.5 s debounce had not yet written would never reach the STs.
+    const flushSave = async (): Promise<string> => {
+        if (isCharacterEmpty()) return draftIdRef.current
+        return runSave(characterRef.current)
+    }
 
     // ---------------------------------------------------------------------------
     // Load a draft by ID (used by Sidebar character-switch)
@@ -130,8 +167,7 @@ export default function CreatorPage() {
                 const parsed = characterSchema.safeParse(draft.character_data)
                 if (parsed.success) {
                     setCharacter(parsed.data)
-                    draftIdRef.current = draftId
-                    localStorage.setItem(DRAFT_ID_KEY, draftId)
+                    setDraftId(draftId)
                     setSelectedStep(defaultGeneratorStepId)
                 }
             }
@@ -145,17 +181,47 @@ export default function CreatorPage() {
     // ---------------------------------------------------------------------------
     const handleNewCharacter = async () => {
         setCharacter(getEmptyCharacter())
-        draftIdRef.current = ""
-        localStorage.removeItem(DRAFT_ID_KEY)
+        setDraftId("")
         setSelectedStep(defaultGeneratorStepId)
     }
+
+    // ---------------------------------------------------------------------------
+    // ?new=1 — start a fresh draft rather than resuming the stored one
+    // ---------------------------------------------------------------------------
+    // Both `character` and the draft id are restored from localStorage on
+    // mount, so navigating to the creator resumes whatever was last worked on.
+    // That is right for "Edit draft", but wrong for "Create a new character":
+    // without a signal the new-character link resumed the previous draft and
+    // the 1.5s autosave then wrote over it — including a draft already
+    // submitted or awaiting revision, since cc_update_draft still accepts
+    // edits in those states.
+    //
+    // The flag is consumed once and stripped from the URL, so a refresh does
+    // not wipe the character the player has just started.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("new") !== "1") return
+
+        setCharacter(getEmptyCharacter())
+        setDraftId("")
+        setSelectedStep(defaultGeneratorStepId)
+
+        params.delete("new")
+        const query = params.toString()
+        window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}${query ? `?${query}` : ""}`
+        )
+        // Mount only: re-running would discard work in progress.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // ---------------------------------------------------------------------------
     // Reset (called from Final's "Start over" button)
     // ---------------------------------------------------------------------------
     const handleReset = () => {
-        draftIdRef.current = ""
-        localStorage.removeItem(DRAFT_ID_KEY)
+        setDraftId("")
     }
 
     return (
@@ -279,7 +345,8 @@ export default function CreatorPage() {
                                 setCharacter={setCharacter}
                                 selectedStep={selectedStep}
                                 setSelectedStep={setSelectedStep}
-                                draftId={draftIdRef.current}
+                                draftId={draftId}
+                                onFlushSave={flushSave}
                                 onReset={handleReset}
                             />
                         </RenderProfiler>

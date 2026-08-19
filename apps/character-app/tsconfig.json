@@ -19,7 +19,10 @@
         "paths": {
             "~/*": ["./src/*"],
             "~rules/*": ["../../packages/rules/*"],
-            "~contract/*": ["../../packages/api-contract/*"]
+            "~contract/*": ["../../packages/api-contract/*"],
+            "posthog-js/react": ["./src/stubs/posthog-react-stub.tsx"],
+            "posthog-js": ["./src/stubs/posthog-stub.ts"],
+            "react-ga4": ["./src/stubs/react-ga4-stub.ts"]
         }
     },
     "include": ["src", "../../packages/rules/*.json", "../../packages/api-contract/*.json"],

@@ -142,6 +142,9 @@ const MeritOrFlawCard = memo(
             return (
                 <Button
                     key={meritOrFlaw.name + level}
+                    data-testid={`${type}-${meritOrFlaw.name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}-level-${level}-button`}
                     disabled={
                         isExcluded ||
                         (meritInPredatorType && meritInPredatorType.level >= level) ||
@@ -352,8 +355,13 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
     const flawPoints = isImAncilla
         ? (imGen === "12" ? 0 : imGen === "9-8" ? 5 : 3) + eraFlawBonus
         : character.age_category === "ancilla" ? 4 : 2
-    // For IM ancilla, flaws are mandatory (must spend all flaw points)
-    const hasMandatoryFlaws = isImAncilla && flawPoints > 0
+    // Flaws are mandatory on every path, not just In-Memoriam: a neonate owes
+    // 2 flaw dots and a standard ancilla 4, exactly as an IM ancilla owes its
+    // generation-derived total. This was gated on isImAncilla, so a standard
+    // character could Continue having taken none while the sidebar still
+    // showed a flaw budget — the advantage dots those flaws pay for were
+    // granted regardless.
+    const hasMandatoryFlaws = flawPoints > 0
 
     const [remainingMerits, setRemainingMerits] = useState(meritPoints - usedMeritsLevel)
     const [remainingFlaws, setRemainingFlaws] = useState(flawPoints - usedFLawsLevel)
@@ -1040,7 +1048,8 @@ const MeritsAndFlawsPicker = ({ character, setCharacter, nextStep }: MeritsAndFl
                 ) : null}
                 {hasMandatoryFlaws && remainingFlaws > 0 ? (
                     <Text c={theme.colors.red[5]} ta="center">
-                        Must take {flawPoints} flaw dot{flawPoints !== 1 ? "s" : ""} ({remainingFlaws} remaining) — generation requirement
+                        Must take {flawPoints} flaw dot{flawPoints !== 1 ? "s" : ""} ({remainingFlaws} remaining)
+                        {isImAncilla ? " — generation requirement" : ""}
                     </Text>
                 ) : null}
                 <Button

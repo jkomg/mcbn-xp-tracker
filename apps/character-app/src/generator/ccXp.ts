@@ -102,10 +102,16 @@ export function computeCcXpBudget(character: Character): number {
         character.age_category === "ancilla" &&
         !!character.in_memoriam &&
         !character.in_memoriam.use_standard
-    const base = isImAncilla
-        ? (character.in_memoriam?.total_xp ?? 0) - eraXpSpent(character)
-        : (CC_XP_BUDGETS[character.age_category ?? ""] ?? 0)
-    return Math.max(0, base)
+    if (isImAncilla) {
+        // The cap applies to what survives the ERA step, before any
+        // Starting-XP spending. EraXpPicker shows the player exactly this
+        // (banked, with the remainder marked wasted) and writes it into
+        // cc_xp_budget. Capping only at the end would hand back era XP they
+        // already forfeited. Mirrors compute_budget in apps/web/app/cc_xp.py.
+        const eraRemainder = (character.in_memoriam?.total_xp ?? 0) - eraXpSpent(character)
+        return Math.min(Math.max(0, eraRemainder), CC_MAX_BANKED_XP)
+    }
+    return Math.max(0, CC_XP_BUDGETS[character.age_category ?? ""] ?? 0)
 }
 
 /** Unspent budget, which may go negative while the player is over budget. */

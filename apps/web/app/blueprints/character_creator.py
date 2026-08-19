@@ -12,6 +12,11 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, send_from_directory, session
 
 from app.auth import is_staff, require_login, require_character_owner, require_staff
+from app.cc_access import (
+    require_character_creation,
+    require_character_creation_or_staff,
+    require_character_creation_page,
+)
 from app.date_utils import parse_date_added
 from app.db import CharacterDraft, DbCharacter, db
 
@@ -97,6 +102,7 @@ def auth_me():
 
 @bp.route('/player/new')
 @require_login
+@require_character_creation_page
 def character_creator_new():
     """New character wizard — serves the React SPA."""
     return send_from_directory(_STATIC_DIR, 'index.html')
@@ -136,6 +142,7 @@ def cc_list_drafts():
 
 @bp.route('/api/cc/characters', methods=['POST'])
 @require_login
+@require_character_creation
 def cc_create_draft():
     """Create a new character draft."""
     discord_id = _discord_id()
@@ -167,6 +174,7 @@ def cc_get_draft(draft_id):
 
 @bp.route('/api/cc/characters/<draft_id>', methods=['PUT'])
 @require_login
+@require_character_creation_or_staff
 def cc_update_draft(draft_id):
     """Save (auto-save) a draft. Editable while awaiting or under ST review; locked once approved."""
     draft = db.session.get(CharacterDraft, draft_id)
@@ -206,6 +214,7 @@ def cc_delete_draft(draft_id):
 
 @bp.route('/api/cc/characters/<draft_id>/submit', methods=['POST'])
 @require_login
+@require_character_creation
 def cc_submit_draft(draft_id):
     """Player submits a draft for ST review."""
     draft = db.session.get(CharacterDraft, draft_id)

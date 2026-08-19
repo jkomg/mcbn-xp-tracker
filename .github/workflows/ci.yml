@@ -156,15 +156,32 @@ jobs:
       - name: Test character-app (vitest)
         run: cd apps/character-app && npm run test:run
 
-      # `vite build` does NOT type-check. A full `tsc --noEmit` currently
-      # reports 68 errors (30 are TS2307 on the vite-aliased analytics stubs,
-      # which tsconfig has no `paths` entry for; the rest are real, mostly
-      # leftovers from the upstream template's auth/profile API in MePage.tsx).
-      # Gating on it today would block every PR, so the build step below is the
-      # compile gate for now. Fixing those 68 and adding `tsc --noEmit` here is
-      # tracked separately.
+      # `vite build` does not type-check, so this is a separate gate. It was
+      # reporting 67 errors when the app was first wired into CI; they are all
+      # cleared, so it can fail the build now.
+      - name: Type-check character-app (tsc)
+        run: cd apps/character-app && npm run typecheck
+
       - name: Build character-app
         run: cd apps/character-app && npm run build
+
+      # Browsers are installed from the same @playwright/test the lockfile
+      # pins, so the runtime and the browser build cannot drift. The e2e spec
+      # stubs every /api/cc/* call, so no Flask app is needed — Playwright
+      # starts the Vite dev server itself (see playwright.config.ts).
+      - name: Install Playwright browsers
+        run: cd apps/character-app && npx playwright install --with-deps chromium
+
+      - name: E2E character creation (playwright)
+        run: cd apps/character-app && npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/character-app/playwright-report/
+          retention-days: 7
 
   contract-tests:
     runs-on: ubuntu-latest

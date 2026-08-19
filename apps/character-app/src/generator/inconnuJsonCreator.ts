@@ -355,7 +355,7 @@ export const createInconnuJson = (character: Character): InconnuCreationBody => 
         )
     ]) {
         addTrait({
-            name: toTraitIdentifier(meritFlaw.name, "Trait"),
+            name: toTraitIdentifier(String(meritFlaw.name ?? ""), "Trait"),
             rating: nonNegativeInt(meritFlaw.level),
             type: "custom",
             subtraits: []

@@ -489,6 +489,59 @@
       <h3 class="settings-pane-title">Web App — Flags &amp; Tuning</h3>
       <p class="settings-pane-subtitle">Runtime overrides for the admin/API app — no redeploy needed unless noted.</p>
 
+      <div class="settings-group-label">Character Creation</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">
+            Rollout Mode
+            {% if character_creation.mode_overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+          </div>
+          {% if can_edit %}
+          <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 mb-0">
+            <input type="hidden" name="key" value="CHARACTER_CREATION_MODE">
+            <input type="hidden" name="action" value="set">
+            <input type="hidden" name="section" value="web-flags-tuning">
+            <select name="value" class="form-select form-select-sm" style="width:140px;flex-shrink:0;">
+              {% for m in character_creation.modes %}
+              <option value="{{ m }}" {{ 'selected' if character_creation.mode == m }}>{{ m }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+          </form>
+          {% else %}
+          <span class="badge bg-dark border border-secondary font-monospace">{{ character_creation.mode }}</span>
+          {% endif %}
+          <div class="settings-row-desc">
+            Who may create characters. <strong>off</strong> — nobody, including staff.
+            <strong>staff</strong> — staff plus the pilot IDs below, for testing on production.
+            <strong>everyone</strong> — live for all players. Reviewing and editing drafts
+            already submitted is never gated.
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            Pilot Discord IDs
+            {% if character_creation.pilot_overridden %}<span class="settings-override-badge" title="Runtime override active">DB</span>{% endif %}
+          </div>
+          {% if can_edit %}
+          <form method="POST" action="{{ url_for('settings.update') }}" class="d-flex align-items-center gap-1 mb-0">
+            <input type="hidden" name="key" value="CHARACTER_CREATION_PILOT_DISCORD_IDS">
+            <input type="hidden" name="action" value="set">
+            <input type="hidden" name="section" value="web-flags-tuning">
+            <input type="text" name="value" value="{{ character_creation.pilot_ids or '' }}"
+              placeholder="comma-separated IDs" class="form-control form-control-sm font-monospace" style="width:260px;flex-shrink:0;">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+          </form>
+          {% else %}
+          <span class="badge bg-dark border border-secondary font-monospace">{{ character_creation.pilot_ids or '(none)' }}</span>
+          {% endif %}
+          <div class="settings-row-desc">
+            Players who get into the creator while the mode is <strong>staff</strong>.
+            Ignored when the mode is off or everyone.
+          </div>
+        </div>
+      </div>
+
       <div class="settings-group-label">Feature Flags</div>
       <div class="settings-card">
         {% for f in web_flags %}{{ toggle_row(f, 'web-flags-tuning') }}{% endfor %}
