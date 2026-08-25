@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CATEGORY_CHANNEL_LIMIT,
+  configuredRetiredCubbyCategoryIds,
   countCategoryChildren,
   pickRetiredCubbyCategoryWithSpace,
   resolveRetiredCubbyCategoryIds,
@@ -93,6 +94,31 @@ describe('retired cubby categories', () => {
       category('b', 'Retired B'),
     ];
     expect(resolveRetiredCubbyCategoryIds(channels, ['b', 'a', 'b'])).toEqual(['b', 'a']);
+  });
+
+  it('keeps the primary category when explicit overflow ids are configured', () => {
+    // CUBBY_RETIRED_CATEGORY_IDS lists the *overflow* categories, so it must add
+    // to CUBBY_RETIRED_CATEGORY_ID rather than replace it: replacing it skipped a
+    // primary that still had room, and hid the cubbies already sitting in it from
+    // cubbySyncWorker.
+    expect(configuredRetiredCubbyCategoryIds('primary', ['overflow2', 'overflow3'])).toEqual([
+      'primary',
+      'overflow2',
+      'overflow3',
+    ]);
+  });
+
+  it('de-duplicates a primary that is also listed among the overflow ids', () => {
+    expect(configuredRetiredCubbyCategoryIds('primary', ['primary', 'overflow2'])).toEqual([
+      'primary',
+      'overflow2',
+    ]);
+  });
+
+  it('drops empty ids and tolerates an unset overflow list', () => {
+    expect(configuredRetiredCubbyCategoryIds('primary', undefined)).toEqual(['primary']);
+    expect(configuredRetiredCubbyCategoryIds('primary', [])).toEqual(['primary']);
+    expect(configuredRetiredCubbyCategoryIds('', ['overflow2'])).toEqual(['overflow2']);
   });
 
   it('picks the primary category while it has room', () => {

@@ -11,6 +11,7 @@ import { config } from '../config';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import {
+  configuredRetiredCubbyCategoryIds,
   isCubbyCategoryName,
   normalizeChannelName,
   pickRetiredCubbyCategoryWithSpace,
@@ -308,9 +309,7 @@ export class RetirementAutomationWorker {
 
     const retiredCategoryIds = resolveRetiredCubbyCategoryIds(
       allChannels,
-      this.cfg.retiredCubbyCategoryIds && this.cfg.retiredCubbyCategoryIds.length > 0
-        ? this.cfg.retiredCubbyCategoryIds
-        : [this.cfg.retiredCubbyCategoryId],
+      configuredRetiredCubbyCategoryIds(this.cfg.retiredCubbyCategoryId, this.cfg.retiredCubbyCategoryIds),
     );
 
     if (

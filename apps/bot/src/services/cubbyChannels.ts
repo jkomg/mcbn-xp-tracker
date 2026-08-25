@@ -281,3 +281,20 @@ export function pickRetiredCubbyCategoryWithSpace(
     }
     return null;
 }
+
+/**
+ * The configured retired-category list, primary first.
+ *
+ * CUBBY_RETIRED_CATEGORY_IDS is documented as the *overflow* categories, so it
+ * adds to CUBBY_RETIRED_CATEGORY_ID rather than replacing it — replacing it
+ * would skip a primary category that still has room, and would stop
+ * cubbySyncWorker recognising the cubbies already sitting in it.
+ *
+ * Both callers go through here so they cannot disagree about the list.
+ */
+export function configuredRetiredCubbyCategoryIds(
+    primaryId: string | undefined,
+    overflowIds: string[] | undefined,
+): string[] {
+    return [...new Set([primaryId ?? '', ...(overflowIds ?? [])].filter((id) => id.length > 0))];
+}

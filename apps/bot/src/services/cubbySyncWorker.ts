@@ -12,6 +12,7 @@ import { ChannelType, type Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import type { TrackerAdapter } from './adapter';
 import {
+  configuredRetiredCubbyCategoryIds,
   isCubbyCategoryName,
   normalizeChannelName,
   resolveRetiredCubbyCategoryIds,
@@ -112,9 +113,7 @@ export class CubbySyncWorker {
     const retiredCategoryIds = new Set(
       resolveRetiredCubbyCategoryIds(
         allChannels,
-        this.cfg.retiredCategoryIds && this.cfg.retiredCategoryIds.length > 0
-          ? this.cfg.retiredCategoryIds
-          : [this.cfg.retiredCategoryId],
+        configuredRetiredCubbyCategoryIds(this.cfg.retiredCategoryId, this.cfg.retiredCategoryIds),
       ),
     );
 
