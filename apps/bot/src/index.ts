@@ -347,12 +347,14 @@ void applyStartupConfigOverrides().then(() => {
     guildId: config.cubbySyncGuildId,
     staffChannelId: config.cubbySyncStaffChannelId,
     retiredCategoryId: config.cubbyRetiredCategoryId,
+    retiredCategoryIds: config.cubbyRetiredCategoryIds,
   });
   const retirementAutomationWorker = new RetirementAutomationWorker(adapter, client, {
     enabled: config.retirementAutomationEnabled,
     intervalMs: config.retirementAutomationIntervalMs,
     guildId: config.retirementAutomationGuildId,
     retiredCubbyCategoryId: config.cubbyRetiredCategoryId,
+    retiredCubbyCategoryIds: config.cubbyRetiredCategoryIds,
     childrenForumId: config.retirementChildrenForumId,
     retiredForumId: config.retirementRetiredForumId,
     wikiBatchEnabled: config.retirementWikiBatchEnabled,

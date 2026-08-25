@@ -181,6 +181,7 @@ const envSchema = z.object({
   CUBBY_SYNC_GUILD_ID: z.string().optional(),
   CUBBY_SYNC_STAFF_CHANNEL_ID: z.string().optional(),
   CUBBY_RETIRED_CATEGORY_ID: z.string().optional(),
+  CUBBY_RETIRED_CATEGORY_IDS: z.string().optional(),
   RETIREMENT_AUTOMATION_ENABLED: z.string().optional(),
   RETIREMENT_AUTOMATION_INTERVAL_MS: z.string().optional(),
   RETIREMENT_AUTOMATION_GUILD_ID: z.string().optional(),
@@ -487,6 +488,9 @@ export const config = {
   cubbySyncGuildId: env.CUBBY_SYNC_GUILD_ID ?? env.DISCORD_GUILD_ID ?? env.TEST_GUILD_ID ?? '',
   cubbySyncStaffChannelId: env.CUBBY_SYNC_STAFF_CHANNEL_ID ?? '',
   cubbyRetiredCategoryId: env.CUBBY_RETIRED_CATEGORY_ID ?? '1225070632799043685',
+  // Optional explicit overflow list. Leave unset and the retirement worker
+  // discovers overflow categories by name from the primary one instead.
+  cubbyRetiredCategoryIds: [...parseCsvIds(env.CUBBY_RETIRED_CATEGORY_IDS)],
   retirementAutomationEnabled: (env.RETIREMENT_AUTOMATION_ENABLED ?? 'true').toLowerCase() === 'true',
   retirementAutomationIntervalMs: parsePositiveInt(
     env.RETIREMENT_AUTOMATION_INTERVAL_MS,

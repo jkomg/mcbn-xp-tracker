@@ -190,3 +190,111 @@ export async function getChannelsInCubbyCategories(guild: Guild): Promise<Array<
   result.sort((a, b) => a.name.localeCompare(b.name));
   return result;
 }
+
+/**
+ * Discord refuses a channel move once its target category holds 50 channels
+ * ("CHANNEL_PARENT_MAX_CHANNELS"). Retirement automation hit this: every
+ * retirement moves one more cubby into the retired category, so the category
+ * fills over time and then every subsequent retirement fails and retries
+ * forever on a condition no retry can clear.
+ */
+export const CATEGORY_CHANNEL_LIMIT = 50;
+
+type ChannelLike = { id: string; name: string; type: ChannelType; parentId: string | null } | null;
+type ChannelCollection = Iterable<ChannelLike> | { values: () => Iterable<ChannelLike> };
+
+function channelValues(channels: ChannelCollection): Iterable<ChannelLike> {
+    return typeof (channels as { values?: unknown }).values === 'function'
+        ? (channels as { values: () => Iterable<ChannelLike> }).values()
+        : (channels as Iterable<ChannelLike>);
+}
+
+export function countCategoryChildren(channels: ChannelCollection, categoryId: string): number {
+    let count = 0;
+    for (const channel of channelValues(channels)) {
+        if (!channel || channel.type === ChannelType.GuildCategory) continue;
+        if (channel.parentId === categoryId) count++;
+    }
+    return count;
+}
+
+/**
+ * Every category a retired cubby may legitimately live in, most-preferred first.
+ *
+ * Overflow categories are discovered by name rather than configured, so staff
+ * can add one in Discord — "Retired Characters 2" beside "Retired Characters" —
+ * and have it picked up with no redeploy and no settings change. The prefix is
+ * taken from the configured category's own name rather than a hardcoded guess,
+ * so it keeps working whatever that category is called, including the trailing
+ * emoji staff like to add.
+ *
+ * Both the retirement mover and cubbySyncWorker's classification read this, so
+ * they cannot disagree about whether a cubby counts as retired.
+ */
+export function resolveRetiredCubbyCategoryIds(
+    channels: ChannelCollection,
+    configuredIds: string[],
+): string[] {
+    const categories = new Map<string, ChannelLike>();
+    for (const channel of channelValues(channels)) {
+        if (channel && channel.type === ChannelType.GuildCategory) {
+            categories.set(channel.id, channel);
+        }
+    }
+
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    const add = (id: string) => {
+        if (id && !seen.has(id)) {
+            seen.add(id);
+            ordered.push(id);
+        }
+    };
+
+    // Configured ids are kept whether or not they turn up in this channel list.
+    // A partial or failed fetch should degrade to the previous behaviour —
+    // attempt the configured category — rather than become a new hard failure
+    // on a path whose whole purpose is unblocking stuck retirements.
+    for (const id of configuredIds) add(id);
+
+    const primary = ordered.map((id) => categories.get(id)).find((c) => !!c) ?? null;
+    if (primary) {
+        const prefix = primary.name.toLowerCase().trim();
+        const siblings = [...categories.values()].filter(
+            (c): c is NonNullable<ChannelLike> =>
+                !!c && !seen.has(c.id) && c.name.toLowerCase().trim().startsWith(prefix),
+        );
+        siblings.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        for (const sibling of siblings) add(sibling.id);
+    }
+
+    return ordered;
+}
+
+/** The first retired category with room, or null when they are all full. */
+export function pickRetiredCubbyCategoryWithSpace(
+    channels: ChannelCollection,
+    categoryIds: string[],
+): string | null {
+    for (const id of categoryIds) {
+        if (countCategoryChildren(channels, id) < CATEGORY_CHANNEL_LIMIT) return id;
+    }
+    return null;
+}
+
+/**
+ * The configured retired-category list, primary first.
+ *
+ * CUBBY_RETIRED_CATEGORY_IDS is documented as the *overflow* categories, so it
+ * adds to CUBBY_RETIRED_CATEGORY_ID rather than replacing it — replacing it
+ * would skip a primary category that still has room, and would stop
+ * cubbySyncWorker recognising the cubbies already sitting in it.
+ *
+ * Both callers go through here so they cannot disagree about the list.
+ */
+export function configuredRetiredCubbyCategoryIds(
+    primaryId: string | undefined,
+    overflowIds: string[] | undefined,
+): string[] {
+    return [...new Set([primaryId ?? '', ...(overflowIds ?? [])].filter((id) => id.length > 0))];
+}
