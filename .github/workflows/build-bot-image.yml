@@ -13,6 +13,13 @@
 # which is the point -- one mechanism owns what runs, and it is Argo.
 name: Build Bot Image
 
+# The run's name carries the SHA it actually built, because the relevance check
+# below has to look that up on later runs and no API field reports it. A
+# workflow_run run's headSha is the default branch tip when the run was created,
+# which is NOT necessarily the commit it checked out: if B lands on main while
+# CI for A is still going, A's build run can be recorded against B.
+run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || github.sha }}
+
 on:
   workflow_run:
     workflows: ["CI"]
@@ -97,15 +104,24 @@ jobs:
             exit 0
           fi
 
+          # Read the SHA the last successful run BUILT, out of its run name --
+          # not its headSha, which reports the default branch tip at the moment
+          # that run was created and can therefore name a commit the run never
+          # touched.
           last_built=$(gh run list \
             --workflow=build-bot-image.yml \
-            --branch main \
             --status success \
-            --limit 1 \
-            --json headSha \
-            --jq '.[0].headSha // empty' 2>/dev/null) || last_built=""
+            --limit 20 \
+            --json displayTitle \
+            --jq '[.[].displayTitle | capture("for (?<sha>[0-9a-f]{40})")? | .sha][0] // empty' 2>/dev/null) || last_built=""
 
-          if [ -z "$last_built" ] || ! git cat-file -e "${last_built}^{commit}" 2>/dev/null; then
+          # Fail open unless the comparison point is a real commit AND an ancestor
+          # of what we are building. Anything else -- a force-push, or two CI runs
+          # finishing out of order so the last build is NEWER than this commit --
+          # means the diff would not describe "changed since that image", so build.
+          if [ -z "$last_built" ] \
+            || ! git cat-file -e "${last_built}^{commit}" 2>/dev/null \
+            || ! git merge-base --is-ancestor "$last_built" HEAD 2>/dev/null; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
