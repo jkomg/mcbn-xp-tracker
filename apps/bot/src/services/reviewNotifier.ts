@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { Guild } from 'discord.js';
 import type { BotClient } from '../discord';
 import { errorToMessage, logEvent } from '../logger';
+import { writeJsonStateFile } from './stateFile';
 import type { TrackerAdapter } from './adapter';
 import type { ReviewEvent } from '../types';
 import { buildCubbyChannelMap, findClosestChannelName, normalizeChannelName, type NotificationChannel } from './cubbyChannels';
@@ -27,8 +28,7 @@ function loadCursorState(): CursorState | null {
 
 function saveCursorState(state: CursorState) {
   try {
-    fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-    fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+    writeJsonStateFile(STATE_PATH, state);
   } catch (error) {
     logEvent('warn', 'review_notifier_cursor_save_failed', { error: errorToMessage(error) });
   }

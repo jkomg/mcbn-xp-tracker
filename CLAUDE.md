@@ -92,16 +92,27 @@ second `gcloud run deploy` invocation anywhere.
 Deploys are normally automatic, not run by hand. GitHub Actions chains them:
 CI passing on **any branch** deploys to dev (`deploy-web-dev.yml` has no branch
 filter — dev is shared, and a feature-branch push replaces what's deployed
-there); a dev deploy succeeding **on `main`** then gates prod; the bot
-redeploys on CI passing **on `main`** via a self-hosted runner on Ursula. See
+there); a dev deploy succeeding **on `main`** then gates prod. The bot does
+**not** auto-deploy: CI passing on `main` publishes a new image
+(`build-bot-image.yml`), and shipping it is a deliberate second step. See
 [CONTRIBUTING.md](CONTRIBUTING.md#deploy-paths).
 
 Current deployment topology: production web runs on Cloud Run service
 `mcbn-xp-tracker` at `mcbn.jkomg.us`; dev web runs on the separate Cloud Run service
 `mcbn-xp-tracker-dev` at `dev.mcbn.jkomg.us`. Both use Turso, with separate production
-and dev databases/credentials. The Discord bot runs in Docker on Ursula, with a
-heartbeat-triggered failover bot on little-mac. Kubernetes manifests under
-`apps/*/k8s/` are migration preparation only and are not current production infrastructure.
+and dev databases/credentials.
+
+The Discord bot moved off Ursula on 2026-08-28 and now runs on a k3s cluster
+(`bots` namespace, node mp-node), managed by Argo CD from the `home-automation`
+repo — `cluster/apps/lasombra-bot/`. Images are pinned there by commit SHA, so
+`build-bot-image.yml` publishes `ghcr.io/jkomg/lasombra-bot:<sha7>` and a commit
+to that repo is what actually deploys it. Nothing in this repo can restart the
+bot, deliberately: one mechanism owns what runs, and it is Argo.
+
+Stale references to watch for: `infra/ursula/failover/` describes a
+heartbeat-triggered failover bot on little-mac whose launchd job is no longer
+installed, and Kubernetes manifests under `apps/*/k8s/` predate the migration and
+are not what the cluster runs.
 
 ## Bot Docker Audit Logs
 

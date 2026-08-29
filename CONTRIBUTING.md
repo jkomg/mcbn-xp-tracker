@@ -172,7 +172,15 @@ Deploys are chained GitHub Actions `workflow_run` triggers, not manual steps.
 |------------|---------|---------|
 | **Dev web** | Cloud Run `mcbn-xp-tracker-dev` (`dev.mcbn.jkomg.us`) | CI passing on **any branch** |
 | **Prod web** | Cloud Run `mcbn-xp-tracker` (`mcbn.jkomg.us`) | Dev deploy succeeding **on `main`** |
-| **Bot** | Docker `lasombra-bot` on **Ursula** (self-hosted runner) | CI passing **on `main`** |
+| **Bot image** | `ghcr.io/jkomg/lasombra-bot:<sha7>` (published, *not* deployed) | CI passing **on `main`** |
+
+The bot row is not a deploy. `lasombra-bot` runs on the k3s cluster under Argo
+CD, which syncs from the `home-automation` repo, and images there are pinned by
+commit SHA. So `build-bot-image.yml` only publishes the image; to ship it, bump
+the tag in that repo's `cluster/apps/lasombra-bot/deployment.yaml` and commit.
+The old "Deploy Bot to Ursula" workflow was removed on 2026-08-29 — after the
+migration it would have started a *second* live bot on Ursula holding the same
+Discord gateway session as the pod.
 
 Read the dev row carefully: `deploy-web-dev.yml` has **no branch filter**. Any
 push to any branch that passes CI redeploys the shared dev service and posts a

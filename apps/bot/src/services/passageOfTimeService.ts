@@ -5,6 +5,7 @@ import { fetchCurrentWeather, formatWeatherLine } from '../commands/weather';
 import { errorToMessage, logEvent } from '../logger';
 import { liveConfig } from '../liveConfig';
 import { daysBetweenUtc, localParts, toDateOnly } from './dateCadence';
+import { writeJsonStateFile } from './stateFile';
 
 type ScheduledEventConfig = {
   name: 'sunrise' | 'sunset' | 'downtime';
@@ -59,10 +60,6 @@ const BOT_ROOT = path.resolve(__dirname, '..', '..');
 const STATE_PATH = path.join(BOT_ROOT, 'data', 'passage-of-time-state.json');
 const CYCLE_DAYS = 7;
 
-function ensureStateDir() {
-  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-}
-
 function readState(): ServiceState {
   try {
     const raw = fs.readFileSync(STATE_PATH, 'utf8');
@@ -77,8 +74,7 @@ function readState(): ServiceState {
 }
 
 function writeState(state: ServiceState) {
-  ensureStateDir();
-  fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+  writeJsonStateFile(STATE_PATH, state);
 }
 
 function isCadenceDate(localDateKey: string, anchorDate: string, cadenceWeeks: number): boolean {

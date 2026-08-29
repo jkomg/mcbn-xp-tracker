@@ -1,0 +1,177 @@
+# Builds and publishes the bot image the k3s cluster runs.
+#
+# This replaces "Deploy Bot to Ursula", which pushed code to a self-hosted runner
+# on ursula and restarted a Docker container there. The bot moved to k3s on
+# 2026-08-28 and is managed by Argo CD from the home-automation repo, so that
+# workflow no longer deployed anything -- it would have started a SECOND live bot
+# on ursula holding the same Discord gateway session as the pod.
+#
+# Deliberately NOT a deploy. home-automation pins images by commit SHA and Argo
+# syncs from its main, so shipping bot code is two steps: this workflow publishes
+# ghcr.io/jkomg/lasombra-bot:<sha7>, then someone bumps the tag in
+# cluster/apps/lasombra-bot/deployment.yaml. Nothing here can restart the bot,
+# which is the point -- one mechanism owns what runs, and it is Argo.
+name: Build Bot Image
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual build'
+        required: false
+        default: 'manual trigger'
+
+concurrency:
+  group: build-bot-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.repository == 'jkomg/mcbn-xp-tracker' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Resolve build SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            full="${{ github.event.workflow_run.head_sha }}"
+          else
+            full="${{ github.sha }}"
+          fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "short=${full:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the resolved SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.full }}
+          # Need the parent commit to tell whether the bot actually changed.
+          fetch-depth: 2
+
+      # An image per main commit would be mostly duplicates, so skip when nothing
+      # the bot ships changed. Fails open on any error in the diff itself: a
+      # redundant build is cheaper than silently never publishing, which is the
+      # failure mode that leaves a SHA bump pointing at a tag that does not exist.
+      - name: Check whether bot-relevant paths changed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          diff_output=$(git diff --name-only HEAD~1 HEAD) || diff_output="__DIFF_FAILED__"
+          if [ "$diff_output" = "__DIFF_FAILED__" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          elif echo "$diff_output" | grep -qE '^(apps/bot/|packages/)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.relevant != 'false'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        if: steps.check.outputs.relevant != 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.check.outputs.relevant != 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Two images, matching what the cluster manifests already describe: :<sha>-base
+      # is the app, :<sha> adds /packages on top. See .github/docker/Dockerfile.packages.
+      #
+      # The cluster nodes are arm64 and ursula is amd64; both are built so the image
+      # stays runnable wherever it lands.
+      - name: Build and push base image
+        if: steps.check.outputs.relevant != 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/bot
+          file: ./apps/bot/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push wrapper image
+        if: steps.check.outputs.relevant != 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./.github/docker/Dockerfile.packages
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: BASE=ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}
+
+      - name: Summarise the bump this needs
+        if: steps.check.outputs.relevant != 'false'
+        env:
+          SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          {
+            echo "### Bot image published"
+            echo
+            echo '`ghcr.io/jkomg/lasombra-bot:'"$SHORT"'`'
+            echo
+            echo "Not deployed. To ship it, in **home-automation**:"
+            echo
+            echo '```'
+            echo "cluster/apps/lasombra-bot/deployment.yaml  ->  image: ghcr.io/jkomg/lasombra-bot:$SHORT"
+            echo '```'
+            echo
+            echo "Commit to its main; Argo CD syncs and recreates the pod."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Discord
+        if: always() && steps.check.outputs.relevant != 'false'
+        continue-on-error: true
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+          STATUS: ${{ job.status }}
+          SHORT: ${{ steps.sha.outputs.short }}
+          SHA: ${{ steps.sha.outputs.full }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$WEBHOOK" ] && exit 0
+
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
+          COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
+
+          if [ "$STATUS" = "success" ]; then
+            COLOR=3066993
+            ICON="📦"
+            TITLE="Bot image published"
+            BODY="[\`${SHORT}\`](${COMMIT_URL}) is on GHCR. Not live yet — bump the tag in home-automation to deploy.\n${COMMIT_MSG}"
+          else
+            COLOR=15158332
+            ICON="❌"
+            TITLE="Bot image build failed"
+            BODY="[\`${SHORT}\`](${COMMIT_URL}) did not publish. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
+          fi
+
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"${ICON} ${TITLE}\",\"description\":\"${BODY}\",\"color\":${COLOR}}]}"
