@@ -18,7 +18,7 @@ name: Build Bot Image
 # workflow_run run's headSha is the default branch tip when the run was created,
 # which is NOT necessarily the commit it checked out: if B lands on main while
 # CI for A is still going, A's build run can be recorded against B.
-run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || github.sha }}
+run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
 
 on:
   workflow_run:
@@ -31,6 +31,15 @@ on:
         description: 'Reason for manual build'
         required: false
         default: 'manual trigger'
+      sha:
+        description: 'Commit to build (default: the ref this was dispatched from)'
+        required: false
+        default: ''
+      overwrite:
+        description: 'Replace tags that already exist (changes what a pinned manifest resolves to)'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: build-bot-image
@@ -65,6 +74,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             full="${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "${{ inputs.sha }}" ]; then
+            # Rebuilding an arbitrary commit -- typically one older than this
+            # workflow. gh's --ref takes a branch or tag and reads the workflow
+            # from there, so an old SHA cannot be dispatched directly; this input
+            # is what makes rebuilding one possible at all.
+            full="${{ inputs.sha }}"
           else
             full="${{ github.sha }}"
           fi
@@ -78,6 +93,15 @@ jobs:
           # Full history: the relevance check below diffs against the last commit
           # this workflow built, which can be arbitrarily far back.
           fetch-depth: 0
+
+      # The build context is the commit being built, which for a rebuild of an old
+      # commit predates .github/docker/Dockerfile.packages -- so take the wrapper
+      # from the ref this workflow is running from, not from the tree being built.
+      - name: Check out this workflow's own ref for the wrapper Dockerfile
+        uses: actions/checkout@v4
+        with:
+          path: .workflow-ref
+          fetch-depth: 1
 
       # An image per main commit would be mostly duplicates, so skip when nothing
       # the bot ships changed.
@@ -153,36 +177,105 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The manifests in home-automation pin by TAG, not digest, and apps/bot's
+      # Dockerfile builds FROM the mutable node:20-alpine -- so rebuilding a commit
+      # whose tag already exists silently changes the bytes a pinned workload pulls
+      # on its next reschedule. That is the "pushing over an existing tag leaves the
+      # manifest lying about what runs" case their handoff doc warns about, and it
+      # applies to BOTH packages: the motivating rebuild is b37eb50, which is exactly
+      # the tag the dev bot is pinned to right now.
+      #
+      # So: never replace a tag that exists. Re-running a build for a SHA already
+      # published becomes a no-op rather than a failure, which keeps CI re-runs
+      # harmless; a deliberate replacement needs the overwrite input, where the
+      # person setting it has to have read what it does.
+      - name: Refuse to overwrite tags that already exist
+        id: tags
+        if: steps.check.outputs.relevant != 'false'
+        env:
+          SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          existing=""
+          for ref in \
+            "lasombra-bot:${SHORT}-base" "zapathasura:${SHORT}-base" \
+            "lasombra-bot:${SHORT}" "zapathasura:${SHORT}"; do
+            if out=$(docker manifest inspect "ghcr.io/jkomg/$ref" 2>&1); then
+              existing="$existing $ref"
+            else
+              # Only a clear "no such manifest" counts as absent. Any other error --
+              # registry blip, auth trouble -- is treated as present, because the one
+              # thing this step must never do is mistake "could not tell" for "safe to
+              # overwrite".
+              case "$out" in
+                *"manifest unknown"*|*"MANIFEST_UNKNOWN"*|*"NAME_UNKNOWN"*|*"not found"*) : ;;
+                *) echo "::warning::could not determine whether $ref exists, assuming it does: $out"
+                   existing="$existing $ref" ;;
+              esac
+            fi
+          done
+
+          if [ -z "$existing" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.overwrite }}" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Replacing existing tags"
+              echo
+              echo "\`overwrite\` was set, so these are being republished:"
+              for ref in $existing; do echo "- \`ghcr.io/jkomg/$ref\`"; done
+              echo
+              echo "Anything pinned to them resolves to different bytes after its next pull."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Already published — nothing to do"
+              echo
+              for ref in $existing; do echo "- \`ghcr.io/jkomg/$ref\`"; done
+              echo
+              echo "Re-run with \`overwrite: true\` only if you intend a pinned manifest to resolve to different bytes."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       # Two images, matching what the cluster manifests already describe: :<sha>-base
       # is the app, :<sha> adds /packages on top. See .github/docker/Dockerfile.packages.
       #
       # The cluster nodes are arm64 and ursula is amd64; both are built so the image
       # stays runnable wherever it lands.
       - name: Build and push base image
-        if: steps.check.outputs.relevant != 'false'
+        if: steps.check.outputs.relevant != 'false' && steps.tags.outputs.publish != 'false'
         uses: docker/build-push-action@v6
         with:
           context: ./apps/bot
           file: ./apps/bot/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+          tags: |
+            ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+            ghcr.io/jkomg/zapathasura:${{ steps.sha.outputs.short }}-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push wrapper image
-        if: steps.check.outputs.relevant != 'false'
+        if: steps.check.outputs.relevant != 'false' && steps.tags.outputs.publish != 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./.github/docker/Dockerfile.packages
+          file: ./.workflow-ref/.github/docker/Dockerfile.packages
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: BASE=ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
-          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}
+          # zapathasura is not a different application: it is this same code at a
+          # different commit, built from this same Dockerfile. Two digests for
+          # byte-identical content would invent a distinction the artifacts do not
+          # have, so one build carries both tags. This publishes only -- the dev
+          # bot's manifest stays pinned wherever it is until someone bumps it.
+          tags: |
+            ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}
+            ghcr.io/jkomg/zapathasura:${{ steps.sha.outputs.short }}
 
       - name: Summarise the bump this needs
-        if: steps.check.outputs.relevant != 'false'
+        if: steps.check.outputs.relevant != 'false' && steps.tags.outputs.publish != 'false'
         env:
           SHORT: ${{ steps.sha.outputs.short }}
         run: |
@@ -190,11 +283,13 @@ jobs:
             echo "### Bot image published"
             echo
             echo '`ghcr.io/jkomg/lasombra-bot:'"$SHORT"'`'
+            echo '`ghcr.io/jkomg/zapathasura:'"$SHORT"'` — same digest, dev bot'
             echo
             echo "Not deployed. To ship it, in **home-automation**:"
             echo
             echo '```'
             echo "cluster/apps/lasombra-bot/deployment.yaml  ->  image: ghcr.io/jkomg/lasombra-bot:$SHORT"
+            echo "cluster/apps/zapathasura/deployment.yaml   ->  image: ghcr.io/jkomg/zapathasura:$SHORT   (only if bumping dev)"
             echo '```'
             echo
             echo "Commit to its main; Argo CD syncs and recreates the pod."
@@ -206,6 +301,7 @@ jobs:
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
           STATUS: ${{ job.status }}
+          PUBLISHED: ${{ steps.tags.outputs.publish }}
           SHORT: ${{ steps.sha.outputs.short }}
           SHA: ${{ steps.sha.outputs.full }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -219,7 +315,12 @@ jobs:
           # a job that exceeds timeout-minutes is reported as cancelled with no
           # error in the log, and calling that "failed" sends whoever reads it
           # hunting for a build error that does not exist.
-          if [ "$STATUS" = "success" ]; then
+          if [ "$STATUS" = "success" ] && [ "$PUBLISHED" = "false" ]; then
+            COLOR=10070709
+            ICON="↩️"
+            TITLE="Bot image already published"
+            BODY="[\`${SHORT}\`](${COMMIT_URL}) was not rebuilt — its tags already exist on GHCR, so nothing was replaced. [View run](${RUN_URL}).\n${COMMIT_MSG}"
+          elif [ "$STATUS" = "success" ]; then
             COLOR=3066993
             ICON="📦"
             TITLE="Bot image published"
