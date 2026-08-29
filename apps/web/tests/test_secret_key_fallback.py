@@ -16,6 +16,8 @@ and quietly pass regardless of what the fallback does.
 import importlib
 import os
 
+import pytest
+
 
 def _load_config_with(env_value):
     """Import config.py fresh with FLASK_SECRET_KEY set to a given value."""
@@ -66,3 +68,31 @@ def test_no_literal_fallback_remains_in_config_source():
 
     assert "os.environ.get('FLASK_SECRET_KEY'," not in source
     assert 'dev-key-change-me' not in source
+
+
+def test_create_app_refuses_to_start_without_a_configured_key():
+    """A generated key is safe to hold, not safe to serve with.
+
+    entrypoint.sh runs gunicorn with 2 workers and no --preload, and Cloud Run runs
+    up to 2 instances, so a generated key differs per worker and per instance.
+    Sessions would fail depending on which worker answered -- logins bouncing, and
+    the OAuth callback failing its state check because the worker that stored
+    oauth_state is not the one reading it. Refusing to boot keeps that off the
+    internet: on Cloud Run a revision that will not start never takes traffic, so
+    the previous healthy revision keeps serving.
+    """
+    import app as app_package
+    import config
+
+    previous = os.environ.get('FLASK_SECRET_KEY')
+    os.environ['FLASK_SECRET_KEY'] = ''
+    try:
+        importlib.reload(config)
+        with pytest.raises(RuntimeError, match='FLASK_SECRET_KEY'):
+            app_package.create_app()
+    finally:
+        if previous is None:
+            del os.environ['FLASK_SECRET_KEY']
+        else:
+            os.environ['FLASK_SECRET_KEY'] = previous
+        importlib.reload(config)
