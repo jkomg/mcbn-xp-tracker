@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EmbedBuilder, type Client, type TextChannel } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
+import { writeJsonStateFile } from './stateFile';
 import type { TrackerAdapter, PendingSheetImport } from './adapter';
 import type { BotClient } from '../discord';
 
@@ -22,8 +23,7 @@ function loadCursorState(): CursorState | null {
 
 function saveCursorState(state: CursorState) {
   try {
-    fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-    fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+    writeJsonStateFile(STATE_PATH, state);
   } catch (error) {
     logEvent('warn', 'sheet_import_notifier_cursor_save_failed', { error: errorToMessage(error) });
   }
