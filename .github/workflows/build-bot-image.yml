@@ -18,7 +18,7 @@ name: Build Bot Image
 # workflow_run run's headSha is the default branch tip when the run was created,
 # which is NOT necessarily the commit it checked out: if B lands on main while
 # CI for A is still going, A's build run can be recorded against B.
-run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || github.sha }}
+run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
 
 on:
   workflow_run:
@@ -31,6 +31,10 @@ on:
         description: 'Reason for manual build'
         required: false
         default: 'manual trigger'
+      sha:
+        description: 'Commit to build (default: the ref this was dispatched from)'
+        required: false
+        default: ''
 
 concurrency:
   group: build-bot-image
@@ -65,6 +69,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             full="${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "${{ inputs.sha }}" ]; then
+            # Rebuilding an arbitrary commit -- typically one older than this
+            # workflow. gh's --ref takes a branch or tag and reads the workflow
+            # from there, so an old SHA cannot be dispatched directly; this input
+            # is what makes rebuilding one possible at all.
+            full="${{ inputs.sha }}"
           else
             full="${{ github.sha }}"
           fi
@@ -78,6 +88,15 @@ jobs:
           # Full history: the relevance check below diffs against the last commit
           # this workflow built, which can be arbitrarily far back.
           fetch-depth: 0
+
+      # The build context is the commit being built, which for a rebuild of an old
+      # commit predates .github/docker/Dockerfile.packages -- so take the wrapper
+      # from the ref this workflow is running from, not from the tree being built.
+      - name: Check out this workflow's own ref for the wrapper Dockerfile
+        uses: actions/checkout@v4
+        with:
+          path: .workflow-ref
+          fetch-depth: 1
 
       # An image per main commit would be mostly duplicates, so skip when nothing
       # the bot ships changed.
@@ -166,7 +185,9 @@ jobs:
           file: ./apps/bot/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+          tags: |
+            ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
+            ghcr.io/jkomg/zapathasura:${{ steps.sha.outputs.short }}-base
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -175,11 +196,18 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./.github/docker/Dockerfile.packages
+          file: ./.workflow-ref/.github/docker/Dockerfile.packages
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: BASE=ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}-base
-          tags: ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}
+          # zapathasura is not a different application: it is this same code at a
+          # different commit, built from this same Dockerfile. Two digests for
+          # byte-identical content would invent a distinction the artifacts do not
+          # have, so one build carries both tags. This publishes only -- the dev
+          # bot's manifest stays pinned wherever it is until someone bumps it.
+          tags: |
+            ghcr.io/jkomg/lasombra-bot:${{ steps.sha.outputs.short }}
+            ghcr.io/jkomg/zapathasura:${{ steps.sha.outputs.short }}
 
       - name: Summarise the bump this needs
         if: steps.check.outputs.relevant != 'false'
@@ -190,11 +218,13 @@ jobs:
             echo "### Bot image published"
             echo
             echo '`ghcr.io/jkomg/lasombra-bot:'"$SHORT"'`'
+            echo '`ghcr.io/jkomg/zapathasura:'"$SHORT"'` — same digest, dev bot'
             echo
             echo "Not deployed. To ship it, in **home-automation**:"
             echo
             echo '```'
             echo "cluster/apps/lasombra-bot/deployment.yaml  ->  image: ghcr.io/jkomg/lasombra-bot:$SHORT"
+            echo "cluster/apps/zapathasura/deployment.yaml   ->  image: ghcr.io/jkomg/zapathasura:$SHORT   (only if bumping dev)"
             echo '```'
             echo
             echo "Commit to its main; Argo CD syncs and recreates the pod."
