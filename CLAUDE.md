@@ -114,13 +114,56 @@ heartbeat-triggered failover bot on little-mac whose launchd job is no longer
 installed, and Kubernetes manifests under `apps/*/k8s/` predate the migration and
 are not what the cluster runs.
 
+## Working With the Infra Repo (`home-automation`)
+
+The bot's runtime lives in another repo, so a change here is only half a ship.
+Read `docs/handoff/2026-08-29-state-for-app-repos.md` in
+[home-automation](https://github.com/jkomg/home-automation) before diagnosing
+anything infra-shaped — it is the authority on what moved off Ursula, which host
+IPs changed, and how Argo behaves. Do not re-derive the topology from this file.
+
+**Who owns what.** This repo owns app code and container images: CI publishes
+`ghcr.io/jkomg/lasombra-bot:<sha7>` and stops there. `home-automation` owns what
+actually runs — manifest tags, resources, env, `securityContext`, PVCs. Shipping
+bot code is deliberately two steps, and the second one is a commit there.
+
+**Diagnosing is free; writing is not.** Read the cluster as much as you like —
+`kubectl -n bots`, pod logs, `exec`, node inspection over ssh. But an Argo
+`Application` with `selfHeal: true` reverts a `kubectl edit` within minutes, so a
+change that is not committed to `home-automation` is not a change. Default is
+that the infra session makes those commits; if none is running, ask the user
+before touching that repo, and change only the image tag.
+
+```bash
+kubectl -n bots get pods -o wide                      # what is running, and where
+kubectl -n bots logs <pod> --since=1h                 # bot logs (JSON lines)
+kubectl -n bots exec <pod> -- ls -la /app/data        # persisted cursors/state
+kubectl get app -n argocd lasombra-bot -o jsonpath='{.status.sync.revision}'
+```
+
+**To ship a bot change:** merge to `main` → `build-bot-image.yml` publishes the
+image and names the tag in its run summary and a Discord post → that tag is bumped
+in `cluster/apps/lasombra-bot/deployment.yaml` → Argo syncs and recreates the pod.
+Nothing here can restart the bot, on purpose: one mechanism owns what runs.
+
+**Two conventions from that repo that will bite you.** Images are pinned by commit
+SHA, never `latest`, so pushing over an existing tag deploys nothing and leaves the
+manifest lying about what runs. And Secrets are SOPS-encrypted and applied out of
+band (`./scripts/apply-secret.sh`), not by Argo — a missing env var in a running
+pod usually means that step was skipped.
+
 ## Bot Docker Audit Logs
+
+**Local Docker only.** Since the k3s migration these commands drive a bot container
+on your own machine, not production — the prod bot's logs come from
+`kubectl -n bots logs`, and the Docker log-retention settings below no longer apply
+to it.
 
 ```bash
 cd apps/bot
-npm run ops:docker:up          # start bot container
-npm run ops:docker:logs        # tail logs
-npm run ops:docker:usage-30d   # export 30-day usage audit
+npm run ops:docker:up          # start a local bot container
+npm run ops:docker:logs        # tail its logs
+npm run ops:docker:usage-30d   # export 30-day usage audit (local container)
 ```
 
 Log retention env vars: `BOT_LOG_MAX_SIZE` (default `25m`), `BOT_LOG_MAX_FILE` (default `120`).
