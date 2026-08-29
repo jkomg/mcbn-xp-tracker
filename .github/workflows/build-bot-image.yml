@@ -199,11 +199,20 @@ jobs:
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
           COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
 
+          # "cancelled" gets its own message because it is usually nobody's doing:
+          # a job that exceeds timeout-minutes is reported as cancelled with no
+          # error in the log, and calling that "failed" sends whoever reads it
+          # hunting for a build error that does not exist.
           if [ "$STATUS" = "success" ]; then
             COLOR=3066993
             ICON="📦"
             TITLE="Bot image published"
             BODY="[\`${SHORT}\`](${COMMIT_URL}) is on GHCR. Not live yet — bump the tag in home-automation to deploy.\n${COMMIT_MSG}"
+          elif [ "$STATUS" = "cancelled" ]; then
+            COLOR=16098851
+            ICON="⏱️"
+            TITLE="Bot image build stopped"
+            BODY="[\`${SHORT}\`](${COMMIT_URL}) did not publish — the job was cancelled. Check the elapsed time against \`timeout-minutes\` before assuming someone pressed stop. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
           else
             COLOR=15158332
             ICON="❌"
