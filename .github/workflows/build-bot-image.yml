@@ -33,7 +33,14 @@ jobs:
   build:
     name: Build and publish
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Generous because linux/arm64 is built under QEMU on an amd64 runner, where
+    # npm install is pathologically slow: the first run of this workflow was
+    # killed at exactly 30m15s, mid-"Build and push base image", with no error in
+    # the log -- a job that exceeds timeout-minutes is reported as "cancelled",
+    # which reads exactly like somebody pressed stop. The real fix is building
+    # arm64 natively rather than emulated; until then this must not be tighter
+    # than a cold-cache emulated build.
+    timeout-minutes: 90
     if: |
       github.repository == 'jkomg/mcbn-xp-tracker' && (
         github.event_name == 'workflow_dispatch' ||
