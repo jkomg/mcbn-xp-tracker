@@ -77,6 +77,29 @@ def _upgrade_with_race_retry(upgrade_fn) -> None:
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+
+    # Refuse to serve without a configured session key.
+    #
+    # config.py generates a random one when FLASK_SECRET_KEY is absent, which keeps
+    # anyone from forging a session with a published literal -- but it is not a
+    # usable way to RUN. entrypoint.sh starts gunicorn with 2 workers and no
+    # --preload, so each worker imports config separately and gets a different key,
+    # and Cloud Run runs up to 2 instances on top of that. Sessions would then fail
+    # depending on which worker served the request: logins bouncing, and the OAuth
+    # callback failing its state check because the worker that stored oauth_state is
+    # not the one reading it. Intermittent, per-request, and hard to trace back here.
+    #
+    # Failing at startup is the safe direction on Cloud Run: a revision that will not
+    # start never receives traffic, so the previous healthy revision keeps serving
+    # and the deploy goes red instead of the app going subtly wrong.
+    if app.config.get('SECRET_KEY_IS_EPHEMERAL'):
+        raise RuntimeError(
+            'FLASK_SECRET_KEY is not set. Refusing to start: sessions would be '
+            'signed with a per-worker key, so logins would fail intermittently. '
+            'Set it in apps/web/.env for local runs, or bind the '
+            'mcbn-flask-secret secret when deploying.'
+        )
+
     _apply_local_session_cookie_defaults(app)
     csrf.init_app(app)
     # Ensure SQLite data directory exists on first boot.

@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -7,7 +8,18 @@ load_dotenv()
 
 class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() in ('true', '1', 'yes')
-    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
+    # No literal fallback: this repo is public, so a hardcoded default would be a
+    # published session-signing key, and a missing FLASK_SECRET_KEY in production
+    # would silently let anyone forge a session for any Discord ID. A random
+    # per-process key fails closed instead -- sessions simply do not survive a
+    # restart, which is visible, rather than trusted cookies nobody can detect.
+    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+    # True when the key above was generated rather than configured. create_app()
+    # refuses to serve in that state: gunicorn runs 2 workers without --preload and
+    # Cloud Run runs up to 2 instances, so a generated key differs per worker and
+    # per instance, and sessions would fail intermittently rather than simply not
+    # persist. See test_secret_key_fallback.py.
+    SECRET_KEY_IS_EPHEMERAL = not os.environ.get('FLASK_SECRET_KEY')
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
     SESSION_COOKIE_SECURE = os.environ.get(
