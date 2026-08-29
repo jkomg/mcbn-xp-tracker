@@ -1,0 +1,27 @@
+# Adds the monorepo's shared contract files to the built bot image.
+#
+# WHY: apps/bot/Dockerfile builds with apps/bot as its context, so it cannot see
+# ../../packages. The bot needs those files at runtime -- sharedContract.ts does
+#
+#   repoRoot() = path.resolve(__dirname, '..', '..', '..')
+#   loadJson('packages/api-contract/spend_categories.json')
+#
+# and __dirname is /app/dist in the image, so three levels up is "/" and it reads
+# /packages/... . Locally, compose bind-mounts ../../packages there. In Kubernetes
+# nothing does, so the files have to be baked in.
+#
+# This is deliberately a second stage over the app image rather than a change to
+# apps/bot/Dockerfile: switching that build to a repo-root context would also mean
+# reworking compose.full.yml, apps/bot/docker-compose.yml, the bootstrap script and
+# the docker hygiene CI job. Collapsing the two is a worthwhile follow-up, not a
+# rider on a deploy-path fix.
+#
+# home-automation carries an identical file for the builds it did by hand; once
+# this workflow is the one building images, that copy can go.
+ARG BASE
+FROM ${BASE}
+COPY packages /packages
+
+# Links the published package to this repo on GHCR, so the image's provenance is
+# visible from the package page and Actions access can be granted to the repo.
+LABEL org.opencontainers.image.source=https://github.com/jkomg/mcbn-xp-tracker
