@@ -13,6 +13,13 @@
 # which is the point -- one mechanism owns what runs, and it is Argo.
 name: Build Bot Image
 
+# The run's name carries the SHA it actually built, because the relevance check
+# below has to look that up on later runs and no API field reports it. A
+# workflow_run run's headSha is the default branch tip when the run was created,
+# which is NOT necessarily the commit it checked out: if B lands on main while
+# CI for A is still going, A's build run can be recorded against B.
+run-name: Build Bot Image for ${{ github.event.workflow_run.head_sha || github.sha }}
+
 on:
   workflow_run:
     workflows: ["CI"]
@@ -33,7 +40,14 @@ jobs:
   build:
     name: Build and publish
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Generous because linux/arm64 is built under QEMU on an amd64 runner, where
+    # npm install is pathologically slow: the first run of this workflow was
+    # killed at exactly 30m15s, mid-"Build and push base image", with no error in
+    # the log -- a job that exceeds timeout-minutes is reported as "cancelled",
+    # which reads exactly like somebody pressed stop. The real fix is building
+    # arm64 natively rather than emulated; until then this must not be tighter
+    # than a cold-cache emulated build.
+    timeout-minutes: 90
     if: |
       github.repository == 'jkomg/mcbn-xp-tracker' && (
         github.event_name == 'workflow_dispatch' ||
@@ -42,6 +56,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # gh run list, for the relevance comparison below.
+      actions: read
 
     steps:
       - name: Resolve build SHA
@@ -59,24 +75,63 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.sha.outputs.full }}
-          # Need the parent commit to tell whether the bot actually changed.
-          fetch-depth: 2
+          # Full history: the relevance check below diffs against the last commit
+          # this workflow built, which can be arbitrarily far back.
+          fetch-depth: 0
 
       # An image per main commit would be mostly duplicates, so skip when nothing
-      # the bot ships changed. Fails open on any error in the diff itself: a
-      # redundant build is cheaper than silently never publishing, which is the
-      # failure mode that leaves a SHA bump pointing at a tag that does not exist.
+      # the bot ships changed.
+      #
+      # The comparison point is the head SHA of the last successful run of THIS
+      # workflow, not HEAD~1. A push can carry several commits -- a rebase merge,
+      # or a batch landing at once -- and diffing only the last commit would call
+      # the push irrelevant whenever the final commit happens to touch nothing the
+      # bot ships, silently publishing no image for a SHA that CI passed on. Runs
+      # that skipped the build are still valid comparison points: they established
+      # that nothing bot-relevant changed up to that commit, so the gap they leave
+      # behind cannot contain a bot change.
+      #
+      # Fails open on any error, and on the first ever run: a redundant build is
+      # cheaper than silently never publishing, which is the failure mode that
+      # leaves a SHA bump pointing at a tag that does not exist.
       - name: Check whether bot-relevant paths changed
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          diff_output=$(git diff --name-only HEAD~1 HEAD) || diff_output="__DIFF_FAILED__"
+
+          # Read the SHA the last successful run BUILT, out of its run name --
+          # not its headSha, which reports the default branch tip at the moment
+          # that run was created and can therefore name a commit the run never
+          # touched.
+          last_built=$(gh run list \
+            --workflow=build-bot-image.yml \
+            --status success \
+            --limit 20 \
+            --json displayTitle \
+            --jq '[.[].displayTitle | capture("for (?<sha>[0-9a-f]{40})")? | .sha][0] // empty' 2>/dev/null) || last_built=""
+
+          # Fail open unless the comparison point is a real commit AND an ancestor
+          # of what we are building. Anything else -- a force-push, or two CI runs
+          # finishing out of order so the last build is NEWER than this commit --
+          # means the diff would not describe "changed since that image", so build.
+          if [ -z "$last_built" ] \
+            || ! git cat-file -e "${last_built}^{commit}" 2>/dev/null \
+            || ! git merge-base --is-ancestor "$last_built" HEAD 2>/dev/null; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          diff_output=$(git diff --name-only "$last_built" HEAD) || diff_output="__DIFF_FAILED__"
           if [ "$diff_output" = "__DIFF_FAILED__" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
-          elif echo "$diff_output" | grep -qE '^(apps/bot/|packages/)'; then
+          # The wrapper Dockerfile and this workflow both define what gets
+          # published, so a change to either has to produce a new tag.
+          elif echo "$diff_output" | grep -qE '^(apps/bot/|packages/|\.github/docker/Dockerfile\.packages|\.github/workflows/build-bot-image\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -160,11 +215,20 @@ jobs:
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${SHA}"
           COMMIT_MSG=$(git log -1 --format="%s" "$SHA")
 
+          # "cancelled" gets its own message because it is usually nobody's doing:
+          # a job that exceeds timeout-minutes is reported as cancelled with no
+          # error in the log, and calling that "failed" sends whoever reads it
+          # hunting for a build error that does not exist.
           if [ "$STATUS" = "success" ]; then
             COLOR=3066993
             ICON="📦"
             TITLE="Bot image published"
             BODY="[\`${SHORT}\`](${COMMIT_URL}) is on GHCR. Not live yet — bump the tag in home-automation to deploy.\n${COMMIT_MSG}"
+          elif [ "$STATUS" = "cancelled" ]; then
+            COLOR=16098851
+            ICON="⏱️"
+            TITLE="Bot image build stopped"
+            BODY="[\`${SHORT}\`](${COMMIT_URL}) did not publish — the job was cancelled. Check the elapsed time against \`timeout-minutes\` before assuming someone pressed stop. [View logs](${RUN_URL}).\n${COMMIT_MSG}"
           else
             COLOR=15158332
             ICON="❌"
