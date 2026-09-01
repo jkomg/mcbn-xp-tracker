@@ -3,7 +3,7 @@
  * endpoint every 30 seconds so they appear in the Error Alerts page.
  */
 
-import { drainLogBuffer } from '../logger';
+import { drainLogBuffer, requeueLogEntries } from '../logger';
 import type { TrackerAdapter } from './adapter';
 
 export class BotLogForwarder {
@@ -32,7 +32,13 @@ export class BotLogForwarder {
     try {
       await this.adapter.postBotLog(entries);
     } catch {
-      // Silently drop on failure — we don't want logging to recurse into logging
+      // Keep the payload, not the complaint. Staying silent here is right --
+      // logging a failed flush would recurse into the buffer we are trying to
+      // empty -- but silence was being used to discard the entries as well, and
+      // those are the only copy the web app will ever see. postBotLog throws on
+      // any non-2xx, so this covers the app being down (500) and the flush being
+      // rate-limited (429) alike; both are retried on the next tick.
+      requeueLogEntries(entries);
     }
   }
 }
