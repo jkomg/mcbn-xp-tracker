@@ -165,6 +165,17 @@ class Config:
             SQLALCHEMY_DATABASE_URI = _raw_db_url
         TURSO_CONNECT_URL = ''
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Whether create_app() should build/migrate the schema itself.
+    #
+    # entrypoint.sh already runs `flask db upgrade` before starting gunicorn, and
+    # then unsets this for the gunicorn exec: without that, every worker repeats
+    # the whole thing against the same remote database on the startup path, for
+    # no benefit. Left on by default so `flask run`, tests, and fresh installs
+    # keep working unchanged -- a fresh database is still built by db.create_all()
+    # in the entrypoint's own create_app() call.
+    RUN_DB_MIGRATIONS_ON_STARTUP = os.environ.get(
+        'RUN_DB_MIGRATIONS_ON_STARTUP', 'true'
+    ).strip().lower() not in ('false', '0', 'no')
 
     # Local-only diagnostics page (launchd/logs/access tail).
     LOCAL_STATUS_ENABLED = os.environ.get(

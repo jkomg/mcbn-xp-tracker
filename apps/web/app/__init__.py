@@ -155,28 +155,34 @@ def create_app():
     if sheets_client:
         sheets_sync = SheetsSyncWorker(sheets_client, flask_app=app, db_service=db_service)
 
-    with app.app_context():
-        # db.create_all() handles the baseline schema for fresh installs
-        # (the Alembic baseline migration is a no-op).  For existing databases
-        # it's a no-op for tables that already exist.
-        db.create_all()
+    # Skipped in the gunicorn workers: entrypoint.sh has already run
+    # `flask db upgrade` by the time they start, so repeating it here only adds
+    # a full schema round-trip per worker to the startup path -- with 2 workers
+    # that was three runs per cold start against the same remote database, and
+    # it is what left no margin under the 150s startup probe on 2026-09-01.
+    if app.config.get('RUN_DB_MIGRATIONS_ON_STARTUP', True):
+        with app.app_context():
+            # db.create_all() handles the baseline schema for fresh installs
+            # (the Alembic baseline migration is a no-op).  For existing
+            # databases it's a no-op for tables that already exist.
+            db.create_all()
 
-        from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
-        from alembic.migration import MigrationContext
+            from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
+            from alembic.migration import MigrationContext
 
-        with db.engine.connect() as _conn:
-            _current_rev = MigrationContext.configure(_conn).get_current_revision()
+            with db.engine.connect() as _conn:
+                _current_rev = MigrationContext.configure(_conn).get_current_revision()
 
-        if _current_rev is None:
-            # Fresh install: db.create_all() already built the full schema.
-            # Stamp to head so future upgrades start from the right baseline.
-            _db_stamp(revision='head')
-        else:
-            # Existing install: apply any pending migrations (ADD COLUMN, etc.)
-            # and keep alembic_version accurate.  All create_table migrations
-            # have IF NOT EXISTS guards so they're safe if the table already
-            # exists from a prior db.create_all() run.
-            _upgrade_with_race_retry(_db_upgrade)
+            if _current_rev is None:
+                # Fresh install: db.create_all() already built the full schema.
+                # Stamp to head so future upgrades start from the right baseline.
+                _db_stamp(revision='head')
+            else:
+                # Existing install: apply any pending migrations (ADD COLUMN,
+                # etc.) and keep alembic_version accurate.  All create_table
+                # migrations have IF NOT EXISTS guards so they're safe if the
+                # table already exists from a prior db.create_all() run.
+                _upgrade_with_race_retry(_db_upgrade)
 
     # Register blueprints
     from .blueprints.dashboard import bp as dashboard_bp

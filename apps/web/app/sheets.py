@@ -228,18 +228,48 @@ class SheetsClient:
         # API can hang a single call for minutes instead of failing fast into
         # the retry loop below. Bound it so retries actually behave as retries.
         self.gc.http_client.timeout = http_timeout_seconds
-        self.spreadsheet = self._open_with_retry(
-            spreadsheet_id=spreadsheet_id,
-            max_retries=max(0, startup_max_retries),
-            retry_base_seconds=max(0.1, startup_retry_base_seconds),
-        )
         self._cache = _Cache(ttl=cache_ttl)
         self._worksheets: dict[str, gspread.Worksheet] = {}
         self._next_row_cache: dict[str, int] = {}
 
-        # Optional expensive startup check (off by default to reduce quota pressure).
+        # Opening the spreadsheet is deferred to first use -- see the
+        # `spreadsheet` property. Constructing this client must not touch the
+        # network, because create_app() constructs it on the startup path and
+        # Sheets is a best-effort backup mirror, never read for primary data.
+        self._spreadsheet = None
+        self._spreadsheet_id = spreadsheet_id
+        self._open_max_retries = max(0, startup_max_retries)
+        self._open_retry_base_seconds = max(0.1, startup_retry_base_seconds)
+
+        # Optional expensive startup check (off by default to reduce quota
+        # pressure). This one is eager by name and by intent: enabling it opts
+        # back in to opening the spreadsheet during startup.
         if validate_headers_on_startup:
             self._validate_headers()
+
+    @property
+    def spreadsheet(self):
+        """The gspread Spreadsheet, opened on first access rather than in __init__.
+
+        This used to be opened eagerly in the constructor, which put a retry
+        loop worth up to ~136s (5 retries, 15s HTTP timeout, backoff from 1.5s)
+        on Cloud Run's startup path -- against a 150s startup-probe budget. A
+        degraded network turned a Sheets slowdown into "the revision never
+        becomes ready", which is how a best-effort backup mirror took the whole
+        app down on 2026-09-01.
+
+        Deferring it means a Sheets outage costs the Sheets features and nothing
+        else: the app boots, serves, and reads from Turso as it always did. The
+        retry loop still runs here, so a transient failure is still absorbed --
+        it just no longer runs before the app can answer a health check.
+        """
+        if self._spreadsheet is None:
+            self._spreadsheet = self._open_with_retry(
+                spreadsheet_id=self._spreadsheet_id,
+                max_retries=self._open_max_retries,
+                retry_base_seconds=self._open_retry_base_seconds,
+            )
+        return self._spreadsheet
 
     @staticmethod
     def _is_retryable_api_error(exc: Exception) -> bool:
