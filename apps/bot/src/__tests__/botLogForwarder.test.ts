@@ -90,6 +90,37 @@ describe('BotLogForwarder.flush', () => {
     expect(events[events.length - 1]).toBe('second_batch_59');
   });
 
+  it('stamps each entry with a distinct id', async () => {
+    logEvent('warn', 'config_sync_failed', {});
+    logEvent('warn', 'config_sync_failed', {});
+
+    const ids = drainLogBuffer().map((e) => e.entryId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toEqual(expect.any(String));
+    expect(ids[0]).not.toBe(ids[1]);
+  });
+
+  it('keeps an entry id stable across a failed flush, so the retry dedupes', async () => {
+    // The web app commits its rows before running escalation checks and its
+    // pruning pass, so a failure after that point means the entry is stored
+    // while the bot still retries. The id is what lets the server tell that
+    // retry from a genuine second occurrence -- it must not be regenerated.
+    const post = vi.fn().mockRejectedValue(new Error('bot-log POST failed: 500'));
+    logEvent('warn', 'heartbeat_failed', {});
+
+    const forwarder = new BotLogForwarder(makeAdapter(post));
+    await forwarder.flush();
+    post.mockResolvedValue(undefined);
+    await forwarder.flush();
+
+    expect(post.mock.calls[0][0][0].entryId).toBe(post.mock.calls[1][0][0].entryId);
+  });
+
+  it('does not let a caller overwrite the entry id', () => {
+    logEvent('warn', 'config_sync_failed', { entryId: 'attacker-supplied' });
+    expect(drainLogBuffer()[0].entryId).not.toBe('attacker-supplied');
+  });
+
   it('does not POST when there is nothing buffered', async () => {
     const post = vi.fn().mockResolvedValue(undefined);
     await new BotLogForwarder(makeAdapter(post)).flush();

@@ -337,6 +337,19 @@ class SheetsClient:
         import logging
         log = logging.getLogger(__name__)
 
+        # Open once, up front. Each tab below catches its own exception and
+        # continues, and opening is lazy now, so a failed open would otherwise
+        # be retried from scratch for every tab -- seven full backoff cycles
+        # (~136s each with the defaults) instead of one. Failing here skips
+        # validation rather than raising: this check is a startup diagnostic,
+        # and the point of deferring the open was that Sheets being unavailable
+        # must not stop the app from serving.
+        try:
+            self.spreadsheet
+        except Exception as exc:
+            log.error('HEADER CHECK: skipped, spreadsheet unavailable: %s', exc)
+            return
+
         for tab_name, expected in tabs.items():
             try:
                 ws = self._ws(tab_name)
