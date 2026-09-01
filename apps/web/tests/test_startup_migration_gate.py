@@ -64,8 +64,20 @@ def test_anything_else_leaves_migrations_on(value):
 
 
 def _create_app_with_flag(flag):
+    """Build the app with the flag set, with a session key supplied.
+
+    create_app() refuses to start when FLASK_SECRET_KEY is absent (see
+    test_secret_key_fallback.py), so these are the first tests in the suite that
+    call it and they have to provide one. Setting it explicitly also keeps the
+    result independent of whether the machine running the tests happens to have
+    an apps/web/.env -- config.py calls load_dotenv(), so a developer's local
+    file would otherwise supply the key and hide this in CI, which is exactly
+    what it did.
+    """
     previous = os.environ.get('RUN_DB_MIGRATIONS_ON_STARTUP')
+    previous_key = os.environ.get('FLASK_SECRET_KEY')
     os.environ['RUN_DB_MIGRATIONS_ON_STARTUP'] = flag
+    os.environ['FLASK_SECRET_KEY'] = 'test-key-for-create-app'
     try:
         import config
 
@@ -83,6 +95,10 @@ def _create_app_with_flag(flag):
             os.environ.pop('RUN_DB_MIGRATIONS_ON_STARTUP', None)
         else:
             os.environ['RUN_DB_MIGRATIONS_ON_STARTUP'] = previous
+        if previous_key is None:
+            os.environ.pop('FLASK_SECRET_KEY', None)
+        else:
+            os.environ['FLASK_SECRET_KEY'] = previous_key
         import config
 
         importlib.reload(config)
