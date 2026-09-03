@@ -24,6 +24,15 @@ class AppLogEntry(db.Model):
     # Same grouping key used for Discord alert dedupe (source:event[:subject]) —
     # lets us count occurrences of "this specific thing" for escalation.
     dedupe_key = db.Column(String(250), nullable=False, default='', index=True)
+    # Stable per-occurrence id from the bot, used to drop retried entries.
+    # /api/bot-log commits before its escalation checks and pruning pass, so a
+    # failure after that commit leaves the row stored while the bot still
+    # retries -- and a duplicate row would inflate the occurrence counts the
+    # recurring-issue alerts key off. Nullable and not unique at the database
+    # level: rows predating this column have no id, and neither do entries from
+    # a bot old enough not to send one, so uniqueness is enforced by the
+    # endpoint for the rows that do carry an id.
+    entry_uid = db.Column(String(36), nullable=True, index=True)
 
 
 class DbCharacter(db.Model):

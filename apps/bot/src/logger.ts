@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** In-memory buffer of warn/error entries, flushed periodically by BotLogForwarder. */
@@ -39,7 +41,18 @@ export function logEvent(level: LogLevel, event: string, context: Record<string,
     ts: new Date().toISOString(),
     level,
     event,
+    // Stable identity for this occurrence, assigned once here and carried
+    // through every retry of the flush that sends it. /api/bot-log commits its
+    // rows before it runs the Discord escalation checks and its pruning pass,
+    // so a failure after that first commit -- or a lost response -- means the
+    // entry is stored but the bot still sees an error and requeues it. Without
+    // an id the web app cannot tell that retry from a genuine second
+    // occurrence, and the duplicates inflate the very escalation counts the
+    // recurring-issue alerts are based on.
     ...context,
+    // Placed after the spread deliberately: this is load-bearing for dedupe, so
+    // a caller's context key must not be able to overwrite it.
+    entryId: randomUUID(),
   };
 
   const line = JSON.stringify(payload);

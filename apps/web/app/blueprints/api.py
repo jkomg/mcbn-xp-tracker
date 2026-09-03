@@ -1345,16 +1345,47 @@ def bot_log():
     # (dedupe_key, message, details, link) — checked for escalation after
     # commit, once each row's own count is stable to query.
     pending_escalation_checks = []
-    for raw in entries[:100]:
+    batch = entries[:100]
+    # Drop entries this endpoint has already stored.
+    #
+    # The commit below lands before the escalation checks and the pruning pass,
+    # either of which can still fail, and a lost response has the same shape: the
+    # rows are saved but the bot sees an error and retries the same batch. Those
+    # retries used to be dropped on the floor, which hid this; now that they are
+    # kept and resent, the same occurrence would be counted twice and inflate the
+    # escalation counts driving the recurring-issue alerts.
+    #
+    # Entries with no id -- rows from a bot predating entryId -- fall through and
+    # are inserted as before, so an older bot keeps working unchanged.
+    incoming_uids = {
+        str(raw['entryId'])[:36]
+        for raw in batch
+        if isinstance(raw, dict) and raw.get('entryId')
+    }
+    known_uids = set()
+    if incoming_uids:
+        known_uids = {
+            row[0] for row in db.session.query(AppLogEntry.entry_uid)
+            .filter(AppLogEntry.entry_uid.in_(incoming_uids)).all()
+        }
+    for raw in batch:
         if not isinstance(raw, dict):
             continue
         level = str(raw.get('level', '')).lower()
         if level not in ('warn', 'error'):
             continue
+        entry_uid = str(raw['entryId'])[:36] if raw.get('entryId') else None
+        if entry_uid and entry_uid in known_uids:
+            # Already stored by an earlier attempt at this batch, or repeated
+            # within this one. Skipped before pending_escalation_checks so it
+            # cannot contribute a second time to an occurrence count.
+            continue
+        if entry_uid:
+            known_uids.add(entry_uid)
         ts = str(raw.get('ts', now.isoformat()))
         event = str(raw.get('event', 'unknown'))[:200]
         msg = str(raw.get('error') or raw.get('reason') or raw.get('message') or '')
-        context = {k: v for k, v in raw.items() if k not in ('ts', 'level', 'event', 'error', 'reason', 'message')}
+        context = {k: v for k, v in raw.items() if k not in ('ts', 'level', 'event', 'error', 'reason', 'message', 'entryId')}
         import json as _json
         details = _json.dumps(context, ensure_ascii=False) if context else ''
         # Some bot events recur per-character/per-channel (e.g. a review
@@ -1369,7 +1400,7 @@ def bot_log():
         db.session.add(AppLogEntry(
             ts=ts, source='bot', level=level, event=event,
             message=msg[:2000], details=details[:4000], created_at=now,
-            dedupe_key=dedupe_key,
+            dedupe_key=dedupe_key, entry_uid=entry_uid,
         ))
         link = dashboard_link(redirect_uri, 'bot', level, event)
         pending_escalation_checks.append((dedupe_key, msg, details, link))
