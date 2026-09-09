@@ -8,7 +8,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
 )
 
-from app.auth import require_staff, require_login, get_player_discord_id, is_staff, is_logged_in
+from app.auth import require_staff, require_login, get_player_discord_id, is_staff
 from app.db import (
     db, Coterie, CoterieMember, CoterieAdvantage,
     DbCharacter, DbCharacterBackground, DbSpendRequest,
@@ -45,40 +45,130 @@ def _get_coterie_or_404(slug: str) -> Coterie:
     return coterie
 
 
-def _get_player_character(discord_id: str) -> DbCharacter | None:
-    """Return the active approved character for this Discord user, if any."""
-    return DbCharacter.query.filter_by(
-        player_discord=discord_id,
-        active=True,
-    ).first()
+def _get_player_characters(discord_id: str) -> list[DbCharacter]:
+    """All active characters belonging to this Discord user."""
+    if not discord_id:
+        return []
+    return (
+        DbCharacter.query
+        .filter_by(player_discord=discord_id, active=True)
+        .order_by(DbCharacter.character_name)
+        .all()
+    )
 
 
-def _get_coterie_member(coterie: Coterie, char: DbCharacter) -> CoterieMember | None:
-    return CoterieMember.query.filter_by(
-        coterie_id=coterie.id,
-        roster_character_id=char.id,
-    ).first()
+def _get_acting_member(coterie: Coterie, discord_id: str) -> CoterieMember | None:
+    """Resolve which of this player's characters acts in this coterie.
+
+    Players routinely have more than one active character, so the acting
+    character is the one actually in *this* coterie rather than an arbitrary
+    pick from the roster.
+    """
+    if not discord_id:
+        return None
+    return (
+        CoterieMember.query
+        .join(DbCharacter, CoterieMember.roster_character_id == DbCharacter.id)
+        .filter(
+            CoterieMember.coterie_id == coterie.id,
+            DbCharacter.player_discord == discord_id,
+        )
+        .order_by(CoterieMember.joined_at.asc())
+        .first()
+    )
+
+
+def _can_view(coterie: Coterie) -> bool:
+    """Coterie sheets are private to their members and staff."""
+    if is_staff():
+        return True
+    return _get_acting_member(coterie, get_player_discord_id()) is not None
+
+
+def _member_by_character_name(coterie: Coterie, name: str) -> CoterieMember | None:
+    if not name:
+        return None
+    for m in coterie.members:
+        if m.character and m.character.character_name == name:
+            return m
+    return None
+
+
+def _pool_available(coterie: Coterie) -> int:
+    return sum(m.free_dots_remaining for m in coterie.members)
+
+
+def _drain_pool(coterie: Coterie, dots: int,
+                prefer: CoterieMember | None = None) -> bool:
+    """Take `dots` out of the shared free-dot pool.
+
+    Returns False (changing nothing) when the pool is short. Creation dots are
+    spent collectively, so the check is on the pool total — checking a single
+    member's balance lets another member's click bypass it.
+    """
+    if _pool_available(coterie) < dots:
+        return False
+    order = list(coterie.members)
+    if prefer is not None:
+        order.sort(key=lambda m: m.id != prefer.id)
+    remaining = dots
+    for m in order:
+        take = min(m.free_dots_remaining, remaining)
+        m.free_dots_remaining -= take
+        remaining -= take
+        if remaining <= 0:
+            break
+    return True
+
+
+def _credit_pool(coterie: Coterie, dots: int,
+                 prefer: CoterieMember | None = None) -> None:
+    """Return `dots` to the pool, preferring whoever originally put them in."""
+    target = prefer if prefer is not None else (coterie.members[0] if coterie.members else None)
+    if target is not None:
+        target.free_dots_remaining += dots
 
 
 # ---------------------------------------------------------------------------
-# Public: coterie index
+# Members + staff: coterie index
 # ---------------------------------------------------------------------------
 
 @bp.route('/')
+@require_login
 def index():
-    coteries = Coterie.query.filter(
-        Coterie.status.in_(['active', 'pending'])
-    ).order_by(Coterie.name).all()
+    """Staff see every coterie; players see only the ones they belong to."""
+    query = Coterie.query.filter(Coterie.status.in_(['active', 'pending']))
+    if not is_staff():
+        my_ids = [
+            row.coterie_id for row in (
+                CoterieMember.query
+                .join(DbCharacter, CoterieMember.roster_character_id == DbCharacter.id)
+                .filter(DbCharacter.player_discord == get_player_discord_id())
+                .all()
+            )
+        ]
+        if not my_ids:
+            return render_template('coteries/index.html', coteries=[])
+        query = query.filter(Coterie.id.in_(my_ids))
+    coteries = query.order_by(Coterie.name).all()
     return render_template('coteries/index.html', coteries=coteries)
 
 
 # ---------------------------------------------------------------------------
-# Public: coterie page
+# Members + staff: coterie page
+#
+# A coterie sheet carries staff sign-off notes, the creation pool and donation
+# state, so it is private to its own members and staff. The public, in-character
+# view of a coterie is its Chronicle Wiki page, which the sync builds from
+# active coteries only.
 # ---------------------------------------------------------------------------
 
 @bp.route('/<slug>')
+@require_login
 def view(slug: str):
     coterie = _get_coterie_or_404(slug)
+    if not _can_view(coterie):
+        abort(404)
 
     # Donated backgrounds: from member PCs, grouped by character
     donated_bgs = DbCharacterBackground.query.filter_by(
@@ -86,28 +176,24 @@ def view(slug: str):
     ).all()
 
     # Determine if the current player is a member (for blanking controls)
-    is_member = False
     player_char = None
     my_backgrounds = []
     my_pending = []
-    if is_logged_in():
-        discord_id = get_player_discord_id()
-        player_char = _get_player_character(discord_id)
-        if player_char:
-            is_member = bool(_get_coterie_member(coterie, player_char))
-            # Backgrounds the player can donate (not already donated or pending anywhere)
-            my_backgrounds = DbCharacterBackground.query.filter_by(
-                character_name=player_char.character_name,
-                donated_coterie_id=None,
-                donation_pending_coterie_id=None,
-            ).filter(DbCharacterBackground.dots_total > 0).all()
-            # Backgrounds this player has pending for this coterie
-            my_pending = DbCharacterBackground.query.filter_by(
-                character_name=player_char.character_name,
-                donation_pending_coterie_id=coterie.id,
-            ).all()
-        else:
-            my_pending = []
+    acting_member = _get_acting_member(coterie, get_player_discord_id())
+    is_member = acting_member is not None
+    if acting_member is not None:
+        player_char = acting_member.character
+        # Backgrounds the player can donate (not already donated or pending anywhere)
+        my_backgrounds = DbCharacterBackground.query.filter_by(
+            character_name=player_char.character_name,
+            donated_coterie_id=None,
+            donation_pending_coterie_id=None,
+        ).filter(DbCharacterBackground.dots_total > 0).all()
+        # Backgrounds this player has pending for this coterie
+        my_pending = DbCharacterBackground.query.filter_by(
+            character_name=player_char.character_name,
+            donation_pending_coterie_id=coterie.id,
+        ).all()
 
     # Pool items: hide creation-tagged entries from the pool only while forming
     # (they appear in the formation panel instead); once submitted/active they join the pool
@@ -147,6 +233,7 @@ def view(slug: str):
         my_pending=my_pending,
         is_staff_user=is_staff(),
         is_forming=forming,
+        budget=_creation_budget(coterie),
         xp_donations=xp_donations,
         xp_donations_total=xp_donations_total,
         pending_xp_donations=pending_xp_donations,
@@ -326,10 +413,11 @@ def add_advantage(slug: str):
     coterie = _get_coterie_or_404(slug)
 
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
+    member = _get_acting_member(coterie, discord_id)
+    player_char = member.character if member else None
 
     # Must be a member or staff
-    is_member_flag = player_char and bool(_get_coterie_member(coterie, player_char))
+    is_member_flag = member is not None
     if not is_member_flag and not is_staff():
         abort(403)
 
@@ -349,16 +437,14 @@ def add_advantage(slug: str):
     if advantage_type not in ('background', 'merit', 'flaw'):
         advantage_type = 'background'
 
-    # Spending from member's free dot allocation (flaws add dots, don't spend them)
+    # Spending from the shared free dot pool (flaws add dots, don't spend them)
     if advantage_type != 'flaw' and is_member_flag and not is_staff():
-        member = _get_coterie_member(coterie, player_char)
-        if member.free_dots_remaining < dots:
+        if not _drain_pool(coterie, dots, prefer=member):
             flash(
-                f'You only have {member.free_dots_remaining} free dot(s) remaining.',
+                f'Only {_pool_available(coterie)} free dot(s) remaining in the pool.',
                 'danger',
             )
             return redirect(url_for('coteries.view', slug=slug))
-        member.free_dots_remaining -= dots
 
     adv = CoterieAdvantage(
         coterie_id=coterie.id,
@@ -398,10 +484,10 @@ def donate_background(slug: str, bg_id: int):
     """Player submits a background donation request — pending staff approval."""
     coterie = _get_coterie_or_404(slug)
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     bg = DbCharacterBackground.query.filter_by(
         id=bg_id,
@@ -432,10 +518,10 @@ def cancel_donation(slug: str, bg_id: int):
     """Player cancels their own pending donation request."""
     coterie = _get_coterie_or_404(slug)
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     bg = DbCharacterBackground.query.filter_by(
         id=bg_id,
@@ -505,10 +591,10 @@ def deny_donation(slug: str, bg_id: int):
 def undonate_background(slug: str, bg_id: int):
     coterie = _get_coterie_or_404(slug)
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     bg = DbCharacterBackground.query.filter_by(
         id=bg_id,
@@ -533,10 +619,10 @@ def undonate_background(slug: str, bg_id: int):
 def blank_donated_background(slug: str, bg_id: int):
     coterie = _get_coterie_or_404(slug)
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     bg = DbCharacterBackground.query.filter_by(
         id=bg_id,
@@ -582,17 +668,36 @@ def blank_donated_background(slug: str, bg_id: int):
 @require_login
 def propose():
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
+    my_characters = _get_player_characters(discord_id)
 
-    if not player_char:
+    if not my_characters:
         flash('You need an active character to propose a coterie.', 'danger')
         return redirect(url_for('coteries.index'))
 
-    # A character can only be in one coterie at a time
-    existing = CoterieMember.query.filter_by(roster_character_id=player_char.id).first()
-    if existing:
+    # A character can only be in one coterie at a time, so only the player's
+    # unattached characters can propose one.
+    eligible = [
+        c for c in my_characters
+        if not CoterieMember.query.filter_by(roster_character_id=c.id).first()
+    ]
+    if not eligible:
+        existing = CoterieMember.query.filter_by(
+            roster_character_id=my_characters[0].id
+        ).first()
         flash('Your character is already in a coterie.', 'warning')
         return redirect(url_for('coteries.view', slug=existing.coterie.slug))
+
+    # Which character is proposing. Players commonly have more than one, so the
+    # choice is explicit and re-validated server-side rather than inferred.
+    player_char = eligible[0]
+    if request.method == 'POST' and len(eligible) > 1:
+        chosen_id = request.form.get('proposer_id', type=int)
+        chosen = next((c for c in eligible if c.id == chosen_id), None)
+        if chosen is None:
+            flash('Choose which of your characters is proposing this coterie.', 'danger')
+            return render_template('coteries/propose.html', player_char=eligible[0],
+                                   eligible=eligible, invitable=[])
+        player_char = chosen
 
     # Characters eligible to invite (active, approved, not already in a coterie)
     already_in = db.session.query(CoterieMember.roster_character_id).subquery()
@@ -609,11 +714,13 @@ def propose():
 
         if not name:
             flash('Coterie name is required.', 'danger')
-            return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+            return render_template('coteries/propose.html', player_char=player_char,
+                               eligible=eligible, invitable=invitable)
 
         if Coterie.query.filter_by(name=name).first():
             flash(f'A coterie named "{name}" already exists.', 'danger')
-            return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+            return render_template('coteries/propose.html', player_char=player_char,
+                               eligible=eligible, invitable=invitable)
 
         slug = _slugify(name)
         base_slug = slug
@@ -665,7 +772,8 @@ def propose():
         flash(f'Coterie "{name}" proposed! Allocate your creation dots below.', 'success')
         return redirect(url_for('coteries.view', slug=coterie.slug))
 
-    return render_template('coteries/propose.html', player_char=player_char, invitable=invitable)
+    return render_template('coteries/propose.html', player_char=player_char,
+                               eligible=eligible, invitable=invitable)
 
 
 # ---------------------------------------------------------------------------
@@ -704,9 +812,10 @@ def creation_allocate(slug: str):
         return redirect(url_for('coteries.view', slug=slug))
 
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     target_kind = request.form.get('target_kind', '')
     target_name = request.form.get('target_name', '').strip()
@@ -748,22 +857,9 @@ def creation_allocate(slug: str):
         flash('Invalid target type.', 'danger')
         return redirect(url_for('coteries.view', slug=slug))
 
-    # Deduct from member's free dot pool (distribute proportionally — simplest: deduct from current user)
-    member = _get_coterie_member(coterie, player_char)
-    if member.free_dots_remaining >= dots:
-        member.free_dots_remaining -= dots
-    else:
-        # Deduct from pool collectively (other members' remaining dots)
-        remaining = dots - member.free_dots_remaining
-        member.free_dots_remaining = 0
-        for m in coterie.members:
-            if m.id == member.id:
-                continue
-            take = min(m.free_dots_remaining, remaining)
-            m.free_dots_remaining -= take
-            remaining -= take
-            if remaining <= 0:
-                break
+    # Creation dots are spent from the shared pool, drawing on the allocating
+    # member's own dots first.
+    _drain_pool(coterie, dots, prefer=member)
 
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
@@ -784,9 +880,10 @@ def creation_flaw(slug: str):
         return redirect(url_for('coteries.view', slug=slug))
 
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+    player_char = member.character
 
     flaw_name = request.form.get('flaw_name', '').strip()
     dots = request.form.get('dots', 1, type=int)
@@ -812,9 +909,8 @@ def creation_flaw(slug: str):
     )
     db.session.add(flaw)
 
-    # Grant bonus dots back to pool — add to the proposer/current member
-    member = _get_coterie_member(coterie, player_char)
-    member.free_dots_remaining += dots
+    # Grant bonus dots to the pool, credited to the member who took the flaw
+    _credit_pool(coterie, dots, prefer=member)
 
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
@@ -833,8 +929,8 @@ def creation_remove(slug: str, adv_id: int):
         return redirect(url_for('coteries.view', slug=slug))
 
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
 
     adv = CoterieAdvantage.query.filter_by(
@@ -844,24 +940,26 @@ def creation_remove(slug: str, adv_id: int):
     dots = adv.dots
     is_flaw = adv.advantage_type == 'flaw'
 
-    member = _get_coterie_member(coterie, player_char)
+    # Whoever originally took the flaw / made the allocation owns those dots,
+    # regardless of which member is clicking Remove now.
+    owner = _member_by_character_name(coterie, adv.added_by) or member
+
     if is_flaw:
-        # Removing a flaw claws back the bonus dots it granted.
-        # If the pool has already spent those dots, block the removal.
-        if member.free_dots_remaining < dots:
+        # Removing a flaw claws back the bonus dots it granted. The check is on
+        # the pool total, not one member's balance — otherwise a second member
+        # can remove a flaw whose bonus dots the coterie has already spent and
+        # leave the sheet over-allocated.
+        if not _drain_pool(coterie, dots, prefer=owner):
             flash(
                 f'Cannot remove "{adv.name}" — its bonus dot(s) have already been spent. '
                 'Remove an allocation first.',
                 'danger',
             )
             return redirect(url_for('coteries.view', slug=slug))
-
-    db.session.delete(adv)
-
-    if is_flaw:
-        member.free_dots_remaining -= dots
+        db.session.delete(adv)
     else:
-        member.free_dots_remaining += dots
+        db.session.delete(adv)
+        _credit_pool(coterie, dots, prefer=owner)
 
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
@@ -883,9 +981,23 @@ def submit_for_review(slug: str):
         return redirect(url_for('coteries.view', slug=slug))
 
     discord_id = get_player_discord_id()
-    player_char = _get_player_character(discord_id)
-    if not player_char or not _get_coterie_member(coterie, player_char):
+    member = _get_acting_member(coterie, discord_id)
+    if member is None:
         abort(403)
+
+    # Allocation routes are gated on 'forming', so any dots left unspent at
+    # sign-off are lost for good. Block rather than silently burn them.
+    budget = _creation_budget(coterie)
+    if budget['used'] == 0:
+        flash('Allocate your creation dots before submitting for sign-off.', 'danger')
+        return redirect(url_for('coteries.view', slug=slug))
+    if budget['left'] > 0:
+        flash(
+            f'{budget["left"]} creation dot(s) still unspent — allocate them before '
+            'submitting, as they cannot be spent after sign-off.',
+            'danger',
+        )
+        return redirect(url_for('coteries.view', slug=slug))
 
     coterie.creation_state = 'submitted'
     coterie.updated_at = datetime.now(timezone.utc)
@@ -903,6 +1015,13 @@ def submit_for_review(slug: str):
 def approve_formation(slug: str):
     coterie = _get_coterie_or_404(slug)
 
+    if coterie.creation_state != 'submitted':
+        flash(
+            f'{coterie.name} has not been submitted for sign-off — nothing to approve.',
+            'warning',
+        )
+        return redirect(url_for('coteries.manage', slug=slug))
+
     coterie.creation_state = 'active'
     coterie.status = 'active'
     coterie.creation_notes = None
@@ -916,6 +1035,15 @@ def approve_formation(slug: str):
 @require_staff
 def sendback_formation(slug: str):
     coterie = _get_coterie_or_404(slug)
+
+    # Guard against knocking an already-approved coterie back into formation,
+    # which would reopen player editing of a signed-off sheet.
+    if coterie.creation_state != 'submitted':
+        flash(
+            f'{coterie.name} has not been submitted for sign-off — nothing to send back.',
+            'warning',
+        )
+        return redirect(url_for('coteries.manage', slug=slug))
 
     notes = request.form.get('notes', '').strip()
     coterie.creation_state = 'forming'

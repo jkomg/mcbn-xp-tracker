@@ -89,10 +89,11 @@
     {% set creation_flaws = coterie.advantages | selectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
     {% set creation_items = coterie.advantages | rejectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
     {% set flaw_dots_taken = creation_flaws | sum(attribute='dots') %}
-    {% set base_dots = coterie.members | length * 2 %}
-    {% set bonus_dots = flaw_dots_taken %}
-    {% set dots_spent = base_dots - (coterie.members | sum(attribute='free_dots_remaining')) + bonus_dots %}
-    {% set dots_left = base_dots + bonus_dots - dots_spent %}
+    {# Budget comes from the server (_creation_budget) so the rules live in one place. #}
+    {% set base_dots = budget.base %}
+    {% set bonus_dots = budget.bonus %}
+    {% set dots_spent = budget.used %}
+    {% set dots_left = budget.left %}
     <div class="col-12">
         <div class="card border-warning">
             <div class="card-header fw-bold text-warning-emphasis bg-warning bg-opacity-10">

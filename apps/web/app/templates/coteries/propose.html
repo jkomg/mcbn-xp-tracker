@@ -15,13 +15,28 @@
 <div class="card">
     <div class="card-body">
         <p class="text-muted small mb-3">
+            {% if eligible and eligible | length == 1 %}
             Proposing as <strong>{{ player_char.character_name }}</strong>.
+            {% endif %}
             Your coterie will start in the <em>forming</em> phase — allocate creation dots,
             then submit for staff sign-off.
         </p>
 
         <form method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {% if eligible and eligible | length > 1 %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Proposing as <span class="text-danger">*</span></label>
+                <select name="proposer_id" class="form-select" required>
+                    <option value="">Choose a character…</option>
+                    {% for c in eligible %}
+                    <option value="{{ c.id }}">{{ c.character_name }}{% if c.clan %} — {{ c.clan }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">You have more than one character not yet in a coterie.</div>
+            </div>
+            {% endif %}
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Coterie Name <span class="text-danger">*</span></label>

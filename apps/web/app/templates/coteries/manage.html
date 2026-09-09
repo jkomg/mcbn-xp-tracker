@@ -56,14 +56,13 @@
             <div class="card-body">
                 {% if coterie.members %}
                 <table class="table table-dark table-sm align-middle mb-3">
-                    <thead><tr><th>Character</th><th>Free Dots</th><th>Setup</th><th></th></tr></thead>
+                    <thead><tr><th>Character</th><th>Free Dots</th><th></th></tr></thead>
                     <tbody>
                     {% for m in coterie.members %}
                     <tr>
                         <td>{{ m.character.character_name }}<br>
                             <small class="text-muted">{{ m.character.clan or '—' }}</small></td>
                         <td>{{ m.free_dots_remaining }}</td>
-                        <td>{% if m.setup_complete %}<span class="text-success">✓</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td>
                             <form method="POST" action="{{ url_for('coteries.remove_member', slug=coterie.slug, member_id=m.id) }}"
                                   onsubmit="return confirm('Remove {{ m.character.character_name }}? Their donated backgrounds will be un-donated.')">
