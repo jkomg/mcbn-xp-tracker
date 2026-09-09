@@ -10,7 +10,7 @@ from flask import (
 
 from app.auth import require_staff, require_login, get_player_discord_id, is_staff
 from app.db import (
-    db, Coterie, CoterieMember, CoterieAdvantage,
+    db, Coterie, CoterieMember, CoterieAdvantage, CoterieInvitation,
     DbCharacter, DbCharacterBackground, DbSpendRequest,
 )
 from app.db_service import DBService
@@ -78,11 +78,39 @@ def _get_acting_member(coterie: Coterie, discord_id: str) -> CoterieMember | Non
     )
 
 
+def _pending_invites(coterie: Coterie) -> list[CoterieInvitation]:
+    return [i for i in coterie.invitations if i.status == 'pending']
+
+
+def _get_pending_invite(coterie: Coterie, discord_id: str) -> CoterieInvitation | None:
+    """A pending invitation held by one of this player's characters."""
+    if not discord_id:
+        return None
+    return (
+        CoterieInvitation.query
+        .join(DbCharacter, CoterieInvitation.roster_character_id == DbCharacter.id)
+        .filter(
+            CoterieInvitation.coterie_id == coterie.id,
+            CoterieInvitation.status == 'pending',
+            DbCharacter.player_discord == discord_id,
+        )
+        .order_by(CoterieInvitation.created_at.asc())
+        .first()
+    )
+
+
 def _can_view(coterie: Coterie) -> bool:
-    """Coterie sheets are private to their members and staff."""
+    """Coterie sheets are private to members, pending invitees, and staff.
+
+    An invitee needs to read the sheet to decide whether to accept, so they get
+    read access while their invitation stands — but no membership rights.
+    """
     if is_staff():
         return True
-    return _get_acting_member(coterie, get_player_discord_id()) is not None
+    discord_id = get_player_discord_id()
+    if _get_acting_member(coterie, discord_id) is not None:
+        return True
+    return _get_pending_invite(coterie, discord_id) is not None
 
 
 def _member_by_character_name(coterie: Coterie, name: str) -> CoterieMember | None:
@@ -136,22 +164,39 @@ def _credit_pool(coterie: Coterie, dots: int,
 @bp.route('/')
 @require_login
 def index():
-    """Staff see every coterie; players see only the ones they belong to."""
+    """Staff see every coterie; players see only the ones they belong to.
+
+    Pending invitations are listed separately so an invited player can find
+    the ask without being a member yet.
+    """
+    discord_id = get_player_discord_id()
+    my_invites = []
     query = Coterie.query.filter(Coterie.status.in_(['active', 'pending']))
     if not is_staff():
+        my_invites = (
+            CoterieInvitation.query
+            .join(DbCharacter, CoterieInvitation.roster_character_id == DbCharacter.id)
+            .filter(
+                CoterieInvitation.status == 'pending',
+                DbCharacter.player_discord == discord_id,
+            )
+            .all()
+        )
         my_ids = [
             row.coterie_id for row in (
                 CoterieMember.query
                 .join(DbCharacter, CoterieMember.roster_character_id == DbCharacter.id)
-                .filter(DbCharacter.player_discord == get_player_discord_id())
+                .filter(DbCharacter.player_discord == discord_id)
                 .all()
             )
         ]
         if not my_ids:
-            return render_template('coteries/index.html', coteries=[])
+            return render_template('coteries/index.html', coteries=[],
+                                   my_invites=my_invites)
         query = query.filter(Coterie.id.in_(my_ids))
     coteries = query.order_by(Coterie.name).all()
-    return render_template('coteries/index.html', coteries=coteries)
+    return render_template('coteries/index.html', coteries=coteries,
+                           my_invites=my_invites)
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +279,8 @@ def view(slug: str):
         is_staff_user=is_staff(),
         is_forming=forming,
         budget=_creation_budget(coterie),
+        pending_invites=_pending_invites(coterie),
+        my_invite=_get_pending_invite(coterie, get_player_discord_id()),
         xp_donations=xp_donations,
         xp_donations_total=xp_donations_total,
         pending_xp_donations=pending_xp_donations,
@@ -751,29 +798,106 @@ def propose():
             joined_at=now,
         ))
 
-        # Add invited members
+        # Invite the chosen characters. They are not members, and contribute
+        # no creation dots, until they accept.
         invited_chars = DbCharacter.query.filter(
             DbCharacter.id.in_(invite_ids),
             DbCharacter.active,
         ).all()
+        invited_count = 0
         for char in invited_chars:
             # Skip anyone already in a coterie
             if CoterieMember.query.filter_by(roster_character_id=char.id).first():
                 continue
-            db.session.add(CoterieMember(
+            db.session.add(CoterieInvitation(
                 coterie_id=coterie.id,
                 roster_character_id=char.id,
-                free_dots_remaining=_CREATION_DOTS_PER_MEMBER,
-                role='member',
-                joined_at=now,
+                status='pending',
+                invited_by=player_char.character_name,
+                created_at=now,
             ))
+            invited_count += 1
 
         db.session.commit()
-        flash(f'Coterie "{name}" proposed! Allocate your creation dots below.', 'success')
+        note = (f' {invited_count} invitation(s) sent — they join the coterie, and add '
+                'their creation dots, once they accept.') if invited_count else ''
+        flash(f'Coterie "{name}" proposed!{note}', 'success')
         return redirect(url_for('coteries.view', slug=coterie.slug))
 
     return render_template('coteries/propose.html', player_char=player_char,
                                eligible=eligible, invitable=invitable)
+
+
+# ---------------------------------------------------------------------------
+# Invited player: accept / decline; members: revoke
+# ---------------------------------------------------------------------------
+
+@bp.route('/<slug>/invite/accept', methods=['POST'])
+@require_login
+def accept_invitation(slug: str):
+    """Invited character joins, bringing their creation dots into the pool."""
+    coterie = _get_coterie_or_404(slug)
+    invite = _get_pending_invite(coterie, get_player_discord_id())
+    if invite is None:
+        abort(403)
+
+    # Re-check here, not just at invite time: the character may have joined
+    # another coterie while this invitation was outstanding.
+    if CoterieMember.query.filter_by(roster_character_id=invite.roster_character_id).first():
+        flash(f'{invite.character.character_name} is already in a coterie.', 'warning')
+        return redirect(url_for('coteries.index'))
+
+    now = datetime.now(timezone.utc)
+    db.session.add(CoterieMember(
+        coterie_id=coterie.id,
+        roster_character_id=invite.roster_character_id,
+        free_dots_remaining=_CREATION_DOTS_PER_MEMBER,
+        role='member',
+        joined_at=now,
+    ))
+    invite.status = 'accepted'
+    invite.responded_at = now
+    coterie.updated_at = now
+    db.session.commit()
+    flash(
+        f'{invite.character.character_name} joined {coterie.name}, adding '
+        f'{_CREATION_DOTS_PER_MEMBER} creation dots to the pool.',
+        'success',
+    )
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/invite/decline', methods=['POST'])
+@require_login
+def decline_invitation(slug: str):
+    coterie = _get_coterie_or_404(slug)
+    invite = _get_pending_invite(coterie, get_player_discord_id())
+    if invite is None:
+        abort(403)
+
+    invite.status = 'declined'
+    invite.responded_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Invitation to {coterie.name} declined.', 'info')
+    return redirect(url_for('coteries.index'))
+
+
+@bp.route('/<slug>/invite/<int:invite_id>/revoke', methods=['POST'])
+@require_login
+def revoke_invitation(slug: str, invite_id: int):
+    """A member (or staff) withdraws an invitation that has not been answered."""
+    coterie = _get_coterie_or_404(slug)
+    if _get_acting_member(coterie, get_player_discord_id()) is None and not is_staff():
+        abort(403)
+
+    invite = CoterieInvitation.query.filter_by(
+        id=invite_id, coterie_id=coterie.id, status='pending'
+    ).first_or_404()
+    invite.status = 'revoked'
+    invite.responded_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Invitation to {invite.character.character_name} withdrawn.', 'info')
+    return redirect(url_for('coteries.view', slug=slug))
 
 
 # ---------------------------------------------------------------------------
@@ -984,6 +1108,16 @@ def submit_for_review(slug: str):
     member = _get_acting_member(coterie, discord_id)
     if member is None:
         abort(403)
+
+    pending = _pending_invites(coterie)
+    if pending:
+        names = ', '.join(i.character.character_name for i in pending)
+        flash(
+            f'Still waiting on {names} to answer their invitation. Their creation '
+            'dots join the pool on accept, so settle invitations before sign-off.',
+            'danger',
+        )
+        return redirect(url_for('coteries.view', slug=slug))
 
     # Allocation routes are gated on 'forming', so any dots left unspent at
     # sign-off are lost for good. Block rather than silently burn them.
