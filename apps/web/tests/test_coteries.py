@@ -512,6 +512,8 @@ def _invite(app, coterie_id, char_name, invited_by='Fiora'):
             coterie_id=coterie_id, roster_character_id=char.id,
             status='pending', invited_by=invited_by))
         db.session.commit()
+        return CoterieInvitation.query.filter_by(
+            coterie_id=coterie_id, roster_character_id=char.id).one().id
 
 
 def test_proposing_invites_rather_than_conscripts():
@@ -560,9 +562,9 @@ def test_accepting_adds_the_member_and_their_dots():
     with app.app_context():
         db.session.add(_character('Kira', '222'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
+    invite_id = _invite(app, coterie_id, 'Kira')
 
-    _client(app, '222').post('/coteries/midnight-accord/invite/accept')
+    _client(app, '222').post(f'/coteries/midnight-accord/invite/{invite_id}/accept')
 
     with app.app_context():
         coterie = db.session.get(Coterie, coterie_id)
@@ -577,9 +579,9 @@ def test_declining_leaves_the_coterie_untouched():
     with app.app_context():
         db.session.add(_character('Kira', '222'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
+    invite_id = _invite(app, coterie_id, 'Kira')
 
-    _client(app, '222').post('/coteries/midnight-accord/invite/decline')
+    _client(app, '222').post(f'/coteries/midnight-accord/invite/{invite_id}/decline')
 
     with app.app_context():
         coterie = db.session.get(Coterie, coterie_id)
@@ -597,10 +599,10 @@ def test_a_stranger_cannot_accept_someone_elses_invitation():
         db.session.add(_character('Kira', '222'))
         db.session.add(_character('Solomon', '333'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
+    invite_id = _invite(app, coterie_id, 'Kira')
 
     assert _client(app, '333').post(
-        '/coteries/midnight-accord/invite/accept').status_code == 403
+        f'/coteries/midnight-accord/invite/{invite_id}/accept').status_code == 403
     with app.app_context():
         assert len(db.session.get(Coterie, coterie_id).members) == 1
 
@@ -611,7 +613,7 @@ def test_accepting_is_refused_if_the_character_joined_elsewhere_meanwhile():
     with app.app_context():
         db.session.add(_character('Kira', '222'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
+    invite_id = _invite(app, coterie_id, 'Kira')
 
     # Kira joins another coterie while the invitation sits unanswered.
     with app.app_context():
@@ -623,7 +625,7 @@ def test_accepting_is_refused_if_the_character_joined_elsewhere_meanwhile():
                                      free_dots_remaining=2))
         db.session.commit()
 
-    _client(app, '222').post('/coteries/midnight-accord/invite/accept')
+    _client(app, '222').post(f'/coteries/midnight-accord/invite/{invite_id}/accept')
 
     with app.app_context():
         assert len(db.session.get(Coterie, coterie_id).members) == 1
@@ -635,9 +637,7 @@ def test_members_can_withdraw_an_unanswered_invitation():
     with app.app_context():
         db.session.add(_character('Kira', '222'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
-    with app.app_context():
-        invite_id = CoterieInvitation.query.filter_by(coterie_id=coterie_id).one().id
+    invite_id = _invite(app, coterie_id, 'Kira')
 
     _client(app, '111').post(f'/coteries/midnight-accord/invite/{invite_id}/revoke')
 
@@ -654,7 +654,7 @@ def test_signoff_is_blocked_while_an_invitation_is_unanswered():
     with app.app_context():
         db.session.add(_character('Kira', '222'))
         db.session.commit()
-    _invite(app, coterie_id, 'Kira')
+    invite_id = _invite(app, coterie_id, 'Kira')
 
     fiora = _client(app, '111')
     fiora.post('/coteries/midnight-accord/creation/allocate',
@@ -665,7 +665,7 @@ def test_signoff_is_blocked_while_an_invitation_is_unanswered():
         assert db.session.get(Coterie, coterie_id).creation_state == 'forming'
 
     # Once the invitation is answered, sign-off proceeds.
-    _client(app, '222').post('/coteries/midnight-accord/invite/decline')
+    _client(app, '222').post(f'/coteries/midnight-accord/invite/{invite_id}/decline')
     fiora.post('/coteries/midnight-accord/submit-for-review')
     with app.app_context():
         assert db.session.get(Coterie, coterie_id).creation_state == 'submitted'
@@ -682,3 +682,127 @@ def test_invitation_appears_on_the_invitees_index():
     body = _client(app, '222').get('/coteries/').data
     assert b'Coterie Invitations' in body
     assert b'Midnight Accord' in body
+
+
+# ---------------------------------------------------------------------------
+# Review follow-ups on the formation-hardening branch (PR #428)
+# ---------------------------------------------------------------------------
+
+def _retire(app, char_name):
+    """Retire a character the way the status API does: flag off, row kept."""
+    with app.app_context():
+        char = DbCharacter.query.filter_by(character_name=char_name).one()
+        char.active = False
+        char.status = 'retired'
+        db.session.commit()
+
+
+def test_a_retired_member_loses_access_to_the_private_sheet():
+    """Retirement leaves the CoterieMember row in place, so activity has to be
+    checked at lookup time or the sheet stays readable forever."""
+    app = _app()
+    _forming_coterie(app, [('Fiora', '111'), ('Kira', '222')])
+    kira = _client(app, '222')
+    assert kira.get('/coteries/midnight-accord').status_code == 200
+
+    _retire(app, 'Kira')
+
+    assert kira.get('/coteries/midnight-accord').status_code == 404
+
+
+def test_a_retired_member_cannot_spend_the_pool():
+    app = _app()
+    coterie_id = _forming_coterie(app, [('Fiora', '111'), ('Kira', '222')])
+    _retire(app, 'Kira')
+
+    resp = _client(app, '222').post('/coteries/midnight-accord/creation/allocate',
+                                    data={'target_kind': 'chasse', 'dots': 1})
+
+    assert resp.status_code == 403
+    with app.app_context():
+        assert db.session.get(Coterie, coterie_id).chasse == 0
+    assert _pool(app, coterie_id) == 4
+
+
+def test_answering_one_invitation_does_not_answer_the_players_other_one():
+    """A player can have two characters invited to the same coterie; each
+    button must answer its own row rather than whichever came first."""
+    app = _app()
+    coterie_id = _forming_coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        db.session.add(_character('Kira', '222'))
+        db.session.add(_character('Nadia', '222'))
+        db.session.commit()
+    kira_invite = _invite(app, coterie_id, 'Kira')
+    nadia_invite = _invite(app, coterie_id, 'Nadia')
+
+    # Answer the *second* invitation.
+    _client(app, '222').post(
+        f'/coteries/midnight-accord/invite/{nadia_invite}/accept')
+
+    with app.app_context():
+        assert db.session.get(CoterieInvitation, nadia_invite).status == 'accepted'
+        assert db.session.get(CoterieInvitation, kira_invite).status == 'pending'
+        names = sorted(m.character.character_name
+                       for m in db.session.get(Coterie, coterie_id).members)
+        assert names == ['Fiora', 'Nadia']
+
+
+def test_declining_one_invitation_does_not_decline_the_players_other_one():
+    app = _app()
+    coterie_id = _forming_coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        db.session.add(_character('Kira', '222'))
+        db.session.add(_character('Nadia', '222'))
+        db.session.commit()
+    kira_invite = _invite(app, coterie_id, 'Kira')
+    nadia_invite = _invite(app, coterie_id, 'Nadia')
+
+    _client(app, '222').post(
+        f'/coteries/midnight-accord/invite/{nadia_invite}/decline')
+
+    with app.app_context():
+        assert db.session.get(CoterieInvitation, nadia_invite).status == 'declined'
+        assert db.session.get(CoterieInvitation, kira_invite).status == 'pending'
+
+
+def test_accepting_is_refused_if_the_character_retired_meanwhile():
+    """Accepting commits two creation dots, so an inactive character must not
+    reach the formation budget."""
+    app = _app()
+    coterie_id = _forming_coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        db.session.add(_character('Kira', '222'))
+        db.session.commit()
+    invite_id = _invite(app, coterie_id, 'Kira')
+
+    _retire(app, 'Kira')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/invite/{invite_id}/accept')
+
+    with app.app_context():
+        assert len(db.session.get(Coterie, coterie_id).members) == 1
+        assert db.session.get(CoterieInvitation, invite_id).status == 'pending'
+    assert _pool(app, coterie_id) == 2
+
+
+def test_the_advantage_form_shows_the_shared_pool_not_a_personal_balance():
+    """The spend drains the pool, so the number next to it has to be the pool."""
+    app = _app()
+    coterie_id = _forming_coterie(app, [('Fiora', '111'), ('Kira', '222')])
+    with app.app_context():
+        coterie = db.session.get(Coterie, coterie_id)
+        coterie.creation_state = 'active'
+        coterie.status = 'active'
+        # Kira has spent her own two dots; Fiora's two are still in the pool.
+        for m in coterie.members:
+            if m.character.character_name == 'Kira':
+                m.free_dots_remaining = 0
+        db.session.commit()
+
+    body = _client(app, '222').get('/coteries/midnight-accord').get_data(as_text=True)
+
+    assert 'Shared free dots remaining' in body
+    assert 'Your free dots remaining' not in body
+    # Kira's personal balance is 0, but she can still spend the pool's 2.
+    assert '<strong>2</strong>' in body

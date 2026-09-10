@@ -63,6 +63,10 @@ def _get_acting_member(coterie: Coterie, discord_id: str) -> CoterieMember | Non
     Players routinely have more than one active character, so the acting
     character is the one actually in *this* coterie rather than an arbitrary
     pick from the roster.
+
+    Retirement and death set `active=False` but leave the membership row in
+    place, so activity is checked here rather than assumed: without it a
+    retired character keeps reading the private sheet and spending the pool.
     """
     if not discord_id:
         return None
@@ -72,6 +76,7 @@ def _get_acting_member(coterie: Coterie, discord_id: str) -> CoterieMember | Non
         .filter(
             CoterieMember.coterie_id == coterie.id,
             DbCharacter.player_discord == discord_id,
+            DbCharacter.active,
         )
         .order_by(CoterieMember.joined_at.asc())
         .first()
@@ -82,11 +87,19 @@ def _pending_invites(coterie: Coterie) -> list[CoterieInvitation]:
     return [i for i in coterie.invitations if i.status == 'pending']
 
 
-def _get_pending_invite(coterie: Coterie, discord_id: str) -> CoterieInvitation | None:
-    """A pending invitation held by one of this player's characters."""
+def _get_pending_invite(coterie: Coterie, discord_id: str,
+                        invite_id: int | None = None) -> CoterieInvitation | None:
+    """A pending invitation held by one of this player's characters.
+
+    `invite_id` binds the lookup to one specific invitation. A player can hold
+    more than one invitation to the same coterie — two of their characters can
+    both be invited — so accept/decline must name the invitation they mean
+    rather than take whichever is oldest. Callers that only ask "does this
+    player have any invitation here" (read access, the view banner) omit it.
+    """
     if not discord_id:
         return None
-    return (
+    query = (
         CoterieInvitation.query
         .join(DbCharacter, CoterieInvitation.roster_character_id == DbCharacter.id)
         .filter(
@@ -94,9 +107,10 @@ def _get_pending_invite(coterie: Coterie, discord_id: str) -> CoterieInvitation 
             CoterieInvitation.status == 'pending',
             DbCharacter.player_discord == discord_id,
         )
-        .order_by(CoterieInvitation.created_at.asc())
-        .first()
     )
+    if invite_id is not None:
+        query = query.filter(CoterieInvitation.id == invite_id)
+    return query.order_by(CoterieInvitation.created_at.asc()).first()
 
 
 def _can_view(coterie: Coterie) -> bool:
@@ -279,6 +293,7 @@ def view(slug: str):
         is_staff_user=is_staff(),
         is_forming=forming,
         budget=_creation_budget(coterie),
+        pool_available=_pool_available(coterie),
         pending_invites=_pending_invites(coterie),
         my_invite=_get_pending_invite(coterie, get_player_discord_id()),
         xp_donations=xp_donations,
@@ -832,12 +847,12 @@ def propose():
 # Invited player: accept / decline; members: revoke
 # ---------------------------------------------------------------------------
 
-@bp.route('/<slug>/invite/accept', methods=['POST'])
+@bp.route('/<slug>/invite/<int:invite_id>/accept', methods=['POST'])
 @require_login
-def accept_invitation(slug: str):
+def accept_invitation(slug: str, invite_id: int):
     """Invited character joins, bringing their creation dots into the pool."""
     coterie = _get_coterie_or_404(slug)
-    invite = _get_pending_invite(coterie, get_player_discord_id())
+    invite = _get_pending_invite(coterie, get_player_discord_id(), invite_id)
     if invite is None:
         abort(403)
 
@@ -845,6 +860,16 @@ def accept_invitation(slug: str):
     # another coterie while this invitation was outstanding.
     if CoterieMember.query.filter_by(roster_character_id=invite.roster_character_id).first():
         flash(f'{invite.character.character_name} is already in a coterie.', 'warning')
+        return redirect(url_for('coteries.index'))
+
+    # Same reason, for retirement or death: accepting commits creation dots to
+    # the formation budget, and an inactive character must not be in it.
+    if not invite.character.active:
+        flash(
+            f'{invite.character.character_name} is no longer active and cannot '
+            f'join a coterie.',
+            'warning',
+        )
         return redirect(url_for('coteries.index'))
 
     now = datetime.now(timezone.utc)
@@ -867,11 +892,11 @@ def accept_invitation(slug: str):
     return redirect(url_for('coteries.view', slug=slug))
 
 
-@bp.route('/<slug>/invite/decline', methods=['POST'])
+@bp.route('/<slug>/invite/<int:invite_id>/decline', methods=['POST'])
 @require_login
-def decline_invitation(slug: str):
+def decline_invitation(slug: str, invite_id: int):
     coterie = _get_coterie_or_404(slug)
-    invite = _get_pending_invite(coterie, get_player_discord_id())
+    invite = _get_pending_invite(coterie, get_player_discord_id(), invite_id)
     if invite is None:
         abort(403)
 

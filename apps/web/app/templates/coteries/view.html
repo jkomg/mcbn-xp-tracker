@@ -20,11 +20,11 @@
         dots to the pool.
     </div>
     <div class="ms-auto d-flex gap-2">
-        <form method="POST" action="{{ url_for('coteries.accept_invitation', slug=coterie.slug) }}">
+        <form method="POST" action="{{ url_for('coteries.accept_invitation', slug=coterie.slug, invite_id=my_invite.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-sm btn-success">Accept</button>
         </form>
-        <form method="POST" action="{{ url_for('coteries.decline_invitation', slug=coterie.slug) }}"
+        <form method="POST" action="{{ url_for('coteries.decline_invitation', slug=coterie.slug, invite_id=my_invite.id) }}"
               onsubmit="return confirm('Decline this invitation?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-sm btn-outline-danger">Decline</button>
@@ -298,11 +298,12 @@
 
                 <!-- Add advantage (members + staff) — hidden during formation phase -->
                 {% if (is_member or is_staff_user) and not is_forming %}
-                {% set my_member = coterie.members | selectattr('roster_character_id', 'equalto', player_char.id if player_char else -1) | list %}
-                {% set dots_left = (my_member[0].free_dots_remaining if my_member else 0) if not is_staff_user else 99 %}
                 <hr class="my-3">
                 <p class="small text-muted mb-2">
-                    {% if not is_staff_user %}Your free dots remaining: <strong>{{ dots_left }}</strong>{% else %}Staff: add pool item{% endif %}
+                    {# Creation dots are spent from the shared pool, so show the pool
+                       total this form actually draws on, not the acting member's own
+                       balance — the two disagree in both directions. #}
+                    {% if not is_staff_user %}Shared free dots remaining: <strong>{{ pool_available }}</strong>{% else %}Staff: add pool item{% endif %}
                 </p>
                 <form method="POST" action="{{ url_for('coteries.add_advantage', slug=coterie.slug) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

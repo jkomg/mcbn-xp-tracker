@@ -42,11 +42,11 @@
             <div class="ms-auto d-flex gap-2">
                 <a href="{{ url_for('coteries.view', slug=inv.coterie.slug) }}"
                    class="btn btn-sm btn-outline-secondary">View sheet</a>
-                <form method="POST" action="{{ url_for('coteries.accept_invitation', slug=inv.coterie.slug) }}">
+                <form method="POST" action="{{ url_for('coteries.accept_invitation', slug=inv.coterie.slug, invite_id=inv.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-success">Accept</button>
                 </form>
-                <form method="POST" action="{{ url_for('coteries.decline_invitation', slug=inv.coterie.slug) }}"
+                <form method="POST" action="{{ url_for('coteries.decline_invitation', slug=inv.coterie.slug, invite_id=inv.id) }}"
                       onsubmit="return confirm('Decline the invitation to {{ inv.coterie.name }}?')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-outline-danger">Decline</button>
