@@ -133,6 +133,10 @@ class SpendRequest:
     depends_on: int = 0        # ID of spend that must be approved first (0 = none)
     coterie_id: int = 0        # Coterie this spend is donated toward (0 = none)
     coterie_name: str = ''     # Name of the coterie (denormalized for display)
+    # Orphaned donated background this spend buys, if any (0 = none). Set when a
+    # member buys a background whose donor left play; the transfer happens on
+    # approval.
+    purchased_background_id: int = 0
 
 
 @dataclass

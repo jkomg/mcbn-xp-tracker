@@ -30,6 +30,7 @@ from app.db import (
     DbBoon,
     DbWishListItem,
 )
+from app.coterie_donations import orphan_donated_backgrounds
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 from app.game_calendar import next_night_after_downtime
 
@@ -192,6 +193,7 @@ def _row_to_spend(row: DbSpendRequest) -> SpendRequest:
         depends_on=row.depends_on or 0,
         coterie_id=row.coterie_id or 0,
         coterie_name=row.coterie.name if row.coterie_id and row.coterie else '',
+        purchased_background_id=row.purchased_background_id or 0,
     )
 
 
@@ -301,9 +303,14 @@ class DBService:
             'status': status,
             'active': 'TRUE' if status == 'active' else 'FALSE',
         })
+        if status != 'active':
+            orphan_donated_backgrounds(name)
+            db.session.commit()
 
     def deactivate_character(self, name: str) -> None:
         self.update_character(name, {'active': 'FALSE', 'status': 'retired'})
+        orphan_donated_backgrounds(name)
+        db.session.commit()
 
     def delete_character(self, name: str) -> None:
         row = DbCharacter.query.filter(
@@ -339,6 +346,15 @@ class DBService:
         DbWishListItem.query.filter(
             func.lower(DbWishListItem.character_name) == old_name.lower()
         ).update({'character_name': new_name}, synchronize_session=False)
+        DbCharacterBackground.query.filter(
+            func.lower(DbCharacterBackground.character_name) == old_name.lower()
+        ).update({'character_name': new_name}, synchronize_session=False)
+        # Donated backgrounds record the departed donor by name too, so a
+        # rename has to follow them there or the coterie's copy credits a
+        # character who no longer exists under that name.
+        DbCharacterBackground.query.filter(
+            func.lower(DbCharacterBackground.orphaned_from) == old_name.lower()
+        ).update({'orphaned_from': new_name}, synchronize_session=False)
         _character_action_types = {
             'add_character', 'edit_character', 'activate_character',
             'deactivate_character', 'delete_character', 'rename_character',

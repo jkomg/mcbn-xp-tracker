@@ -7,6 +7,8 @@ from flask import (
 )
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
+from app.coterie_donations import claim_purchased_background
+from app.db import db
 from app.xp_rules import validate_spend_request
 from app.character_sheet import (
     patch_character_draft, find_trait_sheet_match, subcategory_label_for_trait,
@@ -239,6 +241,12 @@ def approve(row_id):
 
     db_service.approve_spend(row_id, verified_cost, staff, notes, trait_name=corrected_trait_name)
     patch_character_draft(spend)
+    # A purchase of a background whose donor left play also moves the coterie's
+    # row to the buyer. The sheet patch above only adds the trait; this is what
+    # gives the coterie's copy a living owner again.
+    claimed = claim_purchased_background(spend)
+    if claimed is not None:
+        db.session.commit()
     rename_note = f' (renamed from "{original_trait_name}" to resolve a close-match warning)' if corrected_trait_name else ''
     db_service.log_action(
         staff_user=staff,
@@ -391,7 +399,16 @@ def reverse(row_id):
             f'{spend.character_name}\'s sheet manually.',
             'warning',
         )
-    if spend.coterie_id:
+    if spend.purchased_background_id:
+        flash(
+            f'This spend bought {spend.trait_name} from '
+            f'{spend.coterie_name or "a coterie"} after its donor left play. '
+            f'Reversing it restores the XP but leaves the background with '
+            f'{spend.character_name} — hand it back to the coterie manually if '
+            f'it should go back on offer.',
+            'warning',
+        )
+    elif spend.coterie_id:
         flash(
             f'This spend was a coterie XP donation to {spend.coterie_name or "a coterie"} — '
             f'reversing it does not undo the coterie donation. Please check the coterie\'s '
@@ -470,6 +487,8 @@ def bulk_approve():
 
         db_service.approve_spend(row_id, verified_cost, staff, '')
         patch_character_draft(spend)
+        if claim_purchased_background(spend) is not None:
+            db.session.commit()
         db_service.log_action(
             staff_user=staff,
             action_type='approve_spend',

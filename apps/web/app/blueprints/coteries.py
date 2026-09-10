@@ -9,6 +9,8 @@ from flask import (
 )
 
 from app.auth import require_staff, require_login, get_player_discord_id, is_staff
+from app.coterie_donations import (PURCHASE_CATEGORY, blocking_reason,
+                                   orphaned_backgrounds, purchase_price)
 from app.db import (
     db, Coterie, CoterieMember, CoterieAdvantage, CoterieInvitation,
     DbCharacter, DbCharacterBackground, DbSpendRequest,
@@ -233,11 +235,16 @@ def view(slug: str):
     donated_bgs = DbCharacterBackground.query.filter_by(
         donated_coterie_id=coterie.id
     ).all()
+    # Backgrounds the coterie kept when their donor left play. They stay in the
+    # pool and stay usable; a remaining member may buy one at standard price to
+    # take ownership.
+    orphaned_bgs = orphaned_backgrounds(coterie.id)
 
     # Determine if the current player is a member (for blanking controls)
     player_char = None
     my_backgrounds = []
     my_pending = []
+    orphan_offers = {}
     acting_member = _get_acting_member(coterie, get_player_discord_id())
     is_member = acting_member is not None
     if acting_member is not None:
@@ -253,6 +260,15 @@ def view(slug: str):
             character_name=player_char.character_name,
             donation_pending_coterie_id=coterie.id,
         ).all()
+        # Price and eligibility per orphaned background, resolved server-side —
+        # the template must not decide who may buy what.
+        orphan_offers = {
+            bg.id: {
+                'price': purchase_price(bg),
+                'blocked': blocking_reason(bg, player_char.character_name),
+            }
+            for bg in orphaned_bgs
+        }
 
     # Pool items: hide creation-tagged entries from the pool only while forming
     # (they appear in the formation panel instead); once submitted/active they join the pool
@@ -294,6 +310,9 @@ def view(slug: str):
         is_forming=forming,
         budget=_creation_budget(coterie),
         pool_available=_pool_available(coterie),
+        orphaned_bgs=orphaned_bgs,
+        orphan_offers=orphan_offers,
+
         pending_invites=_pending_invites(coterie),
         my_invite=_get_pending_invite(coterie, get_player_discord_id()),
         xp_donations=xp_donations,
@@ -669,6 +688,77 @@ def undonate_background(slug: str, bg_id: int):
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     flash(f'{bg.background_name} removed from coterie pool.', 'success')
+    return redirect(url_for('coteries.view', slug=slug))
+
+
+@bp.route('/<slug>/orphaned/<int:bg_id>/buy', methods=['POST'])
+@require_login
+def buy_orphaned_background(slug: str, bg_id: int):
+    """Offer to buy a background whose donor left play, at standard price.
+
+    Raises a normal spend request rather than charging here: XP is the spend
+    queue's authority, and staff approve this the way they approve any other
+    advantage purchase. The transfer happens on approval.
+    """
+    coterie = _get_coterie_or_404(slug)
+    member = _get_acting_member(coterie, get_player_discord_id())
+    if member is None:
+        abort(403)
+    buyer = member.character
+
+    bg = DbCharacterBackground.query.filter_by(
+        id=bg_id, donated_coterie_id=coterie.id,
+    ).first_or_404()
+
+    blocked = blocking_reason(bg, buyer.character_name)
+    if blocked:
+        flash(blocked, 'warning')
+        return redirect(url_for('coteries.view', slug=slug))
+
+    price = purchase_price(bg)
+    available_xp = db_service.get_xp_totals(buyer.character_name)['available_xp']
+    if price > available_xp:
+        flash(
+            f'{buyer.character_name} has {available_xp} XP available; '
+            f'{bg.background_name} costs {price} XP.',
+            'danger',
+        )
+        return redirect(url_for('coteries.view', slug=slug))
+
+    spend = DbSpendRequest(
+        timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        character_name=buyer.character_name,
+        spend_category=PURCHASE_CATEGORY,
+        trait_name=bg.background_name,
+        current_dots=0,
+        new_dots=bg.dots_available,
+        xp_cost=price,
+        status='Pending',
+        coterie_id=coterie.id,
+        purchased_background_id=bg.id,
+        justification=(
+            f'Buying {bg.background_name} ({bg.dots_available} dot(s)) from '
+            f'{coterie.name}. Donated by {bg.orphaned_from}, who has left play.'
+        ),
+    )
+    db.session.add(spend)
+    db.session.commit()
+
+    db_service.log_action(
+        staff_user=f'player:{buyer.character_name}',
+        action_type='player_spend_submitted',
+        target=buyer.character_name,
+        details=(
+            f'Requested purchase of orphaned coterie background '
+            f'{bg.background_name} ({bg.dots_available} dots) from '
+            f'{coterie.name} for {price} XP.'
+        ),
+    )
+    flash(
+        f'Purchase of {bg.background_name} submitted for staff review '
+        f'({price} XP).',
+        'success',
+    )
     return redirect(url_for('coteries.view', slug=slug))
 
 
