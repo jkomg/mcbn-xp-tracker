@@ -44,32 +44,49 @@ and `released_at` (null while outstanding). Keeping released rows rather than
 deleting them costs nothing and makes "why did these dots come back" answerable;
 outstanding is simply `released_at IS NULL`.
 
-**Keep `dots_blanked` as a denormalized total, maintained in one place.** The
-tempting alternative is deleting the column and making `dots_blanked` a Python
-property summing outstanding rows — `dots_available` is already a property, so
-both templates and the API response would keep working untouched. It was
-rejected for two reasons. First, a property cannot be used in a SQL filter or
-index, and `release_due_background_blanks` and the new staff view both want to
-query for outstanding blanks. Second, dropping columns on SQLite/Turso is
-genuinely hazardous: an `ALTER TABLE ... DROP COLUMN` against a table referenced
-by a foreign key fails with `unknown column in foreign key definition`, which
-this repo hit while testing a migration on 2026-09-12. A maintained total keeps
-the migration purely additive.
+**Derive `dots_blanked` from the blank rows and drop the three legacy columns.**
+The blanks table is the only place that knows what is blanked; nothing should be
+able to disagree with it. `dots_blanked` becomes a Python property summing
+outstanding rows, exactly as `dots_available` already is — which is why the two
+templates, `get_character_backgrounds`'s response dict, and therefore the bot's
+schemas all keep working unchanged. `blanked_at_night_number` and
+`release_night_number` go the same way: properties reporting the earliest
+outstanding blank, which is what "when do I next get dots back" means and is the
+one question a single value can still answer honestly.
 
-The cost is a sync obligation, which is the pairing hazard this codebase warns
-about. It is contained by giving the total exactly one writer: a
-`_recompute_blanked_total(row)` helper called at the end of every mutation that
-touches blanks, and nowhere else assigning `dots_blanked`. That is the same
-shape as the audit-log pairing convention — a rule rather than a type — so the
-tests assert the invariant directly (total always equals the sum of outstanding
-rows) rather than only testing behaviour through it.
+An earlier draft kept `dots_blanked` as a maintained denormalized column. Both
+reasons given for that were wrong, and they are recorded here because the second
+nearly became a rule:
 
-**The legacy `blanked_at_night_number` and `release_night_number` become
-display-only, set to the earliest outstanding blank's values.** They stay
-populated so the existing templates, API response and bot schemas keep rendering
-something truthful during and after the transition, and because "when do I get
-dots back next" is the question a single field can still answer correctly. The
-new table is authoritative; these are a view of it.
+- *"A property cannot be used in a SQL filter or index, and the release query
+  needs one."* It does not. With per-blank rows the release query selects from
+  `character_background_blanks` — `WHERE released_at IS NULL AND
+  release_night_number <= :n` — that table's own indexed column. The staff view
+  the same. The argument was reasoning from the pre-change query shape. Nothing
+  filters or sorts *backgrounds* by `dots_blanked` in SQL.
+- *"Dropping a column from a table referenced by a foreign key fails on
+  SQLite/Turso."* It does not. That failure was real but specific: it happened
+  dropping `purchased_background_id` from `spend_requests`, where the column
+  appeared in that table's **own** foreign-key definition. A plain integer on a
+  referenced table is fine. Verified three ways on 2026-09-12 — raw SQLite
+  3.53.4; Alembic's `op.drop_column`, which emits native `DROP COLUMN` and leaves
+  the referencing table's FK intact rather than falling back to a table recreate;
+  and against the **dev Turso database itself** through a throwaway parent/child
+  pair, where the drop succeeded with the FK present and the child row untouched.
+
+What decides it is the cost of being wrong in each direction. A denormalized
+total is an unenforced pairing, which is this repository's dominant bug class —
+the first item in its own regression-hygiene checklist, and the shape of the
+audit-log convention, `rename_character`'s table list, and the duplicated
+activity filters found in `index()` on 2026-09-12. Drift there would silently
+show a player the wrong number of dots while they decide whether to blank more.
+A derived value cannot drift. That is worth more than the convenience of keeping
+a column.
+
+**N+1 is handled by the loader, not by denormalization.** A property summing a
+lazy relationship would issue one query per background. The relationship is
+declared `lazy='selectin'`, so loading a character's backgrounds batches their
+blanks into one additional query regardless of how many there are.
 
 **Release iterates blank rows, applying `night_has_started` per row.** The #431
 gate moves down a level unchanged, including holding a row whose night the
@@ -88,9 +105,17 @@ release path that had to be gated separately.
 
 ## Risks / Trade-offs
 
-- [A denormalized total can drift from the rows] → One writer, and a test
-  asserting the invariant after every mutation path. A reconciliation check could
-  be added to the nightly job later if drift is ever observed.
+- [Dropping columns makes a bare code revert fail — old code reads columns that
+  no longer exist] → True, and already true of every migration here: the
+  entrypoint only ever runs `upgrade`, so reverting any schema change needs a
+  deliberate downgrade rather than just reverting the commit. The migration ships
+  with a working `downgrade()` that recreates the three columns and repopulates
+  them from the blank rows, so the path exists and is tested.
+- [Three properties replace three columns, so any code that *assigns* to them
+  now fails] → Deliberate: an assignment is exactly the bug this removes. The
+  grep in group 2 finds all of them (the coterie blank-everything and undonate
+  paths), and a property without a setter raises rather than silently doing
+  nothing.
 - [Migration backfill must be exactly right or players lose or gain dots] →
   Backfill is mechanical: one row per background with `dots_blanked > 0`,
   carrying its existing two nights. Tested against a fixture database including
@@ -104,12 +129,22 @@ release path that had to be gated separately.
 
 ## Migration Plan
 
-Additive: create the table with a table-exists guard, backfill from the existing
-columns, leave the columns in place. No column drops, so no SQLite hazard. A
-rollback is reverting the code — the legacy columns remain correct for the
-single-blank case, and any background with two outstanding blanks reverts to
-showing the earliest release, which is the #434 interim behaviour rather than
-anything new.
+Create the table with a table-exists guard, backfill one blank row per
+background that currently has `dots_blanked > 0` carrying its existing two
+nights, then drop the three columns — each guarded by a column-exists check, the
+same idiom `3f81c22ad5e7` used for adds. Backfill before drop, in that order, in
+one migration.
+
+`downgrade()` is written and tested, not left as a stub: it re-adds the three
+columns and repopulates them from the outstanding blank rows (sum for
+`dots_blanked`, earliest for the two nights). Reverting this change therefore
+means running the downgrade, not just reverting the commit — which is already
+true of every migration in this repo, since `entrypoint.sh` only runs `upgrade`.
+
+Turso supports `ALTER TABLE ... DROP COLUMN`, verified against the dev database
+rather than assumed. Deploy is ordinary, and the web change stands alone: the
+bot's payload shape is unchanged by design, so nothing has to ship in the other
+repo.
 
 Deploy is ordinary, and the web change stands alone: the bot's payload shape is
 unchanged by design, so nothing has to ship in the other repo.

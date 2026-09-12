@@ -15,14 +15,23 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       `character_backgrounds`, `dots`, `blanked_at_night_number`,
       `release_night_number`, `released_at` (null while outstanding), indexed on
       the FK and on `release_night_number`
-- [ ] 1.2 Add an `outstanding_blanks` relationship/helper on
-      `DbCharacterBackground`, and keep `dots_available` defined against
-      `dots_blanked` so every existing bound stays correct
-- [ ] 1.3 Migration with a table-exists guard, plus a backfill inserting one row
-      per background with `dots_blanked > 0` carrying its existing two nights.
-      Leave the legacy columns in place — do not drop them
-- [ ] 1.4 Test the migration on a database built at the previous revision with a
-      background mid-blank, and confirm re-running `upgrade()` is a no-op
+- [ ] 1.2 Add an `outstanding_blanks` relationship on `DbCharacterBackground`,
+      declared `lazy='selectin'` so the derived properties below do not issue a
+      query per background
+- [ ] 1.3 Replace `dots_blanked`, `blanked_at_night_number` and
+      `release_night_number` with properties derived from the outstanding blanks
+      — sum for the first, earliest for the other two. No setters: an assignment
+      should raise rather than silently do nothing. `dots_available` keeps
+      working as-is since it reads `dots_blanked`
+- [ ] 1.4 Migration: table-exists guard on the create, backfill one row per
+      background with `dots_blanked > 0` carrying its existing two nights, then
+      drop the three columns with column-exists guards. **Backfill before drop**
+- [ ] 1.5 Write a real `downgrade()` — re-add the three columns and repopulate
+      from the outstanding rows — and test it, since dropping columns means a
+      bare code revert cannot work
+- [ ] 1.6 Test the migration on a database built at the previous revision with a
+      background mid-blank; confirm re-running `upgrade()` is a no-op, and that
+      `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
 
 ## 2. Blanking writes a row
 
@@ -32,12 +41,14 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       into the background's columns, and stops auto-releasing an older due blank
 - [ ] 2.2 Remove the interim earlier-release-wins rule added for the #434 P1 —
       there is nothing left to reconcile
-- [ ] 2.3 Add `_recompute_blanked_total(row)` as the **only** place
-      `dots_blanked` is assigned; call it at the end of every mutation. Update
-      `set_character_background` and the coterie blank-everything /
-      undonate paths to go through it
-- [ ] 2.4 Keep `blanked_at_night_number` / `release_night_number` populated from
-      the earliest outstanding blank, display-only
+- [ ] 2.3 Grep for every **assignment** to the three now-derived attributes and
+      rewrite it to act on blank rows instead. Known sites: the coterie
+      blank-everything path (`bg.dots_blanked = bg.dots_total`), the undonate and
+      remove-member resets (`dots_blanked = 0`), `set_character_background`'s
+      clamp, and the orphaned-background purchase transfer. A property without a
+      setter raises, so none of these can be missed silently
+- [ ] 2.4 Nothing maintains a denormalized total — the properties are the only
+      readers of the blank rows. Confirm no `dots_blanked` assignment remains
 - [ ] 2.5 Tests: two blanks in different nights keep separate nights; blanking
       again never moves an outstanding night; over-blanking is refused counting
       all outstanding rows; the total always equals the sum of outstanding rows
@@ -87,5 +98,7 @@ no new DB writes.*
       `./venv/bin/ruff check app tests`, `./venv/bin/python -m compileall app tests`
 - [ ] 6.2 `CHANGELOG.md` — per-blank release tracking, and that the #434 interim
       rule is gone
-- [ ] 6.3 Add the legacy display-only columns to `AGENTS.md`'s
-      two-representations list
+- [ ] 6.3 Update `AGENTS.md`'s two-representations list: backgrounds now have
+      one authority for blank state (`character_background_blanks`), and
+      `dots_blanked` is derived rather than stored — worth recording so nobody
+      reintroduces a column for it

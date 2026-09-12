@@ -26,9 +26,12 @@ need their own release nights.
   calendar gate from the #431 work applies per row rather than per background.
 - Blanking again never touches an outstanding blank's schedule. The interim
   earlier-release-wins rule is removed along with the need for it.
-- `character_backgrounds.dots_blanked` is kept as a denormalized total,
-  maintained in exactly one place, because the player sheet, the coterie sheet,
-  the bot API response and the bot's own types all read it.
+- `dots_blanked`, `blanked_at_night_number` and `release_night_number` are
+  dropped from `character_backgrounds` and become properties derived from the
+  blank rows, so nothing can disagree with the table that owns the facts. They
+  are read by the player sheet, the coterie sheet and the bot API response, all
+  of which keep working unchanged — `dots_available` is already a property, so
+  the pattern is established.
 
 ## Capabilities
 
@@ -45,8 +48,9 @@ need their own release nights.
   blank.
 - **Changing what blanking costs or grants in-game.** Purely a fix to how the
   system represents what players already do.
-- **Dropping the legacy columns.** See design.md — SQLite/Turso column drops are
-  hazardous and every display site reads `dots_blanked`.
+- **Keeping the legacy columns.** They are dropped, and the values they held are
+  derived from the blank rows instead. See design.md for why the objections to
+  dropping them did not survive testing.
 
 ## Impact
 
