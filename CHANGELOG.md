@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-09-12] Donated Backgrounds Are Spendable Again
+
+### approve_donation Was Blanking Every Dot
+
+- **Bug fix.** Approving a background donation set `dots_blanked = dots_total`,
+  driving `dots_available` to 0. That hid the coterie's own Blank control, which
+  is gated on `dots_available > 0`, and made `blank_character_background` refuse
+  with "only 0 available" — so `blank_donated_background` was **unreachable** for
+  a properly donated background, despite having a route, a UI control and a
+  "blanked until Night N" badge.
+- Donating hands the background to the coterie as an asset its members spend over
+  time; it does not withhold the dots from everyone. `undonate_background` and
+  `remove_member` still reset `dots_blanked` to 0, cancelling the coterie's
+  outstanding blanks and returning the background to its owner whole.
+- Tests: [`apps/web/tests/test_coterie_donation_blanking.py`](apps/web/tests/test_coterie_donation_blanking.py),
+  exercising approve → blank → undonate through the real routes. The existing
+  orphaned-background fixture built its rows with `dots_blanked = 0`, matching the
+  intended behaviour rather than the shipped one, which is why this went unnoticed.
+
+---
+
 ## [2026-09-12] Background Blank Release Timing (Issue #431)
 
 ### Dots Return When the Night Opens, Not When Its Period Does
