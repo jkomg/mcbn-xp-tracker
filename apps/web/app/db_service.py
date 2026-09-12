@@ -1509,12 +1509,27 @@ class DBService:
             row.release_night_number = None
             blanked = 0
 
-        row.dots_blanked = blanked + dots
-        row.blanked_at_night_number = current_night_number
-        row.release_night_number = (
+        # An older blank the gate above held is still outstanding, so this new
+        # blank stacks on top of it. One release_night_number cannot express two
+        # schedules, and overwriting it with this night's later release would
+        # push the held dots out by a whole downtime cycle — taking them away
+        # for longer because the player blanked something else. Until blanks are
+        # tracked per-blank rather than per-background, the earlier release wins
+        # and the new dots come back with it. A release may come sooner than its
+        # own rule would say; it must never come later than one already promised.
+        held_release_night = existing_release_night if blanked > 0 else 0
+        new_release_night = (
             next_night_after_downtime(current_night_number)
             or current_night_number + 1
         )
+
+        row.dots_blanked = blanked + dots
+        if held_release_night > 0:
+            row.release_night_number = min(held_release_night, new_release_night)
+            # blanked_at stays with the earlier blank, whose release drives the row.
+        else:
+            row.blanked_at_night_number = current_night_number
+            row.release_night_number = new_release_night
         row.updated_at = _now_str()
         row.updated_by = updated_by[:100]
         db.session.commit()

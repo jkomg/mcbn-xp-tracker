@@ -245,6 +245,29 @@ def test_the_period_condition_still_applies(app_ctx, monkeypatch):
     assert svc.get_character_backgrounds('Aludra')[0]['dots_blanked'] == 2
 
 
+def test_stacking_never_pushes_a_held_blanks_release_out(app_ctx, monkeypatch):
+    """A held blank's release must not move later because the player blanked
+    something else. One release_night_number cannot express two schedules, so
+    until blanks are tracked per-blank the earlier night wins.
+
+    Interim behaviour — the modelled fix is per-blank rows.
+    """
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 3, 'test')
+
+    first = svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+    assert first['release_night_number'] == 69
+
+    # Night 69's period is open but the night has not started, so the first dot
+    # is held. Blanking again must not reschedule it to 73.
+    _hold_release(monkeypatch, False)
+    second = svc.blank_character_background('Aludra', 'Mawla', 1, 69, 'test')
+
+    assert second['dots_blanked_total'] == 2
+    assert second['release_night_number'] == 69, 'the held dot keeps its night'
+
+
 def test_taking_a_new_blank_does_not_release_a_held_one_early(app_ctx, monkeypatch):
     """The second release path. blank_character_background auto-releases an
     older due blank before stacking a new one, and used the same flag-based

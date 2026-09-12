@@ -45,6 +45,16 @@ so they can run in parallel in separate branches.
       early-opened period returned the earlier dots early too. Gated identically.
       Found by the regression-hygiene rule about checking sibling code for the
       same shape
+- [x] 2.7 **Codex P1 on #434, a regression this gate introduced.** Holding an
+      older blank left the code below still overwriting `release_night_number`
+      with *this* night's later release, so a Night 68 dot due on Night 69 was
+      rescheduled to Night 73 when the player blanked again before Night 69
+      started — taking the held dots away a whole extra cycle for blanking
+      something else. Before this change that dot would have been released
+      (early, but released), so nothing could be extended. Interim fix: the
+      earlier release night wins when stacking. **The modelled fix is per-blank
+      rows, decided and specified as its own change** — one
+      `release_night_number` per background cannot express two schedules
 - [x] 2.6 Three existing tests used invented nights (101/102/103) the calendar has
       never heard of, so the gate held them. Moved onto real calendar nights
       (68 → 69, both safely past, so they stay deterministic).
