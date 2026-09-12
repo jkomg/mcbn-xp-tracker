@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-09-12] Background Blank Release Timing (Issue #431)
+
+### Dots Return When the Night Opens, Not When Its Period Does
+
+- **Behaviour change.** Blanked background dots now return at the opening of the
+  first night after the next downtime, per the rule
+  `game_calendar.next_night_after_downtime` already documented. Previously they
+  returned as soon as staff opened that night's play period for submissions,
+  which is routinely days earlier — on 2026-09-04 a player was told 3 dots of
+  Mawla had refreshed, citing Night 69, which opens 9/8.
+- Release was comparing against `_current_open_night()`, resolved from
+  `submissions_open`/`active` flags with no reference to `start_date`. Added
+  `game_calendar.night_has_started()` / `night_start_date()` and gated release on
+  the calendar instead. The period condition is kept as well as the new one, so
+  the change can only ever make a release later, never earlier.
+- Gated both release paths: the `POST /api/backgrounds/release-due` worker and
+  `blank_character_background`'s auto-release of an older due blank, which had
+  the same flag-based comparison.
+- A releasing night the calendar does not list is now held rather than released —
+  the recoverable direction. The calendar currently ends at Night 77 (2027-01-10).
+- Blanks released early before this change are left released; dots a player may
+  already have spent are not clawed back.
+- Tests: [`apps/web/tests/test_game_calendar_night_start.py`](apps/web/tests/test_game_calendar_night_start.py)
+  and new cases in [`apps/web/tests/test_background_blanking.py`](apps/web/tests/test_background_blanking.py).
+
+---
+
 ## [2026-09-12] Coterie Activity Filters and Purchase Accounting (PR #428 follow-up)
 
 ### Review Findings on the Merged Coterie Work
