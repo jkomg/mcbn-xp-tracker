@@ -129,6 +129,11 @@ class DbSpendRequest(db.Model):
     depends_on = db.Column(Integer, nullable=True)  # FK to another spend request id
     coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
     coterie = db.relationship('Coterie', foreign_keys=[coterie_id], lazy='joined')
+    # Set when this spend is a member buying an orphaned donated background.
+    # Explicit rather than resolved from (coterie_id, background_key): two
+    # departed donors can each have donated the same background to one coterie.
+    purchased_background_id = db.Column(
+        Integer, db.ForeignKey('character_backgrounds.id'), nullable=True, index=True)
 
 
 class DbLedgerEntry(db.Model):
@@ -353,6 +358,14 @@ class DbCharacterBackground(db.Model):
     donated_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
     # Set when a player has requested donation pending staff approval.
     donation_pending_coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=True, index=True)
+    # Set when the donating character retired or died while this background was
+    # donated. A donation is normally a loan — undonating and staff removal both
+    # hand it straight back — but a character leaving play forfeits it to the
+    # group, and a remaining member may buy it at standard price to take
+    # ownership. Holds the departed donor's name so provenance survives the
+    # transfer of character_name to the buyer; non-null means "buyable".
+    orphaned_from = db.Column(String(200), nullable=True, index=True)
+    orphaned_at = db.Column(String(20), nullable=True)
 
     @property
     def dots_available(self) -> int:
@@ -408,6 +421,8 @@ class Coterie(db.Model):
                               cascade='all, delete-orphan')
     advantages = db.relationship('CoterieAdvantage', back_populates='coterie',
                                  cascade='all, delete-orphan')
+    invitations = db.relationship('CoterieInvitation', back_populates='coterie',
+                                  cascade='all, delete-orphan')
     donated_backgrounds = db.relationship('DbCharacterBackground',
                                           foreign_keys='DbCharacterBackground.donated_coterie_id',
                                           backref='coterie')
@@ -429,6 +444,33 @@ class CoterieMember(db.Model):
 
     coterie = db.relationship('Coterie', back_populates='members')
     character = db.relationship('DbCharacter', backref='coterie_memberships')
+
+
+class CoterieInvitation(db.Model):
+    """A pending ask for a character to join a coterie.
+
+    Kept separate from CoterieMember so that membership always means
+    "has agreed and is contributing dots" — the creation budget and every
+    member query stay correct without needing a status filter.
+    """
+    __tablename__ = 'coterie_invitations'
+    __table_args__ = (
+        db.UniqueConstraint('coterie_id', 'roster_character_id',
+                            name='uq_coterie_invitation'),
+    )
+    id = db.Column(Integer, primary_key=True)
+    coterie_id = db.Column(Integer, db.ForeignKey('coteries.id'), nullable=False, index=True)
+    roster_character_id = db.Column(Integer, db.ForeignKey('characters.id'),
+                                    nullable=False, index=True)
+    # pending | accepted | declined | revoked
+    status = db.Column(String(20), nullable=False, default='pending', index=True)
+    invited_by = db.Column(String(200), nullable=False, default='')
+    created_at = db.Column(DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+    responded_at = db.Column(DateTime, nullable=True)
+
+    coterie = db.relationship('Coterie', back_populates='invitations')
+    character = db.relationship('DbCharacter', backref='coterie_invitations')
 
 
 class CoterieAdvantage(db.Model):

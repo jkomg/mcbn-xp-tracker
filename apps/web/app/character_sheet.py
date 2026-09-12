@@ -349,7 +349,10 @@ def _do_patch(spend) -> bool:
     _merge_cc_specialties(data)
 
     power_name = (getattr(spend, 'power_name', '') or '').strip()
-    patched = _apply_patch(data, spend.spend_category, spend.trait_name, power_name, spend.new_dots)
+    patched = _apply_patch(
+        data, spend.spend_category, spend.trait_name, power_name, spend.new_dots,
+        known_background=bool(getattr(spend, 'purchased_background_id', 0)),
+    )
     if not patched:
         return False
 
@@ -368,8 +371,15 @@ def _do_patch(spend) -> bool:
     return True
 
 
-def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, new_dots: int) -> bool:
-    """Mutate data in-place. Returns True if a change was applied."""
+def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, new_dots: int,
+                 known_background: bool = False) -> bool:
+    """Mutate data in-place. Returns True if a change was applied.
+
+    `known_background` resolves the Advantage case below, where a genuinely new
+    entry cannot be told apart from a Merit by trait name alone. A purchase of a
+    coterie's donated background is known to be a Background, because it came
+    from a `character_backgrounds` row.
+    """
     trait_name = (trait_name or '').strip()
     if not trait_name:
         return False
@@ -464,8 +474,11 @@ def _apply_patch(data: dict, category: str, trait_name: str, power_name: str, ne
         # purchase. We can't reliably tell "new Background" from "new Merit"
         # from the trait name alone without duplicating the character-app's
         # full background-name catalog here (a maintenance/drift risk), so
-        # default to merits, matching this function's original behavior.
-        data.setdefault('merits', []).append({
+        # default to merits, matching this function's original behavior —
+        # unless the caller knows, which it does for a donated-background
+        # purchase.
+        array_name = 'backgrounds' if known_background else 'merits'
+        data.setdefault(array_name, []).append({
             'name': effective_name,
             'level': new_dots,
             'summary': '',

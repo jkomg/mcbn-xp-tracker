@@ -180,3 +180,38 @@ def test_wiki_batch_request_and_success_ack_clear_pending_jobs():
         event = WikiSyncEvent.query.order_by(WikiSyncEvent.id.desc()).first()
         assert event is not None
         assert event.status == 'success'
+
+
+def test_retiring_via_the_bot_api_leaves_donated_backgrounds_with_the_coterie():
+    """The status endpoint writes the character row directly instead of going
+    through db_service.set_character_status, so it needs its own orphaning
+    call — the two db_service paths are covered separately."""
+    from app.db import Coterie, DbCharacterBackground
+
+    app = _app()
+    with app.app_context():
+        coterie = Coterie(name='The Midnight Accord', slug='midnight-accord',
+                          status='active')
+        db.session.add(coterie)
+        db.session.add(DbCharacter(character_name='Fiora', active=True,
+                                   status='active'))
+        db.session.flush()
+        db.session.add(DbCharacterBackground(
+            character_name='Fiora', background_key='haven',
+            background_name='Haven', dots_total=3, dots_blanked=0,
+            donated_coterie_id=coterie.id, updated_at='', updated_by=''))
+        db.session.commit()
+        coterie_id = coterie.id
+
+    with app.test_client() as client:
+        resp = client.put(
+            '/api/character/Fiora/status',
+            json={'status': 'retired'},
+            headers={'Authorization': 'Bearer write-token'},
+        )
+        assert resp.status_code == 200
+
+    with app.app_context():
+        row = DbCharacterBackground.query.filter_by(character_name='Fiora').one()
+        assert row.orphaned_from == 'Fiora'
+        assert row.donated_coterie_id == coterie_id

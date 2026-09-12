@@ -12,6 +12,47 @@
     {% endif %}
 </div>
 
+{% if my_invite %}
+<div class="alert alert-warning d-flex align-items-center gap-2 flex-wrap py-2 mb-3">
+    <div>
+        <strong>You have been invited to join {{ coterie.name }}.</strong>
+        Accepting adds {{ my_invite.character.character_name }} and their creation
+        dots to the pool.
+    </div>
+    <div class="ms-auto d-flex gap-2">
+        <form method="POST" action="{{ url_for('coteries.accept_invitation', slug=coterie.slug, invite_id=my_invite.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-success">Accept</button>
+        </form>
+        <form method="POST" action="{{ url_for('coteries.decline_invitation', slug=coterie.slug, invite_id=my_invite.id) }}"
+              onsubmit="return confirm('Decline this invitation?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger">Decline</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if pending_invites and (is_member or is_staff_user) %}
+<div class="alert alert-secondary py-2 mb-3">
+    <strong>Awaiting a reply from:</strong>
+    {% for inv in pending_invites %}
+    <span class="d-inline-flex align-items-center gap-1 me-2">
+        {{ inv.character.character_name }}
+        <form method="POST" action="{{ url_for('coteries.revoke_invitation', slug=coterie.slug, invite_id=inv.id) }}"
+              class="d-inline" onsubmit="return confirm('Withdraw the invitation to {{ inv.character.character_name }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-link btn-sm p-0 text-danger" title="Withdraw invitation">&times;</button>
+        </form>
+    </span>
+    {% endfor %}
+    <div class="small text-muted mt-1">
+        They are not members and add no creation dots until they accept. The
+        coterie cannot be submitted for sign-off while invitations are outstanding.
+    </div>
+</div>
+{% endif %}
+
 {% if coterie.creation_state == 'forming' %}
 <div class="alert alert-secondary py-2 mb-3">
     <strong>Formation phase.</strong> Allocate your creation dots below, then submit for staff sign-off.
@@ -89,10 +130,11 @@
     {% set creation_flaws = coterie.advantages | selectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
     {% set creation_items = coterie.advantages | rejectattr('advantage_type', 'equalto', 'flaw') | selectattr('notes', 'equalto', '__creation__') | list %}
     {% set flaw_dots_taken = creation_flaws | sum(attribute='dots') %}
-    {% set base_dots = coterie.members | length * 2 %}
-    {% set bonus_dots = flaw_dots_taken %}
-    {% set dots_spent = base_dots - (coterie.members | sum(attribute='free_dots_remaining')) + bonus_dots %}
-    {% set dots_left = base_dots + bonus_dots - dots_spent %}
+    {# Budget comes from the server (_creation_budget) so the rules live in one place. #}
+    {% set base_dots = budget.base %}
+    {% set bonus_dots = budget.bonus %}
+    {% set dots_spent = budget.used %}
+    {% set dots_left = budget.left %}
     <div class="col-12">
         <div class="card border-warning">
             <div class="card-header fw-bold text-warning-emphasis bg-warning bg-opacity-10">
@@ -256,11 +298,12 @@
 
                 <!-- Add advantage (members + staff) — hidden during formation phase -->
                 {% if (is_member or is_staff_user) and not is_forming %}
-                {% set my_member = coterie.members | selectattr('roster_character_id', 'equalto', player_char.id if player_char else -1) | list %}
-                {% set dots_left = (my_member[0].free_dots_remaining if my_member else 0) if not is_staff_user else 99 %}
                 <hr class="my-3">
                 <p class="small text-muted mb-2">
-                    {% if not is_staff_user %}Your free dots remaining: <strong>{{ dots_left }}</strong>{% else %}Staff: add pool item{% endif %}
+                    {# Creation dots are spent from the shared pool, so show the pool
+                       total this form actually draws on, not the acting member's own
+                       balance — the two disagree in both directions. #}
+                    {% if not is_staff_user %}Shared free dots remaining: <strong>{{ pool_available }}</strong>{% else %}Staff: add pool item{% endif %}
                 </p>
                 <form method="POST" action="{{ url_for('coteries.add_advantage', slug=coterie.slug) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -295,10 +338,17 @@
                 <div class="sheet-trait-row">
                     <span>
                         <span class="sheet-trait-name">{{ bg.background_name }}</span>
+                        {% if bg.orphaned_from %}
+                        <br><small class="text-muted">Donated by {{ bg.orphaned_from }}, who has left play</small>
+                        {% else %}
                         <br><small class="text-muted">{{ bg.character_name }}</small>
+                        {% endif %}
                     </span>
                     <div class="d-flex align-items-center gap-2">
                         <span class="dot-pips">{% for i in range(1,6) %}<span class="dot-pip {% if i <= bg.dots_total %}filled{% endif %}"></span>{% endfor %}</span>
+                        {% if bg.orphaned_from %}
+                        <span class="badge bg-info text-dark" title="The coterie keeps this. A member may buy it at standard price.">Unclaimed</span>
+                        {% endif %}
                         {% if bg.dots_blanked > 0 %}
                         <span class="badge bg-warning text-dark" title="Blanked until Night {{ bg.release_night_number }}">
                             {{ bg.dots_blanked }} blanked
@@ -315,6 +365,22 @@
                            value="1" min="1" max="{{ bg.dots_available }}">
                     <button class="btn btn-sm btn-outline-warning">Blank</button>
                 </form>
+                {% endif %}
+                <!-- Buy control: the donor has left play, so a member may take it on -->
+                {% if is_member and bg.orphaned_from %}
+                {% set offer = orphan_offers.get(bg.id) %}
+                {% if offer %}
+                {% if offer.blocked %}
+                <p class="small text-muted mb-2">{{ offer.blocked }}</p>
+                {% else %}
+                <form method="POST" action="{{ url_for('coteries.buy_orphaned_background', slug=coterie.slug, bg_id=bg.id) }}"
+                      class="mb-2"
+                      onsubmit="return confirm('Request to buy {{ bg.background_name }} for {{ offer.price }} XP? This goes to staff for approval.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-info">Buy for {{ offer.price }} XP</button>
+                </form>
+                {% endif %}
+                {% endif %}
                 {% endif %}
                 <!-- Un-donate control (owner only) -->
                 {% if player_char and player_char.character_name == bg.character_name %}
