@@ -91,11 +91,21 @@ def orphaned_backgrounds(coterie_id: int) -> list[DbCharacterBackground]:
 
 
 def purchase_price(bg: DbCharacterBackground) -> int:
-    """Standard price for the dots still on an orphaned background.
+    """Standard price for an orphaned background, charged on its full rating.
 
-    Blanked dots are already spent, so the buyer pays for what is left.
+    Priced on dots_total, not dots_available. An earlier version charged only for
+    unblanked dots on the reasoning that blanked dots are already spent — but
+    they are not spent, they are temporarily blanked and return at the next
+    release. Charging on what is available made a background cheaper the more of
+    it the coterie had just used, so blanking before buying bought it at a
+    discount, and the buyer still received a row that returned to its full
+    rating.
+
+    The row transfers intact, keeping dots_blanked and release_night_number, so
+    the buyer gets exactly the asset they paid for — including its pending
+    release — and no dots are destroyed in the handover.
     """
-    return calculate_xp_cost(PURCHASE_CATEGORY, 0, bg.dots_available)
+    return calculate_xp_cost(PURCHASE_CATEGORY, 0, bg.dots_total)
 
 
 def transfer_blocker(bg: DbCharacterBackground, buyer_name: str) -> str | None:
@@ -107,8 +117,8 @@ def transfer_blocker(bg: DbCharacterBackground, buyer_name: str) -> str | None:
     """
     if bg.orphaned_from is None:
         return 'That background still belongs to its donor.'
-    if bg.dots_available <= 0:
-        return f'{bg.background_name} has no dots left to buy.'
+    if (bg.dots_total or 0) <= 0:
+        return f'{bg.background_name} has no dots to buy.'
 
     # character_backgrounds is unique on (character_name, background_key), so a
     # buyer who already has this background cannot receive the row. Merging the
@@ -168,10 +178,12 @@ def approval_blocker(spend) -> str | None:
     if blocked is not None:
         return blocked
 
-    # The price was fixed against the dots available when the offer was made.
-    if bg.dots_available < int(spend.new_dots or 0):
+    # The price was fixed against the background's rating when the offer was
+    # made. Blanking does not change that rating, so only a staff edit to
+    # dots_total can invalidate a pending purchase.
+    if int(bg.dots_total or 0) != int(spend.new_dots or 0):
         return (
-            f'{bg.background_name} now has {bg.dots_available} dot(s) available, '
+            f'{bg.background_name} is now rated {bg.dots_total} dot(s), '
             f'not the {spend.new_dots} this request was priced for'
         )
     return None

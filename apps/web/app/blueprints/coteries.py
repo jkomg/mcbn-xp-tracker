@@ -199,14 +199,19 @@ def index():
             .filter(
                 CoterieInvitation.status == 'pending',
                 DbCharacter.player_discord == discord_id,
+                DbCharacter.active,
             )
             .all()
         )
+        # These duplicate _get_acting_member/_get_pending_invite inline, so they
+        # need the same activity filter. Without it a retired character's coterie
+        # still appears here — name, description, status, member count — even
+        # though view() denies access to the sheet itself.
         my_ids = [
             row.coterie_id for row in (
                 CoterieMember.query
                 .join(DbCharacter, CoterieMember.roster_character_id == DbCharacter.id)
-                .filter(DbCharacter.player_discord == discord_id)
+                .filter(DbCharacter.player_discord == discord_id, DbCharacter.active)
                 .all()
             )
         ]
@@ -287,8 +292,13 @@ def view(slug: str):
 
     # XP donations: approved spends flagged for this coterie
     from sqlalchemy import func as _func
+    # purchased_background_id distinguishes a member buying an orphaned
+    # background from a donation of XP to the coterie. Both carry coterie_id, so
+    # without this exclusion a purchase shows up in the donations table and its
+    # cost inflates the total the coterie appears to have been given.
     xp_donations = DbSpendRequest.query.filter(
         DbSpendRequest.coterie_id == coterie.id,
+        DbSpendRequest.purchased_background_id.is_(None),
         _func.lower(DbSpendRequest.status) == 'approved',
     ).order_by(DbSpendRequest.review_date.desc()).all()
     xp_donations_total = sum(s.verified_cost or 0 for s in xp_donations)
@@ -296,6 +306,7 @@ def view(slug: str):
     # Pending XP donations (submitted but not yet approved)
     pending_xp_donations = DbSpendRequest.query.filter(
         DbSpendRequest.coterie_id == coterie.id,
+        DbSpendRequest.purchased_background_id.is_(None),
         _func.lower(DbSpendRequest.status) == 'pending',
     ).order_by(DbSpendRequest.timestamp.desc()).all()
 
@@ -735,13 +746,13 @@ def buy_orphaned_background(slug: str, bg_id: int):
         spend_category=PURCHASE_CATEGORY,
         trait_name=bg.background_name,
         current_dots=0,
-        new_dots=bg.dots_available,
+        new_dots=bg.dots_total,
         xp_cost=price,
         status='Pending',
         coterie_id=coterie.id,
         purchased_background_id=bg.id,
         justification=(
-            f'Buying {bg.background_name} ({bg.dots_available} dot(s)) from '
+            f'Buying {bg.background_name} ({bg.dots_total} dot(s)) from '
             f'{coterie.name}. Donated by {bg.orphaned_from}, who has left play.'
         ),
     )
@@ -754,7 +765,7 @@ def buy_orphaned_background(slug: str, bg_id: int):
         target=buyer.character_name,
         details=(
             f'Requested purchase of orphaned coterie background '
-            f'{bg.background_name} ({bg.dots_available} dots) from '
+            f'{bg.background_name} ({bg.dots_total} dots) from '
             f'{coterie.name} for {price} XP.'
         ),
     )
@@ -954,6 +965,20 @@ def accept_invitation(slug: str, invite_id: int):
     # another coterie while this invitation was outstanding.
     if CoterieMember.query.filter_by(roster_character_id=invite.roster_character_id).first():
         flash(f'{invite.character.character_name} is already in a coterie.', 'warning')
+        return redirect(url_for('coteries.index'))
+
+    # And the player must not already be acting in this coterie through another
+    # character. propose() can invite two of one player's characters, and each
+    # invitation is answered separately, so both could join and each commit two
+    # creation dots — while _get_acting_member returns exactly one of them,
+    # leaving the other a member who can never act but whose dots are spent.
+    existing = _get_acting_member(coterie, get_player_discord_id())
+    if existing is not None:
+        flash(
+            f'{existing.character.character_name} is already your character in '
+            f'{coterie.name}.',
+            'warning',
+        )
         return redirect(url_for('coteries.index'))
 
     # Same reason, for retirement or death: accepting commits creation dots to
