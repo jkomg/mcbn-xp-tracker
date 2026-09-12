@@ -3,7 +3,7 @@
 Each act of blanking returns on its own night. Blanking dots again never changes
 when dots already blanked come back.
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Each blank returns on its own night
 The system SHALL record each act of blanking separately, with its own releasing
@@ -24,6 +24,36 @@ night, and SHALL return each one independently.
 #### Scenario: Two blanks due on the same night
 - **WHEN** two outstanding blanks both release on the same night and that night starts
 - **THEN** both are returned
+
+### Requirement: A donated background is held without a scheduled return
+The system SHALL withhold a donated background's dots for as long as the
+donation stands, without scheduling a return, and SHALL restore them when the
+donation ends.
+
+#### Scenario: A donation is approved
+- **WHEN** staff approve a donation of a background to a coterie
+- **THEN** the background's dots are withheld from its owner with no releasing night, and no release returns them while the donation stands
+
+#### Scenario: A donation ends
+- **WHEN** the background is undonated, or its donor is removed from the coterie
+- **THEN** the withheld dots are restored
+
+#### Scenario: A held background also has a timed blank
+- **WHEN** a background is donated and also has an outstanding timed blank
+- **THEN** the timed blank returns on its own night and the donation hold persists
+
+### Requirement: Reducing a background's rating reduces its outstanding blanks
+The system SHALL keep outstanding blanks within a background's rating when that
+rating is lowered, taking dots from the most recently blanked lot first so the
+earliest promised return is preserved.
+
+#### Scenario: Rating lowered below what is blanked
+- **WHEN** a background's rating is reduced below the total of its outstanding blanks
+- **THEN** outstanding lots are reduced, newest first, until they fit within the new rating
+
+#### Scenario: Rating lowered but still above what is blanked
+- **WHEN** a background's rating is reduced but still covers every outstanding blank
+- **THEN** no outstanding lot changes
 
 ### Requirement: Blanking is still bounded by what is available
 The system SHALL refuse to blank more dots than the background has unblanked,

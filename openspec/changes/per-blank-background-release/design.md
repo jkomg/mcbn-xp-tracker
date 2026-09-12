@@ -27,14 +27,18 @@ the main constraint on this design.
 - One row per act of blanking, each with its own releasing night, so neither rule
   above has to be chosen.
 - Keep every existing display and API consumer working.
-- A migration that is additive and reversible, per this repo's guards.
+- A migration that is guarded per step and genuinely reversible, with a working
+  downgrade rather than a stub.
 
 **Non-Goals:**
 - Changing blank duration, the calendar gate, or what blanking means in-game.
-- Dropping the legacy columns. See the decision below.
+- Keeping the legacy columns. They are dropped; see the decision below.
 - Presenting more than the totals plus per-lot release nights. No history of
-  released blanks — that is an audit concern, and `audit_log` already records
-  each blank and release.
+  released blanks in the UI; keeping released rows makes it queryable if wanted.
+  Note that `audit_log` does **not** currently cover this: `blank_donated_background`
+  calls `blank_character_background` and flashes the result without a
+  `log_action`, so the donated-background route has no audit trail today. Worth a
+  separate fix, and not assumed here.
 
 ## Decisions
 
@@ -88,6 +92,21 @@ lazy relationship would issue one query per background. The relationship is
 declared `lazy='selectin'`, so loading a character's backgrounds batches their
 blanks into one additional query regardless of how many there are.
 
+**A null `release_night_number` is an indefinite hold, not a missing value.**
+`dots_blanked` is not only used for timed blanks: `coteries.approve_donation`
+sets `dots_blanked = dots_total` to withhold a donated background's dots for as
+long as the donation stands, and only undonation or member removal clears it.
+There is no releasing night, and there must not be one. Deriving the total from
+timed lots alone would silently stop withholding those dots the moment this
+change shipped.
+
+So a blank row's releasing night is nullable and null means held. The release
+worker only ever considers rows with a night set, which makes the hold
+unreleasable by construction rather than by a flag someone has to remember to
+check. Donation approval inserts a hold row; undonation and member removal
+delete it. The two kinds of withholding coexist on one background — a donated
+background can also have a timed blank, and each behaves correctly.
+
 **Release iterates blank rows, applying `night_has_started` per row.** The #431
 gate moves down a level unchanged, including holding a row whose night the
 calendar does not know. The existing `release_due_background_blanks` return
@@ -95,6 +114,14 @@ shape — one entry per background with a dot count — is kept, aggregating the
 rows released in that pass, so the bot's notification and its zod schema need no
 change. A background with two lots releasing on the same night yields one
 notification, which is what a player wants.
+
+**The staff view planned in `background-blanking-timing-and-dashboard` must be
+retargeted.** That change's group 3 specifies a route filtering
+`DbCharacterBackground.dots_blanked > 0`. Once `dots_blanked` is a property that
+class-level filter no longer exists, so the view queries outstanding blank rows
+joined to their backgrounds instead — which is the better query anyway, since it
+can show each lot. Whichever of the two changes lands second carries the fix;
+recorded in tasks.md so it is not discovered at implementation time.
 
 **Blanking no longer auto-releases anything.** The current code releases an
 older due blank inline before stacking, because one row could not hold both.
@@ -129,17 +156,44 @@ release path that had to be gated separately.
 
 ## Migration Plan
 
-Create the table with a table-exists guard, backfill one blank row per
-background that currently has `dots_blanked > 0` carrying its existing two
-nights, then drop the three columns — each guarded by a column-exists check, the
-same idiom `3f81c22ad5e7` used for adds. Backfill before drop, in that order, in
-one migration.
+Four steps in one migration, **each guarded independently**:
 
-`downgrade()` is written and tested, not left as a stub: it re-adds the three
-columns and repopulates them from the outstanding blank rows (sum for
-`dots_blanked`, earliest for the two nights). Reverting this change therefore
-means running the downgrade, not just reverting the commit — which is already
-true of every migration in this repo, since `entrypoint.sh` only runs `upgrade`.
+1. Create `character_background_blanks` — skip if the table exists.
+2. Backfill one row per background with `dots_blanked > 0`, carrying its existing
+   two nights; a donated background with no releasing night backfills as a hold.
+   Skip only if the blanks table already holds rows.
+3. Drop `ix_character_backgrounds_release_night`.
+4. Drop the three columns — each skipped if already absent.
+
+**The guards must be per step, not one guard over the whole upgrade.** This is
+the `db.create_all()` trap in a new shape: `create_all` runs before Alembic on
+every boot, so against any database that has booted on this code the table
+already exists. A single leading `if table exists: return` would skip the
+backfill too, and every outstanding blank in production would vanish silently —
+the columns dropped on a later run with nothing carried across. Step 2 keys off
+whether blank *rows* exist, not whether the table does.
+
+**Step 3 is not optional.** SQLite refuses to drop a column an index still
+references: dropping `release_night_number` with
+`ix_character_backgrounds_release_night` present fails with `error in index
+ix_character_backgrounds_release_night after drop column: no such column`.
+Verified 2026-09-12. The index is declared in both `db.py` and migration
+`6d2a4f0be9c1`.
+
+`downgrade()` is written and tested, not left as a stub: it recreates the index,
+re-adds the three columns, and repopulates them from the outstanding rows — sum
+for `dots_blanked`, earliest non-null night for the other two, and a hold
+collapsing to `dots_blanked` with no nights, which is exactly the pre-change
+representation.
+
+Reverting means running that downgrade, not merely reverting the commit, and the
+difference matters more here than usual. Reverting code alone leaves the old
+worker clearing `dots_blanked` wholesale at the earliest release while the new
+rows stay outstanding, and any blank taken during the rollback writes only the
+legacy columns — so the two representations diverge in both directions. The
+downgrade collapses the rows first, which is the only ordering that keeps them
+coherent. That `entrypoint.sh` only ever runs `upgrade` is precisely why this has
+to be a deliberate step rather than an assumed one.
 
 Turso supports `ALTER TABLE ... DROP COLUMN`, verified against the dev database
 rather than assumed. Deploy is ordinary, and the web change stands alone: the

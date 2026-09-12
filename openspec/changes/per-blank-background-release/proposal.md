@@ -22,6 +22,12 @@ need their own release nights.
 - Add `character_background_blanks`: one row per act of blanking, carrying its
   dot count, the night it was taken, and the night it returns. This becomes the
   authority for what is blanked and when it comes back.
+- `release_night_number` on that row is **nullable**, and null means an
+  indefinite hold with no scheduled return. Donating a background to a coterie
+  already works that way — `approve_donation` sets `dots_blanked = dots_total`
+  and only undonation clears it — so the table has to represent a hold as well
+  as a timed blank, or approving a donation would silently stop withholding the
+  dots.
 - Release iterates those rows, returning each on its own night, and the
   calendar gate from the #431 work applies per row rather than per background.
 - Blanking again never touches an outstanding blank's schedule. The interim
@@ -68,5 +74,8 @@ need their own release nights.
   background can show several pending releases rather than one.
 - `apps/bot/src/types.ts`, `services/adapter.ts` — the backgrounds-status and
   release payload shapes, if the API response changes shape.
-- New migration with the column-exists/table-exists guards this repo requires,
-  plus a backfill turning each existing blank into one row.
+- New migration: guards per step rather than one guard over the whole upgrade,
+  a backfill turning each existing blank into one row, the release-night index
+  dropped before its column, and a working `downgrade()`.
+- `docs/API_ENDPOINTS.md` — `GET /api/backgrounds/status` grows per-lot release
+  data, and the doc currently describes only a single release night.
