@@ -26,6 +26,8 @@ did not create.
 - apps/bot/src/services/backgroundBlankReleaseService.ts  (exists on main)
 - apps/bot/src/__tests__/backgroundBlankReleaseService.test.ts  (**does not
   exist — you are creating it**)
+- CHANGELOG.md — this changes a message players read, which AGENTS.md counts as
+  user-visible. Add an entry at the top, matching the format of the ones there
 
 ## Out of scope — do not edit
 - apps/web/**                         (the web-side timing fix is a separate task)
@@ -56,10 +58,18 @@ In `tick()`, three lines joined with '\n' and filtered for truthiness:
    structured `logEvent` calls are not changing. Leave both alone — in
    particular do not add new log events for a wording change.
 5. There is no existing test for this service. Model the new one on
-   `apps/bot/src/__tests__/sheetImportNotifier.test.ts`, which is the closest
-   analogue — a service that resolves a cubby channel and sends into it. Tests
-   here are vitest, and `vi.hoisted` + `vi.mock('../config', ...)` is the
-   established way to stub module-level config.
+   `apps/bot/src/__tests__/cubbyChannelMonitor.test.ts` — a service that takes a
+   discord.js client and acts on channels, with small `makeChannel()` /
+   `makeClient()` factories built from `vi.fn()` and passed in with an
+   `as never` cast. That is the pattern to copy. (Do **not** use
+   `sheetImportNotifier.test.ts` as the model: despite the name it only calls
+   `buildSheetImportEmbed` and never exercises delivery.)
+
+   For this service you need a fake `client.guilds.fetch()` returning a guild
+   whose channels resolve through `buildCubbyChannelMap`, and a channel whose
+   `send` is a `vi.fn()` you can assert the message text on. Tests here are
+   vitest; `vi.mock('../config', ...)` with `vi.hoisted` is the established way
+   to stub module-level config if you need it.
 6. Assert on the text a player actually sees, not on internals.
 
 ## Wording (approved 2026-09-12 — use exactly this)
@@ -75,6 +85,11 @@ source of the ambiguity. This wording is settled — do not substitute your own.
 - [ ] The `Current night: <label>` line no longer reads as a future effective date
 - [ ] A new test file covers the message a player sees, including the
       non-snowflake fallback to the character name
+- [ ] **Each new assertion was confirmed to FAIL against the old wording**, not
+      merely to pass against the new. Revert the service change, run the test,
+      see it fail, restore. A test that passes either way proves nothing, and
+      this repo treats that as the bar — see AGENTS.md, Branching and PRs. State
+      in the PR that you did this and what failed
 - [ ] `npm run check` passes from apps/bot (lint → format:check → typecheck →
       test → build). This single command is what CI gates on
 - [ ] No unrelated files touched; no formatting-only churn
