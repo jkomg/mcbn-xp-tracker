@@ -82,6 +82,34 @@ def next_night_after_downtime(current_night_number: int) -> int | None:
     return None
 
 
+def night_start_date(night_number: int) -> date | None:
+    """The calendar start date of a night, or None if the calendar has no entry."""
+    for kind, label, start, _end, _note in _RAW:
+        if kind == 'night' and _night_number_from_label(label) == night_number:
+            return start
+    return None
+
+
+def night_has_started(night_number: int, today: date | None = None) -> bool | None:
+    """Whether a night has opened yet, by the calendar rather than by a flag.
+
+    Returns None when the calendar has no entry for that night, so a caller can
+    tell "not yet" apart from "no idea" — the two warrant different handling.
+    A night counts as started on its start date, matching the window
+    get_calendar() reports as 'current'.
+
+    This exists because "the current night" has two different meanings that
+    diverge: DbPlayPeriod.submissions_open is a staff flag, routinely switched on
+    days before the night it names begins, while blank release is a statement
+    about game time the player experiences. Releasing on the flag returns dots
+    early.
+    """
+    start = night_start_date(night_number)
+    if start is None:
+        return None
+    return (today or date.today()) >= start
+
+
 def get_calendar():
     """Return all calendar entries with status computed for today."""
     today = date.today()

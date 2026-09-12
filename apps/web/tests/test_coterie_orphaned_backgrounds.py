@@ -8,7 +8,7 @@ asset, and a remaining member may buy it at standard price to take ownership.
 import os
 import sys
 
-from flask import Blueprint, Flask
+from flask import Blueprint, Flask, template_rendered
 from flask_wtf.csrf import CSRFProtect
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -256,15 +256,19 @@ def test_the_sheet_shows_who_donated_it_and_that_it_is_unclaimed():
 # Buying it
 # ---------------------------------------------------------------------------
 
-def test_price_is_the_standard_advantage_cost_for_the_dots_left():
+def test_price_is_the_standard_advantage_cost_for_the_full_rating():
+    """Priced on the rating, not on what happens to be unblanked. Blanked dots
+    return at the next release, so charging on availability let a coterie blank
+    a background and then buy it at a discount."""
     app = _app()
     coterie_id = _coterie(app, [('Fiora', '111')])
     bg_id = _donate(app, coterie_id, 'Fiora', dots=4)
     with app.app_context():
         row = db.session.get(DbCharacterBackground, bg_id)
-        row.dots_blanked = 1          # already spent, so not charged for
+        assert purchase_price(row) == 12, '4 dots at 3 XP each'
+        row.dots_blanked = 3
         db.session.commit()
-        assert purchase_price(row) == 9, '3 remaining dots at 3 XP each'
+        assert purchase_price(row) == 12, 'blanking does not discount it'
 
 
 def test_a_member_can_offer_to_buy_it():
@@ -600,9 +604,9 @@ def test_bulk_approval_skips_a_purchase_that_cannot_complete():
         assert DBService().get_xp_totals('Kira')['available_xp'] == 100
 
 
-def test_approval_is_refused_if_the_dots_were_blanked_away_meanwhile():
-    """The price was fixed against the dots available when the offer was made,
-    and the coterie keeps using the background while the request is pending."""
+def test_blanking_while_a_purchase_is_pending_does_not_block_it():
+    """The price is the rating, and blanking does not change the rating. The row
+    transfers intact, pending release included, so nothing is destroyed."""
     app = _spends_app()
     coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
     bg_id = _donate(app, coterie_id, 'Fiora')
@@ -614,6 +618,30 @@ def test_approval_is_refused_if_the_dots_were_blanked_away_meanwhile():
         row_id = DbSpendRequest.query.one().id
         assert db.session.get(DbSpendRequest, row_id).new_dots == 3
         db.session.get(DbCharacterBackground, bg_id).dots_blanked = 2
+        db.session.commit()
+
+    _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
+
+    with app.app_context():
+        assert db.session.get(DbSpendRequest, row_id).status == 'Approved'
+    row = _bg(app, bg_id)
+    assert row.character_name == 'Kira'
+    assert row.dots_total == 3, 'the rating they paid for'
+    assert row.dots_blanked == 2, 'and the pending release comes with it'
+
+
+def test_approval_is_refused_if_the_rating_changed_meanwhile():
+    """Only a change to the rating itself invalidates the price."""
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+        db.session.get(DbCharacterBackground, bg_id).dots_total = 5
         db.session.commit()
 
     _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
@@ -694,3 +722,114 @@ def test_a_purchased_background_lands_in_backgrounds_not_merits():
     _apply_patch(data2, 'Advantage (Merit/Background)', 'Iron Will', '', 2)
     assert [e['name'] for e in data2['merits']] == ['Iron Will']
     assert data2['backgrounds'] == []
+
+
+# ---------------------------------------------------------------------------
+# Second Codex review round on #428 (now follow-ups on main)
+# ---------------------------------------------------------------------------
+
+def test_a_retired_members_coterie_disappears_from_their_index():
+    """index() duplicates the member lookup inline, so it needed the same
+    activity filter. Without it the coterie's name, description, status and
+    member count stayed visible even though view() denies the sheet."""
+    app = _app()
+    _coterie(app, [('Fiora', '111'), ('Kira', '222')])
+    kira = _client(app, '222')
+    assert 'Midnight Accord' in kira.get('/coteries/').get_data(as_text=True)
+
+    with app.app_context():
+        DBService().set_character_status('Kira', 'retired')
+
+    body = kira.get('/coteries/').get_data(as_text=True)
+    assert 'Midnight Accord' not in body
+
+
+def test_a_retired_invitees_coterie_disappears_from_their_index():
+    app = _app()
+    coterie_id = _coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        kira = DbCharacter(character_name='Kira', player_discord='222',
+                           active=True, status='active')
+        db.session.add(kira)
+        db.session.flush()
+        db.session.add(CoterieInvitation(coterie_id=coterie_id,
+                                         roster_character_id=kira.id,
+                                         status='pending', invited_by='Fiora'))
+        db.session.commit()
+    kira_client = _client(app, '222')
+    assert 'Midnight Accord' in kira_client.get('/coteries/').get_data(as_text=True)
+
+    with app.app_context():
+        DBService().set_character_status('Kira', 'retired')
+
+    assert 'Midnight Accord' not in kira_client.get('/coteries/').get_data(as_text=True)
+
+
+def test_a_purchase_is_not_counted_as_an_xp_donation():
+    """Both a donation and a purchase carry coterie_id, so the donations table
+    and its total have to exclude purchases or the coterie looks better funded
+    than it is."""
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+    _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
+
+    with app.app_context():
+        spend = db.session.get(DbSpendRequest, row_id)
+        assert spend.status == 'Approved'
+        assert spend.coterie_id == coterie_id, 'still linked to the coterie'
+
+    # Capture what view() actually hands the template, so this tests the route's
+    # classification rather than restating the query.
+    captured = {}
+
+    def _grab(sender, template, context, **extra):
+        captured.update(context)
+
+    template_rendered.connect(_grab, app)
+    try:
+        _client(app, '222').get('/coteries/midnight-accord')
+    finally:
+        template_rendered.disconnect(_grab, app)
+
+    assert captured.get('xp_donations') == [], 'the purchase is not a donation'
+    assert captured.get('xp_donations_total') == 0, 'and does not inflate the total'
+    assert captured.get('pending_xp_donations') == []
+
+    body = _client(app, '222').get('/coteries/midnight-accord').get_data(as_text=True)
+    assert 'Haven' in body, 'the background itself is still shown'
+
+
+def test_a_player_cannot_join_one_coterie_with_two_characters():
+    """propose() can invite two of one player's characters and each invitation is
+    answered separately, so both could join and each commit two creation dots —
+    while _get_acting_member only ever returns one of them."""
+    app = _app()
+    coterie_id = _coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        for name in ('Kira', 'Nadia'):
+            ch = DbCharacter(character_name=name, player_discord='222',
+                             active=True, status='active')
+            db.session.add(ch)
+            db.session.flush()
+            db.session.add(CoterieInvitation(coterie_id=coterie_id,
+                                             roster_character_id=ch.id,
+                                             status='pending', invited_by='Fiora'))
+        db.session.commit()
+        invites = [i.id for i in CoterieInvitation.query.order_by(CoterieInvitation.id).all()]
+
+    kira = _client(app, '222')
+    kira.post(f'/coteries/midnight-accord/invite/{invites[0]}/accept')
+    kira.post(f'/coteries/midnight-accord/invite/{invites[1]}/accept')
+
+    with app.app_context():
+        members = sorted(m.character.character_name
+                         for m in db.session.get(Coterie, coterie_id).members)
+        assert members == ['Fiora', 'Kira'], 'only the first accepted'
+        assert db.session.get(CoterieInvitation, invites[1]).status == 'pending'

@@ -32,7 +32,7 @@ from app.db import (
 )
 from app.coterie_donations import orphan_donated_backgrounds, reclaim_donated_backgrounds
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
-from app.game_calendar import next_night_after_downtime
+from app.game_calendar import next_night_after_downtime, night_has_started
 
 
 def _now_str() -> str:
@@ -1493,19 +1493,43 @@ class DBService:
 
         # If an older blank is already due this night (or earlier), release it
         # before adding the new blank so one-night expiry is preserved.
+        # "Due" means the releasing night has actually begun, not merely that its
+        # period is open — current_night_number comes from a staff flag that runs
+        # ahead of the calendar. Without this gate the take path returns dots
+        # early exactly the way the release worker did.
         existing_release_night = int(row.release_night_number or 0)
-        if blanked > 0 and existing_release_night > 0 and existing_release_night <= current_night_number:
+        if (
+            blanked > 0
+            and existing_release_night > 0
+            and existing_release_night <= current_night_number
+            and night_has_started(existing_release_night) is True
+        ):
             row.dots_blanked = 0
             row.blanked_at_night_number = None
             row.release_night_number = None
             blanked = 0
 
-        row.dots_blanked = blanked + dots
-        row.blanked_at_night_number = current_night_number
-        row.release_night_number = (
+        # An older blank the gate above held is still outstanding, so this new
+        # blank stacks on top of it. One release_night_number cannot express two
+        # schedules, and overwriting it with this night's later release would
+        # push the held dots out by a whole downtime cycle — taking them away
+        # for longer because the player blanked something else. Until blanks are
+        # tracked per-blank rather than per-background, the earlier release wins
+        # and the new dots come back with it. A release may come sooner than its
+        # own rule would say; it must never come later than one already promised.
+        held_release_night = existing_release_night if blanked > 0 else 0
+        new_release_night = (
             next_night_after_downtime(current_night_number)
             or current_night_number + 1
         )
+
+        row.dots_blanked = blanked + dots
+        if held_release_night > 0:
+            row.release_night_number = min(held_release_night, new_release_night)
+            # blanked_at stays with the earlier blank, whose release drives the row.
+        else:
+            row.blanked_at_night_number = current_night_number
+            row.release_night_number = new_release_night
         row.updated_at = _now_str()
         row.updated_by = updated_by[:100]
         db.session.commit()
@@ -1535,6 +1559,16 @@ class DBService:
         for row in rows:
             released = int(row.dots_blanked or 0)
             if released <= 0:
+                continue
+            # current_night_number comes from _current_open_night(), which is
+            # resolved from submissions_open/active flags and never reads
+            # start_date, so it runs ahead of the calendar whenever staff open a
+            # period in advance. Gate on the releasing night having actually
+            # begun. Both conditions are kept rather than swapped, so this can
+            # only ever make a release later, never earlier — and a night the
+            # calendar does not know (None) is held rather than released, which
+            # is the recoverable direction.
+            if night_has_started(int(row.release_night_number)) is not True:
                 continue
             char = DbCharacter.query.filter(
                 func.lower(DbCharacter.character_name) == row.character_name.lower(),
