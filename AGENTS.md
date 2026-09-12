@@ -111,9 +111,15 @@ you were editing for.
     columns are harmless and guarded migrations re-apply as no-ops). **This
     happened on 2026-09-12 and took dev down for roughly two hours.**
 
-  The practical rule: a branch carrying a migration owns shared dev until it
-  merges. Land it promptly, or expect to be the reason someone else's deploy
-  fails.
+  Two practical rules follow:
+
+  - **A branch carrying a migration owns shared dev until it merges.** Land it
+    promptly, or expect to be the reason someone else's deploy fails.
+  - **Rebase onto `main` before pushing any branch that will deploy to dev —
+    not only branches that touch migrations.** The dev database is as far ahead
+    as the last migration merged to `main`, so *any* branch that predates that
+    merge fails to boot, whatever it changes. A docs-only branch is just as
+    affected as a schema one.
 
 **Conventions the type system does not enforce**
 
