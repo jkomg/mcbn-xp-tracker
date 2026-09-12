@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-09-12] Coterie Activity Filters and Purchase Accounting (PR #428 follow-up)
+
+### Review Findings on the Merged Coterie Work
+
+- **Privacy.** `index()` duplicated the member and invitation lookups inline
+  without the activity filter the helpers received, so a retired character's
+  coterie stayed listed for that player — name, description, status, member
+  count — even though the sheet itself was denied. Both now filter on
+  `DbCharacter.active`.
+- **Accounting.** A member buying an orphaned background carries `coterie_id`,
+  the same column coterie XP donations use, so purchases appeared in the
+  donations table and inflated its total. Both queries now exclude rows with
+  `purchased_background_id`.
+- **Pricing correction.** An orphaned background is now priced on its full
+  rating (`dots_total`), not on unblanked dots. Blanked dots are not spent —
+  they return at the next release — so charging on availability let a coterie
+  blank a background and then buy it at a discount while still receiving a row
+  that returned to full. The row now transfers intact, pending release included,
+  so nothing is destroyed in the handover.
+- **One character per player per coterie.** Two of a player's characters could
+  each accept an invitation to the same coterie and each commit two creation
+  dots, while `_get_acting_member` returns only one of them — leaving the other
+  a member who can never act but whose dots are spent.
+
+---
+
 ## [2026-04-20] Clickable Background Blanking (Issue #174)
 
 ### Per-Character Tracking + One-Night Blank/Release Cycle
