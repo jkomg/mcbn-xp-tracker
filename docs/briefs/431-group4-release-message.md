@@ -62,14 +62,13 @@ In `tick()`, three lines joined with '\n' and filtered for truthiness:
    established way to stub module-level config.
 6. Assert on the text a player actually sees, not on internals.
 
-## Wording (already proposed and pending the owner's confirmation)
-Use this unless told otherwise:
+## Wording (approved 2026-09-12 — use exactly this)
 
   `<mention> your background refresh is complete.`
   `**N** dot(s) of **<background>** are available to use now.`
 
 and drop the `Current night:` line entirely, since its embedded dates are the
-source of the ambiguity.
+source of the ambiguity. This wording is settled — do not substitute your own.
 
 ## Definition of done
 - [ ] The notification makes clear the dots are available immediately
