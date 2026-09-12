@@ -156,6 +156,9 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 
 ## Key Docs
 
+- `AGENTS.md` — the same ground as this file, for agents that read `AGENTS.md`
+  (Codex, Cursor). Keep the two in step: a trap worth recording belongs in both.
+- `docs/CODEX_TASK_BRIEF.md` — template and rules for delegating a task to Codex
 - `CONTRIBUTING.md` — **development rules and paths**: required toolchain versions, local setup, the exact test/lint commands CI gates on, migration workflow, branch/PR conventions, deploy paths per environment
 - `docs/REGRESSION_HYGIENE_CHECKLIST.md` — pre/post-change checklist; every item traces to a real incident
 - `docs/TESTING_CHARACTER_CREATION.md` — how to exercise the character-creation pipeline on dev, what to try to break, and where to look when it fails
