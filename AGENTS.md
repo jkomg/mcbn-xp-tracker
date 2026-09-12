@@ -79,11 +79,34 @@ you were editing for.
 - Migrations **apply automatically on every deploy** via `entrypoint.sh` under
   `set -e`, before gunicorn starts. A bad migration takes the service down on
   boot rather than failing a test.
-- **Rebase onto `main` before pushing a branch with migrations.** Dev has one
-  database shared by every branch that deploys to it. A branch missing the
-  revision dev is stamped at cannot boot at all, and it surfaces as a startup
-  probe failure that looks like an application crash. `git fetch origin &&
-  git rebase origin/main && git push --force-with-lease` is the fix, not a retry.
+- **One dev database is shared by every branch that deploys to it**, and
+  `entrypoint.sh` runs `flask db upgrade` under `set -e` before gunicorn starts.
+  So a branch that cannot locate the revision dev is stamped at does not boot at
+  all, and it surfaces as
+
+  ```
+  ERROR: (gcloud.run.deploy) The user-provided container failed the
+  configured startup probe checks.
+  ```
+
+  which reads like an application crash and is not one. The container log says
+  `Can't locate revision identified by '<rev>'`. **Check that before debugging
+  anything else.** This breaks in two directions:
+
+  - **Your branch is behind.** Someone merged a migration to `main` after you
+    branched. Fix: `git fetch origin && git rebase origin/main && git push
+    --force-with-lease`. A retry will not help.
+  - **Your branch is ahead, and it is everyone else who breaks.** Your *unmerged*
+    migration ran on shared dev and stamped it at a revision that exists only on
+    your branch, so `main` and every other branch now fail to boot. Rebasing
+    fixes nothing here — the revision is not on `main` to rebase onto. Either
+    merge your PR, or stamp dev back down to `main`'s head revision (the added
+    columns are harmless and guarded migrations re-apply as no-ops). **This
+    happened on 2026-09-12 and took dev down for roughly two hours.**
+
+  The practical rule: a branch carrying a migration owns shared dev until it
+  merges. Land it promptly, or expect to be the reason someone else's deploy
+  fails.
 
 **Conventions the type system does not enforce**
 
