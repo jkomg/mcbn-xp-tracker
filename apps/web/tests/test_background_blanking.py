@@ -42,8 +42,13 @@ def _write_headers(token='write-token', nonce='n1'):
 
 
 def _seed_character_period():
+    # Real calendar nights, not invented ones. Blank release is now gated on the
+    # game calendar, so a night the calendar has never heard of (the old 101/102)
+    # is held rather than released. Night 68 opens 2026-08-25 and its blanks come
+    # due on Night 69 (2026-09-08) — both safely in the past, so these stay
+    # deterministic as time passes.
     db.session.add(DbCharacter(character_name='Aludra', player_discord='111111111111111111', active=True, status='active'))
-    db.session.add(DbPlayPeriod(period_label='Night 101 - 4/20 - 5/4', night_number=101, submissions_open=True, active=True))
+    db.session.add(DbPlayPeriod(period_label='Night 68 - 8/25 - 9/6', night_number=68, submissions_open=True, active=True))
     db.session.commit()
 
 
@@ -52,17 +57,17 @@ def test_blank_and_release_cycle(app_ctx):
     _seed_character_period()
 
     svc.set_character_background('Aludra', 'Allies', 3, 'test')
-    result = svc.blank_character_background('Aludra', 'Allies', 2, 101, 'test')
+    result = svc.blank_character_background('Aludra', 'Allies', 2, 68, 'test')
     assert result['dots_blanked_total'] == 2
-    assert result['release_night_number'] == 102
+    assert result['release_night_number'] == 69
 
     rows = svc.get_character_backgrounds('Aludra')
     assert rows[0]['dots_available'] == 1
 
-    released_none = svc.release_due_background_blanks(101)
+    released_none = svc.release_due_background_blanks(68)
     assert released_none == []
 
-    released = svc.release_due_background_blanks(102)
+    released = svc.release_due_background_blanks(69)
     assert len(released) == 1
     assert released[0]['background_name'] == 'Allies'
     assert released[0]['dots_released'] == 2
@@ -77,14 +82,15 @@ def test_blank_consecutive_nights_preserves_one_night_release(app_ctx):
     _seed_character_period()
     svc.set_character_background('Aludra', 'Allies', 3, 'test')
 
-    # Night 101 blank: due on 102
-    first = svc.blank_character_background('Aludra', 'Allies', 1, 101, 'test')
-    assert first['release_night_number'] == 102
+    # Night 68 blank: due on 69 (first night after the 9/6-9/8 downtime)
+    first = svc.blank_character_background('Aludra', 'Allies', 1, 68, 'test')
+    assert first['release_night_number'] == 69
 
-    # Night 102 blank without running release worker first:
-    # previous due blank should auto-release, new blank due on 103.
-    second = svc.blank_character_background('Aludra', 'Allies', 1, 102, 'test')
-    assert second['release_night_number'] == 103
+    # Night 69 blank without running the release worker first: the previous
+    # blank is due and Night 69 has started, so it auto-releases, and the new
+    # blank is due after the next downtime (Night 73).
+    second = svc.blank_character_background('Aludra', 'Allies', 1, 69, 'test')
+    assert second['release_night_number'] == 73
     assert second['dots_blanked_total'] == 1
     assert second['dots_available'] == 2
 
@@ -131,21 +137,21 @@ def test_release_due_backgrounds_api_returns_released(app_ctx):
     svc = DBService()
     _seed_character_period()
     svc.set_character_background('Aludra', 'Contacts', 2, 'test')
-    svc.blank_character_background('Aludra', 'Contacts', 1, 101, 'test')
+    svc.blank_character_background('Aludra', 'Contacts', 1, 68, 'test')
 
     with app_ctx.test_client() as client:
         res = client.post('/api/backgrounds/release-due', headers=_write_headers(nonce='release-1'))
         assert res.status_code == 200
         payload = res.get_json()
-        # current night is still 101 so nothing due yet
+        # current night is still 68 so nothing due yet
         assert payload['released'] == []
 
     # simulate next night opening
     with app_ctx.app_context():
-        period = DbPlayPeriod.query.filter_by(period_label='Night 101 - 4/20 - 5/4').first()
+        period = DbPlayPeriod.query.filter_by(period_label='Night 68 - 8/25 - 9/6').first()
         assert period is not None
         period.submissions_open = False
-        db.session.add(DbPlayPeriod(period_label='Night 102 - 5/5 - 5/19', night_number=102, submissions_open=True, active=True))
+        db.session.add(DbPlayPeriod(period_label='Night 69 - 9/8 - 9/20', night_number=69, submissions_open=True, active=True))
         db.session.commit()
 
     with app_ctx.test_client() as client:
@@ -155,3 +161,104 @@ def test_release_due_backgrounds_api_returns_released(app_ctx):
         assert len(payload['released']) == 1
         assert payload['released'][0]['background_name'] == 'Contacts'
         assert payload['released'][0]['dots_released'] == 1
+
+
+# ---------------------------------------------------------------------------
+# Issue #431: release is gated on the night having begun, not on its period
+# being open for submissions
+# ---------------------------------------------------------------------------
+
+def _hold_release(monkeypatch, answer):
+    """Force night_has_started's answer for the release gate.
+
+    The not-yet-started case needs a night in the future, and every real
+    calendar night eventually stops being one, so the gate's answer is injected
+    rather than pinned to a date that expires. `night_has_started` itself is
+    tested against real calendar data in test_game_calendar_night_start.py.
+    """
+    # app/__init__.py binds a DBService *instance* as app.db_service, shadowing
+    # the module of the same name, so import_module is needed to reach it.
+    import importlib
+    db_service_module = importlib.import_module('app.db_service')
+    monkeypatch.setattr(db_service_module, 'night_has_started',
+                        lambda night_number, today=None: answer)
+
+
+def test_opening_the_period_early_does_not_return_the_dots(app_ctx, monkeypatch):
+    """The 2026-09-04 report: Night 69's period was open, Night 69 had not
+    started, and 3 dots came back four days early."""
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 3, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 3, 68, 'test')
+
+    _hold_release(monkeypatch, False)
+    released = svc.release_due_background_blanks(69)
+
+    assert released == []
+    assert svc.get_character_backgrounds('Aludra')[0]['dots_blanked'] == 3
+
+
+def test_the_dots_return_once_the_night_actually_starts(app_ctx, monkeypatch):
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 3, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 3, 68, 'test')
+
+    _hold_release(monkeypatch, False)
+    assert svc.release_due_background_blanks(69) == []
+
+    _hold_release(monkeypatch, True)
+    released = svc.release_due_background_blanks(69)
+
+    assert len(released) == 1
+    assert released[0]['dots_released'] == 3
+    assert svc.get_character_backgrounds('Aludra')[0]['dots_available'] == 3
+
+
+def test_a_night_the_calendar_does_not_know_is_held_not_released(app_ctx, monkeypatch):
+    """Holding is recoverable — staff can see it and the calendar can be
+    extended. Releasing on an unknown date is not."""
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 2, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 2, 68, 'test')
+
+    _hold_release(monkeypatch, None)
+    released = svc.release_due_background_blanks(69)
+
+    assert released == []
+    assert svc.get_character_backgrounds('Aludra')[0]['dots_blanked'] == 2
+
+
+def test_the_period_condition_still_applies(app_ctx, monkeypatch):
+    """Both conditions are kept, so the gate can only ever delay a release. A
+    blank not yet due by night number stays blanked even if the calendar would
+    allow it."""
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 2, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 2, 68, 'test')
+
+    _hold_release(monkeypatch, True)
+    assert svc.release_due_background_blanks(68) == []
+    assert svc.get_character_backgrounds('Aludra')[0]['dots_blanked'] == 2
+
+
+def test_taking_a_new_blank_does_not_release_a_held_one_early(app_ctx, monkeypatch):
+    """The second release path. blank_character_background auto-releases an
+    older due blank before stacking a new one, and used the same flag-based
+    comparison — so blanking again during an early-opened period returned the
+    earlier dots early too."""
+    svc = DBService()
+    _seed_character_period()
+    svc.set_character_background('Aludra', 'Mawla', 3, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+
+    _hold_release(monkeypatch, False)
+    second = svc.blank_character_background('Aludra', 'Mawla', 1, 69, 'test')
+
+    # The held dot is still blanked, so this stacks on top of it rather than
+    # replacing it.
+    assert second['dots_blanked_total'] == 2
+    assert second['dots_available'] == 1
