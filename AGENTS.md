@@ -38,8 +38,17 @@ Run these before opening a PR. Not approximations of them — these.
 npm run check      # lint → format:check → typecheck → test → build
 ```
 
+**Character app** (from `apps/character-app`) — note Node 22 here, not 20:
+```bash
+npm run lint && npm run test:run && npm run build
+```
+
 Jobs are path-filtered but roll up into one required `test-and-lint` check.
-Editing `packages/**` triggers **both** app suites.
+**Editing `packages/**` triggers four of them** — `web`, `bot`, `character_app`
+and `docker_docs` all list `packages/**`, because the shared JSON is read by both
+apps, asserted against by the character app's drift guards, and baked into the
+web image's Docker build. Validate all three consumers locally, not just the one
+you were editing for.
 
 ## Traps
 
@@ -106,10 +115,19 @@ Editing `packages/**` triggers **both** app suites.
 
 **Deploys**
 
-- **Every push to any branch that passes CI redeploys the shared dev site**
-  (`dev.mcbn.jkomg.us`) — before review, with no open PR. Dev is shared;
+- **A branch push with no open PR runs no CI at all.** `ci.yml`'s `push` trigger
+  is restricted to `main`; every other branch runs CI through `pull_request`. So
+  pushing a branch alone validates nothing and deploys nothing — open the PR, or
+  your work is untested.
+- **Once a PR is open, every CI pass on it redeploys the shared dev site**
+  (`dev.mcbn.jkomg.us`), before review and on any branch. Dev is shared;
   coordinate.
-- Prod deploys only via `main`, gated on the dev deploy succeeding.
+- Prod deploys **automatically** only via `main`, gated on the dev deploy
+  succeeding. But `deploy-web.yml` also accepts `workflow_dispatch`
+  unconditionally and resolves it to `github.sha` with no main-tip check, so a
+  manual `gh workflow run ... --ref <branch>` can put a feature branch straight
+  into production. Treat manual prod dispatch as main-only by convention; the
+  workflow does not enforce it.
 - **Nothing in this repo deploys the bot.** CI on `main` publishes
   `ghcr.io/jkomg/lasombra-bot:<sha7>`; the bot runs on k3s under Argo CD, which
   syncs from the separate `home-automation` repo where images are pinned by

@@ -102,12 +102,21 @@ Two review mechanics worth knowing, because the defaults mislead:
   pushing, or the findings you're reading are about an older commit.
 
 ```bash
-# Review status and findings — gh pr view shows neither
-gh api repos/jkomg/mcbn-xp-tracker/issues/<n>/comments \
-  --jq '.[] | select(.user.login|test("codex")) | .body' | head -20
-gh api repos/jkomg/mcbn-xp-tracker/pulls/<n>/comments \
+# Review status — gh pr view shows neither this nor the findings.
+# --paginate matters: without it only the first page comes back, and on a busy
+# PR the Codex status comment may not be on it. tail, not head — the status
+# comment is edited in place and the newest state is last.
+gh api --paginate repos/jkomg/mcbn-xp-tracker/issues/<n>/comments \
+  --jq '.[] | select(.user.login|test("codex")) | .body' \
+  | grep -E '^\| .*(Running|Completed|Failed)' | tail -1
+
+# Inline findings
+gh api --paginate repos/jkomg/mcbn-xp-tracker/pulls/<n>/comments \
   --jq '.[] | "\(.path):\(.line)  \(.body[0:200])"'
 ```
+
+Check the **commit SHA** in that status row against the PR tip. A review of an
+older commit is not a review of what you are about to merge.
 
 ## Two agents, one repo
 
