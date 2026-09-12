@@ -30,7 +30,7 @@ from app.db import (
     DbBoon,
     DbWishListItem,
 )
-from app.coterie_donations import orphan_donated_backgrounds
+from app.coterie_donations import orphan_donated_backgrounds, reclaim_donated_backgrounds
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 from app.game_calendar import next_night_after_downtime
 
@@ -305,7 +305,11 @@ class DBService:
         })
         if status != 'active':
             orphan_donated_backgrounds(name)
-            db.session.commit()
+        else:
+            # A status corrected back to active takes the character's donations
+            # back off offer; leaving orphaned_from set would keep them buyable.
+            reclaim_donated_backgrounds(name)
+        db.session.commit()
 
     def deactivate_character(self, name: str) -> None:
         self.update_character(name, {'active': 'FALSE', 'status': 'retired'})

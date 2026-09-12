@@ -16,8 +16,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.blueprints import coteries as coteries_module  # noqa: E402
 from app.coterie_donations import (claim_purchased_background,  # noqa: E402
                                    orphan_donated_backgrounds, purchase_price)
-from app.db import (Coterie, CoterieMember, DbCharacter,  # noqa: E402
-                    DbCharacterBackground, DbPlayPeriod, DbSpendRequest, db)
+from app.db import (Coterie, CoterieInvitation, CoterieMember,  # noqa: E402
+                    DbCharacter, DbCharacterBackground, DbPlayPeriod,
+                    DbSpendRequest, db)
 from app.db_service import DBService  # noqa: E402
 
 STAFF_ID = '999'
@@ -544,3 +545,152 @@ def test_denying_the_purchase_leaves_the_background_on_offer():
         from app.coterie_donations import blocking_reason
         assert blocking_reason(db.session.get(DbCharacterBackground, bg_id),
                                'Kira') is None
+
+
+# ---------------------------------------------------------------------------
+# Codex review follow-ups on PR #428
+# ---------------------------------------------------------------------------
+
+def test_approval_is_refused_when_the_transfer_cannot_complete():
+    """The P1. claim_purchased_background returning None was only skipping the
+    commit — approve_spend and patch_character_draft had already run, so the
+    buyer paid and got the trait while the background stayed on offer."""
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+        # Kira picks Haven up another way while the request sits in the queue.
+        db.session.add(DbCharacterBackground(
+            character_name='Kira', background_key='haven', background_name='Haven',
+            dots_total=1, dots_blanked=0, updated_at='', updated_by=''))
+        db.session.commit()
+
+    _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
+
+    with app.app_context():
+        assert db.session.get(DbSpendRequest, row_id).status == 'Pending', 'not approved'
+        assert DBService().get_xp_totals('Kira')['available_xp'] == 100, 'no XP charged'
+    assert _bg(app, bg_id).orphaned_from == 'Fiora', 'still on offer'
+
+
+def test_bulk_approval_skips_a_purchase_that_cannot_complete():
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+        db.session.add(DbCharacterBackground(
+            character_name='Kira', background_key='haven', background_name='Haven',
+            dots_total=1, dots_blanked=0, updated_at='', updated_by=''))
+        db.session.commit()
+
+    _client(app, STAFF_ID).post('/spends/bulk-approve', data={'spend_ids': [str(row_id)]})
+
+    with app.app_context():
+        assert db.session.get(DbSpendRequest, row_id).status == 'Pending'
+        assert DBService().get_xp_totals('Kira')['available_xp'] == 100
+
+
+def test_approval_is_refused_if_the_dots_were_blanked_away_meanwhile():
+    """The price was fixed against the dots available when the offer was made,
+    and the coterie keeps using the background while the request is pending."""
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+        assert db.session.get(DbSpendRequest, row_id).new_dots == 3
+        db.session.get(DbCharacterBackground, bg_id).dots_blanked = 2
+        db.session.commit()
+
+    _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
+
+    with app.app_context():
+        assert db.session.get(DbSpendRequest, row_id).status == 'Pending'
+        assert DBService().get_xp_totals('Kira')['available_xp'] == 100
+
+
+def test_reactivating_a_donor_takes_the_donation_back_off_offer():
+    app = _app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')])
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+        assert _bg(app, bg_id).orphaned_from == 'Fiora'
+        DBService().set_character_status('Fiora', 'active')
+
+    row = _bg(app, bg_id)
+    assert row.orphaned_from is None, 'no longer buyable'
+    assert row.orphaned_at is None
+    assert row.donated_coterie_id == coterie_id, 'still donated, as it was before'
+
+
+def test_reactivating_does_not_take_back_a_background_someone_bought():
+    app = _spends_app()
+    coterie_id = _coterie(app, [('Fiora', '111'), ('Kira', '222')], creation_xp=100)
+    bg_id = _donate(app, coterie_id, 'Fiora')
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'retired')
+    _client(app, '222').post(f'/coteries/midnight-accord/orphaned/{bg_id}/buy')
+    with app.app_context():
+        row_id = DbSpendRequest.query.one().id
+    _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
+    assert _bg(app, bg_id).character_name == 'Kira'
+
+    with app.app_context():
+        DBService().set_character_status('Fiora', 'active')
+
+    assert _bg(app, bg_id).character_name == 'Kira', 'it belongs to the buyer now'
+
+
+def test_an_invitation_does_not_keep_sheet_access_after_retirement():
+    """Same class as the member-authorization fix: retirement leaves the
+    invitation row in place, and an invitation grants read access."""
+    app = _app()
+    coterie_id = _coterie(app, [('Fiora', '111')])
+    with app.app_context():
+        kira = DbCharacter(character_name='Kira', player_discord='222',
+                           active=True, status='active')
+        db.session.add(kira)
+        db.session.flush()
+        db.session.add(CoterieInvitation(coterie_id=coterie_id,
+                                         roster_character_id=kira.id,
+                                         status='pending', invited_by='Fiora'))
+        db.session.commit()
+    assert _client(app, '222').get('/coteries/midnight-accord').status_code == 200
+
+    with app.app_context():
+        DBService().set_character_status('Kira', 'retired')
+
+    assert _client(app, '222').get('/coteries/midnight-accord').status_code == 404
+
+
+def test_a_purchased_background_lands_in_backgrounds_not_merits():
+    """_apply_patch defaults a genuinely new advantage to merits because it
+    cannot tell a Background from a Merit by name. A purchase came from a
+    character_backgrounds row, so it can."""
+    from app.character_sheet import _apply_patch
+
+    data = {'backgrounds': [], 'merits': []}
+    _apply_patch(data, 'Advantage (Merit/Background)', 'Haven', '', 3,
+                 known_background=True)
+    assert [e['name'] for e in data['backgrounds']] == ['Haven']
+    assert data['merits'] == []
+
+    data2 = {'backgrounds': [], 'merits': []}
+    _apply_patch(data2, 'Advantage (Merit/Background)', 'Iron Will', '', 2)
+    assert [e['name'] for e in data2['merits']] == ['Iron Will']
+    assert data2['backgrounds'] == []

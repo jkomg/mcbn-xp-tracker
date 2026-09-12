@@ -7,7 +7,7 @@ from flask import (
 )
 from app import db_service, sheets_sync
 from app.auth import require_staff, get_staff_user
-from app.coterie_donations import claim_purchased_background
+from app.coterie_donations import approval_blocker, claim_purchased_background
 from app.db import db
 from app.xp_rules import validate_spend_request
 from app.character_sheet import (
@@ -234,6 +234,15 @@ def approve(row_id):
             'This looks like a duplicate of an already-approved request.',
             'danger',
         )
+        return redirect(url_for('spends.review', row_id=row_id))
+
+    # A purchase of an orphaned coterie background has to be able to complete
+    # before the XP is charged — approve_spend and patch_character_draft below
+    # both commit, so discovering the problem afterwards leaves the buyer paying
+    # for a transfer that never happened.
+    purchase_blocked = approval_blocker(spend)
+    if purchase_blocked:
+        flash(f'Cannot approve — {purchase_blocked}.', 'danger')
         return redirect(url_for('spends.review', row_id=row_id))
 
     notes = request.form.get('notes', '')[:1000]
@@ -482,6 +491,13 @@ def bulk_approve():
             skipped.append(
                 f'{spend.character_name} / {spend.trait_name} '
                 f'(duplicate "{spend.power_name}" specialty — already approved elsewhere)'
+            )
+            continue
+
+        purchase_blocked = approval_blocker(spend)
+        if purchase_blocked:
+            skipped.append(
+                f'{spend.character_name} / {spend.trait_name} ({purchase_blocked})'
             )
             continue
 

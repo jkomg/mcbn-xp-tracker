@@ -18,7 +18,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app import db_service, sheets_sync, limiter
 from app.auth import is_allowed_discord_user
-from app.coterie_donations import orphan_donated_backgrounds
+from app.coterie_donations import orphan_donated_backgrounds, reclaim_donated_backgrounds
 from app.retirement_automation import (
     enqueue_retirement_job,
     is_retirement_job_ready,
@@ -1528,6 +1528,8 @@ def set_character_status(name):
         # This route writes the character row directly rather than going through
         # db_service.set_character_status, so it needs its own call.
         orphan_donated_backgrounds(row.character_name)
+    else:
+        reclaim_donated_backgrounds(row.character_name)
     if previous_status != 'retired' and new_status == 'retired':
         enqueue_retirement_job(
             row.character_name,

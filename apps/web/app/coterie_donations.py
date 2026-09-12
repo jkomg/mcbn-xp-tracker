@@ -61,6 +61,27 @@ def orphan_donated_backgrounds(character_name: str) -> list[DbCharacterBackgroun
     return rows
 
 
+def reclaim_donated_backgrounds(character_name: str) -> list[DbCharacterBackground]:
+    """Take this character's donations back off offer when they return to play.
+
+    The mirror of orphan_donated_backgrounds, for a status corrected back to
+    active. Only rows still held by this character are reclaimed — one already
+    bought belongs to its buyer and is no longer orphaned, so it is untouched.
+    Does not commit.
+    """
+    if not character_name:
+        return []
+
+    rows = DbCharacterBackground.query.filter(
+        func.lower(DbCharacterBackground.character_name) == character_name.lower(),
+        DbCharacterBackground.orphaned_from.is_not(None),
+    ).all()
+    for row in rows:
+        row.orphaned_from = None
+        row.orphaned_at = None
+    return rows
+
+
 def orphaned_backgrounds(coterie_id: int) -> list[DbCharacterBackground]:
     """Backgrounds this coterie kept after their donor left play."""
     return DbCharacterBackground.query.filter(
@@ -120,6 +141,38 @@ def blocking_reason(bg: DbCharacterBackground, buyer_name: str) -> str | None:
         return (
             f'A purchase of {bg.background_name} by '
             f'{pending.character_name} is already awaiting staff review.'
+        )
+    return None
+
+
+def approval_blocker(spend) -> str | None:
+    """Why an approved purchase could not complete, or None if it can.
+
+    Checked *before* the XP is charged. The buyer can acquire the same
+    background, members can keep blanking the orphan's remaining dots, and
+    someone else's purchase can land first — all while this request sits in the
+    queue. Without this the approval charges XP and patches the sheet while the
+    transfer silently no-ops, leaving the background still on offer.
+    """
+    bg_id = getattr(spend, 'purchased_background_id', 0)
+    if not bg_id:
+        return None
+
+    bg = db.session.get(DbCharacterBackground, bg_id)
+    if bg is None:
+        return 'the background this request was buying no longer exists'
+    if bg.orphaned_from is None:
+        return f'{bg.background_name} is no longer unclaimed'
+
+    blocked = transfer_blocker(bg, spend.character_name)
+    if blocked is not None:
+        return blocked
+
+    # The price was fixed against the dots available when the offer was made.
+    if bg.dots_available < int(spend.new_dots or 0):
+        return (
+            f'{bg.background_name} now has {bg.dots_available} dot(s) available, '
+            f'not the {spend.new_dots} this request was priced for'
         )
     return None
 

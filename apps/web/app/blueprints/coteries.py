@@ -108,6 +108,10 @@ def _get_pending_invite(coterie: Coterie, discord_id: str,
             CoterieInvitation.coterie_id == coterie.id,
             CoterieInvitation.status == 'pending',
             DbCharacter.player_discord == discord_id,
+            # Same reason _get_acting_member checks it: retirement and death
+            # leave the invitation row in place, and an invitation grants read
+            # access to a private sheet.
+            DbCharacter.active,
         )
     )
     if invite_id is not None:
