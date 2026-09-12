@@ -5,6 +5,10 @@ Thanks for your interest in contributing.
 ## Before You Start
 
 - Read [README.md](README.md) for architecture, and [docs/MONOREPO_ARCHITECTURE.md](docs/MONOREPO_ARCHITECTURE.md) for system boundaries.
+- **Working as a coding agent, or delegating to one?** Start with
+  [AGENTS.md](AGENTS.md) — it front-loads the traps in this repo that cannot be
+  inferred from the code. To hand a task to Codex, use
+  [docs/CODEX_TASK_BRIEF.md](docs/CODEX_TASK_BRIEF.md).
 - Check open issues and existing PRs to avoid duplicate work.
 - For security issues, do **not** open a public issue. See [SECURITY.md](SECURITY.md).
 
