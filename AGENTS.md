@@ -31,7 +31,10 @@ Run these before opening a PR. Not approximations of them — these.
 ```bash
 ./venv/bin/pytest -q --cov=app --cov-report=term-missing --cov-fail-under=30
 ./venv/bin/ruff check app tests
+./venv/bin/python -m compileall app tests      # blocking in CI
 ```
+`compileall` is not redundant with pytest: pytest imports only what the tests
+reach, so a syntax error in an unimported module passes locally and fails CI.
 
 **Bot** (from `apps/bot`):
 ```bash
@@ -40,8 +43,12 @@ npm run check      # lint → format:check → typecheck → test → build
 
 **Character app** (from `apps/character-app`) — note Node 22 here, not 20:
 ```bash
-npm run lint && npm run test:run && npm run build
+npm run lint && npm run test:run && npm run typecheck && npm run build
+npx playwright install --with-deps chromium && npm run test:e2e
 ```
+`typecheck` and `test:e2e` are separate blocking steps — `npm run build` is Vite
+only and does not type-check. The E2E run needs a Playwright browser installed,
+so it is the slow one; run it before pushing anything touching this app.
 
 Jobs are path-filtered but roll up into one required `test-and-lint` check.
 **Editing `packages/**` triggers four of them** — `web`, `bot`, `character_app`
