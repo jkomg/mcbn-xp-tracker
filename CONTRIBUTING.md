@@ -5,6 +5,10 @@ Thanks for your interest in contributing.
 ## Before You Start
 
 - Read [README.md](README.md) for architecture, and [docs/MONOREPO_ARCHITECTURE.md](docs/MONOREPO_ARCHITECTURE.md) for system boundaries.
+- **Working as a coding agent, or delegating to one?** Start with
+  [AGENTS.md](AGENTS.md) — it front-loads the traps in this repo that cannot be
+  inferred from the code. To hand a task to Codex, use
+  [docs/CODEX_TASK_BRIEF.md](docs/CODEX_TASK_BRIEF.md).
 - Check open issues and existing PRs to avoid duplicate work.
 - For security issues, do **not** open a public issue. See [SECURITY.md](SECURITY.md).
 
@@ -182,12 +186,16 @@ The old "Deploy Bot to Ursula" workflow was removed on 2026-08-29 — after the
 migration it would have started a *second* live bot on Ursula holding the same
 Discord gateway session as the pod.
 
-Read the dev row carefully: `deploy-web-dev.yml` has **no branch filter**. Any
-push to any branch that passes CI redeploys the shared dev service and posts a
-Discord notification — before review, and without an open PR. This is
-deliberate (it lets you test a PR on real infrastructure pre-merge), but it
-means **dev is shared**: coordinate before pushing work-in-progress if someone
-else is testing there.
+Read the dev row carefully: `deploy-web-dev.yml` has **no branch filter**, so any
+CI run that passes redeploys the shared dev service and posts a Discord
+notification — before review, on any branch. This is deliberate (it lets you
+test a PR on real infrastructure pre-merge), but it means **dev is shared**:
+coordinate before pushing work-in-progress if someone else is testing there.
+
+What it does *not* mean is that a bare branch push deploys. `ci.yml`'s `push`
+trigger is restricted to `main`; every other branch runs CI via `pull_request`
+only. **A pushed branch with no open PR runs no CI and deploys nothing** — so it
+is also completely unvalidated. Open the PR.
 
 ### Rebase before you push, or dev will fail to boot
 
@@ -216,8 +224,15 @@ git push --force-with-lease
 The same failure mode hits prod only via `main`, which is always at head, so
 this is specifically a dev/PR-branch hazard.
 
-Prod is only reachable through `main`, and the bot only redeploys when
-`apps/bot/**` or `packages/**` actually changed.
+Prod is reachable **automatically** only through `main`, and the bot only
+redeploys when `apps/bot/**` or `packages/**` actually changed.
+
+The manual path is not constrained the same way. `deploy-web.yml`'s `branches:
+[main]` filter applies only to its `workflow_run` trigger; its job condition
+accepts `workflow_dispatch` unconditionally and resolves the image to
+`github.sha`, so `gh workflow run deploy-web.yml --ref <branch>` deploys that
+branch to production. Nothing enforces main for a dispatch — treat it as
+main-only by convention, or add the check.
 
 **The workflows are the single source of truth** for image build, Cloud Run
 resource flags, env vars, and secret bindings. `apps/web/deploy.sh` only
