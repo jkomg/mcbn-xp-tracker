@@ -214,6 +214,16 @@ no new DB writes.*
 - [ ] 6.4a `docs/WEB_APP.md` (Backgrounds tab, ~line 182) tells players each row
       shows "the scheduled release night if blanked" — singular. After 5.1 it
       shows every outstanding lot
+- [ ] 6.4b **The bot is deliberately left on the aggregate**, recorded rather than
+      left unsaid. `adapter.ts` parses each background with a plain `z.object`,
+      which **strips unknown keys**, and `CharacterBackgroundStatus` in `types.ts`
+      mirrors it — so adding the per-lot field to the response never reaches the
+      bot. Nothing breaks either: every field the bot reads survives as a derived
+      property, and `release_night_number` stays a truthful "next release".
+      Updating the bot is a change in a separate repo with its own Argo CD ship
+      path, so it is a deliberate follow-up, not part of this. Say so in the PR,
+      and record the Zod-stripping behaviour so whoever does it knows the schema
+      **and** the type both need widening
 - [ ] 6.7 Raise the follow-up change that drops the index and the three columns,
       per 1.9. It must not ship until this one is live everywhere
 - [ ] 6.8 Put the accepted cutover window in the release notes: a blank served by
