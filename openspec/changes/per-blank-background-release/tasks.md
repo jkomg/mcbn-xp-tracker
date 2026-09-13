@@ -1,3 +1,12 @@
+## Prerequisite
+
+Depends on **#440** (merged 2026-09-12), which removed
+`approve_donation`'s `bg.dots_blanked = bg.dots_total`. Until that landed, a
+donated background was fully blanked with no releasing night — a state this
+change cannot represent, and the reason an earlier draft modelled an indefinite
+hold. Group 2 assumes donation no longer touches blank state, which is only true
+on top of that fix.
+
 ## Ownership
 
 Annotated per `docs/CODEX_TASK_BRIEF.md`. Groups 1–3 carry the schema, the
@@ -24,10 +33,15 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       should raise rather than silently do nothing. `dots_available` keeps
       working as-is since it reads `dots_blanked`
 - [ ] 1.4 Migration, four steps, **each guarded independently**: create the table
-      (skip if present); backfill one row per background with `dots_blanked > 0`
-      (skip only if blank *rows* already exist — **not** if the table exists);
+      (skip if present); backfill one row per background with `dots_blanked > 0`;
       drop `ix_character_backgrounds_release_night`; drop the three columns (skip
       each if absent). Backfill before drop
+- [ ] 1.4a Write the backfill as one `INSERT ... SELECT ... WHERE NOT EXISTS`
+      keyed per background — **not** as "skip if the table is empty". Two
+      instances can boot together and both see it empty before either inserts,
+      and multiple rows per background are legitimate so nothing would catch the
+      duplicate; with `dots_blanked` derived, the player would see double
+      immediately
 - [ ] 1.5 **Do not put one table-exists guard over the whole upgrade.**
       `db.create_all()` runs before Alembic on every boot, so the table already
       exists on any database that has booted this code — a leading guard would
@@ -36,16 +50,23 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 - [ ] 1.6 Drop the index **before** its column. SQLite fails with `error in index
       ix_character_backgrounds_release_night after drop column: no such column`
       otherwise; the index is declared in both `db.py` and `6d2a4f0be9c1`
-- [ ] 1.7 Write a real `downgrade()`, in this order: re-add the three columns;
-      repopulate from outstanding rows (sum, earliest releasing night); recreate
-      the index **after** its column exists, not before; then **drop
+- [ ] 1.7 Write a real `downgrade()`, in this order: re-add the three columns,
+      **each behind its own column-exists guard** so a retry after a partial
+      failure does not die on a column it already added; repopulate from
+      outstanding rows (sum, earliest releasing night); recreate the index
+      **after** its column exists, not before; then **drop
       `character_background_blanks`**. Leaving the table behind makes a
       roll-forward skip its own backfill — rows already exist — so the new model
       would resume from stale pre-rollback data
-- [ ] 1.8 Test on a database built at the previous revision holding a timed blank,
-      a donated background, and a legacy row with `dots_blanked > 0` but no
-      releasing night; confirm re-running `upgrade()` is a no-op and that
+- [ ] 1.8 Test on a database built at the previous revision holding a timed blank
+      and a donated background: confirm re-running `upgrade()` is a no-op, that
+      running it twice concurrently produces one row per background, and that
       `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
+- [ ] 1.8a Separately, a legacy row with `dots_blanked > 0` and **no** releasing
+      night is *deliberately* cleared, not preserved — every blank now has a
+      night, so it is unrepresentable. Assert it is cleared; do not include it in
+      the round-trip-without-loss case, which it would contradict. Both databases
+      hold zero such rows (read-only count), so this is a guard, not a data path
 
 ## 2. Blanking writes a row
 
@@ -109,6 +130,12 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 *Seam: `apps/web` Jinja + blueprints — **delegable** after group 3. No schema,
 no new DB writes.*
 
+- [ ] 5.0 **First**, extend `get_character_backgrounds` to carry the per-lot data.
+      The player route hands the template plain dicts from that method, whose
+      response is an aggregate plus one `release_night_number` — the template
+      cannot enumerate lots it is never given. This also changes the
+      `GET /api/backgrounds/status` payload, so it is the same task as 6.4's doc
+      update and must land before 5.1 or 5.2 can work
 - [ ] 5.1 `player/character.html` shows each outstanding lot's dots and
       releasing night rather than a single night
 - [ ] 5.2 `coteries/view.html` does the same for donated backgrounds

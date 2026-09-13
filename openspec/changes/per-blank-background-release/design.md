@@ -159,7 +159,15 @@ Four steps in one migration, **each guarded independently**:
 
 1. Create `character_background_blanks` — skip if the table exists.
 2. Backfill one row per background with `dots_blanked > 0`, carrying its existing
-   two nights. Skip only if the blanks table already contains rows.
+   two nights. **Written as a single `INSERT ... SELECT ... WHERE NOT EXISTS`
+   keyed per background, not guarded by "is the table empty".** Two Cloud Run
+   instances can boot at once and both observe an empty table before either
+   inserts, and multiple rows per background are legitimate so no unique
+   constraint would catch the duplicate — each background would end up with its
+   blank counted twice, and `dots_blanked` being derived means the player
+   immediately sees double. A per-background `NOT EXISTS` is correct however many
+   times it runs and however many run at once. This repo has already been bitten
+   by a concurrent-migration race once, in `fix/dedupe-key-migration-idempotency`.
    A row with `dots_blanked > 0` but **no** releasing night cannot be represented
    — every blank now returns — and the only thing that produced one was the
    donation bug fixed separately, which no longer does. Such a row is cleared
@@ -186,7 +194,11 @@ Verified 2026-09-12. The index is declared in both `db.py` and migration
 
 `downgrade()` is written and tested, not left as a stub, and its order matters:
 
-1. Re-add the three columns.
+1. Re-add the three columns, **each behind its own column-exists guard.** If
+   Turso persists one `ADD COLUMN` and the downgrade then fails before Alembic
+   writes the revision back, an unguarded retry dies on the column it already
+   added — leaving the database stuck between revisions, which is the worst place
+   for it to be.
 2. Repopulate them from the outstanding rows — sum for `dots_blanked`, earliest
    releasing night for the other two.
 3. Recreate `ix_character_backgrounds_release_night`. **After** step 1, not
