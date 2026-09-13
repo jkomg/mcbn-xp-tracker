@@ -101,6 +101,14 @@ def _coterie(app, members, creation_xp=0):
 
 
 def _donate(app, coterie_id, char_name, bg_name='Haven', dots=3, key=None):
+    """A donated background, in the state approve_donation actually leaves it.
+
+    dots_blanked stays 0: donating hands the dots to the coterie to spend over
+    time, it does not withhold them. approve_donation used to set
+    dots_blanked = dots_total, which made the coterie's own blanking impossible,
+    so this fixture matched the intended behaviour rather than the shipped one
+    until that was fixed. See tests/test_coterie_donation_blanking.py.
+    """
     with app.app_context():
         row = DbCharacterBackground(
             character_name=char_name, background_key=key or bg_name.lower(),
