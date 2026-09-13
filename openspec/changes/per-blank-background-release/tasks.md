@@ -162,7 +162,12 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       creator draft against an existing character can lower a rating without going
       anywhere near `set_character_background`. Both paths need the same
       reduce-lots rule; put it in one helper they both call rather than writing it
-      twice. `set_character_background` can no longer clamp a
+      twice. **Audit it in both**: a reduction mutates or deletes authoritative
+      blank rows, and `cc_admin.draft_approve` commits with no `log_action` at all
+      today — losing a player's blanked dots during a staff approval is exactly the
+      kind of write that has to leave a trace. Fold this into 6.6's list rather
+      than treating the creator path as a special case.
+      `set_character_background` can no longer clamp a
       derived total, so lowering a rating below what is outstanding reduces lots
       newest-first, preserving the earliest promised return. Tests: reduce below
       outstanding; reduce while still above it (no change); reduce to zero with
@@ -249,8 +254,10 @@ no new DB writes.*
       working as a class-level filter. Whichever change lands second carries it
 - [ ] 6.6 Add the missing `log_action` to every route that writes authoritative
       blank state, not just the one that creates it: `blank_donated_background`
-      (creates a lot), and `undonate_background` and `remove_member` (both
-      **discard** outstanding lots, per 2.6). None of the three logs today.
+      (creates a lot), `undonate_background` and `remove_member` (both **discard**
+      outstanding lots, per 2.6), and `cc_admin.draft_approve` (**reduces** lots
+      when a staff approval lowers a rating, per 2.7 — and it commits with no
+      `log_action` whatsoever today). None of the four logs today.
       Discarding a player's blanked dots is at least as worth recording as taking
       them, and since this change makes the rows authoritative, shipping an
       unaudited delete of them would violate the convention `AGENTS.md` states
