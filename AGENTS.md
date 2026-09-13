@@ -6,7 +6,14 @@ deliberately does not duplicate it. `apps/character-app/` has its own
 [AGENTS.md](apps/character-app/AGENTS.md) for frontend work.
 
 Everything below is here because it **cannot be inferred by reading the code**.
-If you skip one section, don't skip [Traps](#traps).
+If you skip one section, don't skip [Verify, don't assert](#verify-dont-assert) or
+[Traps](#traps) — between them they are most of what separates a change that works
+from one that fits.
+
+Handing a whole issue to an agent? [Taking an issue end to
+end](#taking-an-issue-end-to-end) is the workflow, and
+[docs/CODEX_TASK_BRIEF.md](docs/CODEX_TASK_BRIEF.md) is the template for
+delegating one.
 
 ## What this is
 
@@ -22,6 +29,44 @@ spend approvals for a tabletop game community.
 | `packages/rules/` | Shared XP cost formulas | JSON | — |
 
 Almost every command runs from an **app directory, not the repo root.**
+
+## Verify, don't assert
+
+Every rule here exists because the opposite cost real time in this repo. They are
+cheap; skipping them is what makes a change expensive.
+
+- **Open a file before citing it.** A brief once told an agent to model a new test
+  on `sheetImportNotifier.test.ts`, named from its filename. That file only builds
+  an embed — it never resolves a channel or sends — so the instruction was worse
+  than none.
+- **Read the workflow, or run the command, before describing how this repo
+  behaves.** `CONTRIBUTING.md` has twice been wrong about deploys, and both errors
+  got repeated downstream because they read plausibly. `ci.yml` and
+  `.github/workflows/deploy-*.yml` are the truth.
+- **Test through the entry point, not just the helper.** A unit test of a transfer
+  helper passed while the route it serves charged XP and silently skipped the
+  transfer. Assert on what the route did, not only on what the function returned.
+- **Search for the operation, not the syntax.** `x.dots_blanked = 0` and
+  `Model(dots_blanked=0)` are the same write; `set_character_background` and
+  `cc_admin.draft_approve` are the same operation in two blueprints. Three separate
+  bugs here came from a fix that matched the spelling in front of it. Ask "what
+  else sets this?" and "what other route does this job?"
+- **Prove a new regression test fails without the fix.** Revert the change, run the
+  test, watch it fail, restore. A test written against fixed code and never run
+  against broken code proves nothing, and this repo has shipped green suites
+  asserting behaviour that could not occur.
+- **Build fixtures by calling the real route.** Hand-constructed rows hid a
+  three-month-old bug that made a whole mechanic unreachable, because the fixture
+  encoded the intended state rather than the one the code produced.
+- **Never truncate before you compute.** `open(path, 'w')` empties the file the
+  moment it is called, so any error in the content expression destroys the file.
+  Build the new contents, assert they are sane, *then* open for writing.
+- **When you notice an edge case and decide to accept it, write it down.**
+  Reasoning past one silently is how a P1 shipped here: the problem was spotted
+  mid-implementation, judged pre-existing, and was not.
+- **After a structural edit to a document, read the whole thing.** Targeted greps
+  leave stale cross-references, duplicated paragraphs and contradicted claims one
+  section away from what you changed.
 
 ## Commands CI gates on
 
@@ -83,6 +128,20 @@ you were editing for.
   migration body**. Every migration needs a hand-written guard: a table-exists
   check for `CREATE TABLE`, a column-exists check for `ADD COLUMN`. Review the
   generated file; never trust it blindly.
+- **`db.create_all()` runs before Alembic and is not race-guarded.**
+  `app/__init__.py` calls it bare, then calls `_upgrade_with_race_retry` — so the
+  Alembic step is protected against two instances booting together and the
+  `create_all` is not. It does a has-table check then creates, so both can pass and
+  one fails. **Retry it; do not swallow the error** — `create_all` walks tables in
+  order, so an ignored "already exists" aborts the traversal and leaves every later
+  table uncreated, which is worse than failing loudly.
+- **You cannot drop a mapped column in the release that stops using it.**
+  `entrypoint.sh` migrates before `exec gunicorn`, so the schema changes while the
+  *previous* Cloud Run revision is still serving and still mapping that column —
+  every read on the live revision fails until cutover. Unmap it in one release,
+  drop it in a later one. The mirror of this also bites: merely unmapping makes the
+  old revision's *writes* invisible if the new code stops reading the column, so
+  whichever way you stage it, say what happens to a write served during cutover.
 - Migrations **apply automatically on every deploy** via `entrypoint.sh` under
   `set -e`, before gunicorn starts. A bad migration takes the service down on
   boot rather than failing a test.
@@ -123,9 +182,19 @@ you were editing for.
 
 **Conventions the type system does not enforce**
 
-- **Pair every database write with an audit-log entry**, and check whether it
-  needs a Sheets-mirror counterpart. A missing pairing compiles fine and looks
-  done. Reviewers have caught this exact gap repeatedly.
+- **Pair every database write with an audit-log entry**, and *check* whether it
+  needs a Sheets-mirror counterpart — check, not always add. The repo has ~50
+  `log_action` calls to ~36 `sync_log_action`, so log-only is an established
+  pattern (blanking routes are log-only). Either mirror it or say why not; silence
+  reads as an oversight. A missing pairing compiles fine and looks done, and
+  reviewers have caught this gap repeatedly.
+- **Some routes have no audit entry at all.** `cc_admin.draft_approve` and
+  `coteries.blank_donated_background` both commit without one. If you touch their
+  write path, add it — inheriting the gap is how it persists.
+- **A write is not only `x.y = z`.** Constructor keyword arguments are writes too:
+  `DbCharacterBackground(dots_blanked=0, ...)` appears in both
+  `db_service.set_character_background` and `cc_admin.draft_approve`, and a grep
+  for assignments finds neither.
 - **`db_service.rename_character` holds an explicit list of tables keyed by
   `character_name` as a string** (not a foreign key). Adding such a table or
   column without adding it there silently orphans the data on rename.
@@ -138,6 +207,21 @@ you were editing for.
     `app/models.py`. `db_service` hands blueprints the *dataclass*, so a new
     column needs the model, the dataclass, and `_row_to_spend` updated together
     or attribute access fails at runtime.
+  - Blank state is **mid-migration by design**: `dots_blanked` is a column today,
+    and `openspec/changes/per-blank-background-release/` specifies moving it to one
+    row per blank. That spec is merged but **not implemented** — read its
+    `design.md` Decisions before touching blanking, because several
+    obvious-looking simplifications were tried there and disproved.
+- **"Current night" means two different things, and they diverge.**
+  `_current_open_night()` resolves it from `submissions_open`/`active` flags, which
+  staff routinely switch on days before the night begins; `game_calendar` holds the
+  real dates. Submission and claim decisions want the flag. Anything a player
+  experiences as game time — a release, an expiry — wants the calendar. Using the
+  flag for the latter returned blanked dots four days early.
+- **Build test fixtures by calling the real route.** A hand-built `DbCharacterBackground`
+  row encoding the *intended* post-donation state kept a suite green for three
+  months while the actual route produced something else, making a whole mechanic
+  unreachable in production.
 - **Shared rules belong in `packages/`, not in one app.** XP formulas and spend
   categories are JSON loaded by both apps; duplicating a formula in one app is
   how the two clients drift.
@@ -191,15 +275,80 @@ Stop and ask rather than guessing:
 - **Product or game-rules decisions.** Costs, what a mechanic does, who may do
   it. These are the owner's call, not an implementation detail to infer.
 
+## Taking an issue end to end
+
+The goal is a PR that reads like the rest of this history — not a change that works
+and then needs someone else to make it fit.
+
+**1. Decide whether the issue is actually specified.** Most issues here are a
+sentence of intent: *"let's just figure it out"*, *"write it I guess"*. That is a
+priority, not a task. Before writing code, the outcome, the edge cases and any
+game rule have to be decided. If they are not, you are guessing, and a faithfully
+executed guess is the expensive failure — more expensive than asking.
+
+Signals an issue is not ready: it says what to build but not what it should do when
+two things collide; it implies a cost, duration or eligibility rule that is not
+written down anywhere; it spans `apps/web` *and* `apps/bot` *and* the schema at
+once.
+
+**2. If it is not ready, write the spec, not the code.** `openspec/changes/<name>/`
+with `proposal.md`, `design.md`, `tasks.md` and a spec delta — copy the shape of an
+existing change. Specs are cheap to review and cheap to be wrong in; code is not.
+Put the decisions you *cannot* make in front of the owner as concrete options with
+a recommendation, rather than picking silently and mentioning it later.
+
+A good `design.md` records the approaches that were rejected and why. Several
+sections of this repo's specs exist only to stop a plausible simplification being
+re-attempted.
+
+**3. Check the issue against the code before believing it.** Issue text is often a
+symptom description, and the stated cause is frequently wrong. One issue asked to
+stop blanking using "a 30-day timer"; there was no timer, and the real defect was
+that release compared against a staff flag instead of the calendar. Another asked
+for a feature that already had a route and a UI control, unreachable because an
+unrelated line set a field to zero.
+
+**4. Pick the seam and stay in it.** One owner per seam per change — `apps/web` +
+migrations, `packages/`, and the bot's Discord surface are not safely shared
+mid-change. Do not widen scope because something adjacent looks wrong; note it and
+raise it separately.
+
+**5. Do not silently narrow it either.** If part of the issue turns out to be
+blocked or to need a decision, finish everything else and say explicitly what you
+left and why. Scaling the work down is the owner's call.
+
+**6. Leave the trail.** The commit message explains *why*, including what you
+considered and rejected. The PR body carries the real commands you ran with their
+output, and a Risks/Rollback that names what you deliberately did not do. If you
+corrected an earlier decision of your own, say so — this history does that
+throughout, and it is the reason the traps above are known.
+
 ## Branching and PRs
 
 - Branch from `main`, prefixed `feat/`, `fix/`, `chore/`, `docs/`, or
-  `refactor/`. Keep PRs focused.
-- Include tests for behavior changes. **Verify a new regression test actually
-  fails against the unfixed code** — a test that passes either way proves
-  nothing.
-- Short imperative commit summaries. Explain *why* in the body, not just what.
-- Update `CHANGELOG.md` and affected `docs/` pages for user-visible changes.
+  `refactor/`. Keep PRs focused. **Rebase onto `main` before pushing** — see the
+  shared-dev hazard above.
+- Include tests for behavior changes. **Revert the fix, run the test, watch it
+  fail, restore.** State in the PR that you did this and what failed. A test that
+  passes either way proves nothing.
+- Short imperative commit summaries, lower-case after the first word, no trailing
+  period, no `type:` prefix. Explain *why* in the body — what the defect was, why
+  this fix and not the obvious alternative, and anything you deliberately left
+  undone. Look at `git log` before writing one; the register is plain and
+  explanatory, not terse.
+- The PR body follows `.github/pull_request_template.md`. **Validation means the
+  commands you actually ran and what they printed**, not a restatement of intent.
+  **Risks/Rollback names what you chose not to do** and how to undo what you did.
+- Update `CHANGELOG.md` and affected `docs/` pages for user-visible changes — and
+  check whether an older release note now contradicts you. One described a bug as
+  the design for three months.
+- A green CI is not a finished PR. Codex reviews here, and its findings are inline
+  comments that `gh pr view` does not show: use
+  `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments`. Pushing a new commit
+  does **not** re-trigger review — comment `@codex review`, and check the status
+  row's commit SHA against the PR tip before trusting any finding.
+- Verify the push succeeded *before* requesting a review, or the review runs against
+  a tip without your fixes.
 
 ## Read next
 
