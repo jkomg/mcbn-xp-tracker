@@ -13,9 +13,8 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 
 - [ ] 1.1 Add `DbCharacterBackgroundBlank` to `apps/web/app/db.py`: FK to
       `character_backgrounds`, `dots`, `blanked_at_night_number`,
-      **nullable** `release_night_number` (null = indefinite hold, see 2.6),
-      `released_at` (null while outstanding), indexed on the FK and on
-      `release_night_number`
+      `release_night_number` (always set — every blank returns), `released_at`
+      (null while outstanding), indexed on the FK and on `release_night_number`
 - [ ] 1.2 Add an `outstanding_blanks` relationship on `DbCharacterBackground`,
       declared `lazy='selectin'` so the derived properties below do not issue a
       query per background
@@ -37,12 +36,16 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 - [ ] 1.6 Drop the index **before** its column. SQLite fails with `error in index
       ix_character_backgrounds_release_night after drop column: no such column`
       otherwise; the index is declared in both `db.py` and `6d2a4f0be9c1`
-- [ ] 1.7 Write a real `downgrade()` — recreate the index, re-add the three
-      columns, repopulate from outstanding rows (sum; earliest non-null night; a
-      hold collapsing to dots with no nights) — and test it
-- [ ] 1.8 Test on a database built at the previous revision holding a timed blank
-      *and* a donated background; confirm re-running `upgrade()` is a no-op and
-      that `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
+- [ ] 1.7 Write a real `downgrade()`, in this order: re-add the three columns;
+      repopulate from outstanding rows (sum, earliest releasing night); recreate
+      the index **after** its column exists, not before; then **drop
+      `character_background_blanks`**. Leaving the table behind makes a
+      roll-forward skip its own backfill — rows already exist — so the new model
+      would resume from stale pre-rollback data
+- [ ] 1.8 Test on a database built at the previous revision holding a timed blank,
+      a donated background, and a legacy row with `dots_blanked > 0` but no
+      releasing night; confirm re-running `upgrade()` is a no-op and that
+      `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
 
 ## 2. Blanking writes a row
 
@@ -62,18 +65,18 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       readers of the blank rows. Confirm no `dots_blanked` assignment remains
 - [ ] 2.5 Tests: two blanks in different nights keep separate nights; blanking
       again never moves an outstanding night; over-blanking is refused counting
-      all outstanding rows, holds included
-- [ ] 2.6 **Donation holds.** `approve_donation` inserts a row with a null
-      releasing night rather than assigning `dots_blanked = dots_total`;
-      `undonate_background` and `remove_member` delete it. The release worker
-      must never return a null-night row. Tests: approving a donation withholds
-      the dots with nothing scheduled; undonating restores them; a donated
-      background with a timed blank releases the timed lot and keeps the hold
+      every outstanding lot
+- [ ] 2.6 **Ending a donation discards its lots.** `undonate_background` and
+      `remove_member` currently set `dots_blanked = 0`; with rows they delete the
+      background's outstanding lots instead, returning it to its owner at full
+      rating. `approve_donation` needs nothing — it no longer touches blank state
+      at all. Tests: a coterie blanks a donated background and the lot behaves
+      normally; undonating with lots outstanding returns the background whole
 - [ ] 2.7 **Rating reductions.** `set_character_background` can no longer clamp a
       derived total, so lowering a rating below what is outstanding reduces lots
       newest-first, preserving the earliest promised return. Tests: reduce below
-      outstanding, reduce while still above it (no change), and reduce a
-      background whose outstanding total is entirely a hold
+      outstanding; reduce while still above it (no change); reduce to zero with
+      lots outstanding
 
 ## 3. Release iterates rows
 

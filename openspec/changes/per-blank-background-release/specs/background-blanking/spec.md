@@ -25,22 +25,17 @@ night, and SHALL return each one independently.
 - **WHEN** two outstanding blanks both release on the same night and that night starts
 - **THEN** both are returned
 
-### Requirement: A donated background is held without a scheduled return
-The system SHALL withhold a donated background's dots for as long as the
-donation stands, without scheduling a return, and SHALL restore them when the
-donation ends.
+### Requirement: A donated background's blanks behave like any other
+The system SHALL treat blanks on a donated background exactly as it treats a
+character's own, each returning on its own night.
 
-#### Scenario: A donation is approved
-- **WHEN** staff approve a donation of a background to a coterie
-- **THEN** the background's dots are withheld from its owner with no releasing night, and no release returns them while the donation stands
+#### Scenario: A coterie blanks a donated background
+- **WHEN** a member blanks dots of a background donated to their coterie
+- **THEN** a lot is recorded with its own releasing night, and it returns on that night like any other
 
-#### Scenario: A donation ends
-- **WHEN** the background is undonated, or its donor is removed from the coterie
-- **THEN** the withheld dots are restored
-
-#### Scenario: A held background also has a timed blank
-- **WHEN** a background is donated and also has an outstanding timed blank
-- **THEN** the timed blank returns on its own night and the donation hold persists
+#### Scenario: A donation ends with blanks outstanding
+- **WHEN** a donated background is undonated, or its donor is removed from the coterie
+- **THEN** its outstanding lots are discarded and the background returns to its owner at full rating
 
 ### Requirement: Reducing a background's rating reduces its outstanding blanks
 The system SHALL keep outstanding blanks within a background's rating when that

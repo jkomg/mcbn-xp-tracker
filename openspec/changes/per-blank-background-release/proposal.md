@@ -22,12 +22,13 @@ need their own release nights.
 - Add `character_background_blanks`: one row per act of blanking, carrying its
   dot count, the night it was taken, and the night it returns. This becomes the
   authority for what is blanked and when it comes back.
-- `release_night_number` on that row is **nullable**, and null means an
-  indefinite hold with no scheduled return. Donating a background to a coterie
-  already works that way — `approve_donation` sets `dots_blanked = dots_total`
-  and only undonation clears it — so the table has to represent a hold as well
-  as a timed blank, or approving a donation would silently stop withholding the
-  dots.
+- Every blank has a releasing night. There is no indefinite-hold case: an
+  earlier draft added one for donated backgrounds, on the reading that
+  `approve_donation`'s `dots_blanked = dots_total` withheld the dots for the life
+  of the donation. That assignment turned out to be a bug — it drove
+  `dots_available` to 0 and made the coterie's own blanking impossible — and was
+  removed separately. Donation sets `donated_coterie_id` and leaves the dots
+  spendable, so a donated background's blanks are ordinary timed ones.
 - Release iterates those rows, returning each on its own night, and the
   calendar gate from the #431 work applies per row rather than per background.
 - Blanking again never touches an outstanding blank's schedule. The interim

@@ -92,20 +92,19 @@ lazy relationship would issue one query per background. The relationship is
 declared `lazy='selectin'`, so loading a character's backgrounds batches their
 blanks into one additional query regardless of how many there are.
 
-**A null `release_night_number` is an indefinite hold, not a missing value.**
-`dots_blanked` is not only used for timed blanks: `coteries.approve_donation`
-sets `dots_blanked = dots_total` to withhold a donated background's dots for as
-long as the donation stands, and only undonation or member removal clears it.
-There is no releasing night, and there must not be one. Deriving the total from
-timed lots alone would silently stop withholding those dots the moment this
-change shipped.
+**Every blank has a releasing night; there is no hold case.** An earlier draft
+made `release_night_number` nullable, with null meaning an indefinite hold, to
+represent a donated background. That read `approve_donation`'s
+`dots_blanked = dots_total` as deliberate semantics. It was not: the assignment
+drove `dots_available` to 0, which hid the coterie's Blank control and made
+`blank_character_background` refuse, so the donated-blanking mechanic was
+unreachable. Removing it was a separate bug fix. Donation now sets
+`donated_coterie_id` and leaves the dots spendable, so a donated background's
+blanks are ordinary timed lots and the model needs no second kind of row.
 
-So a blank row's releasing night is nullable and null means held. The release
-worker only ever considers rows with a night set, which makes the hold
-unreleasable by construction rather than by a flag someone has to remember to
-check. Donation approval inserts a hold row; undonation and member removal
-delete it. The two kinds of withholding coexist on one background — a donated
-background can also have a timed blank, and each behaves correctly.
+Recorded because the nullable design was not wrong in itself — it was a faithful
+model of the wrong premise, reached by treating an existing assignment as an
+intent. The cheaper check was asking what donation is *for*.
 
 **Release iterates blank rows, applying `night_has_started` per row.** The #431
 gate moves down a level unchanged, including holding a row whose night the
@@ -160,8 +159,13 @@ Four steps in one migration, **each guarded independently**:
 
 1. Create `character_background_blanks` — skip if the table exists.
 2. Backfill one row per background with `dots_blanked > 0`, carrying its existing
-   two nights; a donated background with no releasing night backfills as a hold.
-   Skip only if the blanks table already holds rows.
+   two nights. Skip only if the blanks table already contains rows.
+   A row with `dots_blanked > 0` but **no** releasing night cannot be represented
+   — every blank now returns — and the only thing that produced one was the
+   donation bug fixed separately, which no longer does. Such a row is cleared
+   rather than backfilled, which is what undonating it would have done anyway.
+   Both databases currently hold zero of them, verified by read-only count, so
+   this is a guard rather than a data path.
 3. Drop `ix_character_backgrounds_release_night`.
 4. Drop the three columns — each skipped if already absent.
 
@@ -180,11 +184,21 @@ ix_character_backgrounds_release_night after drop column: no such column`.
 Verified 2026-09-12. The index is declared in both `db.py` and migration
 `6d2a4f0be9c1`.
 
-`downgrade()` is written and tested, not left as a stub: it recreates the index,
-re-adds the three columns, and repopulates them from the outstanding rows — sum
-for `dots_blanked`, earliest non-null night for the other two, and a hold
-collapsing to `dots_blanked` with no nights, which is exactly the pre-change
-representation.
+`downgrade()` is written and tested, not left as a stub, and its order matters:
+
+1. Re-add the three columns.
+2. Repopulate them from the outstanding rows — sum for `dots_blanked`, earliest
+   releasing night for the other two.
+3. Recreate `ix_character_backgrounds_release_night`. **After** step 1, not
+   before: SQLite cannot index a column that does not exist yet.
+4. **Drop `character_background_blanks`.**
+
+Step 4 is not tidiness. Leaving the table behind means old code then changes
+blank state in the legacy columns while stale rows sit in the blanks table, and a
+roll-forward re-runs `upgrade()` — whose backfill skips precisely because blank
+rows already exist. The new model would start from the stale pre-rollback rows
+and silently contradict the columns. Dropping the table makes the roll-forward
+backfill from the only representation that was being maintained.
 
 Reverting means running that downgrade, not merely reverting the commit, and the
 difference matters more here than usual. Reverting code alone leaves the old
