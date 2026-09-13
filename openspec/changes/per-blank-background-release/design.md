@@ -57,9 +57,12 @@ able to disagree with it. `dots_blanked` becomes a Python property summing
 outstanding rows, exactly as `dots_available` already is — which is why the two
 templates, `get_character_backgrounds`'s response dict, and therefore the bot's
 schemas all keep working unchanged. `blanked_at_night_number` and
-`release_night_number` go the same way: properties reporting the earliest
-outstanding blank, which is what "when do I next get dots back" means and is the
-one question a single value can still answer honestly.
+`release_night_number` go the same way, both read off the **earliest-releasing
+outstanding lot**: `release_night_number` is that lot's releasing night — "when do
+I next get dots back", the one question a single value can still answer honestly —
+and `blanked_at_night_number` is the night that same lot was taken. They are
+different values and must come from one lot, not both report the release;
+`blanked_at` is when the blank happened and is exposed through the status API.
 
 An earlier draft kept `dots_blanked` as a maintained denormalized column. Both
 reasons given for that were wrong, and they are recorded here because the second
@@ -270,9 +273,14 @@ column: no such column`. Verified 2026-09-12. The index is declared in both
 `downgrade()` is simple now that nothing is dropped on the way up — two steps,
 both guarded and retryable:
 
-1. Repopulate the legacy columns from the outstanding rows — sum for
-   `dots_blanked`, earliest releasing night for the other two. They still exist
-   and still hold their pre-change values; this brings them back up to date.
+1. Recompute the legacy columns for **every** background, not only those with
+   outstanding rows — `dots_blanked` = sum of its outstanding lots (so **zero**
+   where there are none), and the two nights read off its earliest-releasing lot
+   (so **null** where there are none). The columns stopped being maintained while
+   this change was live, so a background whose backfilled lot has since been
+   released or discarded still carries a stale non-zero value. An UPDATE that
+   touches only backgrounds with rows leaves exactly those wrong — showing dots
+   blanked that came back.
 2. Drop `character_background_blanks`, skipped if already gone.
 
 Step 2 is not tidiness. Leaving the table behind means old code edits the legacy

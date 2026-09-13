@@ -31,9 +31,12 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       `release_night_number` **columns** with properties derived from the
       outstanding blanks. Remove the `db.Column` declarations and the
       `ix_character_backgrounds_release_night` index from the model, but **do not
-      drop anything in the database** — see 1.9. The properties are: sum of
-      outstanding lots for `dots_blanked`, earliest releasing night for the other
-      two. No setters, so an assignment raises rather than silently doing nothing,
+      drop anything in the database** — see 1.9. The properties are: `dots_blanked`
+      = sum of outstanding lots; `release_night_number` = the earliest outstanding
+      releasing night; `blanked_at_night_number` = the night **that same lot** was
+      taken. The two nights are not the same value — `blanked_at` is when the blank
+      happened, and it is exposed through the status API — so they must be read off
+      one lot rather than both reporting the release. No setters, so an assignment raises rather than silently doing nothing,
       which is how 2.3 finds every existing one. `dots_available` keeps working
       unchanged since it reads `dots_blanked`
 - [ ] 1.4 Migration, two steps, both guarded, **no drops**: create the table (skip
@@ -77,8 +80,10 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       remember the index must be dropped **before** its column — SQLite fails with
       `error in index ... after drop column: no such column`
 - [ ] 1.7 Write a real `downgrade()` — two guarded, retryable steps now that
-      nothing is dropped on the way up: repopulate the legacy columns from the
-      outstanding rows (sum, earliest releasing night), then drop
+      nothing is dropped on the way up: recompute the legacy columns for **every**
+      background (sum of its outstanding lots, so **zero** where it has none; the
+      two nights off its earliest-releasing lot, so **null** where it has none),
+      then drop
       `character_background_blanks` if present. The drop is not tidiness: leaving
       the table means old code edits the columns while stale rows remain, and a
       roll-forward skips its own backfill because rows exist, so the new model
@@ -89,6 +94,11 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       and a donated background: confirm re-running `upgrade()` is a no-op, that
       running it twice concurrently produces one row per background, and that
       `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
+- [ ] 1.8b Test the downgrade specifically against a background whose backfilled
+      lot was **released** while the change was live. Its legacy column is stale
+      and non-zero, it has no outstanding row, and the downgrade must zero it. A
+      repopulate-only downgrade leaves it claiming blanked dots that already came
+      back
 - [ ] 1.8a A legacy row with `dots_blanked > 0` and **no** releasing
       night is *deliberately* cleared, not preserved — every blank now has a
       night, so it is unrepresentable. Assert it is cleared; do not include it in
