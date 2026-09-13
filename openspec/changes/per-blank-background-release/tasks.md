@@ -27,15 +27,17 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 - [ ] 1.2 Add an `outstanding_blanks` relationship on `DbCharacterBackground`,
       declared `lazy='selectin'` so the derived properties below do not issue a
       query per background
-- [ ] 1.3 Replace `dots_blanked`, `blanked_at_night_number` and
-      `release_night_number` with properties derived from the outstanding blanks
+- [ ] 1.3 Replace the mapped `dots_blanked`, `blanked_at_night_number` and
+      `release_night_number` **columns** with properties derived from the
+      outstanding blanks. Remove the `db.Column` declarations and the
+      `ix_character_backgrounds_release_night` index from the model, but **do not
+      drop anything in the database** — see 1.9
       — sum for the first, earliest for the other two. No setters: an assignment
       should raise rather than silently do nothing. `dots_available` keeps
       working as-is since it reads `dots_blanked`
-- [ ] 1.4 Migration, four steps, **each guarded independently**: create the table
-      (skip if present); backfill one row per background with `dots_blanked > 0`;
-      drop `ix_character_backgrounds_release_night`; drop the three columns (skip
-      each if absent). Backfill before drop
+- [ ] 1.4 Migration, two steps, both guarded, **no drops**: create the table (skip
+      if present); backfill one row per background with `dots_blanked > 0`. The
+      index and columns stay — 1.9 explains why
 - [ ] 1.4a The backfill needs **two** guards, for two different cases. Skip it
       entirely if the legacy columns are absent: on a fresh database
       `create_all()` builds `character_backgrounds` from the post-change model,
@@ -50,23 +52,35 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       exists on any database that has booted this code — a leading guard would
       skip the backfill and silently discard every outstanding blank, then drop
       the columns on a later run with nothing carried across
-- [ ] 1.6 Drop the index **before** its column. SQLite fails with `error in index
-      ix_character_backgrounds_release_night after drop column: no such column`
-      otherwise; the index is declared in both `db.py` and `6d2a4f0be9c1`
-- [ ] 1.7 Write a real `downgrade()`, in this order, with **every step guarded**
-      — not only the column adds: re-add the three columns (each skipped if
-      present); repopulate from outstanding rows (sum, earliest releasing night);
-      recreate the index if absent, **after** its column exists rather than
-      before; then drop `character_background_blanks` if present. A downgrade that
-      recreates the index and then fails dropping the table has to survive a
-      retry, and an unguarded `create_index` dies on the index it just made. Leaving the table behind makes a
+- [ ] 1.6 Make each DDL step tolerate losing a race, not merely check first. Two
+      deployments can start together, both see the table absent, and the loser's
+      `CREATE TABLE` then fails and takes startup down. Check *and* swallow the
+      "already exists" failure. `fix/dedupe-key-migration-idempotency` exists
+      because checking was not enough on its own
+- [ ] 1.9 **Do not drop the legacy columns or the index in this change.**
+      `entrypoint.sh` runs `flask db upgrade` before `exec gunicorn`, so the
+      migration completes while the *previous* Cloud Run revision is still serving
+      and still mapping those columns — dropping them breaks every background read
+      on the live revision until traffic shifts. Unmapping is safe where dropping
+      is not: the columns stay, go stale, and the outgoing revision reads
+      briefly-wrong values instead of erroring. Raise a follow-up change for the
+      drop, to ship only once the unmapping is live everywhere. When writing it,
+      remember the index must be dropped **before** its column — SQLite fails with
+      `error in index ... after drop column: no such column`
+- [ ] 1.7 Write a real `downgrade()` — two guarded, retryable steps now that
+      nothing is dropped on the way up: repopulate the legacy columns from the
+      outstanding rows (sum, earliest releasing night), then drop
+      `character_background_blanks` if present. The drop is not tidiness: leaving
+      the table means old code edits the columns while stale rows remain, and a
+      roll-forward skips its own backfill because rows exist, so the new model
+      would resume from pre-rollback data Leaving the table behind makes a
       roll-forward skip its own backfill — rows already exist — so the new model
       would resume from stale pre-rollback data
 - [ ] 1.8 Test on a database built at the previous revision holding a timed blank
       and a donated background: confirm re-running `upgrade()` is a no-op, that
       running it twice concurrently produces one row per background, and that
       `upgrade` → `downgrade` → `upgrade` round-trips without losing dots
-- [ ] 1.8a Separately, a legacy row with `dots_blanked > 0` and **no** releasing
+- [ ] 1.8a A legacy row with `dots_blanked > 0` and **no** releasing
       night is *deliberately* cleared, not preserved — every blank now has a
       night, so it is unrepresentable. Assert it is cleared; do not include it in
       the round-trip-without-loss case, which it would contradict. Both databases
@@ -167,6 +181,11 @@ no new DB writes.*
       reintroduces a column for it
 - [ ] 6.4 `docs/API_ENDPOINTS.md` — `GET /api/backgrounds/status` now carries
       per-lot release data; the doc describes only a single release night
+- [ ] 6.4a `docs/WEB_APP.md` (Backgrounds tab, ~line 182) tells players each row
+      shows "the scheduled release night if blanked" — singular. After 5.1 it
+      shows every outstanding lot
+- [ ] 6.7 Raise the follow-up change that drops the index and the three columns,
+      per 1.9. It must not ship until this one is live everywhere
 - [ ] 6.5 Retarget the staff view in `background-blanking-timing-and-dashboard`
       group 3 to query blank rows rather than `dots_blanked > 0`, which stops
       working as a class-level filter. Whichever change lands second carries it

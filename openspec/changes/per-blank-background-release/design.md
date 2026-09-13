@@ -32,7 +32,8 @@ the main constraint on this design.
 
 **Non-Goals:**
 - Changing blank duration, the calendar gate, or what blanking means in-game.
-- Keeping the legacy columns. They are dropped; see the decision below.
+- Dropping the legacy columns. They are unmapped here and dropped by a follow-up
+  change; see the decision below for why that split is required.
 - Presenting more than the totals plus per-lot release nights. No history of
   released blanks in the UI; keeping released rows makes it queryable if wanted.
   `audit_log` does **not** cover this today: `blank_donated_background` calls
@@ -50,7 +51,7 @@ and `released_at` (null while outstanding). Keeping released rows rather than
 deleting them costs nothing and makes "why did these dots come back" answerable;
 outstanding is simply `released_at IS NULL`.
 
-**Derive `dots_blanked` from the blank rows and drop the three legacy columns.**
+**Derive `dots_blanked` from the blank rows; unmap the three legacy columns.**
 The blanks table is the only place that knows what is blanked; nothing should be
 able to disagree with it. `dots_blanked` becomes a Python property summing
 outstanding rows, exactly as `dots_available` already is — which is why the two
@@ -88,6 +89,25 @@ activity filters found in `index()` on 2026-09-12. Drift there would silently
 show a player the wrong number of dots while they decide whether to blank more.
 A derived value cannot drift. That is worth more than the convenience of keeping
 a column.
+
+**The columns are unmapped in this change and dropped in a follow-up.**
+`entrypoint.sh` runs `flask db upgrade` and then `exec gunicorn`, so the
+migration finishes before the new revision is healthy — which is before Cloud Run
+shifts traffic off the previous revision. That revision's ORM still maps
+`dots_blanked`, so dropping it mid-deploy makes every background read on the live
+revision fail until the cutover completes. Unmapping is safe in a way dropping is
+not: the columns stay, stop being maintained, and the outgoing revision reads
+values that are briefly stale rather than querying columns that no longer exist.
+Wrong-for-seconds beats erroring.
+
+That makes this change's DDL purely additive — one `CREATE TABLE` — which removes
+most of the concurrency and retryability surface the drop steps introduced, and
+makes its downgrade a repopulate-and-drop-table rather than a column rebuild.
+
+The follow-up change drops the index and the three columns once no deployed
+revision maps them. It is the contract half of an expand/contract pair, and it
+carries the hazard this one avoids: it must not ship until the expand is live
+everywhere.
 
 **N+1 is handled by the loader, not by denormalization.** A property summing a
 lazy relationship would issue one query per background. The relationship is
@@ -177,7 +197,7 @@ release path that had to be gated separately.
 
 ## Migration Plan
 
-Four steps in one migration, **each guarded independently**:
+Two steps in one migration, both guarded, and **no drops**:
 
 1. Create `character_background_blanks` — skip if the table exists.
 2. Backfill — **only if the legacy columns still exist**, and written as a single
@@ -202,42 +222,45 @@ Four steps in one migration, **each guarded independently**:
    rather than backfilled, which is what undonating it would have done anyway.
    Both databases currently hold zero of them, verified by read-only count, so
    this is a guard rather than a data path.
-3. Drop `ix_character_backgrounds_release_night`.
-4. Drop the three columns — each skipped if already absent.
+The index and the three columns are left alone; the follow-up change removes
+them.
+
+**Guards must tolerate losing a race, not merely check first.** An
+inspector-style existence check is not sufficient on its own: two deployments can
+start together, both see the table absent, and the loser's `CREATE TABLE` then
+fails and takes startup down with it. So each DDL step checks *and* tolerates the
+failure that means someone else got there first. This repo has been here before —
+`fix/dedupe-key-migration-idempotency` exists because retrying the DDL was not
+enough without also handling the `alembic_version` race.
 
 **The guards must be per step, not one guard over the whole upgrade.** This is
 the `db.create_all()` trap in a new shape: `create_all` runs before Alembic on
 every boot, so against any database that has booted on this code the table
 already exists. A single leading `if table exists: return` would skip the
-backfill too, and every outstanding blank in production would vanish silently —
-the columns dropped on a later run with nothing carried across. Step 2 keys off
-whether blank *rows* exist, not whether the table does.
+backfill too, and every outstanding blank would silently fail to carry across
+into the table that is now authoritative — players losing blanked dots with no
+error anywhere. Step 2 keys off whether blank *rows* exist, not whether the table
+does.
 
-**Step 3 is not optional.** SQLite refuses to drop a column an index still
-references: dropping `release_night_number` with
-`ix_character_backgrounds_release_night` present fails with `error in index
-ix_character_backgrounds_release_night after drop column: no such column`.
-Verified 2026-09-12. The index is declared in both `db.py` and migration
-`6d2a4f0be9c1`.
+**For the follow-up change that does the dropping:** the index must go before its
+column. SQLite refuses to drop a column an index still references — dropping
+`release_night_number` with `ix_character_backgrounds_release_night` present
+fails with `error in index ix_character_backgrounds_release_night after drop
+column: no such column`. Verified 2026-09-12. The index is declared in both
+`db.py` and migration `6d2a4f0be9c1`.
 
-`downgrade()` is written and tested, not left as a stub, and its order matters:
+`downgrade()` is simple now that nothing is dropped on the way up — two steps,
+both guarded and retryable:
 
-1. Re-add the three columns, **each behind its own column-exists guard.** If
-   Turso persists one `ADD COLUMN` and the downgrade then fails before Alembic
-   writes the revision back, an unguarded retry dies on the column it already
-   added — leaving the database stuck between revisions, which is the worst place
-   for it to be.
-2. Repopulate them from the outstanding rows — sum for `dots_blanked`, earliest
-   releasing night for the other two.
-3. Recreate `ix_character_backgrounds_release_night`, skipped if it already
-   exists. **After** step 1, not before: SQLite cannot index a column that does
-   not exist yet.
-4. **Drop `character_background_blanks`**, skipped if already gone.
+1. Repopulate the legacy columns from the outstanding rows — sum for
+   `dots_blanked`, earliest releasing night for the other two. They still exist
+   and still hold their pre-change values; this brings them back up to date.
+2. Drop `character_background_blanks`, skipped if already gone.
 
-Every step is guarded, not only the column adds. A downgrade that recreates the
-index and then fails dropping the table must survive a retry, and an unguarded
-`create_index` dies on the index it just made — leaving the database stuck
-between revisions, which is the worst place for it.
+Step 2 is not tidiness. Leaving the table behind means old code edits the legacy
+columns while stale rows sit in the blanks table, and a roll-forward skips its
+own backfill because rows already exist — so the new model would resume from
+pre-rollback data and silently contradict the columns.
 
 Step 4 is not tidiness. Leaving the table behind means old code then changes
 blank state in the legacy columns while stale rows sit in the blanks table, and a

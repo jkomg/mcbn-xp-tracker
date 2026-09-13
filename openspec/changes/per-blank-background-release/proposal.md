@@ -33,12 +33,17 @@ need their own release nights.
   calendar gate from the #431 work applies per row rather than per background.
 - Blanking again never touches an outstanding blank's schedule. The interim
   earlier-release-wins rule is removed along with the need for it.
-- `dots_blanked`, `blanked_at_night_number` and `release_night_number` are
-  dropped from `character_backgrounds` and become properties derived from the
-  blank rows, so nothing can disagree with the table that owns the facts. They
-  are read by the player sheet, the coterie sheet and the bot API response, all
-  of which keep working unchanged — `dots_available` is already a property, so
-  the pattern is established.
+- `dots_blanked`, `blanked_at_night_number` and `release_night_number` become
+  properties derived from the blank rows, so nothing can disagree with the table
+  that owns the facts. They are read by the player sheet, the coterie sheet and
+  the bot API response, all of which keep working unchanged — `dots_available` is
+  already a property, so the pattern is established.
+- **The columns themselves are unmapped, not dropped.** `entrypoint.sh` runs
+  `flask db upgrade` before gunicorn starts, so the migration completes while the
+  *previous* Cloud Run revision is still serving traffic. Dropping columns that
+  revision's ORM still maps would break every background read until traffic
+  shifted. The drop is a separate follow-up change, once no deployed revision
+  maps them.
 
 ## Capabilities
 
@@ -55,9 +60,12 @@ need their own release nights.
   blank.
 - **Changing what blanking costs or grants in-game.** Purely a fix to how the
   system represents what players already do.
-- **Keeping the legacy columns.** They are dropped, and the values they held are
-  derived from the blank rows instead. See design.md for why the objections to
-  dropping them did not survive testing.
+- **Dropping the legacy columns.** Deferred to a follow-up change, for the
+  deploy-window reason above — not because dropping them is hard. An earlier draft
+  listed this as a non-goal on the grounds that SQLite and Turso could not drop a
+  referenced table's column; that was wrong and was tested to destruction. They
+  can. The reason to wait is that the old revision is still serving when the
+  migration runs.
 
 ## Impact
 
@@ -75,8 +83,10 @@ need their own release nights.
   background can show several pending releases rather than one.
 - `apps/bot/src/types.ts`, `services/adapter.ts` — the backgrounds-status and
   release payload shapes, if the API response changes shape.
-- New migration: guards per step rather than one guard over the whole upgrade,
-  a backfill turning each existing blank into one row, the release-night index
-  dropped before its column, and a working `downgrade()`.
+- New migration: additive only — create the table and backfill one row per
+  existing blank, with guards per step that tolerate losing a race rather than
+  merely checking first, plus a working `downgrade()`. No drops; a follow-up
+  change removes the index and the three columns once the unmapping is live
+  everywhere.
 - `docs/API_ENDPOINTS.md` — `GET /api/backgrounds/status` grows per-lot release
   data, and the doc currently describes only a single release night.
