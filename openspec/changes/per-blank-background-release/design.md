@@ -35,10 +35,12 @@ the main constraint on this design.
 - Keeping the legacy columns. They are dropped; see the decision below.
 - Presenting more than the totals plus per-lot release nights. No history of
   released blanks in the UI; keeping released rows makes it queryable if wanted.
-  Note that `audit_log` does **not** currently cover this: `blank_donated_background`
-  calls `blank_character_background` and flashes the result without a
-  `log_action`, so the donated-background route has no audit trail today. Worth a
-  separate fix, and not assumed here.
+  `audit_log` does **not** cover this today: `blank_donated_background` calls
+  `blank_character_background` and flashes the result without a `log_action`, so
+  the donated-background route has no audit trail. That gap is closed here rather
+  than deferred — this change rewrites that write path and makes the blank row
+  authoritative, so postponing it would mean knowingly shipping an authoritative
+  write with no audit entry, against the convention `AGENTS.md` states.
 
 ## Decisions
 
@@ -106,6 +108,26 @@ Recorded because the nullable design was not wrong in itself — it was a faithf
 model of the wrong premise, reached by treating an existing assignment as an
 intent. The cheaper check was asking what donation is *for*.
 
+**Blanking reserves its dots in the insert itself, not in a prior check.** Two
+members can blank the same donated background at once — the coterie sheet offers
+the control to every member — and with the bound computed by reading outstanding
+rows, both requests can pass the check before either inserts, leaving the derived
+total above `dots_total`. The single `dots_blanked` column at least allowed a
+conditional `UPDATE`; rows need the equivalent. So the insert carries its own
+bound:
+
+```sql
+INSERT INTO character_background_blanks
+       (character_background_id, dots, blanked_at_night_number, release_night_number)
+SELECT :bg_id, :dots, :night, :release
+WHERE (SELECT COALESCE(SUM(dots), 0) FROM character_background_blanks
+        WHERE character_background_id = :bg_id AND released_at IS NULL) + :dots
+      <= (SELECT dots_total FROM character_backgrounds WHERE id = :bg_id)
+```
+
+A rowcount of 0 means the bound was exceeded, which the caller reports as the
+existing "only N available" refusal. One statement, so there is no window.
+
 **Release iterates blank rows, applying `night_has_started` per row.** The #431
 gate moves down a level unchanged, including holding a row whose night the
 calendar does not know. The existing `release_due_background_blanks` return
@@ -158,9 +180,15 @@ release path that had to be gated separately.
 Four steps in one migration, **each guarded independently**:
 
 1. Create `character_background_blanks` — skip if the table exists.
-2. Backfill one row per background with `dots_blanked > 0`, carrying its existing
-   two nights. **Written as a single `INSERT ... SELECT ... WHERE NOT EXISTS`
-   keyed per background, not guarded by "is the table empty".** Two Cloud Run
+2. Backfill — **only if the legacy columns still exist**, and written as a single
+   `INSERT ... SELECT ... WHERE NOT EXISTS` keyed per background. Both guards are
+   needed and they protect different cases. On a *fresh* database `create_all()`
+   builds `character_backgrounds` from the post-change model, so the three legacy
+   columns are never there and an unconditional backfill references nonexistent
+   columns and aborts startup — a new face of the same `create_all`-before-Alembic
+   trap. The `NOT EXISTS` handles the other case: on an *existing* database two
+   instances can boot together. Guarding on "is the table empty" satisfies
+   neither. Two Cloud Run
    instances can boot at once and both observe an empty table before either
    inserts, and multiple rows per background are legitimate so no unique
    constraint would catch the duplicate — each background would end up with its
@@ -201,9 +229,15 @@ Verified 2026-09-12. The index is declared in both `db.py` and migration
    for it to be.
 2. Repopulate them from the outstanding rows — sum for `dots_blanked`, earliest
    releasing night for the other two.
-3. Recreate `ix_character_backgrounds_release_night`. **After** step 1, not
-   before: SQLite cannot index a column that does not exist yet.
-4. **Drop `character_background_blanks`.**
+3. Recreate `ix_character_backgrounds_release_night`, skipped if it already
+   exists. **After** step 1, not before: SQLite cannot index a column that does
+   not exist yet.
+4. **Drop `character_background_blanks`**, skipped if already gone.
+
+Every step is guarded, not only the column adds. A downgrade that recreates the
+index and then fails dropping the table must survive a retry, and an unguarded
+`create_index` dies on the index it just made — leaving the database stuck
+between revisions, which is the worst place for it.
 
 Step 4 is not tidiness. Leaving the table behind means old code then changes
 blank state in the legacy columns while stale rows sit in the blanks table, and a

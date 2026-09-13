@@ -52,11 +52,16 @@ earliest promised return is preserved.
 
 ### Requirement: Blanking is still bounded by what is available
 The system SHALL refuse to blank more dots than the background has unblanked,
-counting every outstanding blank.
+counting every outstanding blank, and SHALL enforce that bound even when two
+requests arrive at once.
 
 #### Scenario: Blanking more than remains
 - **WHEN** a player blanks dots that, added to every outstanding blank, would exceed the background's rating
 - **THEN** the system rejects it and no blank is recorded
+
+#### Scenario: Two members blank the last dot at the same time
+- **WHEN** two coterie members each blank the final available dot of a donated background concurrently
+- **THEN** exactly one succeeds, the other is refused, and the outstanding total never exceeds the background's rating
 
 ### Requirement: The calendar gate applies per blank
 The system SHALL release a blank only once that blank's own releasing night has

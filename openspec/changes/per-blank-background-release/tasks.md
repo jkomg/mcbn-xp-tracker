@@ -36,12 +36,15 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       (skip if present); backfill one row per background with `dots_blanked > 0`;
       drop `ix_character_backgrounds_release_night`; drop the three columns (skip
       each if absent). Backfill before drop
-- [ ] 1.4a Write the backfill as one `INSERT ... SELECT ... WHERE NOT EXISTS`
-      keyed per background — **not** as "skip if the table is empty". Two
-      instances can boot together and both see it empty before either inserts,
-      and multiple rows per background are legitimate so nothing would catch the
-      duplicate; with `dots_blanked` derived, the player would see double
-      immediately
+- [ ] 1.4a The backfill needs **two** guards, for two different cases. Skip it
+      entirely if the legacy columns are absent: on a fresh database
+      `create_all()` builds `character_backgrounds` from the post-change model,
+      so they never exist and referencing them aborts startup. And write it as one
+      `INSERT ... SELECT ... WHERE NOT EXISTS` keyed per background, for the
+      existing-database case where two instances boot together — multiple rows per
+      background are legitimate so nothing catches a duplicate, and with
+      `dots_blanked` derived the player sees double immediately. "Skip if the
+      table is empty" satisfies neither
 - [ ] 1.5 **Do not put one table-exists guard over the whole upgrade.**
       `db.create_all()` runs before Alembic on every boot, so the table already
       exists on any database that has booted this code — a leading guard would
@@ -50,12 +53,13 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 - [ ] 1.6 Drop the index **before** its column. SQLite fails with `error in index
       ix_character_backgrounds_release_night after drop column: no such column`
       otherwise; the index is declared in both `db.py` and `6d2a4f0be9c1`
-- [ ] 1.7 Write a real `downgrade()`, in this order: re-add the three columns,
-      **each behind its own column-exists guard** so a retry after a partial
-      failure does not die on a column it already added; repopulate from
-      outstanding rows (sum, earliest releasing night); recreate the index
-      **after** its column exists, not before; then **drop
-      `character_background_blanks`**. Leaving the table behind makes a
+- [ ] 1.7 Write a real `downgrade()`, in this order, with **every step guarded**
+      — not only the column adds: re-add the three columns (each skipped if
+      present); repopulate from outstanding rows (sum, earliest releasing night);
+      recreate the index if absent, **after** its column exists rather than
+      before; then drop `character_background_blanks` if present. A downgrade that
+      recreates the index and then fails dropping the table has to survive a
+      retry, and an unguarded `create_index` dies on the index it just made. Leaving the table behind makes a
       roll-forward skip its own backfill — rows already exist — so the new model
       would resume from stale pre-rollback data
 - [ ] 1.8 Test on a database built at the previous revision holding a timed blank
@@ -74,6 +78,13 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 
 - [ ] 2.1 `blank_character_background` inserts a blank row instead of merging
       into the background's columns, and stops auto-releasing an older due blank
+- [ ] 2.1a **The insert carries its own bound** — one
+      `INSERT ... SELECT ... WHERE (sum of outstanding) + :dots <= dots_total` —
+      rather than checking availability and then inserting. Two members can blank
+      the same donated background at once and both pass a prior check before
+      either writes, pushing the derived total above the rating. A rowcount of 0
+      is the existing "only N available" refusal. Test it by interleaving two
+      reservations against a background with one dot left
 - [ ] 2.2 Remove the interim earlier-release-wins rule added for the #434 P1 —
       there is nothing left to reconcile
 - [ ] 2.3 Grep for every **assignment** to the three now-derived attributes and
@@ -159,6 +170,8 @@ no new DB writes.*
 - [ ] 6.5 Retarget the staff view in `background-blanking-timing-and-dashboard`
       group 3 to query blank rows rather than `dots_blanked > 0`, which stops
       working as a class-level filter. Whichever change lands second carries it
-- [ ] 6.6 Out of scope but found here: `blank_donated_background` writes without a
-      `log_action`, so that route has no audit trail. Raise separately rather than
-      folding it in
+- [ ] 6.6 Add the missing `log_action` to `blank_donated_background`. It writes
+      without one today, so that route has no audit trail — and since this change
+      rewrites that write path and makes the blank row authoritative, deferring it
+      would ship an authoritative write with no audit entry, against the
+      convention `AGENTS.md` states. Not deferred
