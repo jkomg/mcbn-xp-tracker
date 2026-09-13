@@ -23,7 +23,14 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
 - [ ] 1.1 Add `DbCharacterBackgroundBlank` to `apps/web/app/db.py`: FK to
       `character_backgrounds`, `dots`, `blanked_at_night_number`,
       `release_night_number` (always set — every blank returns), `released_at`
-      (null while outstanding), indexed on the FK and on `release_night_number`
+      (null while outstanding), indexed on the FK and — crucially — with a
+      **partial** index `(release_night_number) WHERE released_at IS NULL` rather
+      than a plain one. Released rows are kept indefinitely and the release
+      endpoint is polled every two minutes, so an index on the night alone decays:
+      almost every historical row has a night at or before the current one, and
+      the scan grows with history forever. The partial index only ever covers
+      outstanding lots, which is the set the query wants. SQLite supports this —
+      verified 2026-09-13
 - [ ] 1.2 Add an `outstanding_blanks` relationship on `DbCharacterBackground`,
       declared `lazy='selectin'` so the derived properties below do not issue a
       query per background
@@ -62,8 +69,12 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       and left this one open. `create_all(checkfirst=True)` does a has-table check
       then creates, so two overlapping deployments can both pass it and one fails
       before Alembic ever runs. This change is the first to add a table since, so
-      it is the one that exposes it. Fix it where it lives — wrap that call to
-      tolerate "already exists" — rather than working around it in the migration
+      it is the one that exposes it. Fix it where it lives, and **retry rather than
+      swallow**: `create_all()` walks the tables in order, so an "already exists"
+      error aborts the traversal and every table after it goes uncreated. Catching
+      and ignoring leaves the schema half-built, which is worse than failing. Wrap
+      it the way `_upgrade_with_race_retry` wraps the upgrade — on conflict, call
+      `create_all()` again, which skips what now exists and continues
 - [ ] 1.6 Make each DDL step tolerate losing a race, not merely check first. Two
       deployments can start together, both see the table absent, and the loser's
       `CREATE TABLE` then fails and takes startup down. Check *and* swallow the
@@ -85,8 +96,11 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       did —
       `create_all()` builds the post-change schema and the boot path stamps it at
       head, so a downgrade from head meets a table that has only ever had the new
-      shape, and updating a column that was never created fails. Then recompute the
-      legacy columns for **every** background (sum of its outstanding lots, so
+      shape, and updating a column that was never created fails. Re-add each with
+      **the original definition** — migration `6d2a4f0be9c1` declares
+      `dots_blanked` as `nullable=False, server_default='0'`, and adding a NOT NULL
+      column with no default to a table that already has rows fails on SQLite
+      before the recompute can populate it. Then recompute the legacy columns for **every** background (sum of its outstanding lots, so
       **zero** where it has none; the two nights off its earliest-releasing lot, so
       **null** where it has none). Then drop
       `character_background_blanks` if present. The drop is not tidiness: leaving

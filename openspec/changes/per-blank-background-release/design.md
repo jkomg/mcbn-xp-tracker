@@ -51,6 +51,14 @@ and `released_at` (null while outstanding). Keeping released rows rather than
 deleting them costs nothing and makes "why did these dots come back" answerable;
 outstanding is simply `released_at IS NULL`.
 
+Keeping them does shape the index, though. The release query runs every two
+minutes and history only grows, so an index on `release_night_number` alone
+decays — almost every old row has a night at or before the current one, and it
+stops discriminating. The index is therefore **partial**:
+`(release_night_number) WHERE released_at IS NULL`, which covers exactly the set
+the query cares about and stays the same size as the outstanding work rather than
+as the archive.
+
 **Derive `dots_blanked` from the blank rows; unmap the three legacy columns.**
 The blanks table is the only place that knows what is blanked; nothing should be
 able to disagree with it. `dots_blanked` becomes a Python property summing
