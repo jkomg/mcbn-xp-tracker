@@ -38,12 +38,24 @@ need their own release nights.
   that owns the facts. They are read by the player sheet, the coterie sheet and
   the bot API response, all of which keep working unchanged — `dots_available` is
   already a property, so the pattern is established.
-- **The columns themselves are unmapped, not dropped.** `entrypoint.sh` runs
-  `flask db upgrade` before gunicorn starts, so the migration completes while the
-  *previous* Cloud Run revision is still serving traffic. Dropping columns that
-  revision's ORM still maps would break every background read until traffic
-  shifted. The drop is a separate follow-up change, once no deployed revision
-  maps them.
+- **This ships in three releases, because one Cloud Run revision is always still
+  serving while the next one migrates.** `entrypoint.sh` runs `flask db upgrade`
+  before gunicorn starts, so the schema changes under the previous revision:
+  1. **Dual-write.** Create the table, backfill, and write *both* the rows and the
+     legacy columns on every mutation — but keep reading the columns. Safe under
+     either revision: the old one reads and writes columns as it always did, and
+     the new one keeps them correct.
+  2. **Switch reads.** Derive `dots_blanked` and the two night values from the
+     rows, and unmap the columns. Safe because release 1 has been keeping the rows
+     correct, so there is nothing to backfill and no window in which a write goes
+     to only one representation.
+  3. **Contract.** Drop the index and the three columns, once no deployed revision
+     maps them.
+
+  A single release cannot do this. Dropping the columns in one breaks the old
+  revision's reads; unmapping them in one makes the old revision's *writes*
+  invisible, because the backfill has already run and the new code never looks at
+  the columns again. A player's blank would be silently discarded.
 
 ## Capabilities
 
@@ -60,12 +72,12 @@ need their own release nights.
   blank.
 - **Changing what blanking costs or grants in-game.** Purely a fix to how the
   system represents what players already do.
-- **Dropping the legacy columns.** Deferred to a follow-up change, for the
-  deploy-window reason above — not because dropping them is hard. An earlier draft
-  listed this as a non-goal on the grounds that SQLite and Turso could not drop a
-  referenced table's column; that was wrong and was tested to destruction. They
-  can. The reason to wait is that the old revision is still serving when the
-  migration runs.
+- **Dropping the legacy columns**, and **switching reads to the rows** — releases
+  2 and 3, each its own change. This change is release 1 only.
+  An earlier draft listed the drop as a non-goal on the grounds that SQLite and
+  Turso could not drop a referenced table's column. That was wrong and was tested
+  to destruction; they can. The reason to stage it is the deploy window, which has
+  nothing to do with whether the DDL works.
 
 ## Impact
 

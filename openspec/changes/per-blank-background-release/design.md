@@ -90,24 +90,34 @@ show a player the wrong number of dots while they decide whether to blank more.
 A derived value cannot drift. That is worth more than the convenience of keeping
 a column.
 
-**The columns are unmapped in this change and dropped in a follow-up.**
-`entrypoint.sh` runs `flask db upgrade` and then `exec gunicorn`, so the
-migration finishes before the new revision is healthy — which is before Cloud Run
-shifts traffic off the previous revision. That revision's ORM still maps
-`dots_blanked`, so dropping it mid-deploy makes every background read on the live
-revision fail until the cutover completes. Unmapping is safe in a way dropping is
-not: the columns stay, stop being maintained, and the outgoing revision reads
-values that are briefly stale rather than querying columns that no longer exist.
-Wrong-for-seconds beats erroring.
+**Three releases, because a revision is always still serving while the next one
+migrates.** `entrypoint.sh` runs `flask db upgrade` and then `exec gunicorn`, so
+the schema changes before the new revision is healthy — which is before Cloud Run
+shifts traffic off the previous one. Two distinct hazards follow, pulling in
+opposite directions, and neither can be solved in a single release:
 
-That makes this change's DDL purely additive — one `CREATE TABLE` — which removes
-most of the concurrency and retryability surface the drop steps introduced, and
-makes its downgrade a repopulate-and-drop-table rather than a column rebuild.
+- **Drop the columns and the old revision's reads break.** Its ORM still maps
+  `dots_blanked`; every background read fails until cutover.
+- **Merely unmap them and the old revision's writes vanish.** The backfill is a
+  one-time snapshot. A blank, release or undonation served by the old revision
+  after it runs writes only the columns, and the new code never reads them again —
+  so a player's blank is silently discarded. This is the subtler of the two, and
+  the reason "unmap now, drop later" is not enough on its own.
 
-The follow-up change drops the index and the three columns once no deployed
-revision maps them. It is the contract half of an expand/contract pair, and it
-carries the hazard this one avoids: it must not ship until the expand is live
-everywhere.
+So: **release 1 dual-writes** (create the table, backfill, write both
+representations on every mutation, keep reading the columns); **release 2 switches
+reads** to the rows and unmaps the columns; **release 3 contracts**, dropping the
+index and columns. Each is safe under either adjacent revision. Release 2 needs no
+backfill at all, because release 1 has been keeping the rows correct — which is
+what closes the write window rather than merely narrowing it.
+
+**This change is release 1.** Releases 2 and 3 are separate changes, each gated on
+the previous being live everywhere.
+
+Dual-writing means release 1 does carry the sync obligation this design otherwise
+rejects, writing a total *and* rows. That is acceptable where a permanent one was
+not: it is temporary, deleted in release 2, and exists precisely so the two
+representations cannot disagree during the only window where both are read.
 
 **N+1 is handled by the loader, not by denormalization.** A property summing a
 lazy relationship would issue one query per background. The relationship is
@@ -197,7 +207,7 @@ release path that had to be gated separately.
 
 ## Migration Plan
 
-Two steps in one migration, both guarded, and **no drops**:
+Release 1's migration is two steps, both guarded, with **no drops**:
 
 1. Create `character_background_blanks` — skip if the table exists.
 2. Backfill — **only if the legacy columns still exist**, and written as a single
@@ -222,8 +232,8 @@ Two steps in one migration, both guarded, and **no drops**:
    rather than backfilled, which is what undonating it would have done anyway.
    Both databases currently hold zero of them, verified by read-only count, so
    this is a guard rather than a data path.
-The index and the three columns are left alone; the follow-up change removes
-them.
+The index and the three columns are left alone and kept current by the
+dual-write; release 3 removes them.
 
 **Guards must tolerate losing a race, not merely check first.** An
 inspector-style existence check is not sufficient on its own: two deployments can
