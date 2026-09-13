@@ -644,7 +644,16 @@ def approve_donation(slug: str, bg_id: int):
 
     bg.donated_coterie_id = coterie.id
     bg.donation_pending_coterie_id = None
-    bg.dots_blanked = bg.dots_total
+    # Deliberately does NOT blank the dots. Donating hands the background to the
+    # coterie as an asset its members spend over time through
+    # blank_donated_background; it does not withhold the dots from everyone.
+    # Setting dots_blanked = dots_total here drove dots_available to 0, which
+    # both hid the coterie's Blank control (gated on dots_available > 0) and made
+    # blank_character_background refuse with "only 0 available" — so the whole
+    # donated-blanking mechanic was unreachable for a properly donated
+    # background. undonate_background and remove_member still reset
+    # dots_blanked to 0, which cancels the coterie's outstanding blanks when the
+    # donation ends and returns the background to its owner intact.
 
     notes = request.form.get('flaw_notes', '').strip()
     if notes:

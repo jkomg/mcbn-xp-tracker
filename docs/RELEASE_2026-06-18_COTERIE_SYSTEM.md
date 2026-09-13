@@ -30,8 +30,18 @@ Members can donate backgrounds to the coterie pool from the coterie view page. D
 
 1. Player submits a donation request — background shows as "Pending" with a cancel button.
 2. Staff approve or deny from the manage page (optional flaw notes on approval).
-3. On approval: `dots_blanked = dots_total` on the character's background row — the background is fully blanked while donated.
-4. On un-donate or member removal: `dots_blanked` is restored to 0.
+3. On approval: `donated_coterie_id` is set on the character's background row. The
+   dots stay available — donating hands the background to the coterie as an asset
+   its members spend over time via the coterie sheet's Blank control.
+4. On un-donate or member removal: `dots_blanked` is restored to 0, cancelling the
+   coterie's outstanding blanks and returning the background to its owner whole.
+
+> **Corrected 2026-09-12.** Approval originally set `dots_blanked = dots_total`,
+> described here as "fully blanked while donated". That drove `dots_available` to
+> 0, which hid the coterie's Blank control (gated on `dots_available > 0`) and
+> made blanking refuse with "only 0 available" — so the donated-blanking mechanic
+> was unreachable. The assignment was removed; this page described the mechanism,
+> not the intent.
 
 ### XP Spend Donation
 
