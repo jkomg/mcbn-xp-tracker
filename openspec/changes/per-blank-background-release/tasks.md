@@ -137,6 +137,14 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       remove-member resets (`dots_blanked = 0`), `set_character_background`'s
       clamp, and the orphaned-background purchase transfer. A property without a
       setter raises, so none of these can be missed silently
+- [ ] 2.3a **Constructor keyword arguments count too, and a grep for assignments
+      misses them.** `db_service.set_character_background` builds
+      `DbCharacterBackground(... dots_blanked=0, blanked_at_night_number=None,
+      release_night_number=None ...)` at line ~1431, and `cc_admin.draft_approve`
+      does the same with `dots_blanked=0` at ~452. Once these are properties, the
+      model will not accept them as kwargs at all — a new background simply has no
+      outstanding lots, so all three are dropped from both call sites rather than
+      set to their empty values
 - [ ] 2.4 Nothing maintains a denormalized total — the properties are the only
       readers of the blank rows. Confirm no `dots_blanked` assignment remains
 - [ ] 2.5 Tests: two blanks in different nights keep separate nights; blanking
@@ -148,7 +156,13 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       rating. `approve_donation` needs nothing — it no longer touches blank state
       at all. Tests: a coterie blanks a donated background and the lot behaves
       normally; undonating with lots outstanding returns the background whole
-- [ ] 2.7 **Rating reductions.** `set_character_background` can no longer clamp a
+- [ ] 2.7 **Rating reductions — in both places a rating can be lowered.**
+      `cc_admin.draft_approve` assigns `existing.dots_total = dots` directly at
+      ~line 448 while syncing `character_data['backgrounds']`, so approving a
+      creator draft against an existing character can lower a rating without going
+      anywhere near `set_character_background`. Both paths need the same
+      reduce-lots rule; put it in one helper they both call rather than writing it
+      twice. `set_character_background` can no longer clamp a
       derived total, so lowering a rating below what is outstanding reduces lots
       newest-first, preserving the earliest promised return. Tests: reduce below
       outstanding; reduce while still above it (no change); reduce to zero with
