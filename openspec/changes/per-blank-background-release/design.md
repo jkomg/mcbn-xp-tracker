@@ -270,10 +270,15 @@ fails with `error in index ix_character_backgrounds_release_night after drop
 column: no such column`. Verified 2026-09-12. The index is declared in both
 `db.py` and migration `6d2a4f0be9c1`.
 
-`downgrade()` is simple now that nothing is dropped on the way up — two steps,
-both guarded and retryable:
+`downgrade()` is three guarded, retryable steps:
 
-1. Recompute the legacy columns for **every** background, not only those with
+1. Re-add any of the three columns that is absent, each behind its own guard.
+   Dropping them is the follow-up change's job, so on an *existing* database they
+   are still there — but a **fresh** one never had them: `create_all()` builds the
+   post-change schema and the boot path then stamps it at head, so a downgrade
+   from head starts against a table that has only ever had the new shape. Updating
+   a column that was never created fails.
+2. Recompute the legacy columns for **every** background, not only those with
    outstanding rows — `dots_blanked` = sum of its outstanding lots (so **zero**
    where there are none), and the two nights read off its earliest-releasing lot
    (so **null** where there are none). The columns stopped being maintained while
@@ -281,9 +286,9 @@ both guarded and retryable:
    released or discarded still carries a stale non-zero value. An UPDATE that
    touches only backgrounds with rows leaves exactly those wrong — showing dots
    blanked that came back.
-2. Drop `character_background_blanks`, skipped if already gone.
+3. Drop `character_background_blanks`, skipped if already gone.
 
-Step 2 is not tidiness. Leaving the table behind means old code edits the legacy
+Step 3 is not tidiness. Leaving the table behind means old code edits the legacy
 columns while stale rows sit in the blanks table, and a roll-forward skips its
 own backfill because rows already exist — so the new model would resume from
 pre-rollback data and silently contradict the columns.

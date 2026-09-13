@@ -79,11 +79,16 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       drop, to ship only once the unmapping is live everywhere. When writing it,
       remember the index must be dropped **before** its column — SQLite fails with
       `error in index ... after drop column: no such column`
-- [ ] 1.7 Write a real `downgrade()` — two guarded, retryable steps now that
-      nothing is dropped on the way up: recompute the legacy columns for **every**
-      background (sum of its outstanding lots, so **zero** where it has none; the
-      two nights off its earliest-releasing lot, so **null** where it has none),
-      then drop
+- [ ] 1.7 Write a real `downgrade()` — three guarded, retryable steps. First
+      re-add any of the three columns that is absent: the follow-up change does the
+      dropping, so an existing database still has them, but a **fresh** one never
+      did —
+      `create_all()` builds the post-change schema and the boot path stamps it at
+      head, so a downgrade from head meets a table that has only ever had the new
+      shape, and updating a column that was never created fails. Then recompute the
+      legacy columns for **every** background (sum of its outstanding lots, so
+      **zero** where it has none; the two nights off its earliest-releasing lot, so
+      **null** where it has none). Then drop
       `character_background_blanks` if present. The drop is not tidiness: leaving
       the table means old code edits the columns while stale rows remain, and a
       roll-forward skips its own backfill because rows exist, so the new model
@@ -116,8 +121,14 @@ Groups are ordered 1 → 2 → 3 → 4, with 5 after 3.
       rather than checking availability and then inserting. Two members can blank
       the same donated background at once and both pass a prior check before
       either writes, pushing the derived total above the rating. A rowcount of 0
-      is the existing "only N available" refusal. Test it by interleaving two
-      reservations against a background with one dot left
+      is the existing "only N available" refusal — **and a write conflict is not
+      the same thing.** `blank_character_background` loads the background first, so
+      each caller already holds a read snapshot; on libsql the insert can come back
+      as a serialization conflict rather than as rowcount 0. Retry once on conflict
+      and only then treat it as a refusal, or a legitimate blank gets reported to
+      the player as "no dots available". `_upgrade_with_race_retry` is the existing
+      shape for this. Test both paths by interleaving two reservations against a
+      background with one dot left: one succeeds, one is refused, neither errors
 - [ ] 2.2 Remove the interim earlier-release-wins rule added for the #434 P1 —
       there is nothing left to reconcile
 - [ ] 2.3 Grep for every **assignment** to the three now-derived attributes and
@@ -219,3 +230,11 @@ no new DB writes.*
       Discarding a player's blanked dots is at least as worth recording as taking
       them, and since this change makes the rows authoritative, shipping an
       unaudited delete of them would violate the convention `AGENTS.md` states
+- [ ] 6.6a **Sheets mirror: deliberately not added**, recorded because the same
+      convention says to *check* for a counterpart rather than always add one.
+      `player.blank_background` — the existing, closest analogue — calls
+      `log_action` with no `sync_log_action`, so blanking is log-only today.
+      Matching that keeps the two blanking routes symmetric; adding a mirror to the
+      new ones alone would create exactly the asymmetry the convention exists to
+      prevent. If blanking should be mirrored, that is a separate decision covering
+      the existing route too
