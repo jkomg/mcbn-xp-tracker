@@ -117,6 +117,24 @@ def list_characters():
     )
 
 
+@bp.route('/blanks')
+@require_staff
+def blanks():
+    """Every outstanding background blank across the roster.
+
+    Read-only by design: a manual release button would be a second release
+    path with its own timing, which is the class of bug this view exists to
+    make visible.
+    """
+    rows = db_service.get_outstanding_background_blanks()
+    return render_template(
+        'roster/blanks.html',
+        rows=rows,
+        due_count=sum(1 for r in rows if r['state'] == 'due'),
+        unknown_count=sum(1 for r in rows if r['state'] == 'unknown'),
+    )
+
+
 @bp.route('/export.xlsx')
 @require_staff
 def export_roster_xlsx():
