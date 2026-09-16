@@ -2,6 +2,21 @@ import type { Client } from 'discord.js';
 import { errorToMessage, logEvent } from '../logger';
 import { buildCubbyChannelMap, normalizeChannelName } from './cubbyChannels';
 import type { TrackerAdapter } from './adapter';
+import type { BackgroundReleaseEvent } from '../types';
+
+/**
+ * The web side only releases a blank once its releasing night has started on
+ * the game calendar, so by the time this is sent the dots are usable. Say so
+ * plainly. This used to append "Current night: <period label>", but the label
+ * embeds the period's date range, and staff open periods days before they
+ * begin — so a player read a future date range as the day the dots came back.
+ */
+export function buildBlankReleaseMessage(release: BackgroundReleaseEvent): string {
+  const mention = /^\d{17,20}$/.test(release.player_discord) ? `<@${release.player_discord}>` : release.character_name;
+  const one = release.dots_released === 1;
+  const dots = one ? '1 dot' : `${release.dots_released} dots`;
+  return `${mention} your **${dots}** of **${release.background_name}** ${one ? 'is' : 'are'} back and can be used now.`;
+}
 
 export class BackgroundBlankReleaseService {
   private readonly client: Client;
@@ -45,17 +60,7 @@ export class BackgroundBlankReleaseService {
             continue;
           }
 
-          const mention = /^\d{17,20}$/.test(release.player_discord)
-            ? `<@${release.player_discord}>`
-            : release.character_name;
-
-          await channel.send({
-            content: [
-              `${mention} your background refresh is ready.`,
-              `Released **${release.dots_released}** dot(s) of **${release.background_name}**.`,
-              releaseBatch.currentNight ? `Current night: **${releaseBatch.currentNight}**.` : '',
-            ].filter(Boolean).join('\n'),
-          });
+          await channel.send({ content: buildBlankReleaseMessage(release) });
           sent += 1;
         } catch (error) {
           failed += 1;

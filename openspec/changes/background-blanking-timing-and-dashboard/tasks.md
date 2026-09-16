@@ -66,33 +66,47 @@ so they can run in parallel in separate branches.
 *Seam: `apps/web` Python + Jinja — **delegable**. Read-only: no DB writes, so no
 audit-log or Sheets-mirror pairing obligation. No schema change.*
 
-- [ ] 3.1 Staff-only route listing every `DbCharacterBackground` with
+- [x] 3.1 Staff-only route listing every `DbCharacterBackground` with
       `dots_blanked > 0`: character, background, dots blanked, dots total, night
-      blanked, releasing night
-- [ ] 3.2 Mark each row's state — not yet due, due now, or releasing night
-      unknown to the calendar (the group-2 hold case, which must be visible)
-- [ ] 3.3 Empty state: say nothing is blanked rather than render an empty table
-- [ ] 3.4 Reachable from staff navigation, following the existing nav pattern
-- [ ] 3.5 Route-level tests: rows render with the right state per case, a
-      non-staff request is rejected, and the empty state renders
+      blanked, releasing night — `GET /roster/blanks`, backed by
+      `db_service.get_outstanding_background_blanks()`. Also shows the releasing
+      night's calendar start date and marks coterie-donated backgrounds.
+      **Retargeted by `per-blank-background-release` 6.5** once `dots_blanked`
+      stops being a column
+- [x] 3.2 Mark each row's state — not yet due, due now, or releasing night
+      unknown to the calendar (the group-2 hold case, which must be visible). Due
+      and unknown rows also raise a banner, since release polls every two minutes
+      and a lingering due row means something is not running
+- [x] 3.3 Empty state: say nothing is blanked rather than render an empty table
+- [x] 3.4 Reachable from staff navigation, following the existing nav pattern — an
+      indented "Blanked Backgrounds" item under Roster. Six existing tests stub the
+      `roster` blueprint to render `base.html` and gained a `blanks` endpoint
+- [x] 3.5 Route-level tests — `tests/test_roster_blanks_view.py`, 6 tests, rows
+      created through `blank_character_background` with the calendar's today
+      pinned to 2026-09-16. Collapsing the due/pending split made 2 of them fail
 
 ## 4. Bot: say when the dots are usable
 
 *Seam: `apps/bot` TypeScript — **delegable**. Single file, self-contained,
 `npm run check` is the gate.*
 
-- [ ] 4.1 In `apps/bot/src/services/backgroundBlankReleaseService.ts`, reword the
+- [x] 4.1 In `apps/bot/src/services/backgroundBlankReleaseService.ts`, reword the
       notification so it states the dots are available now, and drop or rephrase
       the bare `Current night: <label>` line whose embedded date range reads as a
-      future effective date
-- [ ] 4.2 Update the service's tests for the new wording
-- [ ] 4.3 `npm run check` passes from `apps/bot`
+      future effective date. Dropped; the message is built by an exported
+      `buildBlankReleaseMessage`
+- [x] 4.2 Update the service's tests for the new wording. **There were none** —
+      added `src/__tests__/backgroundBlankReleaseService.test.ts`, including a
+      `tick()` case replaying the 2026-09-04 batch and asserting the period label
+      does not reach the message
+- [x] 4.3 `npm run check` passes from `apps/bot`
 
 ## 5. Close out
 
-- [ ] 5.1 `./venv/bin/pytest -q --cov=app --cov-report=term-missing --cov-fail-under=30`
+- [x] 5.1 `./venv/bin/pytest -q --cov=app --cov-report=term-missing --cov-fail-under=30`
       and `./venv/bin/ruff check app tests` pass from `apps/web`
-- [ ] 5.2 Note the behaviour change in `CHANGELOG.md`: blanked dots now return
-      when the night opens rather than when its period opens
-- [ ] 5.3 Record in the PR that blanks released early before this change are left
-      released, per design.md's Risks
+- [x] 5.2 Note the behaviour change in `CHANGELOG.md`: blanked dots now return
+      when the night opens rather than when its period opens — shipped with #434;
+      the staff view and wording have their own entry
+- [x] 5.3 Record in the PR that blanks released early before this change are left
+      released, per design.md's Risks — recorded in #434

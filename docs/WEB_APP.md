@@ -179,7 +179,7 @@ Both submissions go into the pending queue for staff review.
 
 **Backgrounds tab**
 
-Characters that have tracked backgrounds (e.g. Herd, Allies) show a **Backgrounds** tab below the action panels. Each row lists the background name, total dots, currently blanked dots, available dots, and the scheduled release night if blanked. Blanking is triggered by the bot (hunt consequence); release happens automatically at the start of the next night via the bot's passage-of-time monitor. Players receive a Discord notification in their character's cubby channel when the review is complete.
+Characters that have tracked backgrounds (e.g. Herd, Allies) show a **Backgrounds** tab below the action panels. Each row lists the background name, total dots, currently blanked dots, available dots, and the scheduled release night if blanked. Blanking is triggered by the bot (hunt consequence); the dots return automatically once the first night after the next downtime opens on the game calendar (the bot polls for due releases every two minutes). Staff can see every outstanding blank across the roster under **Roster → Blanked Backgrounds** (`/roster/blanks`). Players receive a Discord notification in their character's cubby channel when the review is complete.
 
 ## Staff Workflows
 

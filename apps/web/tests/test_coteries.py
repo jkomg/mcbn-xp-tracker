@@ -41,7 +41,7 @@ _STUBS = [
     _stub('periods', [('/periods/', 'list_periods')]),
     _stub('player', [('/player/', 'my_characters'), ('/player/c/<name>', 'character')]),
     _stub('reports', [('/reports/', 'index')]),
-    _stub('roster', [('/roster/', 'list_characters')]),
+    _stub('roster', [('/roster/', 'list_characters'), ('/roster/blanks', 'blanks')]),
     _stub('settings', [('/settings/', 'index')]),
     _stub('wiki', [('/wiki/', 'index')]),
     _stub('local_status', [('/local/status', 'status_page')]),

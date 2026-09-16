@@ -347,7 +347,7 @@ Returns all tracked backgrounds and their blanking state for a character. Player
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
 
-Blanks one or more dots of a tracked background for a character (e.g. hunting consequence). Sets `release_night_number` to `current_night_number + 1`. Requires an active open play period.
+Blanks one or more dots of a tracked background for a character (e.g. hunting consequence). The blank is recorded against the current open night and sets `release_night_number` to the first night after the next downtime (`game_calendar.next_night_after_downtime`). Requires an active open play period.
 
 **Body:**
 ```json
@@ -391,7 +391,7 @@ Blanks one or more dots of a tracked background for a character (e.g. hunting co
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
 
-Releases all blanked backgrounds whose `release_night_number` is ≤ the current open night number. Called automatically by the bot's passage-of-time monitor at the start of each night. No body required.
+Releases blanked backgrounds whose `release_night_number` is ≤ the current open night number **and** whose releasing night has started on the game calendar (`game_calendar.night_has_started`). Staff often open a period days before its night begins, so the period condition alone would release early. A releasing night the calendar does not list is held, not released; staff can see those at `/roster/blanks`. Polled by the bot's `BackgroundBlankReleaseService` every two minutes, which tells each player in their cubby that the dots can be used now. No body required.
 
 If no open play period exists, returns `ok: true` with an empty `released` array.
 

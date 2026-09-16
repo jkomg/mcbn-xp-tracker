@@ -34,7 +34,7 @@ def _app():
     }))
     app.register_blueprint(_stub_bp('claims', '/claims', {'/pending': 'pending'}))
     app.register_blueprint(_stub_bp('spends', '/spends', {'/pending': 'pending'}))
-    app.register_blueprint(_stub_bp('roster', '/roster', {'/': 'index', '/characters': 'list_characters'}))
+    app.register_blueprint(_stub_bp('roster', '/roster', {'/': 'index', '/characters': 'list_characters', '/blanks': 'blanks'}))
     app.register_blueprint(_stub_bp('periods', '/periods', {'/': 'index', '/list': 'list_periods'}))
     app.register_blueprint(_stub_bp('audit', '/audit', {'/': 'log', '/errors': 'errors'}))
     app.register_blueprint(_stub_bp('player', '/player', {'/': 'my_characters'}))
