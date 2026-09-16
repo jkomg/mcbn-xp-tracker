@@ -81,9 +81,13 @@ audit-log or Sheets-mirror pairing obligation. No schema change.*
 - [x] 3.4 Reachable from staff navigation, following the existing nav pattern — an
       indented "Blanked Backgrounds" item under Roster. Six existing tests stub the
       `roster` blueprint to render `base.html` and gained a `blanks` endpoint
-- [x] 3.5 Route-level tests — `tests/test_roster_blanks_view.py`, 6 tests, rows
-      created through `blank_character_background` with the calendar's today
-      pinned to 2026-09-16. Collapsing the due/pending split made 2 of them fail
+- [x] 3.5 Route-level tests — `tests/test_roster_blanks_view.py`, 6 tests, with
+      the calendar's today pinned to 2026-09-16. Rows are built by a player
+      through `/player/<name>/backgrounds/set` and `/backgrounds/blank`, and
+      released through `POST /api/backgrounds/release-due` (Codex P1 on #442:
+      the first version called the service directly). Collapsing the
+      due/pending split made 2 fail; making the player route stamp the wrong
+      night made 3 fail
 
 ## 4. Bot: say when the dots are usable
 

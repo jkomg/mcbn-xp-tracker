@@ -1,10 +1,14 @@
 """Staff view of outstanding background blanks (/roster/blanks).
 
-Rows are built through blank_character_background, the real write path, rather
-than constructed by hand, and the calendar's notion of today is pinned so the
-due/pending split does not drift as real time passes.
+Rows are built by a player using the real routes -- setting the background on
+their sheet, then blanking it while a night is open -- so the view is tested
+against what those routes actually record, including the night they stamp. The
+calendar's notion of today is pinned so the due/pending split does not drift as
+real time passes.
 """
 
+import time
+import uuid
 from datetime import date
 from pathlib import Path
 
@@ -13,9 +17,11 @@ from flask import Blueprint, Flask
 from flask_wtf import CSRFProtect
 
 import app as app_module
+import app.blueprints.api as api_module
+import app.blueprints.player as player_module
 import app.blueprints.roster as roster_module
 from app import game_calendar
-from app.db import DbCharacter, db
+from app.db import DbCharacter, DbPlayPeriod, db
 from app.db_service import DBService
 
 _TEMPLATE_DIR = str(Path(__file__).resolve().parents[1] / 'app' / 'templates')
@@ -44,7 +50,10 @@ def app(monkeypatch):
     flask_app = Flask(__name__, template_folder=_TEMPLATE_DIR, static_folder=_STATIC_DIR)
     flask_app.config.update(
         TESTING=True, SECRET_KEY='test', SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SQLALCHEMY_TRACK_MODIFICATIONS=False, WTF_CSRF_ENABLED=False,
+        ALLOWED_DISCORD_IDS=set(), WEB_APP_API_WRITE_TOKEN='write-token',
+        BOT_API_REPLAY_PROTECTION_ENABLED=True, BOT_API_REPLAY_WINDOW_SECONDS=300,
+        BOT_API_NONCE_TTL_SECONDS=600, BOT_API_NONCE_CACHE_SIZE=1000,
     )
     CSRFProtect(flask_app)
     db.init_app(flask_app)
@@ -55,7 +64,6 @@ def app(monkeypatch):
     flask_app.register_blueprint(_stub_bp('spends', '/spends', {'/pending': 'pending'}))
     flask_app.register_blueprint(_stub_bp('periods', '/periods', {'/list': 'list_periods'}))
     flask_app.register_blueprint(_stub_bp('audit', '/audit', {'/': 'log', '/errors': 'errors'}))
-    flask_app.register_blueprint(_stub_bp('player', '/player', {'/': 'my_characters'}))
     flask_app.register_blueprint(_stub_bp('wiki', '/wiki', {'/': 'index'}))
     flask_app.register_blueprint(_stub_bp('cc_admin', '/cc-admin', {'/drafts': 'draft_list'}))
     flask_app.register_blueprint(_stub_bp('coteries', '/coteries', {'/': 'index'}))
@@ -63,11 +71,15 @@ def app(monkeypatch):
     flask_app.register_blueprint(_stub_bp('reports', '/reports', {'/': 'index'}))
     flask_app.register_blueprint(_stub_bp('local_status', '/local/status', {'/': 'status_page'}))
     flask_app.register_blueprint(roster_module.bp, url_prefix='/roster')
+    flask_app.register_blueprint(player_module.bp, url_prefix='/player')
+    flask_app.register_blueprint(api_module.bp, url_prefix='/api')
     with flask_app.app_context():
         db.create_all()
         svc = DBService()
         monkeypatch.setattr(app_module, 'db_service', svc)
         monkeypatch.setattr(roster_module, 'db_service', svc)
+        monkeypatch.setattr(player_module, 'db_service', svc)
+        monkeypatch.setattr(api_module, 'db_service', svc)
         yield flask_app
 
 
@@ -78,13 +90,33 @@ def _staff(client):
         sess['staff_user'] = 'Tester'
 
 
-def _blank(name, background, rating, dots, night):
-    svc = DBService()
+_PLAYERS = {'Aludra': '111', 'Bastet': '222', 'Corvin': '333'}
+
+
+def _open_night(night):
+    """Make `night` the one open play period, as staff do from the periods page."""
+    DbPlayPeriod.query.update({'submissions_open': False})
+    db.session.add(DbPlayPeriod(period_label=f'Night {night}', night_number=night,
+                                submissions_open=True, active=True))
+    db.session.commit()
+
+
+def _blank(app, name, background, rating, dots, night):
+    """The player sets the background on their sheet, then blanks it."""
     if not DbCharacter.query.filter_by(character_name=name).first():
-        db.session.add(DbCharacter(character_name=name, player_discord='1', active=True, status='active'))
+        db.session.add(DbCharacter(character_name=name, player_discord=_PLAYERS[name],
+                                   active=True, status='active'))
         db.session.commit()
-    svc.set_character_background(name, background, rating, 'test')
-    svc.blank_character_background(name, background, dots, night, 'test')
+    _open_night(night)
+    player = app.test_client()
+    with player.session_transaction() as sess:
+        sess['discord_id'] = _PLAYERS[name]
+        sess['discord_name'] = name.lower()
+    set_res = player.post(f'/player/{name}/backgrounds/set',
+                          data={'background_name': background, 'dots_total': rating})
+    blank_res = player.post(f'/player/{name}/backgrounds/blank',
+                            data={'background_name': background, 'dots': dots})
+    assert (set_res.status_code, blank_res.status_code) == (302, 302)
 
 
 def _rows(body: str) -> dict[str, str]:
@@ -97,9 +129,9 @@ def _rows(body: str) -> dict[str, str]:
 
 
 def test_each_row_is_marked_by_calendar_state(app):
-    _blank('Aludra', 'Allies', 3, 2, 68)   # returns Night 69, already open → due
-    _blank('Bastet', 'Mawla', 2, 1, 69)    # returns Night 73, not yet open → pending
-    _blank('Corvin', 'Haven', 1, 1, 77)    # no downtime after 77 on the calendar → unknown
+    _blank(app, 'Aludra', 'Allies', 3, 2, 68)   # returns Night 69, already open → due
+    _blank(app, 'Bastet', 'Mawla', 2, 1, 69)    # returns Night 73, not yet open → pending
+    _blank(app, 'Corvin', 'Haven', 1, 1, 77)    # no downtime after 77 on the calendar → unknown
 
     client = app.test_client()
     _staff(client)
@@ -116,8 +148,8 @@ def test_each_row_is_marked_by_calendar_state(app):
 
 
 def test_due_and_unknown_rows_raise_a_banner(app):
-    _blank('Aludra', 'Allies', 3, 2, 68)
-    _blank('Corvin', 'Haven', 1, 1, 77)
+    _blank(app, 'Aludra', 'Allies', 3, 2, 68)
+    _blank(app, 'Corvin', 'Haven', 1, 1, 77)
 
     client = app.test_client()
     _staff(client)
@@ -128,8 +160,17 @@ def test_due_and_unknown_rows_raise_a_banner(app):
 
 
 def test_released_blanks_drop_off_the_view(app):
-    _blank('Aludra', 'Allies', 3, 2, 68)
-    DBService().release_due_background_blanks(69)
+    _blank(app, 'Aludra', 'Allies', 3, 2, 68)
+    _open_night(69)
+    # What the bot's release worker calls every two minutes.
+    res = app.test_client().post('/api/backgrounds/release-due', headers={
+        'Authorization': 'Bearer write-token',
+        'X-Request-Timestamp': str(int(time.time())),
+        # Nonces are remembered process-wide, so a fixed one collides with other tests.
+        'X-Request-Nonce': f'roster-blanks-{uuid.uuid4()}',
+    })
+    assert res.status_code == 200, res.get_json()
+    assert [r['dots_released'] for r in res.get_json()['released']] == [2]
 
     client = app.test_client()
     _staff(client)
@@ -149,7 +190,7 @@ def test_empty_state_instead_of_an_empty_table(app):
 
 
 def test_non_staff_are_turned_away(app):
-    _blank('Aludra', 'Allies', 3, 2, 68)
+    _blank(app, 'Aludra', 'Allies', 3, 2, 68)
     client = app.test_client()
     with client.session_transaction() as sess:
         sess['discord_id'] = '111'   # a signed-in player, not staff
