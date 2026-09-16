@@ -345,7 +345,11 @@ def set_background(name):
             staff_user=actor,
             action_type='player_background_set',
             target=name,
-            details=f'{result["background"]} => {dots_total} dots',
+            details=(
+                f'{result["background"]} => {dots_total} dots'
+                + (f'; {result["dots_unblanked"]} blanked dot(s) discarded'
+                   if result.get('dots_unblanked') else '')
+            ),
         )
     except ValueError as e:
         flash(str(e), 'danger')
@@ -398,9 +402,15 @@ def blank_background(name):
             current_night.night_number,
             actor,
         )
+        note = ''
+        if result.get('outstanding_lots', 1) > 1:
+            note = (
+                f' {result["dots_blanked_total"]} dot(s) are now blanked in all; the next '
+                f'return is Night {result["next_release_night_number"]}.'
+            )
         flash(
-            f'Blanked {result["dots_blanked_now"]} dot(s) of {result["background_name"]}. '
-            f'Release scheduled for Night {result["release_night_number"]}.',
+            f'Blanked {result["dots_blanked_now"]} dot(s) of {result["background_name"]}; '
+            f'they return on Night {result["release_night_number"]}.{note}',
             'success',
         )
         db_service.log_action(

@@ -77,7 +77,7 @@ def test_blank_and_release_cycle(app_ctx):
     assert rows_after[0]['dots_available'] == 3
 
 
-def test_blank_consecutive_nights_preserves_one_night_release(app_ctx):
+def test_blank_consecutive_nights_keeps_each_lot_on_its_own_night(app_ctx):
     svc = DBService()
     _seed_character_period()
     svc.set_character_background('Aludra', 'Allies', 3, 'test')
@@ -86,13 +86,21 @@ def test_blank_consecutive_nights_preserves_one_night_release(app_ctx):
     first = svc.blank_character_background('Aludra', 'Allies', 1, 68, 'test')
     assert first['release_night_number'] == 69
 
-    # Night 69 blank without running the release worker first: the previous
-    # blank is due and Night 69 has started, so it auto-releases, and the new
-    # blank is due after the next downtime (Night 73).
+    # Night 69 blank without running the release worker first. Blanking never
+    # releases anything any more, so the first lot is still out; the new lot
+    # is due after the next downtime (Night 73).
     second = svc.blank_character_background('Aludra', 'Allies', 1, 69, 'test')
     assert second['release_night_number'] == 73
-    assert second['dots_blanked_total'] == 1
-    assert second['dots_available'] == 2
+    assert second['next_release_night_number'] == 69
+    assert second['dots_blanked_total'] == 2
+    assert second['dots_available'] == 1
+
+    # The worker then returns only the Night 69 lot.
+    released = svc.release_due_background_blanks(69)
+    assert [r['dots_released'] for r in released] == [1]
+    row = svc.get_character_backgrounds('Aludra')[0]
+    assert row['dots_blanked'] == 1
+    assert row['release_night_number'] == 73
 
 
 def test_blank_background_api_enforces_owner(app_ctx):
@@ -247,10 +255,8 @@ def test_the_period_condition_still_applies(app_ctx, monkeypatch):
 
 def test_stacking_never_pushes_a_held_blanks_release_out(app_ctx, monkeypatch):
     """A held blank's release must not move later because the player blanked
-    something else. One release_night_number cannot express two schedules, so
-    until blanks are tracked per-blank the earlier night wins.
-
-    Interim behaviour — the modelled fix is per-blank rows.
+    something else -- the Codex P1 on #434. With a lot per blank, the new dot
+    gets its own night and the held one keeps its own.
     """
     svc = DBService()
     _seed_character_period()
@@ -265,7 +271,10 @@ def test_stacking_never_pushes_a_held_blanks_release_out(app_ctx, monkeypatch):
     second = svc.blank_character_background('Aludra', 'Mawla', 1, 69, 'test')
 
     assert second['dots_blanked_total'] == 2
-    assert second['release_night_number'] == 69, 'the held dot keeps its night'
+    assert second['next_release_night_number'] == 69, 'the held dot keeps its night'
+    assert second['release_night_number'] == 73, 'the new dot is not brought forward to it'
+    lots = svc.get_character_backgrounds('Aludra')[0]['blanks']
+    assert [(lot['dots'], lot['release_night_number']) for lot in lots] == [(1, 69), (1, 73)]
 
 
 def test_taking_a_new_blank_does_not_release_a_held_one_early(app_ctx, monkeypatch):

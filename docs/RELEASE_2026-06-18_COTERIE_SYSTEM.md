@@ -33,8 +33,12 @@ Members can donate backgrounds to the coterie pool from the coterie view page. D
 3. On approval: `donated_coterie_id` is set on the character's background row. The
    dots stay available — donating hands the background to the coterie as an asset
    its members spend over time via the coterie sheet's Blank control.
-4. On un-donate or member removal: `dots_blanked` is restored to 0, cancelling the
-   coterie's outstanding blanks and returning the background to its owner whole.
+4. On un-donate or member removal: the coterie's outstanding blanks are cancelled
+   (since 2026-09-16, by deleting its outstanding rows in
+   `character_background_blanks`; before that, by resetting `dots_blanked` to 0),
+   returning the background to its owner whole. Both are audited every time,
+   as `coterie_background_undonated` and `coterie_member_removed`, with any
+   cancelled blanks named in the details.
 
 > **Corrected 2026-09-12.** Approval originally set `dots_blanked = dots_total`,
 > described here as "fully blanked while donated". That drove `dots_available` to
