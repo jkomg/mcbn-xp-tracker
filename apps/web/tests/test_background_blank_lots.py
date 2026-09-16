@@ -167,6 +167,96 @@ def test_a_conflict_that_persists_is_not_reported_as_no_dots(svc, monkeypatch):
     assert 'available' not in str(excinfo.value)
 
 
+def _lands_then_loses_the_response(monkeypatch, times=1):
+    """Turso commits the INSERT, then the HTTP response is lost."""
+    real_execute = db.session.execute
+    calls = {'n': 0}
+
+    def execute(statement, *args, **kwargs):
+        result = real_execute(statement, *args, **kwargs)
+        if 'INSERT INTO character_background_blanks' in str(statement) and calls['n'] < times:
+            calls['n'] += 1
+            db.session.commit()   # autocommitted, as on Turso
+            raise OperationalError('INSERT', {}, Exception('Turso connection error: timed out'))
+        return result
+
+    monkeypatch.setattr(db.session, 'execute', execute)
+    return calls
+
+
+def test_an_insert_that_landed_is_not_recorded_twice(svc, monkeypatch):
+    """Codex P1 on #443. With dots to spare, a blind retry would add a second lot."""
+    svc.set_character_background('Aludra', 'Mawla', 4, 'test')
+    calls = _lands_then_loses_the_response(monkeypatch)
+
+    result = svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+
+    assert calls['n'] == 1
+    assert result['dots_blanked_total'] == 1
+    assert _lots(svc) == [(1, 69)]
+
+
+def test_an_insert_that_landed_is_not_reported_as_refused(svc, monkeypatch):
+    """The other half: the retry no longer fits, but the first attempt did."""
+    svc.set_character_background('Aludra', 'Mawla', 1, 'test')
+    _lands_then_loses_the_response(monkeypatch)
+
+    result = svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+
+    assert result['dots_available'] == 0
+    assert _lots(svc) == [(1, 69)]
+
+
+def test_the_keyed_retry_skips_itself_if_the_first_insert_landed(svc):
+    """If the landed check cannot run, the retry is still safe: the same keyed
+    insert does nothing the second time."""
+    svc.set_character_background('Aludra', 'Mawla', 4, 'test')
+    bg_id = _bg().id
+    blanks = DbCharacterBackgroundBlank.__table__
+    assert svc._reserve_blank(bg_id, 1, 68, 69, 'test')
+    key = db.session.execute(db.select(blanks.c.request_key)).scalar()
+    db.session.commit()
+
+    again = db.insert(blanks).from_select(
+        ['character_background_id', 'dots', 'release_night_number', 'created_at',
+         'created_by', 'request_key'],
+        db.select(db.literal(bg_id), db.literal(1), db.literal(69), db.literal(''),
+                  db.literal('t'), db.literal(key)),
+    )
+    with pytest.raises(Exception):
+        db.session.execute(again)   # the unique index refuses a duplicate key
+    db.session.rollback()
+    assert _lots(svc) == [(1, 69)]
+
+
+def test_an_unconfirmable_failure_says_so(svc, monkeypatch):
+    """Insert and landed-check both fail: whether the blank exists is unknown,
+    so the player must not be told that nothing was blanked."""
+    svc.set_character_background('Aludra', 'Mawla', 2, 'test')
+    real_execute = db.session.execute
+
+    def insert_fails(statement, *args, **kwargs):
+        if 'INSERT INTO character_background_blanks' in str(statement):
+            raise OperationalError('INSERT', {}, Exception('Turso connection error'))
+        return real_execute(statement, *args, **kwargs)
+
+    def check_fails(_key):
+        raise OperationalError('SELECT', {}, Exception('Turso connection error'))
+
+    monkeypatch.setattr(db.session, 'execute', insert_fails)
+    monkeypatch.setattr(svc, '_blank_recorded', check_fails)
+    with pytest.raises(ValueError, match='Could not confirm whether the blank was recorded'):
+        svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+
+
+def test_every_blank_gets_its_own_key(svc):
+    svc.set_character_background('Aludra', 'Mawla', 3, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+    svc.blank_character_background('Aludra', 'Mawla', 1, 68, 'test')
+    keys = [lot.request_key for lot in DbCharacterBackgroundBlank.query]
+    assert len(keys) == 2 and None not in keys and len(set(keys)) == 2
+
+
 def test_the_derived_values_cannot_be_assigned(svc):
     """An assignment is the bug the lots table removes; it must fail loudly."""
     svc.set_character_background('Aludra', 'Mawla', 2, 'test')

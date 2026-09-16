@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -51,7 +52,10 @@ def _apply_local_session_cookie_defaults(app: Flask, session_cookie_secure_confi
     app.config['REMEMBER_COOKIE_SECURE'] = False
 
 
-def _upgrade_with_race_retry(upgrade_fn) -> None:
+_UPGRADE_ATTEMPTS = 4
+
+
+def _upgrade_with_race_retry(upgrade_fn, attempts: int = _UPGRADE_ATTEMPTS, sleep=time.sleep) -> None:
     """Run Alembic's upgrade(), tolerating one specific concurrent-worker race.
 
     Every gunicorn worker (and every container on a rapid double deploy)
@@ -62,10 +66,12 @@ def _upgrade_with_race_retry(upgrade_fn) -> None:
     update. The loser raises CommandError ("expected to match one row...
     0 found") even though the schema itself ended up correct.
 
-    Retry once: on retry, upgrade_fn() re-reads current_revision fresh (now
-    already at head from the winner) and finds nothing left to do. A
-    genuine migration failure still raises — the retry hits the same real
-    problem and isn't swallowed.
+    Retry: each attempt re-reads current_revision fresh and carries on from
+    wherever the winner has got to. One retry is not enough when a deploy
+    carries more than one migration -- the loser can lose again on the next
+    revision while the winner is still applying it -- so it retries a few
+    times with a short backoff. A genuine migration failure hits the same real
+    problem on every attempt and is raised from the last one.
 
     SystemExit is caught too, and it is the case that matters:
     flask_migrate.upgrade wraps Alembic in catch_errors, which logs a
@@ -73,11 +79,16 @@ def _upgrade_with_race_retry(upgrade_fn) -> None:
     as long as this caught only Exception the race it exists for killed the
     losing process instead of being retried.
     """
-    try:
-        upgrade_fn()
-    except (Exception, SystemExit) as exc:
-        logging.getLogger(__name__).warning('db_upgrade_race_retry: %s', exc)
-        upgrade_fn()
+    for attempt in range(1, attempts + 1):
+        try:
+            upgrade_fn()
+            return
+        except (Exception, SystemExit) as exc:
+            if attempt == attempts:
+                raise
+            logging.getLogger(__name__).warning(
+                'db_upgrade_race_retry attempt=%s: %s', attempt, exc)
+            sleep(0.5 * attempt)
 
 
 def _create_all_with_race_retry(create_all_fn) -> None:

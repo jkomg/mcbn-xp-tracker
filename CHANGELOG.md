@@ -12,7 +12,8 @@
   accepted instead of a three-release dual-write; see
   `openspec/changes/per-blank-background-release/design.md`. If a player reports
   a blank that vanished around deploy time, this is why.
-- Rolling back needs `flask db downgrade 3f81c22ad5e7`, not only a code revert.
+- Two migrations, `8a3e5c7d9b21` then `c4e1a9f27b58`. Rolling back needs
+  `flask db downgrade 3f81c22ad5e7`, not only a code revert.
   The downgrade folds outstanding blanks back into the old columns.
 
 ### Per-Blank Release Tracking
@@ -31,6 +32,9 @@
 - The rating bound is enforced inside the insert, so two coterie members blanking
   the last dot at once cannot both succeed. A write conflict is retried; if it
   persists the player is told to try again, not that no dots are available.
+  Each blank carries a `request_key` (migration `c4e1a9f27b58`), because on
+  Turso an insert can commit while its response is lost; the retry skips itself
+  if the first attempt landed, rather than recording the blank twice.
 - Lowering a rating (player edit or staff approval of a creator draft) trims
   outstanding blanks newest first, keeping the earliest promised return. Ending a
   donation discards the coterie's outstanding blanks.
@@ -54,6 +58,8 @@
   Alembic's `CommandError` into `sys.exit(1)`, which `_upgrade_with_race_retry`
   did not catch. An instance that lost the `alembic_version` race exited instead
   of retrying.
+- **The race retry now makes up to four attempts, with backoff.** A deploy with
+  two migrations let the losing instance lose again on the second one.
 - **`db.create_all()` at boot is now retried the same way**, rather than a
   concurrent boot failing on a table the other instance just created.
 - Tests: `test_background_blank_lots.py`, `test_background_lots_routes.py`,

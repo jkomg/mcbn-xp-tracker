@@ -2,34 +2,49 @@
 
 DDL-level idempotency alone doesn't stop two concurrent workers racing
 Alembic's own alembic_version bookkeeping UPDATE — the loser raises
-CommandError even though the schema ended up correct. This retries once,
-tolerating exactly that race while still surfacing genuine failures.
+CommandError even though the schema ended up correct. This retries a few
+times, tolerating exactly that race while still surfacing genuine failures.
 """
 
 from unittest.mock import MagicMock
 
 import pytest
 
-from app import _upgrade_with_race_retry
+from app import _UPGRADE_ATTEMPTS, _upgrade_with_race_retry
+
+
+def _retry(upgrade_fn):
+    sleeps = []
+    _upgrade_with_race_retry(upgrade_fn, sleep=sleeps.append)
+    return sleeps
 
 
 def test_succeeds_immediately_when_no_race():
     upgrade_fn = MagicMock()
-    _upgrade_with_race_retry(upgrade_fn)
+    assert _retry(upgrade_fn) == []
     upgrade_fn.assert_called_once()
 
 
 def test_retries_once_after_a_failure_and_succeeds():
     upgrade_fn = MagicMock(side_effect=[RuntimeError('expected to match one row... 0 found'), None])
-    _upgrade_with_race_retry(upgrade_fn)
+    _retry(upgrade_fn)
     assert upgrade_fn.call_count == 2
+
+
+def test_losing_again_on_the_next_revision_is_retried_too():
+    """A deploy carrying two migrations: the loser loses the first bookkeeping
+    update, retries while the winner is applying the second, and loses that one
+    too. One retry was not enough; the two-process migration test showed it."""
+    upgrade_fn = MagicMock(side_effect=[SystemExit(1), SystemExit(1), None])
+    assert _retry(upgrade_fn) == [0.5, 1.0]
+    assert upgrade_fn.call_count == 3
 
 
 def test_genuine_failure_still_raises_after_retry():
     upgrade_fn = MagicMock(side_effect=RuntimeError('column does not exist'))
     with pytest.raises(RuntimeError):
-        _upgrade_with_race_retry(upgrade_fn)
-    assert upgrade_fn.call_count == 2
+        _retry(upgrade_fn)
+    assert upgrade_fn.call_count == _UPGRADE_ATTEMPTS
 
 
 def test_retries_after_flask_migrate_exits_on_the_race():
@@ -37,15 +52,15 @@ def test_retries_after_flask_migrate_exits_on_the_race():
     calling sys.exit(1). That is the form the real race arrives in, and
     SystemExit is not an Exception."""
     upgrade_fn = MagicMock(side_effect=[SystemExit(1), None])
-    _upgrade_with_race_retry(upgrade_fn)
+    _retry(upgrade_fn)
     assert upgrade_fn.call_count == 2
 
 
 def test_a_genuine_exit_still_exits_after_retry():
     upgrade_fn = MagicMock(side_effect=SystemExit(1))
     with pytest.raises(SystemExit):
-        _upgrade_with_race_retry(upgrade_fn)
-    assert upgrade_fn.call_count == 2
+        _retry(upgrade_fn)
+    assert upgrade_fn.call_count == _UPGRADE_ATTEMPTS
 
 
 # ── db.create_all() ──────────────────────────────────────────────────────────

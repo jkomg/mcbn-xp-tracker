@@ -19,6 +19,7 @@ from app.db import db
 _MIGRATIONS = str(Path(__file__).resolve().parents[1] / 'migrations')
 _PREVIOUS = '3f81c22ad5e7'
 _THIS = '8a3e5c7d9b21'
+_HEAD = 'c4e1a9f27b58'
 
 
 def _make_app(db_path):
@@ -333,4 +334,50 @@ def test_this_migration_is_the_head(app):
 
     with app.app_context():
         config = app.extensions['migrate'].migrate.get_config(_MIGRATIONS)
-        assert ScriptDirectory.from_config(config).get_heads() == [_THIS]
+        assert ScriptDirectory.from_config(config).get_heads() == [_HEAD]
+
+
+# ── c4e1a9f27b58: request_key ────────────────────────────────────────────────
+
+def _request_key_state():
+    columns = {r[1] for r in _rows("PRAGMA table_info('character_background_blanks')")}
+    index = _rows("SELECT sql FROM sqlite_master WHERE name = 'uq_character_background_blanks_request_key'")
+    return 'request_key' in columns, index[0][0] if index else None
+
+
+def test_request_key_is_added_to_a_table_the_earlier_migration_built(app):
+    """Dev ran 8a3e5c7d9b21 before the key existed, so its table lacks it."""
+    _legacy_database(app, drop_blanks_table=True)
+    ids = _seed(app)
+    with app.app_context():
+        upgrade(revision=_THIS)
+        assert _request_key_state() == (False, None)
+
+        upgrade()
+
+        has_column, index_sql = _request_key_state()
+        assert has_column
+        assert index_sql.startswith('CREATE UNIQUE INDEX')
+        assert _rows('SELECT request_key FROM character_background_blanks '
+                     'WHERE character_background_id = :i', i=ids['timed']) == [(None,)]
+
+
+def test_request_key_migration_is_a_no_op_where_create_all_built_it(app):
+    _legacy_database(app)
+    with app.app_context():
+        assert _request_key_state()[0], 'create_all already made the column'
+        upgrade()
+        upgrade(revision=_THIS)   # nothing to do: already past it
+        assert _request_key_state()[0]
+
+
+def test_request_key_downgrade_drops_index_then_column(app):
+    _legacy_database(app)
+    ids = _seed(app)
+    with app.app_context():
+        upgrade()
+        downgrade(revision=_THIS)
+        assert _request_key_state() == (False, None)
+        assert _lots(ids['timed']) == [(2, 68, 69, None)], 'lots survive'
+        upgrade()
+        assert _request_key_state()[0]

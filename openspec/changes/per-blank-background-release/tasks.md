@@ -332,6 +332,21 @@ Recorded where the build departed from, or found more than, the plan above.
   every draft carrying backgrounds raised after the roster entry had already
   been committed, and its backgrounds were never created. Fixed. No test had ever
   approved a draft with backgrounds.
+- **2.1a, revised (Codex P1 on #443).** Turso's HTTP adapter commits each
+  statement by itself, so an insert can land while its response is lost, and the
+  first version's retry then added a second lot, or reported a refusal for a
+  blank that had in fact been recorded. Each blank now carries a `request_key`
+  (unique index, migration `c4e1a9f27b58`; a separate revision because dev had
+  already run `8a3e5c7d9b21`). The insert skips itself if its key exists, a
+  refused insert checks whether its key landed, and after an error the key is
+  checked before retrying. If even that check fails, the player is told the blank
+  could not be confirmed, not that nothing was blanked.
+- **1.6, revised.** With two migrations in one deploy, the losing instance could
+  lose the `alembic_version` race again on the second revision, and an immediate
+  single retry did: the two-process test failed about two runs in three.
+  `_upgrade_with_race_retry` now makes up to four attempts with a 0.5s × attempt
+  backoff. In testing the backoff is what fixed it; the extra attempts are
+  margin, covered by a unit test that loses twice.
 - **3.1** Release claims each lot with a conditional `UPDATE ... WHERE released_at
   IS NULL`, so two overlapping polls cannot both report it.
 - **4.2** Deleting a background deletes its lots, released history included.

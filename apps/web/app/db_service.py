@@ -15,9 +15,10 @@ from datetime import date as _date_type, datetime, timedelta
 from typing import Optional
 
 import logging
+import uuid
 
-from sqlalchemy import func, insert, literal, select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import exists, func, insert, literal, select
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.db import (
     db,
@@ -1530,11 +1531,16 @@ class DBService:
         write would let both pass before either landed, leaving more dots
         blanked than the background has. One statement leaves no window.
 
-        A write conflict is not a refusal. On a conflict the statement is tried
-        once more; if that fails too the player is told to retry, rather than
-        being told there are no dots available when there may be.
+        The insert is also keyed to this request, so retrying it is safe. Turso
+        commits each statement by itself, which means an insert can land while
+        its response is lost; the error then says nothing about whether the row
+        exists. So after any failure the key is checked first, and a retry
+        repeats the same keyed insert, which skips itself if the first one
+        landed. A failure that persists tells the player to try again rather
+        than that no dots are available, which may not be true.
         """
         blanks = DbCharacterBackgroundBlank.__table__
+        key = str(uuid.uuid4())
         outstanding = (
             select(func.coalesce(func.sum(blanks.c.dots), 0))
             .where(
@@ -1555,26 +1561,55 @@ class DBService:
             literal(release_night_number),
             literal(_now_str()),
             literal(actor[:100]),
-        ).where(outstanding + dots <= rating)
+            literal(key),
+        ).where(
+            outstanding + dots <= rating,
+            ~exists().where(blanks.c.request_key == key),
+        )
         stmt = insert(blanks).from_select(
             [
                 'character_background_id', 'dots', 'blanked_at_night_number',
-                'release_night_number', 'created_at', 'created_by',
+                'release_night_number', 'created_at', 'created_by', 'request_key',
             ],
             source,
         )
         for attempt in (1, 2):
             try:
-                return db.session.execute(stmt).rowcount == 1
-            except OperationalError as exc:
+                if db.session.execute(stmt).rowcount == 1:
+                    return True
+                # Nothing inserted: refused by the bound -- unless an earlier
+                # attempt had already landed and this one skipped itself.
+                return self._blank_recorded(key)
+            except (OperationalError, IntegrityError) as exc:
                 db.session.rollback()
+                try:
+                    landed = self._blank_recorded(key)
+                except OperationalError:
+                    landed = None   # cannot tell; the keyed retry is still safe
+                if landed:
+                    logger.warning('background_blank_reserve_landed_despite_error bg=%s: %s',
+                                   background_id, exc)
+                    return True
                 if attempt == 2:
-                    logger.warning('background_blank_reserve_failed bg=%s: %s', background_id, exc)
+                    logger.warning('background_blank_reserve_failed bg=%s landed=%s: %s',
+                                   background_id, landed, exc)
+                    if landed is None:
+                        raise ValueError(
+                            'Could not confirm whether the blank was recorded. Check your '
+                            'backgrounds before blanking again.',
+                        ) from exc
                     raise ValueError(
                         'Could not record the blank just now. Nothing was blanked; please try again.',
                     ) from exc
                 logger.warning('background_blank_reserve_retry bg=%s: %s', background_id, exc)
         return False
+
+    @staticmethod
+    def _blank_recorded(request_key: str) -> bool:
+        blanks = DbCharacterBackgroundBlank.__table__
+        return bool(db.session.execute(
+            select(exists().where(blanks.c.request_key == request_key)),
+        ).scalar())
 
     def blank_character_background(
         self,

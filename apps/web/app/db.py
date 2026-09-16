@@ -432,6 +432,7 @@ class DbCharacterBackgroundBlank(db.Model):
             'release_night_number',
             sqlite_where=db.text('released_at IS NULL'),
         ),
+        db.Index('uq_character_background_blanks_request_key', 'request_key', unique=True),
     )
     id = db.Column(Integer, primary_key=True)
     character_background_id = db.Column(
@@ -447,6 +448,11 @@ class DbCharacterBackgroundBlank(db.Model):
     released_at = db.Column(String(20), nullable=True)
     created_at = db.Column(String(20), nullable=False, default='')
     created_by = db.Column(String(100), nullable=False, default='')
+    # One per blanking request, so retrying the insert cannot record it twice.
+    # Turso commits each statement on its own: an insert can land while its
+    # response is lost, and a blind retry would add a second lot. Null on
+    # backfilled rows, which SQLite's unique index allows any number of.
+    request_key = db.Column(String(36), nullable=True)
 
     background = db.relationship('DbCharacterBackground', back_populates='blanks')
 
