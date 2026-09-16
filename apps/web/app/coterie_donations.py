@@ -101,9 +101,10 @@ def purchase_price(bg: DbCharacterBackground) -> int:
     discount, and the buyer still received a row that returned to its full
     rating.
 
-    The row transfers intact, keeping dots_blanked and release_night_number, so
-    the buyer gets exactly the asset they paid for — including its pending
-    release — and no dots are destroyed in the handover.
+    The row transfers intact, and its blanks (character_background_blanks,
+    keyed by the row's id) go with it, so the buyer gets exactly the asset they
+    paid for — including its pending releases — and no dots are destroyed in the
+    handover.
     """
     return calculate_xp_cost(PURCHASE_CATEGORY, 0, bg.dots_total)
 

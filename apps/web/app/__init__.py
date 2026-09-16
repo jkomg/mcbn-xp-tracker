@@ -66,12 +66,35 @@ def _upgrade_with_race_retry(upgrade_fn) -> None:
     already at head from the winner) and finds nothing left to do. A
     genuine migration failure still raises — the retry hits the same real
     problem and isn't swallowed.
+
+    SystemExit is caught too, and it is the case that matters:
+    flask_migrate.upgrade wraps Alembic in catch_errors, which logs a
+    CommandError and calls sys.exit(1). SystemExit is not an Exception, so for
+    as long as this caught only Exception the race it exists for killed the
+    losing process instead of being retried.
     """
     try:
         upgrade_fn()
-    except Exception as exc:
+    except (Exception, SystemExit) as exc:
         logging.getLogger(__name__).warning('db_upgrade_race_retry: %s', exc)
         upgrade_fn()
+
+
+def _create_all_with_race_retry(create_all_fn) -> None:
+    """Run db.create_all(), tolerating a second deployment creating tables too.
+
+    create_all() checks each table and then creates it, so two instances booting
+    together can both see a table missing and the loser's CREATE TABLE fails.
+    Swallowing that would be worse than crashing: create_all walks the tables in
+    order, so the error aborts the walk and every later table goes uncreated.
+    Run it again instead -- it skips what now exists and carries on. A real
+    failure fails the retry the same way and is raised.
+    """
+    try:
+        create_all_fn()
+    except Exception as exc:
+        logging.getLogger(__name__).warning('db_create_all_race_retry: %s', exc)
+        create_all_fn()
 
 
 def create_app():
@@ -165,7 +188,7 @@ def create_app():
             # db.create_all() handles the baseline schema for fresh installs
             # (the Alembic baseline migration is a no-op).  For existing
             # databases it's a no-op for tables that already exist.
-            db.create_all()
+            _create_all_with_race_retry(db.create_all)
 
             from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
             from alembic.migration import MigrationContext

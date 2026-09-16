@@ -14,7 +14,10 @@ import re
 from datetime import date as _date_type, datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import func
+import logging
+
+from sqlalchemy import func, insert, literal, select
+from sqlalchemy.exc import OperationalError
 
 from app.db import (
     db,
@@ -27,12 +30,16 @@ from app.db import (
     DbReminderPreference,
     DbSheetsSyncError,
     DbCharacterBackground,
+    DbCharacterBackgroundBlank,
     DbBoon,
     DbWishListItem,
 )
 from app.coterie_donations import orphan_donated_backgrounds, reclaim_donated_backgrounds
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
 from app.game_calendar import next_night_after_downtime, night_has_started, night_start_date
+
+
+logger = logging.getLogger(__name__)
 
 
 def _now_str() -> str:
@@ -1368,7 +1375,7 @@ class DBService:
         result: list[dict] = []
         for row in rows:
             total = max(0, int(row.dots_total or 0))
-            blanked = max(0, min(total, int(row.dots_blanked or 0)))
+            blanked = max(0, min(total, row.dots_blanked))
             available = max(0, total - blanked)
             result.append({
                 'id': row.id,
@@ -1377,8 +1384,18 @@ class DBService:
                 'dots_blanked': blanked,
                 'dots_available': available,
                 'blanked': blanked > 0,
+                # The earliest-releasing lot: "when do I next get dots back".
                 'blanked_at_night_number': row.blanked_at_night_number,
                 'release_night_number': row.release_night_number,
+                # Every outstanding lot, earliest release first.
+                'blanks': [
+                    {
+                        'dots': int(lot.dots),
+                        'blanked_at_night_number': lot.blanked_at_night_number,
+                        'release_night_number': lot.release_night_number,
+                    }
+                    for lot in row.outstanding_blanks
+                ],
                 'updated_at': row.updated_at or '',
                 'updated_by': row.updated_by or '',
             })
@@ -1413,6 +1430,11 @@ class DBService:
         return result
 
     def set_character_background(self, character_name: str, background_name: str, dots_total: int, updated_by: str) -> dict:
+        """Create, re-rate or remove a tracked background.
+
+        Returns `dots_unblanked`: how many outstanding blanked dots the change
+        discarded, so the caller's audit entry can say so.
+        """
         bg_name = str(background_name or '').strip()[:120]
         if not bg_name:
             raise ValueError('Background name is required.')
@@ -1427,37 +1449,132 @@ class DBService:
         total = max(0, int(dots_total))
         if not row:
             if total == 0:
-                return {'deleted': False, 'background': bg_name}
+                return {'deleted': False, 'background': bg_name, 'dots_unblanked': 0}
+            # A new background has no lots, so there is no blank state to set.
             row = DbCharacterBackground(
                 character_name=character_name,
                 background_key=bg_key,
                 background_name=bg_name,
                 dots_total=total,
-                dots_blanked=0,
-                blanked_at_night_number=None,
-                release_night_number=None,
                 updated_at=_now_str(),
                 updated_by=updated_by[:100],
             )
             db.session.add(row)
             db.session.commit()
-            return {'deleted': False, 'background': row.background_name}
+            return {'deleted': False, 'background': row.background_name, 'dots_unblanked': 0}
 
         if total == 0:
+            unblanked = row.dots_blanked
+            # The blanks relationship cascades, released lots included.
             db.session.delete(row)
             db.session.commit()
-            return {'deleted': True, 'background': row.background_name}
+            return {'deleted': True, 'background': row.background_name, 'dots_unblanked': unblanked}
 
         row.background_name = bg_name
         row.dots_total = total
-        row.dots_blanked = max(0, min(total, int(row.dots_blanked or 0)))
-        if row.dots_blanked == 0:
-            row.blanked_at_night_number = None
-            row.release_night_number = None
+        unblanked = self.trim_blanks_to_rating(row, total)
         row.updated_at = _now_str()
         row.updated_by = updated_by[:100]
         db.session.commit()
-        return {'deleted': False, 'background': row.background_name}
+        return {'deleted': False, 'background': row.background_name, 'dots_unblanked': unblanked}
+
+    def trim_blanks_to_rating(self, row: DbCharacterBackground, dots_total: int) -> int:
+        """Fit a background's outstanding lots inside a (lowered) rating.
+
+        Takes dots from the most recently blanked lot first, so the earliest
+        return a player was promised is the one that survives. Used by every
+        path that can lower a rating -- set_character_background and staff
+        approval of a creator draft -- so the rule lives once. Does not commit.
+        Returns the number of blanked dots removed.
+        """
+        excess = row.dots_blanked - max(0, int(dots_total))
+        if excess <= 0:
+            return 0
+        removed = 0
+        for lot in sorted(row.outstanding_blanks, key=lambda lot: lot.id, reverse=True):
+            if excess <= 0:
+                break
+            take = min(int(lot.dots), excess)
+            lot.dots = int(lot.dots) - take
+            excess -= take
+            removed += take
+            if lot.dots <= 0:
+                db.session.delete(lot)
+        db.session.expire(row, ['outstanding_blanks', 'blanks'])
+        return removed
+
+    def discard_outstanding_blanks(self, row: DbCharacterBackground) -> int:
+        """Delete a background's outstanding lots; the dots are simply back.
+
+        For a donation ending: the coterie's blanks are cancelled and the owner
+        gets the background whole. Does not commit. Returns the dots discarded.
+        """
+        lots = list(row.outstanding_blanks)
+        for lot in lots:
+            db.session.delete(lot)
+        db.session.expire(row, ['outstanding_blanks', 'blanks'])
+        return sum(int(lot.dots) for lot in lots)
+
+    def _reserve_blank(
+        self,
+        background_id: int,
+        dots: int,
+        night_number: int,
+        release_night_number: int,
+        actor: str,
+    ) -> bool:
+        """Insert a lot only if it fits under the rating. False means it did not.
+
+        The bound is inside the INSERT rather than checked beforehand: two coterie
+        members can blank the same donated background at once, and a read-then-
+        write would let both pass before either landed, leaving more dots
+        blanked than the background has. One statement leaves no window.
+
+        A write conflict is not a refusal. On a conflict the statement is tried
+        once more; if that fails too the player is told to retry, rather than
+        being told there are no dots available when there may be.
+        """
+        blanks = DbCharacterBackgroundBlank.__table__
+        outstanding = (
+            select(func.coalesce(func.sum(blanks.c.dots), 0))
+            .where(
+                blanks.c.character_background_id == background_id,
+                blanks.c.released_at.is_(None),
+            )
+            .scalar_subquery()
+        )
+        rating = (
+            select(DbCharacterBackground.dots_total)
+            .where(DbCharacterBackground.id == background_id)
+            .scalar_subquery()
+        )
+        source = select(
+            literal(background_id),
+            literal(dots),
+            literal(night_number),
+            literal(release_night_number),
+            literal(_now_str()),
+            literal(actor[:100]),
+        ).where(outstanding + dots <= rating)
+        stmt = insert(blanks).from_select(
+            [
+                'character_background_id', 'dots', 'blanked_at_night_number',
+                'release_night_number', 'created_at', 'created_by',
+            ],
+            source,
+        )
+        for attempt in (1, 2):
+            try:
+                return db.session.execute(stmt).rowcount == 1
+            except OperationalError as exc:
+                db.session.rollback()
+                if attempt == 2:
+                    logger.warning('background_blank_reserve_failed bg=%s: %s', background_id, exc)
+                    raise ValueError(
+                        'Could not record the blank just now. Nothing was blanked; please try again.',
+                    ) from exc
+                logger.warning('background_blank_reserve_retry bg=%s: %s', background_id, exc)
+        return False
 
     def blank_character_background(
         self,
@@ -1467,6 +1584,13 @@ class DBService:
         current_night_number: int,
         updated_by: str,
     ) -> dict:
+        """Record one lot of blanked dots with its own releasing night.
+
+        Never touches an outstanding lot and never releases one: release happens
+        only in release_due_background_blanks. The per-background columns this
+        replaced had to reconcile two blanks into one night, and every rule for
+        that was wrong in one direction or the other.
+        """
         bg_key = _background_key(background_name)
         if not bg_key:
             raise ValueError('Background name is required.')
@@ -1483,53 +1607,21 @@ class DBService:
         dots = int(dots_to_blank)
         if dots <= 0:
             raise ValueError('Dots to blank must be at least 1.')
-        total = max(0, int(row.dots_total or 0))
-        blanked = max(0, min(total, int(row.dots_blanked or 0)))
-        available = total - blanked
-        if dots > available:
-            raise ValueError(
-                f'Cannot blank {dots} dot(s) from {row.background_name}; only {available} available.',
-            )
 
-        # If an older blank is already due this night (or earlier), release it
-        # before adding the new blank so one-night expiry is preserved.
-        # "Due" means the releasing night has actually begun, not merely that its
-        # period is open — current_night_number comes from a staff flag that runs
-        # ahead of the calendar. Without this gate the take path returns dots
-        # early exactly the way the release worker did.
-        existing_release_night = int(row.release_night_number or 0)
-        if (
-            blanked > 0
-            and existing_release_night > 0
-            and existing_release_night <= current_night_number
-            and night_has_started(existing_release_night) is True
-        ):
-            row.dots_blanked = 0
-            row.blanked_at_night_number = None
-            row.release_night_number = None
-            blanked = 0
-
-        # An older blank the gate above held is still outstanding, so this new
-        # blank stacks on top of it. One release_night_number cannot express two
-        # schedules, and overwriting it with this night's later release would
-        # push the held dots out by a whole downtime cycle — taking them away
-        # for longer because the player blanked something else. Until blanks are
-        # tracked per-blank rather than per-background, the earlier release wins
-        # and the new dots come back with it. A release may come sooner than its
-        # own rule would say; it must never come later than one already promised.
-        held_release_night = existing_release_night if blanked > 0 else 0
-        new_release_night = (
+        release_night = (
             next_night_after_downtime(current_night_number)
             or current_night_number + 1
         )
+        row_id = row.id
+        if not self._reserve_blank(row_id, dots, current_night_number, release_night, updated_by):
+            db.session.rollback()
+            row = db.session.get(DbCharacterBackground, row_id)
+            raise ValueError(
+                f'Cannot blank {dots} dot(s) from {row.background_name}; '
+                f'only {row.dots_available} available.',
+            )
 
-        row.dots_blanked = blanked + dots
-        if held_release_night > 0:
-            row.release_night_number = min(held_release_night, new_release_night)
-            # blanked_at stays with the earlier blank, whose release drives the row.
-        else:
-            row.blanked_at_night_number = current_night_number
-            row.release_night_number = new_release_night
+        row = db.session.get(DbCharacterBackground, row_id)
         row.updated_at = _now_str()
         row.updated_by = updated_by[:100]
         db.session.commit()
@@ -1539,31 +1631,39 @@ class DBService:
             'dots_blanked_now': dots,
             'dots_total': row.dots_total,
             'dots_blanked_total': row.dots_blanked,
-            'dots_available': max(0, row.dots_total - row.dots_blanked),
-            'release_night_number': row.release_night_number,
+            'dots_available': row.dots_available,
+            # This lot's night. Other lots may return sooner or later.
+            'release_night_number': release_night,
+            # The earliest of every outstanding lot, this one included.
+            'next_release_night_number': row.release_night_number,
+            'outstanding_lots': len(row.outstanding_blanks),
         }
 
     def get_outstanding_background_blanks(self, today: _date_type | None = None) -> list[dict]:
-        """Every background with dots blanked, across the roster, for staff.
+        """Every outstanding blank across the roster, one row per lot, for staff.
 
         Read-only. `state` is judged by the calendar, the same gate the release
         worker applies: 'pending' before the releasing night starts, 'due' once
         it has (the worker should already have returned these, so a lingering
         'due' row means release is not running or the night's period is not
-        open), and 'unknown' when the calendar has no entry for the night —
+        open), and 'unknown' when the calendar has no entry for the night --
         the worker holds those indefinitely, so they have to be visible.
         """
-        rows = DbCharacterBackground.query.filter(
-            DbCharacterBackground.dots_blanked > 0,
+        lots = db.session.query(DbCharacterBackgroundBlank, DbCharacterBackground).join(
+            DbCharacterBackground,
+            DbCharacterBackground.id == DbCharacterBackgroundBlank.character_background_id,
+        ).filter(
+            DbCharacterBackgroundBlank.released_at.is_(None),
         ).order_by(
-            DbCharacterBackground.release_night_number.asc(),
+            DbCharacterBackgroundBlank.release_night_number.asc(),
             func.lower(DbCharacterBackground.character_name).asc(),
             DbCharacterBackground.background_name.asc(),
+            DbCharacterBackgroundBlank.id.asc(),
         ).all()
         result: list[dict] = []
-        for row in rows:
-            release_night = row.release_night_number
-            started = night_has_started(int(release_night), today) if release_night else None
+        for lot, bg in lots:
+            release_night = int(lot.release_night_number)
+            started = night_has_started(release_night, today)
             if started is None:
                 state = 'unknown'
             elif started:
@@ -1571,61 +1671,74 @@ class DBService:
             else:
                 state = 'pending'
             result.append({
-                'character_name': row.character_name,
-                'background_name': row.background_name,
-                'dots_blanked': int(row.dots_blanked or 0),
-                'dots_total': int(row.dots_total or 0),
-                'blanked_at_night_number': row.blanked_at_night_number,
+                'character_name': bg.character_name,
+                'background_name': bg.background_name,
+                'dots_blanked': int(lot.dots),
+                'dots_total': int(bg.dots_total or 0),
+                'blanked_at_night_number': lot.blanked_at_night_number,
                 'release_night_number': release_night,
-                'release_date': night_start_date(int(release_night)) if release_night else None,
+                'release_date': night_start_date(release_night),
                 'state': state,
-                'donated': row.donated_coterie_id is not None,
+                'donated': bg.donated_coterie_id is not None,
             })
         return result
 
     def release_due_background_blanks(self, current_night_number: int) -> list[dict]:
+        """Return every lot whose releasing night has begun.
+
+        One entry per background, with the dots of all its lots released in this
+        pass added together, so two lots coming back on the same night make one
+        notification. That is the shape the bot's schema already expects.
+        """
         if current_night_number <= 0:
             return []
 
-        rows = DbCharacterBackground.query.filter(
-            DbCharacterBackground.dots_blanked > 0,
-            DbCharacterBackground.release_night_number.isnot(None),
-            DbCharacterBackground.release_night_number <= current_night_number,
+        lots = DbCharacterBackgroundBlank.query.filter(
+            DbCharacterBackgroundBlank.released_at.is_(None),
+            DbCharacterBackgroundBlank.release_night_number <= current_night_number,
+        ).order_by(
+            DbCharacterBackgroundBlank.release_night_number.asc(),
+            DbCharacterBackgroundBlank.id.asc(),
         ).all()
-        if not rows:
+        if not lots:
             return []
 
-        releases: list[dict] = []
-        for row in rows:
-            released = int(row.dots_blanked or 0)
-            if released <= 0:
-                continue
+        now = _now_str()
+        released: dict[int, dict] = {}
+        for lot in lots:
             # current_night_number comes from _current_open_night(), which is
             # resolved from submissions_open/active flags and never reads
             # start_date, so it runs ahead of the calendar whenever staff open a
-            # period in advance. Gate on the releasing night having actually
-            # begun. Both conditions are kept rather than swapped, so this can
-            # only ever make a release later, never earlier — and a night the
-            # calendar does not know (None) is held rather than released, which
-            # is the recoverable direction.
-            if night_has_started(int(row.release_night_number)) is not True:
+            # period in advance. Gate each lot on its releasing night having
+            # actually begun. Both conditions are kept, so this can only make a
+            # release later, never earlier -- and a night the calendar does not
+            # know (None) is held rather than released, the recoverable direction.
+            if night_has_started(int(lot.release_night_number)) is not True:
                 continue
-            char = DbCharacter.query.filter(
-                func.lower(DbCharacter.character_name) == row.character_name.lower(),
-            ).first()
-            releases.append({
-                'character_name': row.character_name,
-                'background_name': row.background_name,
-                'dots_released': released,
-                'player_discord': (char.player_discord if char else '') or '',
-            })
-            row.dots_blanked = 0
-            row.blanked_at_night_number = None
-            row.release_night_number = None
-            row.updated_at = _now_str()
-            row.updated_by = 'system:release'
+            # Conditional, so two overlapping polls cannot both count one lot.
+            claimed = DbCharacterBackgroundBlank.query.filter(
+                DbCharacterBackgroundBlank.id == lot.id,
+                DbCharacterBackgroundBlank.released_at.is_(None),
+            ).update({'released_at': now}, synchronize_session=False)
+            if claimed != 1:
+                continue
+            bg = lot.background
+            entry = released.get(bg.id)
+            if entry is None:
+                char = DbCharacter.query.filter(
+                    func.lower(DbCharacter.character_name) == bg.character_name.lower(),
+                ).first()
+                entry = released[bg.id] = {
+                    'character_name': bg.character_name,
+                    'background_name': bg.background_name,
+                    'dots_released': 0,
+                    'player_discord': (char.player_discord if char else '') or '',
+                }
+            entry['dots_released'] += int(lot.dots)
+            bg.updated_at = now
+            bg.updated_by = 'system:release'
         db.session.commit()
-        return releases
+        return list(released.values())
 
     # ── Reminder Preferences ──────────────────────────────────────────────────
 

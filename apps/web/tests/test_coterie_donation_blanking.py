@@ -149,3 +149,122 @@ def test_undonating_returns_the_background_whole():
     assert row.donated_coterie_id is None
     assert row.dots_blanked == 0
     assert row.dots_available == 3
+
+
+# ---------------------------------------------------------------------------
+# Per-blank lots on a donated background
+# ---------------------------------------------------------------------------
+
+def _audit(app, action_type):
+    from app.db import DbAuditLog
+    with app.app_context():
+        return [(r.staff_user, r.target_character, r.details)
+                for r in DbAuditLog.query.filter_by(action_type=action_type)]
+
+
+def _open_night(app, night):
+    with app.app_context():
+        DbPlayPeriod.query.update({'submissions_open': False})
+        db.session.add(DbPlayPeriod(period_label=f'Night {night}', night_number=night,
+                                    active=True, submissions_open=True))
+        db.session.commit()
+
+
+def _lots(app, bg_id):
+    from app.db import DbCharacterBackgroundBlank
+    with app.app_context():
+        return [(lot.dots, lot.release_night_number, lot.released_at is None)
+                for lot in DbCharacterBackgroundBlank.query.filter_by(
+                    character_background_id=bg_id).order_by(DbCharacterBackgroundBlank.id)]
+
+
+def test_a_coterie_blank_is_its_own_lot_and_is_audited():
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+    _open_night(app, 69)
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+
+    assert _lots(app, bg_id) == [(1, 69, True), (1, 73, True)]
+    assert _audit(app, 'coterie_background_blank') == [
+        ('player:Fiora', 'Fiora', 'Haven: blanked 1 dot(s) for The Accord, release night 69'),
+        ('player:Fiora', 'Fiora', 'Haven: blanked 1 dot(s) for The Accord, release night 73'),
+    ]
+
+
+def test_the_coterie_sheet_lists_each_pending_release():
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+    _open_night(app, 69)
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 2})
+
+    body = _client(app, '111').get('/coteries/accord').get_data(as_text=True)
+
+    assert '3 blanked' in body
+    assert '1 back on Night 69 · 2 back on Night 73' in ' '.join(body.split())
+    assert f'/coteries/accord/blank/{bg_id}' not in body, 'nothing left to blank'
+
+
+def test_undonating_discards_the_lots_and_is_audited():
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 2})
+
+    _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
+
+    assert _lots(app, bg_id) == []
+    assert _audit(app, 'coterie_background_blanks_discarded') == [
+        ('player:Fiora', 'Fiora',
+         'Haven: 2 blanked dot(s) cancelled when it was withdrawn from The Accord'),
+    ]
+
+
+def test_removing_the_donor_discards_the_lots_and_is_audited():
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 2})
+    with app.app_context():
+        member_id = CoterieMember.query.one().id
+
+    _client(app, STAFF_ID).post(f'/coteries/accord/members/{member_id}/remove')
+
+    row = _bg(app, bg_id)
+    assert row.donated_coterie_id is None
+    assert row.dots_available == 3
+    assert _lots(app, bg_id) == []
+    assert _audit(app, 'coterie_background_blanks_discarded') == [
+        ('Staff Tester', 'Fiora',
+         'Haven: 2 blanked dot(s) cancelled when Fiora was removed from The Accord'),
+    ]
+    with app.app_context():
+        assert CoterieMember.query.count() == 0
+
+
+def test_undonating_leaves_released_history_alone():
+    """Only outstanding lots are discarded; a lot that already came back is
+    history, not a blank."""
+    import importlib
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+    with app.app_context():
+        module = importlib.import_module('app.db_service')
+        original = module.night_has_started
+        module.night_has_started = lambda night, today=None: True
+        try:
+            DBService().release_due_background_blanks(69)
+        finally:
+            module.night_has_started = original
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+
+    _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
+
+    assert _lots(app, bg_id) == [(1, 69, False)]
+    assert _audit(app, 'coterie_background_blanks_discarded')[0][2].startswith('Haven: 1 blanked')

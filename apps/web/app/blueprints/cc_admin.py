@@ -34,6 +34,7 @@ from app.cc_schema import (
 from app.cc_xp import compute_banked_xp, compute_budget, compute_spent
 from app.db import CharacterDraft, CcRestriction, DbCharacter, DbCharacterBackground, db
 from app import db_service, sheets_sync
+from app.db_service import _background_key as background_key
 from app.models import AGE_CATEGORIES, CLANS, Character
 
 logger = logging.getLogger(__name__)
@@ -433,19 +434,29 @@ def draft_approve(draft_id):
     approval_actor = f'cc_approval:{actor}'
     char_name_for_bg = draft.character_name or ''
     raw_backgrounds = char_data.get('backgrounds') or []
+    # Blanked dots a lowered rating discarded, for the audit entry below.
+    unblanked: list[str] = []
     if char_name_for_bg and raw_backgrounds:
         for bg in raw_backgrounds:
             name = (bg.get('name') or '').strip()
             dots = int(bg.get('level') or 0)
             if not name or dots <= 0:
                 continue
-            bg_key = db_service._background_key(name)
+            # A module-level helper, not a DBService method: this called it on
+            # the instance from 2026-06-18, so any draft with backgrounds
+            # failed here after the roster entry was already committed.
+            bg_key = background_key(name)
             existing = DbCharacterBackground.query.filter_by(
                 character_name=char_name_for_bg,
                 background_key=bg_key,
             ).first()
             if existing:
                 existing.dots_total = dots
+                # A lower rating can no longer hold every outstanding lot. Same
+                # rule as set_character_background, from the same helper.
+                trimmed = db_service.trim_blanks_to_rating(existing, dots)
+                if trimmed:
+                    unblanked.append(f'{existing.background_name} -{trimmed}')
                 existing.updated_by = approval_actor
                 existing.updated_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
             else:
@@ -454,12 +465,22 @@ def draft_approve(draft_id):
                     background_key=bg_key,
                     background_name=name,
                     dots_total=dots,
-                    dots_blanked=0,
                     updated_by=approval_actor,
                     updated_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
                 ))
 
     db.session.commit()
+    # This route committed without any audit entry. An approval can now also
+    # discard blanked dots, which must leave a trace.
+    details = f'Approved character creation draft {draft.id}'
+    if unblanked:
+        details += f'; rating reduced blanked dots: {", ".join(unblanked)}'
+    db_service.log_action(
+        staff_user=actor,
+        action_type='cc_draft_approve',
+        target=draft.character_name or '',
+        details=details,
+    )
     flash(f'Character "{draft.character_name or draft.id}" approved.', 'success')
     return redirect(url_for('cc_admin.draft_list'))
 

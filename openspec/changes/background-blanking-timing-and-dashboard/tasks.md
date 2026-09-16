@@ -71,8 +71,9 @@ audit-log or Sheets-mirror pairing obligation. No schema change.*
       blanked, releasing night — `GET /roster/blanks`, backed by
       `db_service.get_outstanding_background_blanks()`. Also shows the releasing
       night's calendar start date and marks coterie-donated backgrounds.
-      **Retargeted by `per-blank-background-release` 6.5** once `dots_blanked`
-      stops being a column
+      **Retargeted by `per-blank-background-release` 6.5**, which landed second:
+      the view now queries outstanding rows in `character_background_blanks` and
+      lists one row per blank
 - [x] 3.2 Mark each row's state — not yet due, due now, or releasing night
       unknown to the calendar (the group-2 hold case, which must be visible). Due
       and unknown rows also raise a banner, since release polls every two minutes

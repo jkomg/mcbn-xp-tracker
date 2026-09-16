@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, abort,
+    session,
 )
 
 from app.auth import require_staff, require_login, get_player_discord_id, is_staff
@@ -31,6 +32,16 @@ db_service = DBService()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _other_lots_note(result: dict) -> str:
+    """Flash suffix when a blank joins others still out on the same background."""
+    if result.get('outstanding_lots', 1) <= 1:
+        return ''
+    return (
+        f' {result["dots_blanked_total"]} dot(s) are now blanked in all; the next '
+        f'return is Night {result["next_release_night_number"]}.'
+    )
+
 
 def _slugify(name: str) -> str:
     slug = name.lower().strip()
@@ -443,11 +454,20 @@ def remove_member(slug: str, member_id: int):
     member = CoterieMember.query.filter_by(id=member_id, coterie_id=coterie.id).first_or_404()
     char_name = member.character.character_name
 
-    # Un-donate any backgrounds donated by this character to this coterie
-    DbCharacterBackground.query.filter_by(
+    # Un-donate any backgrounds donated by this character to this coterie. The
+    # coterie's outstanding blanks on them are cancelled, so each goes back to
+    # its owner at full rating.
+    staff = session.get('staff_user') or session.get('discord_name') or 'staff'
+    returned = DbCharacterBackground.query.filter_by(
         character_name=char_name,
         donated_coterie_id=coterie.id,
-    ).update({'donated_coterie_id': None, 'dots_blanked': 0})
+    ).all()
+    discarded = []
+    for bg in returned:
+        bg.donated_coterie_id = None
+        dots = db_service.discard_outstanding_blanks(bg)
+        if dots:
+            discarded.append((bg.background_name, dots))
     # Cancel any pending donation requests too
     DbCharacterBackground.query.filter_by(
         character_name=char_name,
@@ -456,6 +476,18 @@ def remove_member(slug: str, member_id: int):
 
     db.session.delete(member)
     db.session.commit()
+    # After the commit: log_action commits on its own, and must not land the
+    # un-donation without the member removal.
+    for background_name, dots in discarded:
+        db_service.log_action(
+            staff_user=staff,
+            action_type='coterie_background_blanks_discarded',
+            target=char_name,
+            details=(
+                f'{background_name}: {dots} blanked dot(s) cancelled when '
+                f'{char_name} was removed from {coterie.name}'
+            ),
+        )
     flash(f'{char_name} removed from {coterie.name}.', 'success')
     return redirect(url_for('coteries.manage', slug=slug))
 
@@ -651,9 +683,9 @@ def approve_donation(slug: str, bg_id: int):
     # both hid the coterie's Blank control (gated on dots_available > 0) and made
     # blank_character_background refuse with "only 0 available" — so the whole
     # donated-blanking mechanic was unreachable for a properly donated
-    # background. undonate_background and remove_member still reset
-    # dots_blanked to 0, which cancels the coterie's outstanding blanks when the
-    # donation ends and returns the background to its owner intact.
+    # background. undonate_background and remove_member discard the
+    # coterie's outstanding blanks when the donation ends, returning the
+    # background to its owner intact.
 
     notes = request.form.get('flaw_notes', '').strip()
     if notes:
@@ -708,9 +740,19 @@ def undonate_background(slug: str, bg_id: int):
     ).first_or_404()
 
     bg.donated_coterie_id = None
-    bg.dots_blanked = 0
+    discarded = db_service.discard_outstanding_blanks(bg)
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
+    if discarded:
+        db_service.log_action(
+            staff_user=f'player:{player_char.character_name}',
+            action_type='coterie_background_blanks_discarded',
+            target=player_char.character_name,
+            details=(
+                f'{bg.background_name}: {discarded} blanked dot(s) cancelled when it '
+                f'was withdrawn from {coterie.name}'
+            ),
+        )
     flash(f'{bg.background_name} removed from coterie pool.', 'success')
     return redirect(url_for('coteries.view', slug=slug))
 
@@ -825,11 +867,22 @@ def blank_donated_background(slug: str, bg_id: int):
             current_night.night_number,
             updated_by=player_char.character_name,
         )
-        release = result['release_night_number']
         flash(
             f'Blanked {result["dots_blanked_now"]} dot(s) of {result["background_name"]} '
-            f'(owned by {bg.character_name}). Releases at Night {release}.',
+            f'(owned by {bg.character_name}); they return on Night '
+            f'{result["release_night_number"]}.' + _other_lots_note(result),
             'success',
+        )
+        # This route had no audit entry. The lot it creates is authoritative
+        # blank state, so it gets one; log-only, matching player.blank_background.
+        db_service.log_action(
+            staff_user=f'player:{player_char.character_name}',
+            action_type='coterie_background_blank',
+            target=bg.character_name,
+            details=(
+                f'{result["background_name"]}: blanked {result["dots_blanked_now"]} dot(s) '
+                f'for {coterie.name}, release night {result["release_night_number"]}'
+            ),
         )
     except ValueError as exc:
         flash(str(exc), 'danger')

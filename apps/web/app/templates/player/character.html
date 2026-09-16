@@ -372,11 +372,11 @@
                             </span>
                         </td>
                         <td>
-                            {% if bg.release_night_number %}
-                            Night {{ bg.release_night_number }}
+                            {% for lot in bg.blanks %}
+                            <div class="text-nowrap">{{ lot.dots }} on Night {{ lot.release_night_number }}</div>
                             {% else %}
                             —
-                            {% endif %}
+                            {% endfor %}
                         </td>
                         <td>
                             <form method="POST" action="{{ url_for('player.blank_background', name=char.character_name) }}" class="d-flex gap-2">

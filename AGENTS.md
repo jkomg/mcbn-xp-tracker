@@ -188,13 +188,14 @@ you were editing for.
   pattern (blanking routes are log-only). Either mirror it or say why not; silence
   reads as an oversight. A missing pairing compiles fine and looks done, and
   reviewers have caught this gap repeatedly.
-- **Some routes have no audit entry at all.** `cc_admin.draft_approve` and
-  `coteries.blank_donated_background` both commit without one. If you touch their
-  write path, add it — inheriting the gap is how it persists.
+- **Some routes have had no audit entry at all.** `cc_admin.draft_approve` and
+  `coteries.blank_donated_background` both committed without one until the
+  per-blank change added them. If you touch a write path that lacks one, add it —
+  inheriting the gap is how it persists.
 - **A write is not only `x.y = z`.** Constructor keyword arguments are writes too:
-  `DbCharacterBackground(dots_blanked=0, ...)` appears in both
+  `DbCharacterBackground(dots_blanked=0, ...)` appeared in both
   `db_service.set_character_background` and `cc_admin.draft_approve`, and a grep
-  for assignments finds neither.
+  for assignments found neither.
 - **`db_service.rename_character` holds an explicit list of tables keyed by
   `character_name` as a string** (not a foreign key). Adding such a table or
   column without adding it there silently orphans the data on rename.
@@ -207,11 +208,20 @@ you were editing for.
     `app/models.py`. `db_service` hands blueprints the *dataclass*, so a new
     column needs the model, the dataclass, and `_row_to_spend` updated together
     or attribute access fails at runtime.
-  - Blank state is **mid-migration by design**: `dots_blanked` is a column today,
-    and `openspec/changes/per-blank-background-release/` specifies moving it to one
-    row per blank. That spec is merged but **not implemented** — read its
-    `design.md` Decisions before touching blanking, because several
-    obvious-looking simplifications were tried there and disproved.
+- **Blank state has exactly one authority: `character_background_blanks`**, one
+  row per act of blanking. `DbCharacterBackground.dots_blanked`,
+  `release_night_number` and `blanked_at_night_number` are read-only properties
+  derived from its outstanding rows. The `character_backgrounds` table still has
+  columns of those names until a follow-up migration drops them
+  (`openspec/changes/drop-legacy-blank-columns/`); they are unmapped and stale.
+  Never map them again or store a blanked total anywhere: a stored total is an
+  unenforced pairing, and that is how this repo's blanking bugs happened. Take a
+  blank with `blank_character_background` (its insert carries the rating bound),
+  lower a rating through `trim_blanks_to_rating`, end a donation with
+  `discard_outstanding_blanks`. Until that follow-up ships, **`flask db migrate`
+  will propose dropping those columns and their index** — delete that from any
+  generated migration; dropping them early breaks the revision still serving
+  during a deploy.
 - **"Current night" means two different things, and they diverge.**
   `_current_open_night()` resolves it from `submissions_open`/`active` flags, which
   staff routinely switch on days before the night begins; `game_calendar` holds the

@@ -1,5 +1,67 @@
 # Changelog
 
+## [2026-09-16] Each Background Blank Returns on Its Own Night
+
+### Deploy Note: Read Before Shipping
+
+- **Deploy when nobody is mid-night.** Migration `8a3e5c7d9b21` copies every
+  outstanding blank into the new `character_background_blanks` table once, then
+  the new code reads only that table. A blank taken on the *previous* Cloud Run
+  revision while the deploy is cutting over is written only to the old columns
+  and **will not exist afterwards**. The player can simply blank again. This was
+  accepted instead of a three-release dual-write; see
+  `openspec/changes/per-blank-background-release/design.md`. If a player reports
+  a blank that vanished around deploy time, this is why.
+- Rolling back needs `flask db downgrade 3f81c22ad5e7`, not only a code revert.
+  The downgrade folds outstanding blanks back into the old columns.
+
+### Per-Blank Release Tracking
+
+- **Behaviour change.** A background used to hold one blank, so a second blank
+  before the first returned had to share a single release night. #434 made the
+  earlier night win, which stopped held dots being pushed out a whole downtime
+  cycle but brought later blanks back too soon. Now every act of blanking is its
+  own row with its own release night, and blanking again never moves one already
+  out. The #434 interim rule is gone, and so is blanking's inline auto-release:
+  release happens only in the two-minute release worker.
+- `dots_blanked`, `release_night_number` (the next return) and
+  `blanked_at_night_number` are now read-only properties derived from the
+  outstanding blanks. The old columns stay in the table, unmapped, until
+  `openspec/changes/drop-legacy-blank-columns/` drops them.
+- The rating bound is enforced inside the insert, so two coterie members blanking
+  the last dot at once cannot both succeed. A write conflict is retried; if it
+  persists the player is told to try again, not that no dots are available.
+- Lowering a rating (player edit or staff approval of a creator draft) trims
+  outstanding blanks newest first, keeping the earliest promised return. Ending a
+  donation discards the coterie's outstanding blanks.
+- The player sheet, coterie sheet and `/roster/blanks` show each blank with its
+  night. `GET /api/backgrounds/status` adds a `blanks` list. The bot is unchanged:
+  its schema ignores the new field, and `release-due` keeps one entry per
+  background.
+- **Audit.** New entries: `coterie_background_blank`,
+  `coterie_background_blanks_discarded` (undonate and member removal), and
+  `cc_draft_approve`. Creator approval previously wrote no audit entry at all.
+  `player_background_set` now notes discarded blanked dots. All are log-only,
+  like `player_background_blank`.
+
+### Fixes Found Along the Way
+
+- **Creator-draft approval with backgrounds failed.** `cc_admin.draft_approve`
+  called a module-level helper as a `DBService` method. Since 2026-06-18, every
+  draft carrying backgrounds raised after its roster entry was committed, so
+  staff saw an error and the backgrounds were never created.
+- **The migration race retry never retried.** `flask_migrate.upgrade` turns
+  Alembic's `CommandError` into `sys.exit(1)`, which `_upgrade_with_race_retry`
+  did not catch. An instance that lost the `alembic_version` race exited instead
+  of retrying.
+- **`db.create_all()` at boot is now retried the same way**, rather than a
+  concurrent boot failing on a table the other instance just created.
+- Tests: `test_background_blank_lots.py`, `test_background_lots_routes.py`,
+  `test_per_blank_migration.py`, and additions to
+  `test_coterie_donation_blanking.py` and `test_upgrade_race_retry.py`.
+
+---
+
 ## [2026-09-16] Staff View of Blanked Backgrounds, Clearer Release Message (Issue #431)
 
 ### Blanked Backgrounds Page
