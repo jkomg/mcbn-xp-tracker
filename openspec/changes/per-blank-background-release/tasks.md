@@ -347,6 +347,14 @@ Recorded where the build departed from, or found more than, the plan above.
   `_upgrade_with_race_retry` now makes up to four attempts with a 0.5s × attempt
   backoff. In testing the backoff is what fixed it; the extra attempts are
   margin, covered by a unit test that loses twice.
+- **6.6, revised (Codex P1 on #443).** The first version logged undonate and
+  member removal only when blanks were cancelled, leaving an ordinary withdrawal
+  or removal unaudited. Both now log on every call, as
+  `coterie_background_undonated` and `coterie_member_removed`, with cancelled
+  blanks in the details. The four new action types are in `rename_character`'s
+  list, so the entries follow a rename. The coterie blueprint's other writes
+  (`add_member`, `approve_donation`, `deny_donation`, `activate`, and so on)
+  still have no audit entry; that was already true and is not widened here.
 - **3.1** Release claims each lot with a conditional `UPDATE ... WHERE released_at
   IS NULL`, so two overlapping polls cannot both report it.
 - **4.2** Deleting a background deletes its lots, released history included.

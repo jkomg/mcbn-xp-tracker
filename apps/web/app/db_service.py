@@ -377,6 +377,8 @@ class DBService:
             'bot_claim_submitted', 'bot_spend_submitted',
             'player_claim_submitted', 'player_claim_amended',
             'player_spend_submitted', 'player_link_character',
+            'coterie_background_blank', 'coterie_background_undonated',
+            'coterie_member_removed', 'cc_draft_approve',
         }
         DbAuditLog.query.filter(
             func.lower(DbAuditLog.target_character) == old_name.lower(),

@@ -36,8 +36,9 @@ Members can donate backgrounds to the coterie pool from the coterie view page. D
 4. On un-donate or member removal: the coterie's outstanding blanks are cancelled
    (since 2026-09-16, by deleting its outstanding rows in
    `character_background_blanks`; before that, by resetting `dots_blanked` to 0),
-   returning the background to its owner whole. Both are audited as
-   `coterie_background_blanks_discarded`.
+   returning the background to its owner whole. Both are audited every time,
+   as `coterie_background_undonated` and `coterie_member_removed`, with any
+   cancelled blanks named in the details.
 
 > **Corrected 2026-09-12.** Approval originally set `dots_blanked = dots_total`,
 > described here as "fully blanked while donated". That drove `dots_available` to

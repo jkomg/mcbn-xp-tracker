@@ -218,9 +218,8 @@ def test_undonating_discards_the_lots_and_is_audited():
     _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
 
     assert _lots(app, bg_id) == []
-    assert _audit(app, 'coterie_background_blanks_discarded') == [
-        ('player:Fiora', 'Fiora',
-         'Haven: 2 blanked dot(s) cancelled when it was withdrawn from The Accord'),
+    assert _audit(app, 'coterie_background_undonated') == [
+        ('player:Fiora', 'Fiora', 'Haven withdrawn from The Accord; 2 blanked dot(s) cancelled'),
     ]
 
 
@@ -238,9 +237,9 @@ def test_removing_the_donor_discards_the_lots_and_is_audited():
     assert row.donated_coterie_id is None
     assert row.dots_available == 3
     assert _lots(app, bg_id) == []
-    assert _audit(app, 'coterie_background_blanks_discarded') == [
+    assert _audit(app, 'coterie_member_removed') == [
         ('Staff Tester', 'Fiora',
-         'Haven: 2 blanked dot(s) cancelled when Fiora was removed from The Accord'),
+         'Removed from The Accord. Donations returned: Haven (2 blanked dot(s) cancelled).'),
     ]
     with app.app_context():
         assert CoterieMember.query.count() == 0
@@ -267,4 +266,65 @@ def test_undonating_leaves_released_history_alone():
     _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
 
     assert _lots(app, bg_id) == [(1, 69, False)]
-    assert _audit(app, 'coterie_background_blanks_discarded')[0][2].startswith('Haven: 1 blanked')
+    assert _audit(app, 'coterie_background_undonated') == [
+        ('player:Fiora', 'Fiora', 'Haven withdrawn from The Accord; 1 blanked dot(s) cancelled'),
+    ]
+
+
+def test_undonating_with_nothing_blanked_is_still_audited():
+    """Codex P1 on #443: the entry was written only when blanks were cancelled,
+    so an ordinary withdrawal left no trace."""
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+
+    _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
+
+    assert _audit(app, 'coterie_background_undonated') == [
+        ('player:Fiora', 'Fiora', 'Haven withdrawn from The Accord'),
+    ]
+
+
+def test_removing_a_member_with_nothing_blanked_is_still_audited():
+    app = _app()
+    _setup(app)   # Haven is only pending donation here, never approved
+    with app.app_context():
+        member_id = CoterieMember.query.one().id
+
+    _client(app, STAFF_ID).post(f'/coteries/accord/members/{member_id}/remove')
+
+    assert _audit(app, 'coterie_member_removed') == [
+        ('Staff Tester', 'Fiora',
+         'Removed from The Accord. Pending donation requests withdrawn: 1.'),
+    ]
+    with app.app_context():
+        assert DbCharacterBackground.query.one().donation_pending_coterie_id is None
+
+
+def test_removing_a_member_who_donated_nothing_is_still_audited():
+    app = _app()
+    bg_id = _setup(app)
+    with app.app_context():
+        db.session.get(DbCharacterBackground, bg_id).donation_pending_coterie_id = None
+        db.session.commit()
+        member_id = CoterieMember.query.one().id
+
+    _client(app, STAFF_ID).post(f'/coteries/accord/members/{member_id}/remove')
+
+    assert _audit(app, 'coterie_member_removed') == [
+        ('Staff Tester', 'Fiora', 'Removed from The Accord.'),
+    ]
+
+
+def test_the_coterie_audit_entries_follow_a_rename():
+    app = _app()
+    bg_id = _setup(app)
+    _client(app, STAFF_ID).post(f'/coteries/accord/donate/{bg_id}/approve')
+    _client(app, '111').post(f'/coteries/accord/blank/{bg_id}', data={'dots': 1})
+    _client(app, '111').post(f'/coteries/accord/undonate/{bg_id}')
+
+    with app.app_context():
+        DBService().rename_character('Fiora', 'Fiora Vance')
+
+    for action in ('coterie_background_blank', 'coterie_background_undonated'):
+        assert [target for _, target, _ in _audit(app, action)] == ['Fiora Vance']

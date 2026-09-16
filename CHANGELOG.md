@@ -43,8 +43,10 @@
   its schema ignores the new field, and `release-due` keeps one entry per
   background.
 - **Audit.** New entries: `coterie_background_blank`,
-  `coterie_background_blanks_discarded` (undonate and member removal), and
-  `cc_draft_approve`. Creator approval previously wrote no audit entry at all.
+  `coterie_background_undonated`, `coterie_member_removed` and
+  `cc_draft_approve`. Undonate and member removal log on every call, naming any
+  blanks they cancelled; none of these routes wrote an audit entry before. All
+  four follow a character rename.
   `player_background_set` now notes discarded blanked dots. All are log-only,
   like `player_background_blank`.
 

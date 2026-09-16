@@ -462,32 +462,36 @@ def remove_member(slug: str, member_id: int):
         character_name=char_name,
         donated_coterie_id=coterie.id,
     ).all()
-    discarded = []
+    returned_names = []
     for bg in returned:
         bg.donated_coterie_id = None
         dots = db_service.discard_outstanding_blanks(bg)
-        if dots:
-            discarded.append((bg.background_name, dots))
+        returned_names.append(
+            f'{bg.background_name} ({dots} blanked dot(s) cancelled)' if dots
+            else bg.background_name
+        )
     # Cancel any pending donation requests too
-    DbCharacterBackground.query.filter_by(
+    withdrawn = DbCharacterBackground.query.filter_by(
         character_name=char_name,
         donation_pending_coterie_id=coterie.id,
     ).update({'donation_pending_coterie_id': None})
 
     db.session.delete(member)
     db.session.commit()
-    # After the commit: log_action commits on its own, and must not land the
-    # un-donation without the member removal.
-    for background_name, dots in discarded:
-        db_service.log_action(
-            staff_user=staff,
-            action_type='coterie_background_blanks_discarded',
-            target=char_name,
-            details=(
-                f'{background_name}: {dots} blanked dot(s) cancelled when '
-                f'{char_name} was removed from {coterie.name}'
-            ),
-        )
+    # Always, not only when blanks were cancelled: the removal is a write in
+    # its own right. After the commit, because log_action commits on its own
+    # and must not land the un-donation without the member removal.
+    details = f'Removed from {coterie.name}.'
+    if returned_names:
+        details += f' Donations returned: {", ".join(returned_names)}.'
+    if withdrawn:
+        details += f' Pending donation requests withdrawn: {withdrawn}.'
+    db_service.log_action(
+        staff_user=staff,
+        action_type='coterie_member_removed',
+        target=char_name,
+        details=details,
+    )
     flash(f'{char_name} removed from {coterie.name}.', 'success')
     return redirect(url_for('coteries.manage', slug=slug))
 
@@ -743,16 +747,15 @@ def undonate_background(slug: str, bg_id: int):
     discarded = db_service.discard_outstanding_blanks(bg)
     coterie.updated_at = datetime.now(timezone.utc)
     db.session.commit()
+    details = f'{bg.background_name} withdrawn from {coterie.name}'
     if discarded:
-        db_service.log_action(
-            staff_user=f'player:{player_char.character_name}',
-            action_type='coterie_background_blanks_discarded',
-            target=player_char.character_name,
-            details=(
-                f'{bg.background_name}: {discarded} blanked dot(s) cancelled when it '
-                f'was withdrawn from {coterie.name}'
-            ),
-        )
+        details += f'; {discarded} blanked dot(s) cancelled'
+    db_service.log_action(
+        staff_user=f'player:{player_char.character_name}',
+        action_type='coterie_background_undonated',
+        target=player_char.character_name,
+        details=details,
+    )
     flash(f'{bg.background_name} removed from coterie pool.', 'success')
     return redirect(url_for('coteries.view', slug=slug))
 
