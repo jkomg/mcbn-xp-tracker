@@ -102,12 +102,12 @@ Current deployment topology: production web runs on Cloud Run service
 `mcbn-xp-tracker-dev` at `dev.mcbn.jkomg.us`. Both use Turso, with separate production
 and dev databases/credentials.
 
-The Discord bot moved off Ursula on 2026-08-28 and now runs on a k3s cluster
-(`bots` namespace, node mp-node), managed by Argo CD from the `home-automation`
-repo — `cluster/apps/lasombra-bot/`. Images are pinned there by commit SHA, so
-`build-bot-image.yml` publishes `ghcr.io/jkomg/lasombra-bot:<sha7>` and a commit
-to that repo is what actually deploys it. Nothing in this repo can restart the
-bot, deliberately: one mechanism owns what runs, and it is Argo.
+The Discord bot moved off Ursula on 2026-08-28 and now runs on a k0s cluster
+(`bots` namespace, node lm-node), managed by Argo CD from the `home-automation`
+repo — `cluster/k0s/apps/lasombra-bot/`. Images are pinned there by commit SHA,
+so `build-bot-image.yml` publishes `ghcr.io/jkomg/lasombra-bot:<sha7>` and a
+commit to that repo is what actually deploys it. Nothing in this repo can restart
+the bot, deliberately: one mechanism owns what runs, and it is Argo.
 
 Stale references to watch for: `infra/ursula/failover/` describes a
 heartbeat-triggered failover bot on little-mac whose launchd job is no longer
