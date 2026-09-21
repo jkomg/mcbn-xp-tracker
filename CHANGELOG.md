@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-09-16] Staff View of Blanked Backgrounds, Clearer Release Message (Issue #431)
+
+### Blanked Backgrounds Page
+
+- **New staff page** at **Roster → Blanked Backgrounds** (`/roster/blanks`) listing
+  every background with dots blanked: character, background, dots blanked of the
+  rating, the night the blank was taken, and the night that returns them with that
+  night's calendar start date.
+- Each row is marked **Not yet due**, **Due, not released** (the releasing night has
+  started but the dots are still out — release runs every two minutes, so this means
+  the bot or the night's period needs attention), or **Night not on calendar** (the
+  release worker holds these until `app/game_calendar.py` is extended; it currently
+  ends at Night 77). Due and off-calendar rows also raise a banner.
+- Read-only by design. A manual release button would be a second release path with
+  its own timing, which is the kind of bug this page exists to make visible.
+- Tests: [`apps/web/tests/test_roster_blanks_view.py`](apps/web/tests/test_roster_blanks_view.py),
+  with rows created through `blank_character_background` and the calendar date pinned.
+
+### Release Notification Says the Dots Are Usable Now
+
+- The cubby message now reads *"your **3 dots** of **Mawla** are back and can be used
+  now."* It no longer appends `Current night: <period label>`: that label embeds the
+  period's date range, and on 2026-09-04 it read as a future date for the release.
+- Tests: [`apps/bot/src/__tests__/backgroundBlankReleaseService.test.ts`](apps/bot/src/__tests__/backgroundBlankReleaseService.test.ts).
+  The bot ships separately (image tag bump in `home-automation`); the web change does
+  not depend on it.
+
+---
+
 ## [2026-09-12] Donated Backgrounds Are Spendable Again
 
 ### approve_donation Was Blanking Every Dot

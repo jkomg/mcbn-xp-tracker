@@ -32,7 +32,7 @@ from app.db import (
 )
 from app.coterie_donations import orphan_donated_backgrounds, reclaim_donated_backgrounds
 from app.models import Character, PlayPeriod, XPClaim, SpendRequest, LedgerEntry, AuditEntry
-from app.game_calendar import next_night_after_downtime, night_has_started
+from app.game_calendar import next_night_after_downtime, night_has_started, night_start_date
 
 
 def _now_str() -> str:
@@ -1542,6 +1542,46 @@ class DBService:
             'dots_available': max(0, row.dots_total - row.dots_blanked),
             'release_night_number': row.release_night_number,
         }
+
+    def get_outstanding_background_blanks(self, today: _date_type | None = None) -> list[dict]:
+        """Every background with dots blanked, across the roster, for staff.
+
+        Read-only. `state` is judged by the calendar, the same gate the release
+        worker applies: 'pending' before the releasing night starts, 'due' once
+        it has (the worker should already have returned these, so a lingering
+        'due' row means release is not running or the night's period is not
+        open), and 'unknown' when the calendar has no entry for the night —
+        the worker holds those indefinitely, so they have to be visible.
+        """
+        rows = DbCharacterBackground.query.filter(
+            DbCharacterBackground.dots_blanked > 0,
+        ).order_by(
+            DbCharacterBackground.release_night_number.asc(),
+            func.lower(DbCharacterBackground.character_name).asc(),
+            DbCharacterBackground.background_name.asc(),
+        ).all()
+        result: list[dict] = []
+        for row in rows:
+            release_night = row.release_night_number
+            started = night_has_started(int(release_night), today) if release_night else None
+            if started is None:
+                state = 'unknown'
+            elif started:
+                state = 'due'
+            else:
+                state = 'pending'
+            result.append({
+                'character_name': row.character_name,
+                'background_name': row.background_name,
+                'dots_blanked': int(row.dots_blanked or 0),
+                'dots_total': int(row.dots_total or 0),
+                'blanked_at_night_number': row.blanked_at_night_number,
+                'release_night_number': release_night,
+                'release_date': night_start_date(int(release_night)) if release_night else None,
+                'state': state,
+                'donated': row.donated_coterie_id is not None,
+            })
+        return result
 
     def release_due_background_blanks(self, current_night_number: int) -> list[dict]:
         if current_night_number <= 0:

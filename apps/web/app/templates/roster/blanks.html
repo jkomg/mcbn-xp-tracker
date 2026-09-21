@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dp-head">
+  <h2>Blanked Backgrounds</h2>
+  <span class="dp-count-badge" style="background:rgba(255,255,255,.06);color:var(--text-muted);">{{ rows|length }} outstanding</span>
+  <div class="dp-head-actions">
+    <a href="{{ url_for('roster.list_characters') }}" class="dp-btn">Roster</a>
+  </div>
+</div>
+<p class="dp-subtitle">
+  Dots come back when their releasing night opens on the game calendar, not when staff open that night's period.
+  This page is read-only.
+</p>
+
+{% if due_count %}
+<div class="alert alert-warning" role="alert">
+  {{ due_count }} blank{{ 's' if due_count != 1 }} {{ 'have' if due_count != 1 else 'has' }} a releasing night that has already started.
+  Release runs every two minutes, so these should already be back. Check that the bot is running and that the night's play period is open.
+</div>
+{% endif %}
+{% if unknown_count %}
+<div class="alert alert-danger" role="alert">
+  {{ unknown_count }} blank{{ 's' if unknown_count != 1 }} {{ 'release' if unknown_count != 1 else 'releases' }} on a night the game calendar doesn't list.
+  These are held until the calendar in <code>app/game_calendar.py</code> is extended.
+</div>
+{% endif %}
+
+{% if not rows %}
+<div class="card">
+  <div class="empty-state">
+    <i class="bi bi-check2-circle"></i>
+    <p>No background has dots blanked right now.</p>
+  </div>
+</div>
+{% else %}
+<div class="table-responsive">
+  <table class="table table-dark table-hover table-sm" id="blanks-table">
+    <thead>
+      <tr>
+        <th>Character</th>
+        <th>Background</th>
+        <th class="text-end">Blanked</th>
+        <th class="d-none d-sm-table-cell">Blanked on</th>
+        <th>Returns</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-state="{{ row.state }}">
+        <td><a href="{{ url_for('roster.detail', name=row.character_name) }}">{{ row.character_name }}</a></td>
+        <td>
+          {{ row.background_name }}
+          {% if row.donated %}<span class="dp-pill dp-pill--blue ms-1">Coterie</span>{% endif %}
+        </td>
+        <td class="text-end">{{ row.dots_blanked }} / {{ row.dots_total }}</td>
+        <td class="d-none d-sm-table-cell">
+          {% if row.blanked_at_night_number %}Night {{ row.blanked_at_night_number }}{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if row.release_night_number %}Night {{ row.release_night_number }}{% else %}—{% endif %}
+          {% if row.release_date %}<small class="text-muted d-block">opens {{ row.release_date.month }}/{{ row.release_date.day }}/{{ row.release_date.year }}</small>{% endif %}
+        </td>
+        <td>
+          {% if row.state == 'pending' %}
+          <span class="dp-pill dp-pill--neutral">Not yet due</span>
+          {% elif row.state == 'due' %}
+          <span class="dp-pill dp-pill--amber">Due, not released</span>
+          {% else %}
+          <span class="dp-pill dp-pill--red">Night not on calendar</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
