@@ -341,16 +341,20 @@ class DbCharacterBackground(db.Model):
     __table_args__ = (
         db.UniqueConstraint('character_name', 'background_key', name='uq_character_background_key'),
         db.Index('ix_character_backgrounds_character', 'character_name'),
-        db.Index('ix_character_backgrounds_release_night', 'release_night_number'),
     )
     id = db.Column(Integer, primary_key=True)
     character_name = db.Column(String(200), nullable=False)
     background_key = db.Column(String(120), nullable=False)
     background_name = db.Column(String(120), nullable=False)
     dots_total = db.Column(Integer, nullable=False, default=0)
-    dots_blanked = db.Column(Integer, nullable=False, default=0)
-    blanked_at_night_number = db.Column(Integer, nullable=True)
-    release_night_number = db.Column(Integer, nullable=True)
+    # Blank state lives in character_background_blanks, one row per act of
+    # blanking, so two blanks taken on different nights each return on their
+    # own night. The table still has dots_blanked, blanked_at_night_number and
+    # release_night_number columns (and ix_character_backgrounds_release_night)
+    # from before that; they are deliberately unmapped, no longer maintained, and
+    # dropped by a follow-up migration once no deployed revision maps them. Do
+    # not map them again: the properties below are the only readers, and a
+    # stored total is an unenforced pairing that drifts.
     updated_at = db.Column(String(20), nullable=False, default='')
     updated_by = db.Column(String(100), nullable=False, default='')
     # Set when this background has been donated to a coterie pool.
@@ -367,9 +371,90 @@ class DbCharacterBackground(db.Model):
     orphaned_from = db.Column(String(200), nullable=True, index=True)
     orphaned_at = db.Column(String(20), nullable=True)
 
+    # Every lot, released or not, so deleting a background takes its history
+    # with it. SQLite does not enforce the foreign key's ON DELETE unless
+    # PRAGMA foreign_keys is on, so the cascade has to be the ORM's -- which is
+    # also why this must not set passive_deletes.
+    blanks = db.relationship(
+        'DbCharacterBackgroundBlank',
+        back_populates='background',
+        cascade='all, delete-orphan',
+        order_by='DbCharacterBackgroundBlank.id',
+    )
+    # Only the lots still out. selectin so reading the properties below across a
+    # list of backgrounds costs one extra query, not one per background.
+    outstanding_blanks = db.relationship(
+        'DbCharacterBackgroundBlank',
+        primaryjoin='and_(DbCharacterBackground.id == DbCharacterBackgroundBlank.character_background_id, '
+                    'DbCharacterBackgroundBlank.released_at.is_(None))',
+        order_by='(DbCharacterBackgroundBlank.release_night_number, DbCharacterBackgroundBlank.id)',
+        viewonly=True,
+        lazy='selectin',
+    )
+
+    # Read-only by design: an assignment to any of these is the bug the blanks
+    # table exists to remove, and a property with no setter raises rather than
+    # silently doing nothing.
+    @property
+    def dots_blanked(self) -> int:
+        return sum(int(lot.dots or 0) for lot in self.outstanding_blanks)
+
+    @property
+    def release_night_number(self) -> int | None:
+        """When dots next come back: the earliest outstanding lot's night."""
+        lots = self.outstanding_blanks
+        return lots[0].release_night_number if lots else None
+
+    @property
+    def blanked_at_night_number(self) -> int | None:
+        """The night that same earliest-releasing lot was taken."""
+        lots = self.outstanding_blanks
+        return lots[0].blanked_at_night_number if lots else None
+
     @property
     def dots_available(self) -> int:
-        return max(0, (self.dots_total or 0) - (self.dots_blanked or 0))
+        return max(0, (self.dots_total or 0) - self.dots_blanked)
+
+
+class DbCharacterBackgroundBlank(db.Model):
+    """One act of blanking a background: how many dots, and when they return.
+
+    Outstanding while released_at is null. Released lots are kept, so "why did
+    these dots come back" stays answerable.
+    """
+    __tablename__ = 'character_background_blanks'
+    __table_args__ = (
+        # Partial on purpose. The release worker polls every two minutes for
+        # outstanding lots at or before a night, and released lots accumulate
+        # forever; an index on the night alone would soon match nearly every row.
+        db.Index(
+            'ix_character_background_blanks_outstanding_release',
+            'release_night_number',
+            sqlite_where=db.text('released_at IS NULL'),
+        ),
+        db.Index('uq_character_background_blanks_request_key', 'request_key', unique=True),
+    )
+    id = db.Column(Integer, primary_key=True)
+    character_background_id = db.Column(
+        Integer,
+        db.ForeignKey('character_backgrounds.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    dots = db.Column(Integer, nullable=False)
+    # Nullable only to carry legacy rows faithfully; every new blank sets it.
+    blanked_at_night_number = db.Column(Integer, nullable=True)
+    release_night_number = db.Column(Integer, nullable=False)
+    released_at = db.Column(String(20), nullable=True)
+    created_at = db.Column(String(20), nullable=False, default='')
+    created_by = db.Column(String(100), nullable=False, default='')
+    # One per blanking request, so retrying the insert cannot record it twice.
+    # Turso commits each statement on its own: an insert can land while its
+    # response is lost, and a blind retry would add a second lot. Null on
+    # backfilled rows, which SQLite's unique index allows any number of.
+    request_key = db.Column(String(36), nullable=True)
+
+    background = db.relationship('DbCharacterBackground', back_populates='blanks')
 
 
 class DbWishListItem(db.Model):

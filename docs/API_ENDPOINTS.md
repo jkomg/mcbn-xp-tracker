@@ -330,6 +330,9 @@ Returns all tracked backgrounds and their blanking state for a character. Player
       "blanked": true,
       "blanked_at_night_number": 41,
       "release_night_number": 42,
+      "blanks": [
+        { "dots": 1, "blanked_at_night_number": 41, "release_night_number": 42 }
+      ],
       "updated_at": "20260421 18:00:00",
       "updated_by": "bot:StaffMember"
     }
@@ -339,6 +342,8 @@ Returns all tracked backgrounds and their blanking state for a character. Player
 
 `currentNight`/`currentNightNumber` are `null` if no open play period exists.
 
+Each blank is tracked separately and returns on its own night. `blanks` lists every outstanding one, earliest release first. `dots_blanked` is their total, and `release_night_number` / `blanked_at_night_number` describe the earliest-releasing one ("when do dots next come back"), not every blank. The bot's schema does not read `blanks` (zod strips unknown keys); see `apps/bot/src/services/adapter.ts`.
+
 **Response 400:** `characterName` missing. **Response 403:** Requester cannot access this character. **Response 404:** Character not found.
 
 ---
@@ -347,7 +352,7 @@ Returns all tracked backgrounds and their blanking state for a character. Player
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
 
-Blanks one or more dots of a tracked background for a character (e.g. hunting consequence). The blank is recorded against the current open night and sets `release_night_number` to the first night after the next downtime (`game_calendar.next_night_after_downtime`). Requires an active open play period.
+Blanks one or more dots of a tracked background for a character (e.g. hunting consequence). Records a new blank against the current open night, returning on the first night after the next downtime (`game_calendar.next_night_after_downtime`). Blanks already outstanding keep their own nights. Refused if this blank plus every outstanding one would exceed the rating; the bound is enforced inside the insert, so two simultaneous requests cannot both take the last dot. Requires an active open play period.
 
 **Body:**
 ```json
@@ -378,10 +383,14 @@ Blanks one or more dots of a tracked background for a character (e.g. hunting co
     "dots_total": 3,
     "dots_blanked_total": 1,
     "dots_available": 2,
-    "release_night_number": 43
+    "release_night_number": 43,
+    "next_release_night_number": 43,
+    "outstanding_lots": 1
   }
 }
 ```
+
+`release_night_number` is when *this* blank returns. `next_release_night_number` is the earliest return across every outstanding blank on the background, this one included, and `outstanding_lots` counts them.
 
 **Response 400:** Missing/invalid fields, or background not tracked for this character. **Response 403:** Requester cannot access this character. **Response 404:** Character not found. **Response 409:** No active open night found.
 
@@ -391,7 +400,7 @@ Blanks one or more dots of a tracked background for a character (e.g. hunting co
 
 **Scope:** write | **Rate limit:** 30/min | **Replay protection:** required
 
-Releases blanked backgrounds whose `release_night_number` is ≤ the current open night number **and** whose releasing night has started on the game calendar (`game_calendar.night_has_started`). Staff often open a period days before its night begins, so the period condition alone would release early. A releasing night the calendar does not list is held, not released; staff can see those at `/roster/blanks`. Polled by the bot's `BackgroundBlankReleaseService` every two minutes, which tells each player in their cubby that the dots can be used now. No body required.
+Releases each outstanding blank whose `release_night_number` is ≤ the current open night number **and** whose releasing night has started on the game calendar (`game_calendar.night_has_started`). Staff often open a period days before its night begins, so the period condition alone would release early. A releasing night the calendar does not list is held, not released; staff can see those at `/roster/blanks`. Polled by the bot's `BackgroundBlankReleaseService` every two minutes, which tells each player in their cubby that the dots can be used now. Released blanks are kept with a `released_at` timestamp. `released` has one entry per background: two blanks returning in the same pass are added together into one entry. No body required.
 
 If no open play period exists, returns `ok: true` with an empty `released` array.
 

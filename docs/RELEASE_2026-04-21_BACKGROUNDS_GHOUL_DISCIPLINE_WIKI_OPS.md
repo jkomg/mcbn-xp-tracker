@@ -48,6 +48,11 @@ New table `character_backgrounds` (migration `6d2a4f0be9c1`):
 | `release_night_number` | integer | Night blanks are restored |
 | `updated_at` / `updated_by` | string | Audit trail |
 
+> **Superseded 2026-09-16.** Blank state moved to `character_background_blanks`,
+> one row per blank with its own `release_night_number`, so two blanks taken on
+> different nights each return on their own night. The three blank columns above
+> are no longer mapped or maintained, and a follow-up migration drops them.
+
 ---
 
 ## Ghoul Discipline Spend Category
