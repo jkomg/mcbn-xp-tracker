@@ -151,6 +151,7 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - **Production**: Turso (libsql) — set `DATABASE_URL=libsql+https://...` + `TURSO_AUTH_TOKEN` in env/secrets.
 - **Local dev**: SQLite — default when `DATABASE_URL` is omitted or `sqlite:///data/db.sqlite`.
 - Schema is created automatically on startup (`db.create_all()`); no manual migration needed for new installs.
+- Background blank state lives in `character_background_blanks`, one row per blank. `DbCharacterBackground.dots_blanked` / `release_night_number` / `blanked_at_night_number` are derived properties; the same-named table columns are unmapped leftovers awaiting `openspec/changes/drop-legacy-blank-columns/`. Don't map them or store a blanked total, and strip the drop of those columns/index out of any `flask db migrate` output until that change ships. See `AGENTS.md`.
 - To migrate existing Sheets data: `cd apps/web && python scripts/migrate_sheets_to_db.py`
 - **Schema changes**: edit `app/db.py`, then `cd apps/web && FLASK_APP=app:create_app flask db migrate -m "description"`, review the file in `migrations/versions/`, then `flask db upgrade`. Commit the migration with your code. See `apps/web/migrations/README` for details.
 

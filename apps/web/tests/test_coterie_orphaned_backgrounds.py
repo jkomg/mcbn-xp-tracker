@@ -103,8 +103,8 @@ def _coterie(app, members, creation_xp=0):
 def _donate(app, coterie_id, char_name, bg_name='Haven', dots=3, key=None):
     """A donated background, in the state approve_donation actually leaves it.
 
-    dots_blanked stays 0: donating hands the dots to the coterie to spend over
-    time, it does not withhold them. approve_donation used to set
+    No blanks: donating hands the dots to the coterie to spend over time, it
+    does not withhold them. approve_donation used to set
     dots_blanked = dots_total, which made the coterie's own blanking impossible,
     so this fixture matched the intended behaviour rather than the shipped one
     until that was fixed. See tests/test_coterie_donation_blanking.py.
@@ -112,7 +112,7 @@ def _donate(app, coterie_id, char_name, bg_name='Haven', dots=3, key=None):
     with app.app_context():
         row = DbCharacterBackground(
             character_name=char_name, background_key=key or bg_name.lower(),
-            background_name=bg_name, dots_total=dots, dots_blanked=0,
+            background_name=bg_name, dots_total=dots,
             donated_coterie_id=coterie_id, updated_at='', updated_by='')
         db.session.add(row)
         db.session.commit()
@@ -183,7 +183,7 @@ def test_a_pending_donation_is_withdrawn_rather_than_orphaned():
     with app.app_context():
         row = DbCharacterBackground(
             character_name='Fiora', background_key='resources',
-            background_name='Resources', dots_total=2, dots_blanked=0,
+            background_name='Resources', dots_total=2,
             donation_pending_coterie_id=coterie_id, updated_at='', updated_by='')
         db.session.add(row)
         db.session.commit()
@@ -274,8 +274,10 @@ def test_price_is_the_standard_advantage_cost_for_the_full_rating():
     with app.app_context():
         row = db.session.get(DbCharacterBackground, bg_id)
         assert purchase_price(row) == 12, '4 dots at 3 XP each'
-        row.dots_blanked = 3
+        assert DBService()._reserve_blank(bg_id, 3, 68, 69, 'test')
         db.session.commit()
+        row = db.session.get(DbCharacterBackground, bg_id)
+        assert row.dots_blanked == 3
         assert purchase_price(row) == 12, 'blanking does not discount it'
 
 
@@ -368,7 +370,7 @@ def test_a_buyer_who_already_has_that_background_is_refused():
     with app.app_context():
         db.session.add(DbCharacterBackground(
             character_name='Kira', background_key='haven', background_name='Haven',
-            dots_total=2, dots_blanked=0, updated_at='', updated_by=''))
+            dots_total=2, updated_at='', updated_by=''))
         db.session.commit()
         DBService().set_character_status('Fiora', 'retired')
 
@@ -424,7 +426,7 @@ def test_a_clash_appearing_before_approval_blocks_the_transfer():
     with app.app_context():
         db.session.add(DbCharacterBackground(
             character_name='Kira', background_key='haven', background_name='Haven',
-            dots_total=1, dots_blanked=0, updated_at='', updated_by=''))
+            dots_total=1, updated_at='', updated_by=''))
         db.session.commit()
         spend = DbSpendRequest.query.filter_by(purchased_background_id=bg_id).one()
         assert claim_purchased_background(spend) is None
@@ -579,7 +581,7 @@ def test_approval_is_refused_when_the_transfer_cannot_complete():
         # Kira picks Haven up another way while the request sits in the queue.
         db.session.add(DbCharacterBackground(
             character_name='Kira', background_key='haven', background_name='Haven',
-            dots_total=1, dots_blanked=0, updated_at='', updated_by=''))
+            dots_total=1, updated_at='', updated_by=''))
         db.session.commit()
 
     _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
@@ -602,7 +604,7 @@ def test_bulk_approval_skips_a_purchase_that_cannot_complete():
         row_id = DbSpendRequest.query.one().id
         db.session.add(DbCharacterBackground(
             character_name='Kira', background_key='haven', background_name='Haven',
-            dots_total=1, dots_blanked=0, updated_at='', updated_by=''))
+            dots_total=1, updated_at='', updated_by=''))
         db.session.commit()
 
     _client(app, STAFF_ID).post('/spends/bulk-approve', data={'spend_ids': [str(row_id)]})
@@ -625,7 +627,7 @@ def test_blanking_while_a_purchase_is_pending_does_not_block_it():
     with app.app_context():
         row_id = DbSpendRequest.query.one().id
         assert db.session.get(DbSpendRequest, row_id).new_dots == 3
-        db.session.get(DbCharacterBackground, bg_id).dots_blanked = 2
+        assert DBService()._reserve_blank(bg_id, 2, 68, 69, 'test')
         db.session.commit()
 
     _client(app, STAFF_ID).post(f'/spends/{row_id}/approve', data={'verified_cost': '9'})
@@ -636,6 +638,7 @@ def test_blanking_while_a_purchase_is_pending_does_not_block_it():
     assert row.character_name == 'Kira'
     assert row.dots_total == 3, 'the rating they paid for'
     assert row.dots_blanked == 2, 'and the pending release comes with it'
+    assert row.release_night_number == 69
 
 
 def test_approval_is_refused_if_the_rating_changed_meanwhile():

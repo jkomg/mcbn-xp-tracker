@@ -198,7 +198,7 @@ def test_retiring_via_the_bot_api_leaves_donated_backgrounds_with_the_coterie():
         db.session.flush()
         db.session.add(DbCharacterBackground(
             character_name='Fiora', background_key='haven',
-            background_name='Haven', dots_total=3, dots_blanked=0,
+            background_name='Haven', dots_total=3,
             donated_coterie_id=coterie.id, updated_at='', updated_by=''))
         db.session.commit()
         coterie_id = coterie.id

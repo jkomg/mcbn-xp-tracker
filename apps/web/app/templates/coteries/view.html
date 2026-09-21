@@ -350,12 +350,15 @@
                         <span class="badge bg-info text-dark" title="The coterie keeps this. A member may buy it at standard price.">Unclaimed</span>
                         {% endif %}
                         {% if bg.dots_blanked > 0 %}
-                        <span class="badge bg-warning text-dark" title="Blanked until Night {{ bg.release_night_number }}">
-                            {{ bg.dots_blanked }} blanked
-                        </span>
+                        <span class="badge bg-warning text-dark">{{ bg.dots_blanked }} blanked</span>
                         {% endif %}
                     </div>
                 </div>
+                {% if bg.dots_blanked > 0 %}
+                <p class="small text-muted mb-1 blank-lots">
+                    {% for lot in bg.outstanding_blanks %}{{ lot.dots }} back on Night {{ lot.release_night_number }}{% if not loop.last %} · {% endif %}{% endfor %}
+                </p>
+                {% endif %}
                 <!-- Blank control (any member) -->
                 {% if is_member and bg.dots_available > 0 %}
                 <form method="POST" action="{{ url_for('coteries.blank_donated_background', slug=coterie.slug, bg_id=bg.id) }}"
