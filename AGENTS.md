@@ -249,9 +249,10 @@ you were editing for.
   into production. Treat manual prod dispatch as main-only by convention; the
   workflow does not enforce it.
 - **Nothing in this repo deploys the bot.** CI on `main` publishes
-  `ghcr.io/jkomg/lasombra-bot:<sha7>`; the bot runs on k3s under Argo CD, which
-  syncs from the separate `home-automation` repo where images are pinned by
-  commit SHA. Shipping it is a deliberate commit in that repo.
+  `ghcr.io/jkomg/lasombra-bot:<sha7>`; the bot runs on k0s under Argo CD, which
+  syncs from the separate `home-automation` repo (`cluster/k0s/apps/lasombra-bot/`)
+  where images are pinned by commit SHA. Shipping it is a deliberate commit in
+  that repo.
 - **The GitHub Actions workflows are the single source of truth** for image
   build, Cloud Run flags, env vars, and secret bindings. `apps/web/deploy.sh`
   only triggers a workflow. Never add a second `gcloud run deploy` — two
@@ -260,7 +261,7 @@ you were editing for.
 **Stale references in-tree**
 
 `infra/ursula/failover/` describes a failover bot whose launchd job is no
-longer installed, and `apps/*/k8s/` manifests predate the k3s migration and are
+longer installed, and `apps/*/k8s/` manifests predate the k0s migration and are
 not what the cluster runs. Don't treat either as current.
 
 ## Ask before doing these
