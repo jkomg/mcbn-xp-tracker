@@ -244,7 +244,7 @@ jobs:
       # stays runnable wherever it lands.
       - name: Build and push base image
         if: steps.check.outputs.relevant != 'false' && steps.tags.outputs.publish != 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/bot
           file: ./apps/bot/Dockerfile
@@ -258,7 +258,7 @@ jobs:
 
       - name: Build and push wrapper image
         if: steps.check.outputs.relevant != 'false' && steps.tags.outputs.publish != 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./.workflow-ref/.github/docker/Dockerfile.packages
