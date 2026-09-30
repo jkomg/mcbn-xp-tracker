@@ -241,3 +241,55 @@ def test_wishlist_add_status_under_non_advantage_category_not_rejected():
         assert len(rows) == 1
         assert rows[0].trait_name == 'Status'
         assert not rows[0].power_name
+
+
+def _specialty_form(**overrides):
+    form = {
+        'spend_category': 'Skill Specialty',
+        'trait_name': 'Firearms',
+        'power_name': 'Pistols',
+        'justification': '',
+        'current_dots': '0',
+        'new_dots': '1',
+    }
+    form.update(overrides)
+    return form
+
+
+def test_wishlist_add_accepts_specialty_with_name():
+    """A Skill Specialty wish list item with a specialty name is saved."""
+    app = _app()
+    _seed(app)
+    client = _client(app)
+
+    resp = client.post(
+        '/player/Faction Fred/wishlist/add',
+        data=_specialty_form(),
+        follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+    with app.app_context():
+        rows = DbWishListItem.query.all()
+        assert len(rows) == 1
+        assert rows[0].spend_category == 'Skill Specialty'
+        assert rows[0].trait_name == 'Firearms'
+        assert rows[0].power_name == 'Pistols'
+
+
+def test_wishlist_add_rejects_specialty_without_name():
+    """A Skill Specialty wish list item without a specialty name is rejected."""
+    app = _app()
+    _seed(app)
+    client = _client(app)
+
+    resp = client.post(
+        '/player/Faction Fred/wishlist/add',
+        data=_specialty_form(power_name=''),
+        follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+    with app.app_context():
+        rows = DbWishListItem.query.all()
+        assert len(rows) == 0

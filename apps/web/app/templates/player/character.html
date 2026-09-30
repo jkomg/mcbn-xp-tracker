@@ -997,6 +997,7 @@
                         <label class="form-label small fw-bold mb-1">Trait</label>
                         <input type="text" class="form-control form-control-sm" id="wl-trait" name="trait_name"
                                placeholder="e.g., Strength, Dominate" required>
+                        <datalist id="wl-specialty-skill-options"></datalist>
                     </div>
                     <div class="col-5 col-sm-auto" style="max-width:80px;">
                         <label class="form-label small fw-bold mb-1">From</label>
@@ -1045,7 +1046,7 @@
                 <div class="wl-item">
                     <div class="wl-item-body">
                         <div class="wl-item-main">
-                            <span class="wl-item-trait">{{ item.trait_name }}</span>
+                            <span class="wl-item-trait">{{ item.trait_name }}{% if item.power_name %}: <em>{{ item.power_name }}</em>{% endif %}</span>
                             <span class="wl-item-cat">{{ item.spend_category }}</span>
                         </div>
                         <div class="wl-item-meta">
@@ -1651,6 +1652,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateWlPowerNameGroup() {
         const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
         const needsPowerName = isDiscipline || wlCat.value === 'Ghoul Discipline';
+        const isSpecialty = wlCat.value === 'Skill Specialty';
         const traitLower = wlTrait ? wlTrait.value.trim().toLowerCase() : '';
         const subcategoryLabel = (wlCat.value === 'Advantage (Merit/Background)') ? WL_SUBCATEGORY_ADVANTAGES[traitLower] : undefined;
         const needsSubcategory = !!subcategoryLabel;
@@ -1660,6 +1662,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 setWlPowerNameLabel('Power Name', '(specific power being purchased)',
                     'e.g., Mesmerize, Prowl, Sense the Unseen',
                     'Required to update your character sheet when converted to a spend request.');
+                if (wlPowerNameInput) wlPowerNameInput.required = true;
+            } else if (isSpecialty) {
+                wlPowerNameGroup.classList.remove('d-none');
+                setWlPowerNameLabel('Specialty Name', '',
+                    'e.g., Pistols, Boxing, High Society',
+                    'The specialty being purchased. Required.');
                 if (wlPowerNameInput) wlPowerNameInput.required = true;
             } else if (needsSubcategory) {
                 wlPowerNameGroup.classList.remove('d-none');
@@ -1677,14 +1685,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function populateWlSpecialtySkillOptions() {
+        const datalist = document.getElementById('wl-specialty-skill-options');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        const skills = (SHEET_DATA && SHEET_DATA.skills) || {};
+        Object.keys(skills).forEach(function(key) {
+            if ((skills[key] || 0) >= 1) {
+                const opt = document.createElement('option');
+                opt.value = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                datalist.appendChild(opt);
+            }
+        });
+    }
+
     function updatePreview() {
         const cost = wlCost(wlCat.value, parseInt(wlFrom.value)||0, parseInt(wlTo.value)||0);
-        const valid = cost !== null && wlTrait.value.trim();
+        const needsSpecialtyName = wlCat.value === 'Skill Specialty';
+        const valid = cost !== null && wlTrait.value.trim() &&
+                      (!needsSpecialtyName || (wlPowerNameInput && wlPowerNameInput.value.trim()));
         wlPreview.textContent = valid ? cost : '—';
         wlAddBtn.disabled = !valid;
     }
 
-    [wlCat, wlTrait, wlFrom, wlTo].forEach(function(el) {
+    [wlCat, wlTrait, wlFrom, wlTo, wlPowerNameInput].forEach(function(el) {
         el?.addEventListener('input', updatePreview);
         el?.addEventListener('change', updatePreview);
     });
@@ -1697,19 +1721,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     wlCat?.addEventListener('change', function() {
         const isDiscipline = wlCat.value === 'Discipline (In-Clan)' || wlCat.value === 'Discipline (Out-of-Clan)' || wlCat.value === 'Caitiff Discipline';
+        const isSpecialty = wlCat.value === 'Skill Specialty';
         if (wlInClanGroup) wlInClanGroup.classList.toggle('d-none', !isDiscipline);
         updateWlPowerNameGroup();
         const fixedTrait = WL_FIXED_TRAIT_CATEGORIES[wlCat.value];
         if (fixedTrait) {
             wlTrait.value = wlCat.value;
             wlTrait.readOnly = true;
+            wlTrait.removeAttribute('list');
             wlFrom.min = fixedTrait.min;     wlFrom.max = fixedTrait.max - 1;
             wlTo.min = fixedTrait.min + 1;   wlTo.max = fixedTrait.max;
             if (parseInt(wlFrom.value) < fixedTrait.min)     wlFrom.value = fixedTrait.min;
             if (parseInt(wlTo.value) < fixedTrait.min + 1)   wlTo.value = fixedTrait.min + 1;
+        } else if (isSpecialty) {
+            // Specialty: trait is the skill name (free text + datalist), dots always 0→1.
+            if (wlTrait.readOnly) wlTrait.value = '';
+            wlTrait.readOnly = false;
+            wlTrait.setAttribute('list', 'wl-specialty-skill-options');
+            populateWlSpecialtySkillOptions();
+            wlFrom.value = 0; wlFrom.min = 0; wlFrom.max = 0;
+            wlTo.value = 1;   wlTo.min = 1;   wlTo.max = 1;
         } else {
             if (wlTrait.readOnly) wlTrait.value = '';
             wlTrait.readOnly = false;
+            wlTrait.removeAttribute('list');
             wlFrom.min = 0; wlFrom.max = 4;
             wlTo.min = 1;   wlTo.max = 5;
             if (parseInt(wlFrom.value) > 4) wlFrom.value = 0;

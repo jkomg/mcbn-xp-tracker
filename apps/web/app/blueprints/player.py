@@ -687,6 +687,10 @@ def add_wish_list_item(name):
         flash('Power name is required for discipline purchases.', 'danger')
         return redirect(url_for('player.character', name=name))
 
+    if spend_category == 'Skill Specialty' and not power_name:
+        flash('A specialty name is required.', 'danger')
+        return redirect(url_for('player.character', name=name))
+
     if (
         spend_category == 'Advantage (Merit/Background)'
         and trait_name.strip().lower() in _SUBCATEGORY_ADVANTAGES
