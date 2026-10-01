@@ -19,7 +19,8 @@ from app.db import db
 _MIGRATIONS = str(Path(__file__).resolve().parents[1] / 'migrations')
 _PREVIOUS = '3f81c22ad5e7'
 _THIS = '8a3e5c7d9b21'
-_HEAD = 'c4e1a9f27b58'
+_DROP_LEGACY = '2b3c4d5e6f7a'
+_HEAD = '2b3c4d5e6f7a'
 
 
 def _make_app(db_path):
@@ -111,7 +112,7 @@ def test_upgrade_backfills_one_lot_per_blanked_background(app, drop_blanks_table
     ids = _seed(app)
 
     with app.app_context():
-        upgrade()
+        upgrade(revision=_THIS)
 
         assert _lots(ids['timed']) == [(2, 68, 69, None)]
         assert _lots(ids['donated']) == [(1, 68, 69, None)]
@@ -231,7 +232,6 @@ def test_a_blank_with_no_releasing_night_is_cleared(app):
         upgrade()
 
         assert _lots(bg_id) == []
-        assert _legacy(bg_id) == (0, None, None)
 
 
 def test_a_rating_below_the_legacy_blank_is_clamped(app):
@@ -286,7 +286,6 @@ def test_downgrade_zeroes_a_background_whose_lot_was_released(app):
         upgrade()
         _sql("UPDATE character_background_blanks SET released_at = '20260908 00:00:00' "
              'WHERE character_background_id = :i', i=ids['timed'])
-        assert _legacy(ids['timed']) == (2, 68, 69), 'stale while the change is live'
 
         downgrade(revision=_PREVIOUS)
 
@@ -381,3 +380,61 @@ def test_request_key_downgrade_drops_index_then_column(app):
         assert _lots(ids['timed']) == [(2, 68, 69, None)], 'lots survive'
         upgrade()
         assert _request_key_state()[0]
+
+
+# ── 2b3c4d5e6f7a: drop legacy background blank columns ──────────────────────
+
+def _legacy_columns_exist():
+    cols = {r[1] for r in _rows("PRAGMA table_info('character_backgrounds')")}
+    return all(c in cols for c in ('dots_blanked', 'blanked_at_night_number', 'release_night_number'))
+
+
+def _legacy_index_exists():
+    return bool(_rows(
+        "SELECT name FROM sqlite_master WHERE type='index' "
+        "AND name='ix_character_backgrounds_release_night'"
+    ))
+
+
+def test_drop_legacy_columns_removes_all_three_and_index(app):
+    """Existing DB: columns present → they are dropped at _DROP_LEGACY."""
+    _legacy_database(app)
+    _seed(app)
+    with app.app_context():
+        upgrade(revision='c4e1a9f27b58')  # stop before the drop
+        assert _legacy_columns_exist()
+        assert _legacy_index_exists()
+
+        upgrade(revision=_DROP_LEGACY)
+
+        assert not _legacy_columns_exist()
+        assert not _legacy_index_exists()
+
+
+def test_drop_legacy_columns_no_op_on_fresh_db(app):
+    """Fresh DB: columns were never created by create_all → upgrade is a no-op."""
+    with app.app_context():
+        db.create_all()
+        stamp(revision='c4e1a9f27b58')
+
+        assert not _legacy_columns_exist()
+        upgrade(revision=_DROP_LEGACY)
+        assert not _legacy_columns_exist()
+
+
+def test_drop_legacy_columns_downgrade_restores_with_default(app):
+    """Downgrade re-adds the columns with DEFAULT 0 so existing rows don't break."""
+    _legacy_database(app)
+    _seed(app)
+    with app.app_context():
+        upgrade()
+        assert not _legacy_columns_exist()
+
+        downgrade(revision='c4e1a9f27b58')
+
+        assert _legacy_columns_exist()
+        assert _legacy_index_exists()
+        # dots_blanked must have a DEFAULT so inserts without it succeed.
+        # SQLite stores server_default='0' as DEFAULT '0' (quoted).
+        col_info = {r[1]: r for r in _rows("PRAGMA table_info('character_backgrounds')")}
+        assert col_info['dots_blanked'][4] is not None, 'dots_blanked must have a default'
