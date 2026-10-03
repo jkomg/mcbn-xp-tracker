@@ -389,6 +389,20 @@ class SheetsClient:
             self._worksheets[tab_name] = self.spreadsheet.worksheet(tab_name)
         return self._worksheets[tab_name]
 
+    _GRID_EXPAND_BY = 500  # rows added each time a tab needs to grow
+
+    @staticmethod
+    def _ensure_rows(ws, needed_row: int) -> None:
+        """Expand the sheet grid if needed_row would exceed its current size.
+
+        The Sheets API raises a 400 "exceeds grid limits" error when a write
+        targets a row beyond the sheet's declared row count.  Rather than
+        requiring staff to manually resize sheets, we grow them automatically
+        in fixed increments whenever a write would overflow.
+        """
+        if needed_row > ws.row_count:
+            ws.add_rows(SheetsClient._GRID_EXPAND_BY)
+
     def _safe_append_row(self, tab_name: str, row: list) -> None:
         """Append a row by writing to an explicit row number.
 
@@ -396,9 +410,11 @@ class SheetsClient:
         which can misidentify the last occupied row and *overwrite* data —
         especially on sheets with few rows.  This helper reads the current
         row count and writes to the next empty row, eliminating ambiguity.
+        The sheet is expanded automatically if the next row exceeds its grid.
         """
         ws = self._ws(tab_name)
         next_row = self._get_next_row(tab_name)
+        self._ensure_rows(ws, next_row)
         # Write the whole row starting at column A
         ws.update(f'A{next_row}', [row], value_input_option='RAW')
         self._next_row_cache[tab_name] = next_row + 1
@@ -412,11 +428,14 @@ class SheetsClient:
         existing: the Sheets API's table-range auto-detection can overwrite
         data, so the target range is computed rather than inferred.  Rows go up
         in chunks so a large backfill stays inside the request size limit.
+        The sheet is expanded automatically if the block would overflow the grid.
         """
         if not rows:
             return
         ws = self._ws(tab_name)
         next_row = self._get_next_row(tab_name)
+        # Expand once upfront to cover the full block.
+        self._ensure_rows(ws, next_row + len(rows) - 1)
         for start in range(0, len(rows), chunk_size):
             block = rows[start:start + chunk_size]
             ws.update(f'A{next_row}', block, value_input_option='RAW')
