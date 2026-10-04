@@ -903,7 +903,12 @@ def bot_heartbeat_post():
         if field in body:
             _upsert(db_key, 'true' if body[field] else 'false')
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.warning('bot_heartbeat: DB write failed (transient?): %s', exc)
+        return jsonify({'ok': False, 'error': 'db_unavailable'}), 503
     return jsonify({'ok': True})
 
 
