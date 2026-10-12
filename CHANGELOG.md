@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-10-01] Legacy Background Blank Columns Dropped (#446)
+
+- Migration `2b3c4d5e6f7a` drops `dots_blanked`, `blanked_at_night_number`,
+  `release_night_number` and `ix_character_backgrounds_release_night` from
+  `character_backgrounds`. Each drop is skipped when the column or index is
+  absent, so a fresh database built by `db.create_all()` upgrades cleanly.
+- **Fixes a 500 approving creator drafts.** On dev, `dots_blanked` was still
+  `NOT NULL` with no SQL default, and since `8a3e5c7d9b21` stopped mapping it,
+  new background inserts omitted it and failed the constraint.
+- `downgrade()` re-adds the columns with `dots_blanked` defaulting to `0`, so
+  rolling back past this revision no longer has the same failure.
+- `flask db migrate` no longer proposes dropping these columns; nothing needs
+  stripping from generated migrations.
+
 ## [2026-09-16] Each Background Blank Returns on Its Own Night
 
 ### Deploy Note: Read Before Shipping
