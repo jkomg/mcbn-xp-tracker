@@ -53,9 +53,23 @@ def test_log_sync_error_with_details():
     app = _app()
     svc = DBService(sheets_client=None)
     with app.app_context():
-        svc.log_sheets_sync_error('reconcile', 'ok', details='{"claims_appended": 1}')
+        svc.log_sheets_sync_error('reconcile', 'completed with errors', details='{"claims_appended": 1}')
         errors = svc.get_recent_sync_errors()
     assert errors[0]['details'] == '{"claims_appended": 1}'
+
+
+def test_clean_reconcile_runs_are_not_listed_as_errors():
+    app = _app()
+    svc = DBService(sheets_client=None)
+    with app.app_context():
+        svc.log_sheets_sync_error('reconcile', 'ok')
+        svc.log_sheets_sync_error('reconcile', 'completed with errors')
+        svc.log_sheets_sync_error('add_ledger_entry', 'ok')
+        errors = svc.get_recent_sync_errors(show_dismissed=True)
+    assert [(e['operation'], e['error']) for e in errors] == [
+        ('add_ledger_entry', 'ok'),
+        ('reconcile', 'completed with errors'),
+    ]
 
 
 def test_new_errors_default_to_not_dismissed():
