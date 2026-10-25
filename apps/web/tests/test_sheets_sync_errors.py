@@ -72,6 +72,47 @@ def test_clean_reconcile_runs_are_not_listed_as_errors():
     ]
 
 
+def test_error_alerts_page_hides_clean_reconcile_runs(monkeypatch):
+    # Through the route, not just the helper: /audit/errors merges the DB rows
+    # with the in-memory buffer, so the helper alone can't show what staff see.
+    from flask import Blueprint
+
+    from app.blueprints import audit
+
+    login_bp = Blueprint('dashboard', __name__)
+    login_bp.add_url_rule('/login', 'login', lambda: 'login')
+
+    app = _app()
+    app.config['SECRET_KEY'] = 'test'
+    app.register_blueprint(audit.bp, url_prefix='/audit')
+    app.register_blueprint(login_bp)
+
+    rendered = {}
+
+    def fake_render(template, **context):
+        rendered.update(context)
+        return ''
+
+    monkeypatch.setattr(audit, 'render_template', fake_render)
+    monkeypatch.setattr(audit, '_get_recent_sync_errors', lambda: [])
+    monkeypatch.setattr(audit, 'db_service', DBService(sheets_client=None))
+
+    with app.app_context():
+        svc = DBService(sheets_client=None)
+        svc.log_sheets_sync_error('reconcile', 'ok')
+        svc.log_sheets_sync_error('reconcile', 'completed with errors')
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['authenticated'] = True
+    res = client.get('/audit/errors')
+
+    assert res.status_code == 200
+    assert [(e['operation'], e['error']) for e in rendered['sync_errors']] == [
+        ('reconcile', 'completed with errors'),
+    ]
+
+
 def test_new_errors_default_to_not_dismissed():
     app = _app()
     svc = DBService(sheets_client=None)

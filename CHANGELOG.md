@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-24] Clean Reconcile Runs No Longer Show as Sheets Sync Errors
+
+### Error Alerts Page
+
+- **Audit → Error Alerts** (`/audit/errors`) no longer lists a `reconcile — ok`
+  row under **Sheets Sync Errors** for every night the reconcile ran cleanly.
+  Runs that finish `completed with errors` still show.
+- The nightly reconcile still writes its summary to `sheets_sync_errors` on every
+  run, so the run record is kept. Existing `ok` rows are still in the table; they
+  just drop off the page without being dismissed.
+- Tests: [`apps/web/tests/test_sheets_sync_errors.py`](apps/web/tests/test_sheets_sync_errors.py),
+  through the `/audit/errors` route as well as `DBService.get_recent_sync_errors`.
+
+---
+
 ## [2026-09-16] Each Background Blank Returns on Its Own Night
 
 ### Deploy Note: Read Before Shipping
