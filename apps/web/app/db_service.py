@@ -1825,7 +1825,11 @@ class DBService:
         db.session.commit()
 
     def get_recent_sync_errors(self, limit: int = 100, show_dismissed: bool = False) -> list[dict]:
-        query = DbSheetsSyncError.query
+        # The nightly reconcile logs its summary here on every run. A clean run
+        # is a record, not an error, so it never belongs in this list.
+        query = DbSheetsSyncError.query.filter(
+            db.or_(DbSheetsSyncError.operation != 'reconcile', DbSheetsSyncError.error != 'ok')
+        )
         if not show_dismissed:
             query = query.filter(DbSheetsSyncError.dismissed == False)  # noqa: E712
         rows = query.order_by(DbSheetsSyncError.id.desc()).limit(limit).all()
