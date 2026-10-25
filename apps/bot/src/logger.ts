@@ -73,17 +73,25 @@ export function logEvent(level: LogLevel, event: string, context: Record<string,
   console.log(line);
 }
 
+// Deep enough for the adapter's "Unable to reach …" → fetch failed →
+// AggregateError chain; the cap only exists to stop a cyclic cause.
+const MAX_CAUSE_DEPTH = 5;
+
 /**
  * Format an Error's own message — except AggregateError, whose .message is
  * typically empty (e.g. Node's fetch trying both IPv4 and IPv6 and every
  * attempt failing): the real per-attempt details live in .errors instead.
  */
-function formatErrorValue(value: unknown): string {
+function formatErrorValue(value: unknown, depth = 0): string {
   if (value instanceof AggregateError) {
-    const sub = value.errors.map(formatErrorValue).join('; ');
+    const sub = value.errors.map((e: unknown) => formatErrorValue(e, depth + 1)).join('; ');
     return sub ? `${value.message || 'AggregateError'}: ${sub}` : (value.message || 'AggregateError');
   }
   if (value instanceof Error) {
+    const cause = (value as { cause?: unknown }).cause;
+    if (cause !== undefined && depth < MAX_CAUSE_DEPTH) {
+      return `${value.message} (${formatErrorValue(cause, depth + 1)})`;
+    }
     return value.message;
   }
   return String(value);
@@ -97,11 +105,7 @@ export function errorToMessage(error: unknown): string {
     // previously dropped, making every network error indistinguishable in
     // logs. cause can itself be an Error (including AggregateError) or an
     // arbitrary value.
-    const cause = (error as { cause?: unknown }).cause;
-    if (cause !== undefined) {
-      return `${error.message} (${formatErrorValue(cause)})`;
-    }
-    return error.message;
+    return formatErrorValue(error);
   }
   return String(error);
 }
