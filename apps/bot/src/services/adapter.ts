@@ -717,10 +717,9 @@ export class WebAppAdapter implements TrackerAdapter {
   async getActiveRoster(): Promise<{ characters: string[] }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster`, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) {
-      throw new Error('Unable to reach web app active-roster API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app active-roster API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app active-roster API failed (${resp.status})`);
     }
@@ -731,10 +730,9 @@ export class WebAppAdapter implements TrackerAdapter {
   async getActiveRosterWithIds(): Promise<{ characters: Array<{ name: string; discordId: string | null }> }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster?includeDiscordIds=1`, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) {
-      throw new Error('Unable to reach web app active-roster API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app active-roster API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app active-roster API failed (${resp.status})`);
     }
@@ -745,8 +743,9 @@ export class WebAppAdapter implements TrackerAdapter {
   async getActiveRosterWithChannelIds(): Promise<{ characters: Array<{ name: string; ticketChannelId: string | null }> }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/active-roster?includeChannelIds=1`, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) throw new Error('Unable to reach web app active-roster API.');
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app active-roster API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Web app active-roster API failed (${resp.status})`);
     const raw = await resp.json();
     return activeRosterWithChannelIdsSchema.parse(raw);
@@ -755,8 +754,9 @@ export class WebAppAdapter implements TrackerAdapter {
   async getPendingRetirementJobs(): Promise<{ jobs: Array<{ id: number; characterName: string; cubbyChannelId: string | null; requestedAt: string | null; nextRetryAt: string | null }> }> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/retirement-automation/pending`, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) throw new Error('Unable to reach retirement automation API.');
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach retirement automation API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Retirement automation API failed (${resp.status})`);
     const raw = await resp.json();
     return pendingRetirementJobsSchema.parse(raw);
@@ -773,8 +773,9 @@ export class WebAppAdapter implements TrackerAdapter {
         headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-    ).catch(() => null);
-    if (!resp) throw new Error('Unable to reach retirement completion API.');
+    ).catch((err: unknown) => {
+      throw new Error('Unable to reach retirement completion API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Retirement completion API failed (${resp.status})`);
   }
 
@@ -786,8 +787,9 @@ export class WebAppAdapter implements TrackerAdapter {
         headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-    ).catch(() => null);
-    if (!resp) throw new Error('Unable to reach retirement failure API.');
+    ).catch((err: unknown) => {
+      throw new Error('Unable to reach retirement failure API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Retirement failure API failed (${resp.status})`);
     retirementJobFailureSchema.parse(await resp.json());
   }
@@ -800,8 +802,9 @@ export class WebAppAdapter implements TrackerAdapter {
         headers: { ...this.writeAuthHeaders(), 'Content-Type': 'application/json' },
         body: '{}',
       },
-    ).catch(() => null);
-    if (!resp) throw new Error('Unable to reach retirement wiki batch API.');
+    ).catch((err: unknown) => {
+      throw new Error('Unable to reach retirement wiki batch API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Retirement wiki batch API failed (${resp.status})`);
     const raw = await resp.json();
     return retirementWikiBatchRequestSchema.parse(raw);
@@ -933,10 +936,9 @@ export class WebAppAdapter implements TrackerAdapter {
   async getClaimReminderTargets(): Promise<ClaimReminderSnapshot> {
     const resp = await this.fetchWithTimeout(`${this.baseUrl}/api/meta/claim-reminder-targets`, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) {
-      throw new Error('Unable to reach web app claim-reminder-targets API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app claim-reminder-targets API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app claim-reminder-targets API failed (${resp.status})`);
     }
@@ -964,11 +966,9 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/submission-events${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-
-    if (!resp) {
-      throw new Error('Unable to reach web app submission-events API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app submission-events API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app submission-events API failed (${resp.status})`);
     }
@@ -993,11 +993,9 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/cc/submitted-drafts${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-
-    if (!resp) {
-      throw new Error('Unable to reach web app cc/submitted-drafts API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app cc/submitted-drafts API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app cc/submitted-drafts API failed (${resp.status})`);
     }
@@ -1021,11 +1019,9 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/cc/pending-sheet-imports${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-
-    if (!resp) {
-      throw new Error('Unable to reach web app cc/pending-sheet-imports API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app cc/pending-sheet-imports API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app cc/pending-sheet-imports API failed (${resp.status})`);
     }
@@ -1049,8 +1045,9 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/cc/approved-drafts${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-    if (!resp) throw new Error('Unable to reach web app cc/approved-drafts API.');
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app cc/approved-drafts API.', { cause: err });
+    });
     if (!resp.ok) throw new Error(`Web app cc/approved-drafts API failed (${resp.status})`);
     const raw = await resp.json();
     const parsed = ccApprovedDraftsSchema.parse(raw);
@@ -1077,11 +1074,9 @@ export class WebAppAdapter implements TrackerAdapter {
     const url = `${this.baseUrl}/api/review-events${query ? `?${query}` : ''}`;
     const resp = await this.fetchWithTimeout(url, {
       headers: this.readAuthHeaders(),
-    }).catch(() => null);
-
-    if (!resp) {
-      throw new Error('Unable to reach web app review-events API.');
-    }
+    }).catch((err: unknown) => {
+      throw new Error('Unable to reach web app review-events API.', { cause: err });
+    });
     if (!resp.ok) {
       throw new Error(`Web app review-events API failed (${resp.status})`);
     }

@@ -60,4 +60,25 @@ describe('errorToMessage', () => {
     const err = new Error('fetch failed', { cause: aggregate });
     expect(errorToMessage(err)).toBe('fetch failed (nothing to report)');
   });
+
+  it('follows a nested cause chain', () => {
+    // The adapter wraps fetch's TypeError in its own "Unable to reach …"
+    // error. Without recursion the log stopped at "fetch failed" and lost
+    // the DNS/connect reason underneath it.
+    const aggregate = new AggregateError(
+      [new Error('connect ETIMEDOUT 142.251.163.121:443'), new Error('connect ENETUNREACH 2607:f8b0::79:443')],
+      '',
+    );
+    const fetchErr = new Error('fetch failed', { cause: aggregate });
+    const err = new Error('Unable to reach retirement automation API.', { cause: fetchErr });
+    expect(errorToMessage(err)).toBe(
+      'Unable to reach retirement automation API. (fetch failed (AggregateError: connect ETIMEDOUT 142.251.163.121:443; connect ENETUNREACH 2607:f8b0::79:443))',
+    );
+  });
+
+  it('stops on a self-referencing cause instead of looping forever', () => {
+    const err = new Error('loop');
+    (err as { cause?: unknown }).cause = err;
+    expect(errorToMessage(err)).toMatch(/^loop \(loop/);
+  });
 });
