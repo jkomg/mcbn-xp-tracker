@@ -349,12 +349,11 @@ class DbCharacterBackground(db.Model):
     dots_total = db.Column(Integer, nullable=False, default=0)
     # Blank state lives in character_background_blanks, one row per act of
     # blanking, so two blanks taken on different nights each return on their
-    # own night. The table still has dots_blanked, blanked_at_night_number and
+    # own night. The old dots_blanked, blanked_at_night_number and
     # release_night_number columns (and ix_character_backgrounds_release_night)
-    # from before that; they are deliberately unmapped, no longer maintained, and
-    # dropped by a follow-up migration once no deployed revision maps them. Do
-    # not map them again: the properties below are the only readers, and a
-    # stored total is an unenforced pairing that drifts.
+    # were dropped by migration 2b3c4d5e6f7a. Do not add them back: the
+    # properties below are the only readers, and a stored total is an
+    # unenforced pairing that drifts.
     updated_at = db.Column(String(20), nullable=False, default='')
     updated_by = db.Column(String(100), nullable=False, default='')
     # Set when this background has been donated to a coterie pool.
