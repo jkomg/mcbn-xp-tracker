@@ -41,8 +41,9 @@
   release happens only in the two-minute release worker.
 - `dots_blanked`, `release_night_number` (the next return) and
   `blanked_at_night_number` are now read-only properties derived from the
-  outstanding blanks. The old columns stay in the table, unmapped, until
-  `openspec/changes/drop-legacy-blank-columns/` drops them.
+  outstanding blanks. The old columns stayed in the table, unmapped, until
+  migration `2b3c4d5e6f7a` dropped them (#446; see
+  `openspec/changes/archive/2026-10-09-drop-legacy-blank-columns/`).
 - The rating bound is enforced inside the insert, so two coterie members blanking
   the last dot at once cannot both succeed. A write conflict is retried; if it
   persists the player is told to try again, not that no dots are available.
