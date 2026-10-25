@@ -211,17 +211,12 @@ you were editing for.
 - **Blank state has exactly one authority: `character_background_blanks`**, one
   row per act of blanking. `DbCharacterBackground.dots_blanked`,
   `release_night_number` and `blanked_at_night_number` are read-only properties
-  derived from its outstanding rows. The `character_backgrounds` table still has
-  columns of those names until a follow-up migration drops them
-  (`openspec/changes/drop-legacy-blank-columns/`); they are unmapped and stale.
-  Never map them again or store a blanked total anywhere: a stored total is an
-  unenforced pairing, and that is how this repo's blanking bugs happened. Take a
-  blank with `blank_character_background` (its insert carries the rating bound),
-  lower a rating through `trim_blanks_to_rating`, end a donation with
-  `discard_outstanding_blanks`. Until that follow-up ships, **`flask db migrate`
-  will propose dropping those columns and their index** — delete that from any
-  generated migration; dropping them early breaks the revision still serving
-  during a deploy.
+  derived from its outstanding rows. The same-named table columns were dropped
+  by migration `2b3c4d5e6f7a` (#446). Never add them back or store a blanked
+  total anywhere: a stored total is an unenforced pairing, and that is how this
+  repo's blanking bugs happened. Take a blank with `blank_character_background`
+  (its insert carries the rating bound), lower a rating through
+  `trim_blanks_to_rating`, end a donation with `discard_outstanding_blanks`.
 - **"Current night" means two different things, and they diverge.**
   `_current_open_night()` resolves it from `submissions_open`/`active` flags, which
   staff routinely switch on days before the night begins; `game_calendar` holds the
