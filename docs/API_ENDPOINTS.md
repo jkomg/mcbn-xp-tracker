@@ -47,6 +47,22 @@ Same fields as above but in the JSON body.
 
 ---
 
+## Database unavailable (any endpoint)
+
+When Turso can't be reached (a timeout, a dropped connection, or a 502/503/504
+from its edge), any endpoint that touches the database answers:
+
+```
+HTTP 503
+Retry-After: 30
+{"ok": false, "error": "db_unavailable"}
+```
+
+Nothing was written, so retry on the next poll. Errors where Turso answered and
+rejected the SQL are still 500s. Read queries outside a transaction are retried
+once on a dropped connection before this is returned; timeouts and writes are
+not retried. See `apps/web/app/db_errors.py` and `apps/web/app/turso_http.py`.
+
 ## GET /api/health
 
 No authentication required. Liveness check.

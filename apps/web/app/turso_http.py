@@ -17,6 +17,25 @@ apilevel = '2.0'
 threadsafety = 1
 paramstyle = 'qmark'
 
+# Gateway errors Turso's edge returns while a region is degraded. Anything else
+# 4xx/5xx is a request Turso understood and refused, which a retry won't fix.
+_UNAVAILABLE_HTTP_STATUSES = frozenset({502, 503, 504})
+
+
+class TursoUnavailableError(sqlite3.OperationalError):
+    """Turso could not be reached or did not answer, as opposed to rejecting the SQL.
+
+    Subclasses OperationalError so existing handlers keep catching it;
+    app/db_errors.py turns it into a 503 instead of an unhandled 500.
+    """
+
+
+def _is_dropped_connection(exc: BaseException) -> bool:
+    """The server closed the connection without answering (not a timeout)."""
+    if isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, BaseException):
+        exc = exc.reason
+    return isinstance(exc, ConnectionResetError)
+
 
 class TursoCursor:
     def __init__(self, conn: 'TursoConnection'):
@@ -81,7 +100,11 @@ class TursoCursor:
             # Auto-commit mode — include close for a clean single-shot request.
             requests = [{'type': 'execute', 'stmt': stmt}, {'type': 'close'}]
 
-        results = self._conn._post(requests)
+        # Only an auto-commit read is safe to send twice: a write may have landed
+        # before the connection dropped, and a mid-transaction statement belongs
+        # to a baton the failed request may have already consumed.
+        retry_on_drop = not in_tx and first_word == 'SELECT'
+        results = self._conn._post(requests, retry_on_drop=retry_on_drop)
         result = results[0]
         if result['type'] == 'error':
             msg = result.get('error', {}).get('message', 'unknown error')
@@ -138,7 +161,15 @@ class TursoConnection:
         }
         self._baton: Optional[str] = None
 
-    def _post(self, requests: list) -> list:
+    def _post(self, requests: list, retry_on_drop: bool = False) -> list:
+        try:
+            return self._post_once(requests)
+        except TursoUnavailableError as exc:
+            if not (retry_on_drop and _is_dropped_connection(exc.__cause__)):
+                raise
+        return self._post_once(requests)
+
+    def _post_once(self, requests: list) -> list:
         body: dict = {'requests': requests}
         if self._baton:
             body['baton'] = self._baton
@@ -154,9 +185,13 @@ class TursoConnection:
                 resp_body = json.loads(resp.read())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors='replace')
-            raise sqlite3.OperationalError(f'Turso HTTP {exc.code}: {detail}') from exc
+            error_cls = (
+                TursoUnavailableError if exc.code in _UNAVAILABLE_HTTP_STATUSES
+                else sqlite3.OperationalError
+            )
+            raise error_cls(f'Turso HTTP {exc.code}: {detail}') from exc
         except (urllib.error.URLError, http.client.HTTPException, OSError) as exc:
-            raise sqlite3.OperationalError(f'Turso connection error: {exc}') from exc
+            raise TursoUnavailableError(f'Turso connection error: {exc}') from exc
         # Baton is present while a transaction is open; absent (or None) once closed.
         self._baton = resp_body.get('baton')
         return resp_body['results']

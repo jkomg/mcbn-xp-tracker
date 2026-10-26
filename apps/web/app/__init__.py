@@ -320,6 +320,10 @@ def create_app():
         # Let HTTPException (404, 403, abort() calls, etc.) pass through unchanged
         if isinstance(exc, HTTPException):
             return exc
+        from .db_errors import db_unavailable_response
+        unavailable = db_unavailable_response(exc)
+        if unavailable is not None:
+            return unavailable
         from .db import AppLogEntry, db as _db
         from .discord_alert import send_escalation_alert, check_escalation, dashboard_link
         message = f'{type(exc).__name__}: {exc}'
