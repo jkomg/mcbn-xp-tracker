@@ -4,8 +4,12 @@ A Turso outage fails whatever request touches the database at that moment, and
 the generic handler in app/__init__.py records each one as an unhandled
 exception and escalates it to Discord. None of that is actionable: callers
 retry (the bot polls again next cycle), and the AppLogEntry write it attempts
-fails during the same outage anyway. Errors where Turso answered and refused
-the SQL get None here and still go through the generic handler.
+fails during the same outage anyway.
+
+Two kinds get None here and still go through the generic handler as an
+alerting 500: errors where Turso answered and refused the SQL, and failures
+where a write may have been applied before the answer was lost. A caller that
+retries the second kind can apply it twice, so staff need to see it.
 """
 from typing import Optional
 
@@ -22,6 +26,8 @@ RETRY_AFTER_SECONDS = 30
 def db_unavailable_response(exc: BaseException) -> Optional[Response]:
     """A 503 for a Turso outage, or None for any other exception."""
     if not (isinstance(exc, OperationalError) and isinstance(exc.orig, TursoUnavailableError)):
+        return None
+    if exc.orig.may_have_applied:
         return None
     try:
         db.session.rollback()

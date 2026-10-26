@@ -145,10 +145,65 @@ def test_timeouts_are_not_retried(monkeypatch):
     assert len(calls) == 1
 
 
+# ── Could the failed request have been applied? ──────────────────────────────
+
+def _failure(monkeypatch, exc, sql, baton=None):
+    _scripted_urlopen(monkeypatch, [exc, exc])
+    conn = turso_http.connect('https://db', auth_token='t')
+    conn._baton = baton
+    with pytest.raises(TursoUnavailableError) as info:
+        conn.cursor().execute(sql)
+    return info.value
+
+
+_DROPPED = http.client.RemoteDisconnected('Remote end closed connection without response')
+_READ_TIMEOUT = TimeoutError('The read operation timed out')
+_CONNECT_FAILED = urllib.error.URLError(OSError('getaddrinfo failed'))
+
+
+@pytest.mark.parametrize('exc', [_DROPPED, _READ_TIMEOUT, _http_error(504)])
+def test_autocommit_write_that_reached_turso_may_have_applied(monkeypatch, exc):
+    assert _failure(monkeypatch, exc, 'UPDATE t SET x = 1').may_have_applied is True
+
+
+def test_commit_that_reached_turso_may_have_applied(monkeypatch):
+    assert _failure(monkeypatch, _DROPPED, 'COMMIT', baton='tx').may_have_applied is True
+
+
+def test_connection_commit_that_reached_turso_may_have_applied(monkeypatch):
+    # SQLAlchemy commits through the connection, not cursor.execute('COMMIT').
+    _scripted_urlopen(monkeypatch, [_DROPPED])
+    conn = turso_http.connect('https://db', auth_token='t')
+    conn._baton = 'tx'
+    with pytest.raises(TursoUnavailableError) as info:
+        conn.commit()
+    assert info.value.may_have_applied is True
+
+
+def test_write_that_never_reached_turso_was_not_applied(monkeypatch):
+    # urllib wraps connect/send failures in URLError: the request was never delivered.
+    assert _failure(monkeypatch, _CONNECT_FAILED, 'UPDATE t SET x = 1').may_have_applied is False
+
+
+@pytest.mark.parametrize('sql,baton', [
+    ('SELECT 1', None),
+    ('BEGIN', None),
+    ('UPDATE t SET x = 1', 'tx'),  # uncommitted: Turso discards it with the baton
+])
+def test_reads_and_uncommitted_statements_were_not_applied(monkeypatch, sql, baton):
+    assert _failure(monkeypatch, _DROPPED, sql, baton=baton).may_have_applied is False
+
+
 # ── 503 handler ───────────────────────────────────────────────────────────────
 
 def _wrapped(orig):
     return OperationalError('SELECT 1', {}, orig)
+
+
+def _read_outage():
+    orig = TursoUnavailableError('Turso connection error: x')
+    orig.may_have_applied = False
+    return _wrapped(orig)
 
 
 @pytest.fixture
@@ -180,7 +235,7 @@ def _add_raising_routes(application, exc):
 
 
 def test_api_route_answers_503_json_when_turso_unavailable(real_app):
-    _add_raising_routes(real_app, _wrapped(TursoUnavailableError('Turso connection error: x')))
+    _add_raising_routes(real_app, _read_outage())
     with patch('app.discord_alert.check_escalation') as escalation:
         res = real_app.test_client().get('/api/_test_raise')
     assert res.status_code == 503
@@ -193,7 +248,7 @@ def test_api_route_answers_503_json_when_turso_unavailable(real_app):
 
 
 def test_page_answers_503_when_turso_unavailable(real_app):
-    _add_raising_routes(real_app, _wrapped(TursoUnavailableError('Turso connection error: x')))
+    _add_raising_routes(real_app, _read_outage())
     res = real_app.test_client().get('/_test_raise')
     assert res.status_code == 503
     assert b'database' in res.data.lower()
@@ -201,6 +256,18 @@ def test_page_answers_503_when_turso_unavailable(real_app):
 
 def test_other_operational_errors_are_still_unhandled_500s(real_app):
     _add_raising_routes(real_app, _wrapped(sqlite3.OperationalError('Turso: no such table: t')))
+    res = real_app.test_client().get('/api/_test_raise')
+    assert res.status_code == 500
+    with real_app.app_context():
+        from app.db import AppLogEntry
+        assert AppLogEntry.query.filter_by(event='unhandled_exception').count() == 1
+
+
+def test_write_that_may_have_applied_is_still_an_alerting_500(real_app):
+    # The caller may retry and double-apply it, so staff need to see it.
+    orig = TursoUnavailableError('Turso connection error: dropped')
+    orig.may_have_applied = True
+    _add_raising_routes(real_app, _wrapped(orig))
     res = real_app.test_client().get('/api/_test_raise')
     assert res.status_code == 500
     with real_app.app_context():

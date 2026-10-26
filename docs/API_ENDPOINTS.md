@@ -58,10 +58,18 @@ Retry-After: 30
 {"ok": false, "error": "db_unavailable"}
 ```
 
-Nothing was written, so retry on the next poll. Errors where Turso answered and
-rejected the SQL are still 500s. Read queries outside a transaction are retried
-once on a dropped connection before this is returned; timeouts and writes are
-not retried. See `apps/web/app/db_errors.py` and `apps/web/app/turso_http.py`.
+A 503 means nothing was committed, so it is safe to retry on the next poll. It
+is only returned when the failed request was a read, a statement inside a
+transaction that never committed, or a request that never reached Turso.
+
+A write or `COMMIT` that reached Turso and then lost its answer may have been
+applied, so it stays a 500 and still alerts: retrying a non-idempotent write
+(for example `/api/discord-activity/record`, which adds counts) can apply it
+twice. Errors where Turso answered and rejected the SQL are also still 500s.
+
+Read queries outside a transaction are retried once on a dropped connection
+before any of this; timeouts and writes are not retried. See
+`apps/web/app/db_errors.py` and `apps/web/app/turso_http.py`.
 
 ## GET /api/health
 
