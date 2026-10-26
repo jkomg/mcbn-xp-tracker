@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-10-26] Turso Outages Answer 503 and Retry Dropped Reads
+
+On 2026-10-26 from 15:38 UTC, Turso's AWS us-east-1 region (where both the prod
+and dev databases live) dropped or timed out about 15-20% of queries. Each one
+surfaced as an unhandled 500 and a recurring
+`web:unhandled_exception:OperationalError:<route>` alert, one per route.
+
+- **503, not 500, when nothing was committed.** When Turso can't be reached (a
+  timeout, a dropped connection, or a 502/503/504) and the failed request was a
+  read, an uncommitted statement, or never reached Turso, the route answers 503
+  with `Retry-After: 30`; API routes return
+  `{"ok": false, "error": "db_unavailable"}`. These are logged as a warning in
+  Cloud Logging and no longer written to Error Alerts or escalated to Discord.
+- **Writes that may have landed still alert.** A write or `COMMIT` that reached
+  Turso and lost its answer may have been applied, and a retrying caller can
+  apply it twice (`/api/discord-activity/record` adds counts). Those stay an
+  alerting 500, as do errors where Turso rejected the SQL.
+- **One retry for dropped reads.** A `SELECT` outside a transaction that loses its
+  connection ("Remote end closed connection without response") is sent once more.
+  Writes are not retried, since Turso may have applied them before the
+  connection dropped. Timeouts are not retried either: each already waited 30s.
+- The bot treats every 5xx alike, so it needs no change.
+- Tests: [`apps/web/tests/test_turso_unavailable.py`](apps/web/tests/test_turso_unavailable.py),
+  through `create_app()` for the 503s.
+
+---
+
 ## [2026-10-24] Clean Reconcile Runs No Longer Show as Sheets Sync Errors
 
 ### Error Alerts Page
