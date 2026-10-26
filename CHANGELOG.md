@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-10-26] Deploys Retry a Revision That Fails Its Startup Probe
+
+- The dev deploy of #452 failed because Turso's us-east-1 degradation outlasted
+  the ~5 minutes Cloud Run spends restarting a revision whose startup migrations
+  can't reach the database. Both web deploy workflows now run `gcloud run deploy`
+  through [`scripts/cloud-run-deploy-retry.sh`](scripts/cloud-run-deploy-retry.sh),
+  which retries up to 3 times, 2 minutes apart, so an outage of up to ~15 minutes
+  no longer fails the deploy. Only the startup-probe failure is retried; any other
+  deploy error fails immediately.
+- Job `timeout-minutes` goes from 20 to 35 to fit the worst case.
+
+---
+
 ## [2026-10-26] Turso Outages Answer 503 and Retry Dropped Reads
 
 On 2026-10-26 from 15:38 UTC, Turso's AWS us-east-1 region (where both the prod
