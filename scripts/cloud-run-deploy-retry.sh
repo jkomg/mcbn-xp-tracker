@@ -25,7 +25,10 @@ for attempt in $(seq 1 "$attempts"); do
   if "$@" 2>&1 | tee "$log"; then
     exit 0
   fi
-  if ! grep -q 'failed the configured startup probe' "$log"; then
+  # gcloud wraps long errors, so the phrase can be split across lines; squeeze
+  # all whitespace before matching. No -q: under pipefail, grep exiting early
+  # could SIGPIPE tr and turn a match into a miss.
+  if ! tr -s '[:space:]' ' ' < "$log" | grep 'failed the configured startup probe' > /dev/null; then
     echo "Deploy failed for a reason other than the startup probe; not retrying."
     exit 1
   fi
