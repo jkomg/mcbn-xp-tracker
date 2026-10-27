@@ -369,4 +369,6 @@ throughout, and it is the reason the traps above are known.
   things are the way they are
 - [docs/MONOREPO_ARCHITECTURE.md](docs/MONOREPO_ARCHITECTURE.md) — system boundaries
 - [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md) — bot-facing API reference
+- [docs/RUN_LOCAL_FROM_BACKUP.md](docs/RUN_LOCAL_FROM_BACKUP.md) — run the web app
+  against last night's Turso dump, e.g. during a Turso outage
 - [CLAUDE.md](CLAUDE.md) — the same ground, oriented toward Claude Code sessions
