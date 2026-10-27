@@ -18,7 +18,9 @@ jobs:
   deploy-dev:
     name: Build & Deploy (Dev)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Build (~5 min) plus up to three deploy attempts of ~5 min each, with two
+    # 2-min pauses between them (scripts/cloud-run-deploy-retry.sh).
+    timeout-minutes: 35
     if: |
       github.repository == 'jkomg/mcbn-xp-tracker' && (
         github.event_name == 'workflow_dispatch' ||
@@ -39,6 +41,18 @@ jobs:
           else
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
+
+      # workflow_run may deploy an application SHA older than this helper.
+      # Preserve tooling from the workflow commit before selecting app source.
+      - name: Checkout workflow helper
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          sparse-checkout: scripts/cloud-run-deploy-retry.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Preserve deploy helper
+        run: install -m 755 scripts/cloud-run-deploy-retry.sh "$RUNNER_TEMP/cloud-run-deploy-retry.sh"
 
       - name: Checkout
         uses: actions/checkout@v7
@@ -74,8 +88,10 @@ jobs:
           docker push ${{ env.REGISTRY }}:dev
 
       - name: Deploy to dev Cloud Run service
+        # Retries when the revision fails its startup probe, e.g. Turso is
+        # unreachable during startup migrations. See the script for why.
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          "$RUNNER_TEMP/cloud-run-deploy-retry.sh" gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ env.REGISTRY }}:${{ steps.sha.outputs.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
