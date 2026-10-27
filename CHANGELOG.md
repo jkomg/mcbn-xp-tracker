@@ -10,6 +10,9 @@
   no longer fails the deploy. Only the startup-probe failure is retried; any other
   deploy error fails immediately.
 - Job `timeout-minutes` goes from 20 to 35 to fit the worst case.
+- The retry helper comes from the workflow commit and is preserved before
+  checking out the application, so dev workflow runs can deploy older feature
+  branch commits even when their source predates the helper.
 
 ---
 
