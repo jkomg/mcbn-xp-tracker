@@ -135,6 +135,7 @@ Log retention env vars: `BOT_LOG_MAX_SIZE` (default `25m`), `BOT_LOG_MAX_FILE` (
 | `bot-test-and-lint` | `apps/bot/**`, `packages/**` |
 | `contract-tests` | `packages/api-contract/**`, `packages/rules/**` |
 | `docker-and-docs-hygiene` | compose files, `scripts/bootstrap-local.sh`, `docs/**`, `README.md` |
+| `deploy-workflow-tests` | `deploy-web*.yml`, `scripts/cloud-run-deploy-retry.sh`, `scripts/test-deploy-workflow-helper.rb` |
 
 The `docker-and-docs-hygiene` job validates all compose files and smoke-starts the web Docker profile.
 
