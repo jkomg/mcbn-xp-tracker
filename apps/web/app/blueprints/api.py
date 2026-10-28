@@ -1410,7 +1410,7 @@ def bot_log():
         # rather than count (discord_alert.SUSTAINED_FAILURE_MINUTES), so a
         # network blip neither pages nor counts toward the same event's real
         # failures (a 500) reaching the threshold.
-        network = is_network_failure(msg)
+        network = is_network_failure(msg, context.get('status'))
         if network:
             dedupe_key = f'{dedupe_key}:network'
         row = AppLogEntry(

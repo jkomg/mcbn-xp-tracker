@@ -57,8 +57,18 @@ _NETWORK_FAILURE_RE = re.compile(
 )
 
 
-def is_network_failure(message: str) -> bool:
-    """True for a bot message saying it could not get an answer from the web app."""
+_NETWORK_FAILURE_STATUSES = frozenset({502, 503, 504, *range(520, 527)})
+
+
+def is_network_failure(message: str, status: object = None) -> bool:
+    """True for a bot entry saying it could not get an answer from the web app.
+
+    *status* is the entry's own HTTP status field, for events that log only that
+    (the bot's web_api_post_failed carries {path, status, bodyPreview} and no
+    message).
+    """
+    if isinstance(status, int) and not isinstance(status, bool) and status in _NETWORK_FAILURE_STATUSES:
+        return True
     return bool(message) and bool(_NETWORK_FAILURE_RE.search(message))
 
 

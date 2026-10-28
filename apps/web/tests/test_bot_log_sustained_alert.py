@@ -198,3 +198,28 @@ def test_a_concurrent_batch_for_the_same_key_cannot_hide_a_threshold_crossing():
     with app.app_context():
         assert check_escalation(key, new_ids=a_ids) == ESCALATION_THRESHOLD
         assert check_escalation(key, new_ids=b_ids) is None
+
+
+def _post_failed(minute: float, status: int):
+    """The bot's generic POST helper: status only, no error/reason/message."""
+    ts = (T0 + timedelta(minutes=minute)).isoformat().replace('+00:00', 'Z')
+    return {'ts': ts, 'level': 'warn', 'event': 'web_api_post_failed',
+            'path': '/api/spend', 'status': status, 'bodyPreview': '<html>',
+            'entryId': f'uid-{next(_uids)}'}
+
+
+def test_a_status_only_gateway_failure_is_a_network_failure():
+    app = _app()
+    batch = [_post_failed(m, 502) for m in range(ESCALATION_THRESHOLD + 2)]
+    assert _webhook_posts(app, [batch]) == []
+    with app.app_context():
+        keys = {row.dedupe_key for row in db.session.query(AppLogEntry).all()}
+    assert keys == {'bot:web_api_post_failed:network'}
+
+
+def test_a_status_only_500_keeps_the_count_rule():
+    app = _app()
+    batch = [_post_failed(m, 500) for m in range(ESCALATION_THRESHOLD)]
+    posts = _webhook_posts(app, [batch])
+    assert len(posts) == 1
+    assert 'Recurring issue' in posts[0]
