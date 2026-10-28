@@ -46,7 +46,10 @@ FAILURE_EPISODE_GAP_MINUTES = 10
 SUSTAINED_FAILURE_MINUTES = 15
 
 _NETWORK_FAILURE_RE = re.compile(
-    r'fetch failed|operation was aborted|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET'
+    # undici's own "fetch failed", bare or as a wrapped cause -- not the bot's
+    # "bot-config fetch failed: 500", which is an answer, and the app's bug.
+    r'(?:^|\(|TypeError: )fetch failed(?!:?\s*\d)'
+    r'|operation was aborted|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET'
     r'|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|other side closed|Connect Timeout'
     r'|socket hang up'
     r'|failed:? \(?(?:50[234]|52[0-6])\b',
@@ -127,6 +130,18 @@ def _episode(times: list[datetime]) -> list[datetime]:
     return times[start:]
 
 
+def _longest_run(times: list[datetime]) -> timedelta:
+    """The longest span among the runs of *times* (sorted) split at long gaps."""
+    gap = timedelta(minutes=FAILURE_EPISODE_GAP_MINUTES)
+    longest = timedelta(0)
+    run_start = 0
+    for i in range(1, len(times) + 1):
+        if i == len(times) or times[i] - times[i - 1] > gap:
+            longest = max(longest, times[i - 1] - times[run_start])
+            run_start = i
+    return longest
+
+
 def check_sustained(dedupe_key: str, new_occurrences: int = 1) -> int | None:
     """Minutes the current failure stretch for *dedupe_key* has lasted, if the
     newest *new_occurrences* rows just carried it past SUSTAINED_FAILURE_MINUTES.
@@ -137,7 +152,9 @@ def check_sustained(dedupe_key: str, new_occurrences: int = 1) -> int | None:
     are the highest ids, as /api/bot-log commits a batch before checking it.
 
     Fires once per stretch: the rows before this batch must not already have
-    reached the threshold within the same stretch. Best-effort, like
+    reached the threshold within the same stretch on their own. Judged on those
+    rows alone, so a late batch that joins two short stretches into one long
+    one still pages. Best-effort, like
     check_escalation.
     """
     if not dedupe_key or new_occurrences <= 0:
@@ -166,7 +183,7 @@ def check_sustained(dedupe_key: str, new_occurrences: int = 1) -> int | None:
     if span < threshold:
         return None
     earlier = [t for t, row_id in stamped if row_id not in new_ids and t >= start]
-    if earlier and max(earlier) - start >= threshold:
+    if earlier and _longest_run(sorted(earlier)) >= threshold:
         return None
     return int(span.total_seconds() // 60)
 

@@ -70,6 +70,7 @@ def _webhook_posts(app, batches):
     'connect ETIMEDOUT 172.67.166.167:443))',
     'heartbeat POST failed: 520',
     'Web app review-events API failed (525)',
+    'TypeError: fetch failed',
     'bot-config fetch failed: 503',
     'fetch failed (other side closed)',
 ])
@@ -79,6 +80,8 @@ def test_network_failures_are_recognised(message):
 
 @pytest.mark.parametrize('message', [
     'heartbeat POST failed: 500',
+    'bot-config fetch failed: 500',
+    'Pins fetch failed for #lore',
     'Web app cc/pending-sheet-imports API failed (500)',
     'no channel',
     '',
@@ -154,3 +157,16 @@ def test_app_errors_still_page_on_the_count_rule():
     posts = _webhook_posts(app, [app_errors])
     assert len(posts) == 1
     assert 'Recurring issue' in posts[0]
+
+
+def test_a_late_batch_joining_two_short_stretches_pages():
+    """Neither stretch alone reached the threshold, so nothing has paged yet."""
+    app = _app()
+    short = SUSTAINED_FAILURE_MINUTES - 3
+    gap_start = short + 1
+    second_start = gap_start + FAILURE_EPISODE_GAP_MINUTES + 5
+    first = [[_entry(m)] for m in range(short)]
+    second = [[_entry(second_start + m)] for m in range(short)]
+    bridge = [[_entry(m) for m in range(gap_start, second_start, 5)]]
+    assert _webhook_posts(app, first + second) == []
+    assert len(_webhook_posts(app, bridge)) == 1
