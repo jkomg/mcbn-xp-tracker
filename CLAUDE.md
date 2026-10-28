@@ -18,7 +18,7 @@ mcbn-xp-tracker/
     api-contract/ # Shared request/response schemas and enums
     rules/        # Shared XP/spend formulas and fixtures
   infra/
-    ursula/       # Bot host: agents, dashboard, failover (Cloud Run config lives in CI)
+    ursula/       # Former bot host (pre-2026-08): agents, dashboard, failover — historical
     bot-hosting/  # systemd / launchd unit templates for the bot
     web-hosting/  # launchd template for a local dev web instance
   docs/           # Runbooks, architecture, release notes
@@ -102,17 +102,26 @@ Current deployment topology: production web runs on Cloud Run service
 `mcbn-xp-tracker-dev` at `dev.mcbn.jkomg.us`. Both use Turso, with separate production
 and dev databases/credentials.
 
-The Discord bot moved off Ursula on 2026-08-28 and now runs on a k0s cluster
-(`bots` namespace, node lm-node), managed by Argo CD from the `home-automation`
-repo — `cluster/k0s/apps/lasombra-bot/`. Images are pinned there by commit SHA,
-so `build-bot-image.yml` publishes `ghcr.io/jkomg/lasombra-bot:<sha7>` and a
-commit to that repo is what actually deploys it. Nothing in this repo can restart
-the bot, deliberately: one mechanism owns what runs, and it is Argo.
+The Discord bot runs in Docker Compose (OrbStack) on **miniplex** (macOS,
+192.168.0.42), container `bots-lasombra-bot-1`, alongside the dev bot
+`bots-zapathasura-1`. It is defined in the `home-automation` repo at
+`compose/bots/compose.yaml` (non-secret env in `compose/bots/lasombra-bot.env`,
+secrets in `~/.gitops/env/bots/lasombra-bot.secret.env` on the host, from
+`secrets/lasombra-bot.sops.yaml`) and applied by that repo's pull-based
+`scripts/reconcile.sh` via `stacks/stacks-miniplex.yaml`. Images are pinned there
+by commit SHA, so `build-bot-image.yml` publishes `ghcr.io/jkomg/lasombra-bot:<sha7>`
+and a commit bumping the tag in that compose file is what actually deploys it.
+Nothing in this repo can restart the bot, deliberately: one mechanism owns what
+runs, and it is the reconciler. Logs: `ssh jkomg@miniplex docker logs bots-lasombra-bot-1`.
 
-Stale references to watch for: `infra/ursula/failover/` describes a
-heartbeat-triggered failover bot on little-mac whose launchd job is no longer
-installed, and Kubernetes manifests under `apps/*/k8s/` predate the migration and
-are not what the cluster runs.
+History: Ursula until 2026-08-28, then k0s under Argo CD until 2026-10-25. The
+k0s Deployment (`cluster/k0s/apps/lasombra-bot/`) is still synced but held at
+`replicas: 0`; never scale it up — two copies of the token double-process every
+command.
+
+Stale references to watch for: `infra/ursula/` (including `failover/`, whose
+little-mac launchd job is no longer installed) describes the pre-2026-08 host, and
+Kubernetes manifests under `apps/*/k8s/` are not what anything runs.
 
 ## Bot Docker Audit Logs
 
