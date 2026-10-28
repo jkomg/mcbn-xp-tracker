@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import threading
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -37,28 +38,27 @@ def _ext_from_url(url: str) -> str:
     return ext if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp') else '.jpg'
 
 
-def mirror_to_gcs(
-    url: str,
-    slug: str,
-    bucket_name: str,
-    credentials_json: str = '',
-    credentials_file: str = '',
-    object_prefix: str = 'wiki-covers',
-) -> str:
-    """Download *url* from Discord CDN and upload to GCS. Returns the public GCS URL.
+_client_lock = threading.Lock()
+_clients: dict[tuple[str, str], object] = {}
 
-    Falls back to the original *url* on any error so the caller can still save.
+
+def _storage_client(credentials_json: str = '', credentials_file: str = ''):
+    """One storage.Client per credential set, per process.
+
+    A wiki sync posts a few hundred pages in a row, and building a fresh client
+    (and its HTTP session and connection pool) for every image is what pushed
+    prod over 512 MiB every morning: Cloud Run OOM-killed it daily ~09:00 UTC
+    from 2026-10-22 on, mid-sync.
     """
-    if not url or not is_discord_cdn_url(url):
-        return url
-
-    try:
-        import requests as _requests
+    key = (credentials_json, credentials_file)
+    with _client_lock:
+        client = _clients.get(key)
+        if client is not None:
+            return client
         from google.cloud import storage as _gcs
         from google.oauth2 import service_account as _sa
         import json as _json
 
-        # Build credentials
         scopes = ['https://www.googleapis.com/auth/devstorage.read_write']
         if credentials_json:
             info = _json.loads(credentials_json)
@@ -68,24 +68,57 @@ def mirror_to_gcs(
         else:
             # Fall back to application default credentials (works on Cloud Run)
             creds = None
-
         client = _gcs.Client(credentials=creds)
-        bucket = client.bucket(bucket_name)
+        _clients[key] = client
+        return client
 
-        # Download image
-        resp = _requests.get(url, timeout=30)
-        resp.raise_for_status()
-        content_type = resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
+
+def mirror_to_gcs(
+    url: str,
+    slug: str,
+    bucket_name: str,
+    credentials_json: str = '',
+    credentials_file: str = '',
+    object_prefix: str = 'wiki-covers',
+    skip_if_exists: bool = False,
+) -> str:
+    """Download *url* from Discord CDN and upload to GCS. Returns the public GCS URL.
+
+    With *skip_if_exists*, an object already at the target name is taken as this
+    image and nothing is downloaded. Only safe when the object name is derived
+    from the image itself (see _stable_image_key), not from the page.
+
+    Falls back to the original *url* on any error so the caller can still save.
+    """
+    if not url or not is_discord_cdn_url(url):
+        return url
+
+    try:
+        import requests as _requests
+
+        client = _storage_client(credentials_json, credentials_file)
+        bucket = client.bucket(bucket_name)
 
         ext = _ext_from_url(url)
         # Sanitize slug for use as an object name
         safe_slug = re.sub(r'[^a-z0-9\-_]', '-', slug.lower())
         object_name = f'{object_prefix}/{safe_slug}{ext}'
-
-        blob = bucket.blob(object_name)
-        blob.upload_from_string(resp.content, content_type=content_type)
-
         gcs_url = f'{_GCS_PUBLIC_BASE}/{bucket_name}/{object_name}'
+        blob = bucket.blob(object_name)
+
+        if skip_if_exists:
+            try:
+                if blob.exists():
+                    return gcs_url
+            except Exception as exc:
+                # Can't tell; upload as before rather than keep a dying CDN link.
+                logger.warning('GCS exists check failed for %s: %s', object_name, exc)
+
+        with _requests.get(url, timeout=30) as resp:
+            resp.raise_for_status()
+            content_type = resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
+            blob.upload_from_string(resp.content, content_type=content_type)
+
         logger.info('Mirrored %s → %s', url, gcs_url)
         return gcs_url
 
@@ -134,6 +167,7 @@ def mirror_markdown_images(markdown: str, slug: str, config) -> str:
             credentials_json=credentials_json,
             credentials_file=credentials_file,
             object_prefix=f'wiki-body/{re.sub(r"[^a-z0-9\-_]", "-", slug.lower())}',
+            skip_if_exists=True,
         )
         return f'![{alt}]({mirrored})'
 
@@ -152,10 +186,14 @@ def resolve_cover_url(url: str, slug: str, config) -> str:
     """
     if not url or not is_discord_cdn_url(url):
         return url
+    # Keyed by page and image, so a re-sync of an unchanged cover is one exists
+    # check instead of a download and upload, and a changed cover gets a new
+    # object rather than overwriting one a cached page may still show.
     return mirror_to_gcs(
         url=url,
-        slug=slug,
+        slug=f'{slug}-{_stable_image_key(url)}',
         bucket_name=config.get('GCS_BUCKET_NAME', 'mcbn-wiki-images'),
         credentials_json=config.get('GOOGLE_CREDENTIALS_JSON', ''),
         credentials_file=config.get('GOOGLE_CREDENTIALS_FILE', ''),
+        skip_if_exists=True,
     )

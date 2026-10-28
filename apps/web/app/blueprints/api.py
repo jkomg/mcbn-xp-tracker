@@ -1340,7 +1340,10 @@ def bot_log():
     """Bot forwards its warn/error log entries here for persistent storage."""
     from datetime import datetime, timezone
     from app.db import AppLogEntry, db
-    from app.discord_alert import send_escalation_alert, check_escalation, dashboard_link
+    from app.discord_alert import (
+        send_escalation_alert, send_sustained_alert, check_escalation, check_sustained,
+        dashboard_link, is_network_failure,
+    )
     from flask import current_app
     entries = request.get_json(silent=True) or []
     if not isinstance(entries, list):
@@ -1403,13 +1406,20 @@ def bot_log():
         # escalation tracking entirely (check_escalation treats '' as "skip").
         subject = str(context.get('characterName') or context.get('channelName') or '')
         dedupe_key = f'bot:{event}:{subject}' if subject else f'bot:{event}'
+        # Not reaching the web app at all is its own group, alerted on duration
+        # rather than count (discord_alert.SUSTAINED_FAILURE_MINUTES), so a
+        # network blip neither pages nor counts toward the same event's real
+        # failures (a 500) reaching the threshold.
+        network = is_network_failure(msg)
+        if network:
+            dedupe_key = f'{dedupe_key}:network'
         db.session.add(AppLogEntry(
             ts=ts, source='bot', level=level, event=event,
             message=msg[:2000], details=details[:4000], created_at=now,
             dedupe_key=dedupe_key, entry_uid=entry_uid,
         ))
         link = dashboard_link(redirect_uri, 'bot', level, event)
-        pending_escalation_checks.append((dedupe_key, msg, details, link))
+        pending_escalation_checks.append((dedupe_key, msg, details, link, network))
     db.session.commit()
     if webhook_url:
         # A batch can carry several rows sharing one dedupe_key (all committed
@@ -1422,13 +1432,22 @@ def bot_log():
         # still past the 5-occurrence mark). Last row's context wins for the
         # "most recent" framing in the alert.
         by_key = {}
-        for dedupe_key, msg, details, link in pending_escalation_checks:
+        for dedupe_key, msg, details, link, network in pending_escalation_checks:
             entry = by_key.setdefault(dedupe_key, {'n': 0})
             entry['n'] += 1
             entry['msg'] = msg
             entry['details'] = details
             entry['link'] = link
+            entry['network'] = network
         for dedupe_key, info in by_key.items():
+            if info['network']:
+                minutes = check_sustained(dedupe_key, new_occurrences=info['n'])
+                if minutes:
+                    send_sustained_alert(
+                        webhook_url, dedupe_key, minutes, info['msg'],
+                        details=info['details'], link=info['link'],
+                    )
+                continue
             count = check_escalation(dedupe_key, new_occurrences=info['n'])
             if count:
                 send_escalation_alert(
