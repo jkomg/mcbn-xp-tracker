@@ -20,6 +20,10 @@ end
   helper_checkout = steps.find { |s| s['name'] == 'Checkout workflow helper' }
   if helper_checkout
     raise "#{name}: helper must come from workflow SHA" unless helper_checkout.dig('with', 'ref') == '${{ github.workflow_sha }}'
+    # Sharing the workspace with the app checkout left the Docker build without
+    # apps/ and failed every deploy from #453 until #456.
+    helper_path = helper_checkout.dig('with', 'path').to_s
+    raise "#{name}: helper checkout needs its own path" if helper_path.empty? || helper_path == '.'
   end
   prepare = steps.find { |s| s['name'] == 'Preserve deploy helper' }
   app_checkout = steps.find { |s| s['name'] == 'Checkout' }
@@ -44,11 +48,12 @@ end
     File.write(File.join(app, 'app.txt'), 'old application revision')
     run!(env, 'git add app.txt && git commit -qm "Old app without deploy helper"', app)
     old_sha = run!(env, 'git rev-parse HEAD', app).strip
-    FileUtils.mkdir_p(File.join(app, 'scripts'))
-    FileUtils.cp(File.join(ROOT, 'scripts/cloud-run-deploy-retry.sh'), File.join(app, 'scripts'))
-    run!(env, 'git add scripts && git commit -qm "Workflow with deploy helper"', app)
+    # The helper checkout, at its own path inside the workspace.
+    helper_scripts = File.join(app, helper_path || '.', 'scripts')
+    FileUtils.mkdir_p(helper_scripts)
+    FileUtils.cp(File.join(ROOT, 'scripts/cloud-run-deploy-retry.sh'), helper_scripts)
     run!(env, prepare.fetch('run'), app) if prepare
-    run!(env, "git checkout -q #{old_sha}", app)
+    FileUtils.rm_rf(File.join(app, helper_path)) if helper_path
     raise 'Historical app unexpectedly contains helper' if File.exist?(File.join(app, 'scripts/cloud-run-deploy-retry.sh'))
 
     File.write(File.join(bin, 'gcloud'), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > \"$DEPLOY_ARGS\"\n")
