@@ -170,3 +170,31 @@ def test_a_late_batch_joining_two_short_stretches_pages():
     bridge = [[_entry(m) for m in range(gap_start, second_start, 5)]]
     assert _webhook_posts(app, first + second) == []
     assert len(_webhook_posts(app, bridge)) == 1
+
+
+def _insert(app, key, n):
+    with app.app_context():
+        rows = [AppLogEntry(ts=f'2026-10-28T06:{i:02d}:00Z', source='bot', level='warn',
+                            event='heartbeat_failed', message='heartbeat POST failed: 500',
+                            dedupe_key=key, created_at=datetime.utcnow())
+                for i in range(n)]
+        db.session.add_all(rows)
+        db.session.flush()
+        ids = {r.id for r in rows}
+        db.session.commit()
+        return ids
+
+
+def test_a_concurrent_batch_for_the_same_key_cannot_hide_a_threshold_crossing():
+    """Two workers: A's 2 rows take the count from 3 to 5, then B's 2 land
+    before A checks. Counting everything, A and B both see 7 with 5 before
+    them, and neither pages for crossing 5."""
+    from app.discord_alert import check_escalation
+    app = _app()
+    key = 'bot:heartbeat_failed'
+    _insert(app, key, ESCALATION_THRESHOLD - 2)
+    a_ids = _insert(app, key, 2)
+    b_ids = _insert(app, key, 2)
+    with app.app_context():
+        assert check_escalation(key, new_ids=a_ids) == ESCALATION_THRESHOLD
+        assert check_escalation(key, new_ids=b_ids) is None

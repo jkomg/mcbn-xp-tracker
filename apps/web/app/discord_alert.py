@@ -78,7 +78,8 @@ def dashboard_link(redirect_uri: str, source: str, level: str, event: str) -> st
     return f'{base}/audit/errors?{query}'
 
 
-def check_escalation(dedupe_key: str, new_occurrences: int = 1) -> int | None:
+def check_escalation(dedupe_key: str, new_occurrences: int = 1,
+                     new_ids: set[int] | None = None) -> int | None:
     """Count AppLogEntry rows sharing *dedupe_key* within ESCALATION_WINDOW_HOURS.
 
     *new_occurrences* is how many of those rows this call is responsible for
@@ -92,18 +93,29 @@ def check_escalation(dedupe_key: str, new_occurrences: int = 1) -> int | None:
     Returns the current total count if adding *new_occurrences* just crossed
     at least one multiple of ESCALATION_THRESHOLD, else None.
 
+    *new_ids*, when given, are the ids of exactly the rows this call is
+    responsible for, and override *new_occurrences*. The count then stops at
+    the highest of them, so another request's rows for the same key landing
+    after these (two gunicorn workers, two batches at once) can't make both
+    calls see the same final count and both miss the crossing.
+
     Best-effort: returns None on any failure (e.g. the DB itself is the
     thing that's down) rather than raising into the caller's error handler.
     """
+    if new_ids is not None:
+        new_occurrences = len(new_ids)
     if not dedupe_key or new_occurrences <= 0:
         return None
     try:
         from .db import AppLogEntry
         cutoff = datetime.utcnow() - timedelta(hours=ESCALATION_WINDOW_HOURS)
-        count = AppLogEntry.query.filter(
+        query = AppLogEntry.query.filter(
             AppLogEntry.dedupe_key == dedupe_key,
             AppLogEntry.created_at >= cutoff,
-        ).count()
+        )
+        if new_ids:
+            query = query.filter(AppLogEntry.id <= max(new_ids))
+        count = query.count()
     except Exception as exc:
         logger.warning('escalation_check_failed: %s', exc)
         return None
@@ -142,36 +154,42 @@ def _longest_run(times: list[datetime]) -> timedelta:
     return longest
 
 
-def check_sustained(dedupe_key: str, new_occurrences: int = 1) -> int | None:
+def check_sustained(dedupe_key: str, new_occurrences: int = 1,
+                    new_ids: set[int] | None = None) -> int | None:
     """Minutes the current failure stretch for *dedupe_key* has lasted, if the
     newest *new_occurrences* rows just carried it past SUSTAINED_FAILURE_MINUTES.
 
     Uses each row's own ts (when the bot saw the failure), not created_at: a bot
     that could not reach the web app sends its backlog in one batch once it can,
-    and every row of it would otherwise share one receipt time. The newest rows
-    are the highest ids, as /api/bot-log commits a batch before checking it.
+    and every row of it would otherwise share one receipt time. *new_ids* (as in
+    check_escalation) names this call's rows; without it they are taken to be the
+    newest *new_occurrences*.
 
     Fires once per stretch: the rows before this batch must not already have
     reached the threshold within the same stretch on their own. Judged on those
     rows alone, so a late batch that joins two short stretches into one long
-    one still pages. Best-effort, like
-    check_escalation.
+    one still pages. Best-effort, like check_escalation.
     """
+    if new_ids is not None:
+        new_occurrences = len(new_ids)
     if not dedupe_key or new_occurrences <= 0:
         return None
     try:
         from .db import AppLogEntry
         cutoff = datetime.utcnow() - timedelta(hours=ESCALATION_WINDOW_HOURS)
-        rows = (
+        query = (
             AppLogEntry.query.with_entities(AppLogEntry.id, AppLogEntry.ts)
             .filter(AppLogEntry.dedupe_key == dedupe_key, AppLogEntry.created_at >= cutoff)
-            .order_by(AppLogEntry.id.asc())
-            .all()
         )
+        if new_ids:
+            # As in check_escalation: judge the stretch as of this call's rows.
+            query = query.filter(AppLogEntry.id <= max(new_ids))
+        rows = query.order_by(AppLogEntry.id.asc()).all()
     except Exception as exc:
         logger.warning('sustained_check_failed: %s', exc)
         return None
-    new_ids = {row.id for row in rows[-new_occurrences:]}
+    if not new_ids:
+        new_ids = {row.id for row in rows[-new_occurrences:]}
     stamped = [(t, row.id) for row in rows if (t := _parse_ts(row.ts)) is not None]
     if not stamped:
         return None
