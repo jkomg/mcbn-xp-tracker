@@ -163,7 +163,7 @@ jobs:
 
       - name: Set up QEMU
         if: steps.check.outputs.relevant != 'false'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Buildx
         if: steps.check.outputs.relevant != 'false'
