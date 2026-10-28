@@ -53,24 +53,26 @@ def _storage_client(credentials_json: str = '', credentials_file: str = ''):
     key = (credentials_json, credentials_file)
     with _client_lock:
         client = _clients.get(key)
-        if client is not None:
-            return client
-        from google.cloud import storage as _gcs
-        from google.oauth2 import service_account as _sa
-        import json as _json
-
-        scopes = ['https://www.googleapis.com/auth/devstorage.read_write']
-        if credentials_json:
-            info = _json.loads(credentials_json)
-            creds = _sa.Credentials.from_service_account_info(info, scopes=scopes)
-        elif credentials_file and os.path.exists(credentials_file):
-            creds = _sa.Credentials.from_service_account_file(credentials_file, scopes=scopes)
-        else:
-            # Fall back to application default credentials (works on Cloud Run)
-            creds = None
-        client = _gcs.Client(credentials=creds)
-        _clients[key] = client
+        if client is None:
+            client = _clients[key] = _new_client(credentials_json, credentials_file)
         return client
+
+
+def _new_client(credentials_json: str, credentials_file: str):
+    from google.cloud import storage as _gcs
+    from google.oauth2 import service_account as _sa
+    import json as _json
+
+    scopes = ['https://www.googleapis.com/auth/devstorage.read_write']
+    if credentials_json:
+        info = _json.loads(credentials_json)
+        creds = _sa.Credentials.from_service_account_info(info, scopes=scopes)
+    elif credentials_file and os.path.exists(credentials_file):
+        creds = _sa.Credentials.from_service_account_file(credentials_file, scopes=scopes)
+    else:
+        # Fall back to application default credentials (works on Cloud Run)
+        creds = None
+    return _gcs.Client(credentials=creds)
 
 
 def mirror_to_gcs(

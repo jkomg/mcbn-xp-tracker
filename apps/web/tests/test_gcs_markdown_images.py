@@ -69,11 +69,12 @@ def fake_storage(monkeypatch):
     client.bucket.return_value.blob.return_value = blob
     built = []
 
-    def _client(credentials=None):
-        built.append(credentials)
+    def _new_client(credentials_json, credentials_file):
+        built.append((credentials_json, credentials_file))
         return client
 
-    monkeypatch.setattr('google.cloud.storage.Client', _client)
+    # CI's web job doesn't install google-cloud-storage; nothing here needs it.
+    monkeypatch.setattr(gcs, '_new_client', _new_client)
     return blob, built
 
 
