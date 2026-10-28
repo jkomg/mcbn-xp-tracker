@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-10-28] Wiki Sync Stops OOM-Killing Prod; Bot Network Blips Stop Paging
+
+**Prod web OOM.** From at least 2026-10-22, prod Cloud Run exceeded its 512 MiB
+limit and was killed every morning around 09:00 UTC, mid scheduled wiki sync
+(~244 `POST /api/wiki/page` in 15 minutes). Each page re-downloaded and
+re-uploaded every Discord image it contained, and built a new GCS client for
+each one. The bot saw the restarts as aborted heartbeats and wiki timeouts.
+
+- `app/gcs.py` keeps one storage client per process.
+- Body images (already named by a stable hash of the attachment path) and covers
+  (now `wiki-covers/<slug>-<hash>.<ext>`) check whether the object exists before
+  downloading; an unchanged image is one metadata call instead of a download and
+  upload. A changed cover gets a new object instead of overwriting the old one.
+  If the exists check fails, the image is uploaded as before.
+- Prod memory goes from 512Mi to 1Gi (`deploy-web.yml`) as headroom.
+
+**Alerting on bot network failures.** A 2-minute LAN outage on the bot host and a
+few Cloudflare 520s produced four "Recurring issue" pages on 2026-10-28, all for
+things that had already recovered. `/api/bot-log` now recognises messages meaning
+the bot could not get an answer from the web app (DNS, connect, its own request
+timeout, `other side closed`, HTTP 502-504 and Cloudflare 520-526) and:
+
+- groups them under `bot:<event>[:<subject>]:network`, apart from the same
+  event's real failures, so a blip doesn't count toward a 500's threshold;
+- pages only when one stretch of them (no gap over 10 minutes, measured on the
+  bot's own timestamps, so a backlog sent after recovery is judged correctly)
+  lasts 15 minutes, once per stretch, as a "Sustained failure" alert.
+
+A plain 500 is not a network failure and keeps the 5-in-24h count rule.
+
+---
 ## [2026-10-26] Deploys Retry a Revision That Fails Its Startup Probe
 
 - The dev deploy of #452 failed because Turso's us-east-1 degradation outlasted
