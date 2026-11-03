@@ -22,6 +22,7 @@ from functools import lru_cache
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 import logging
 
@@ -394,7 +395,9 @@ def draft_approve(draft_id):
     """Approve a character draft and create the roster entry if needed.
 
     All or nothing: a draft shown as approved always has its roster row and
-    backgrounds. Anything that goes wrong leaves the draft as it was.
+    backgrounds. Anything that goes wrong leaves the draft as it was, except a
+    lost commit answer, which goes to the app's handler as an alerting 500.
+    Approving again after one is safe: it finds the row it created and links it.
     """
     draft = db.session.get(CharacterDraft, draft_id)
     if draft is None:
@@ -496,6 +499,16 @@ def draft_approve(draft_id):
         draft.approved_by = actor
         draft.approved_at = datetime.now(timezone.utc)
         db.session.commit()
+    except OperationalError:
+        # Not ours to answer. If the commit's answer was lost it may have applied,
+        # so "nothing changed" could be false; db_errors.py and the app's handler
+        # decide between a 503 and an alerting 500. Rollback tends to fail in the
+        # same outage, and must not replace the error that decides that.
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.warning('CC approval: rollback failed for draft %s', draft_id)
+        raise
     except Exception:
         db.session.rollback()
         logger.exception('CC approval: failed for draft %s (%s)', draft_id, char_name)

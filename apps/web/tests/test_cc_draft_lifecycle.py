@@ -9,18 +9,22 @@ treatment, following that file's conventions.
 """
 
 import json
+import sqlite3
 from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
 from flask import Blueprint, Flask, get_flashed_messages
+from sqlalchemy.exc import OperationalError
 
 import app.blueprints.cc_admin as cc_admin_module
 from app.blueprints.cc_admin import bp as cc_admin_bp
 from app.blueprints.character_creator import bp as character_creator_bp
 from app.db import CharacterDraft, DbCharacter, DbCharacterBackground, db
+from app.db_errors import db_unavailable_response
 from app.models import AGE_CATEGORIES, CLANS
 from app.db_service import DBService
+from app.turso_http import TursoUnavailableError
 
 # require_staff redirects unauthenticated requests to 'dashboard.login'; the
 # real dashboard blueprint applies limiter.limit(...) at import time, so a
@@ -619,6 +623,102 @@ def test_a_failed_approval_can_be_retried(monkeypatch):
     assert _mawla_dots(app) == 2
     with app.app_context():
         assert db.session.get(CharacterDraft, draft_id).status == 'approved'
+
+
+def _app_with_outage_handling():
+    """The part of app/__init__.py's handler that decides how an outage is answered."""
+    app = _app()
+
+    def handle(exc):
+        response = db_unavailable_response(exc)
+        if response is None:
+            raise exc
+        return response
+
+    app.register_error_handler(OperationalError, handle)
+    return app
+
+
+def _commit_failing_with(monkeypatch, orig):
+    def boom():
+        raise OperationalError('COMMIT', {}, orig)
+
+    monkeypatch.setattr(db.session, 'commit', boom)
+
+
+def _turso_failure(may_have_applied):
+    orig = TursoUnavailableError('Turso connection error: x')
+    orig.may_have_applied = may_have_applied
+    return orig
+
+
+def test_turso_outage_before_anything_applied_answers_503(monkeypatch):
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=False))
+        res, messages = _approve(app, draft_id)
+
+    assert res.status_code == 503
+    assert messages == []
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).status == 'submitted'
+        assert DbCharacter.query.count() == 0
+
+
+def test_lost_commit_answer_is_not_reported_as_nothing_changed(monkeypatch):
+    """The commit may have landed, so "the roster was not changed" could be false.
+    It has to reach the generic handler, which records and alerts on it."""
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=True))
+        with pytest.raises(OperationalError):
+            _approve(app, draft_id)
+
+
+def test_operational_error_turso_refused_reaches_the_generic_handler(monkeypatch):
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, sqlite3.OperationalError('Turso: no such table: t'))
+        with pytest.raises(OperationalError):
+            _approve(app, draft_id)
+
+
+def test_outage_handling_survives_a_failing_rollback(monkeypatch):
+    """Rollback fails too during an outage, and must not replace the commit's
+    error: a rollback failure doesn't carry may_have_applied."""
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    def rollback_boom():
+        raise OperationalError('ROLLBACK', {}, _turso_failure(may_have_applied=False))
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=True))
+        patched.setattr(db.session, 'rollback', rollback_boom)
+        with pytest.raises(OperationalError) as info:
+            _approve(app, draft_id)
+
+    assert info.value.orig.may_have_applied is True
+
+
+def test_retrying_an_approval_that_already_landed_adds_nothing():
+    """What staff will do after a lost commit answer."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=_draft_with_mawla(2))
+
+    _approve(app, draft_id)
+    _, messages = _approve(app, draft_id)
+
+    assert [category for category, _ in messages] == ['success']
+    assert _mawla_dots(app) == 2
+    with app.app_context():
+        assert DbCharacter.query.count() == 1
 
 
 def test_sheets_mirror_failure_does_not_undo_an_approval(monkeypatch):

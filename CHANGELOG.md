@@ -13,7 +13,9 @@ tells staff what to do, including when the roster character has no linked player
 error was only logged and the draft still showed as approved. A failure after that
 point, such as a malformed background level, left a half-finished approval and a
 500. Approval now saves everything together or nothing: on failure the draft stays
-as it was, staff see an error, and they can retry. A draft with no name is refused.
+as it was, staff see an error, and they can retry. A Turso outage still answers
+503, and a lost commit answer, which may have applied, is still an alerting 500;
+approving again after one is safe. A draft with no name is refused.
 
 ## [2026-11-03] Character Creation: Live Suite Reaches the Roster; Two Review Bugs Fixed
 
