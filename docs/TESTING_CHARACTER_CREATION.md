@@ -70,7 +70,8 @@ These are the behaviors most recently changed. Each has an expected result.
 | Create a Thin-blood character | roster clan reads **Thin-Blood** |
 | Create a ghoul | roster age category stays **Ghoul**, not Ancilla |
 | Request revision, then resubmit | status returns to `submitted`, staff notes still visible |
-| Approve a draft whose name matches an existing roster character | links to it, no duplicate row, existing XP untouched |
+| Approve a draft whose name matches the same player's roster character | links to it, no duplicate row, existing XP untouched |
+| Approve a draft whose name matches another player's or an unlinked roster character | refused with an error, draft stays submitted, that character untouched |
 
 ### Tampering checks
 
