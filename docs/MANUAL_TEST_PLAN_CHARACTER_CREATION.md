@@ -85,7 +85,8 @@ The most common path. Budget is **15 XP**.
 | 3.5 | **Approve** | Roster character created |
 | 3.6 | Open the roster character | Clan, age category, and sect are correct |
 | 3.7 | Check its XP | `creation_xp` equals the banked figure from 3.3 |
-| 3.8 | Approve a draft whose name matches an existing roster character | Links to it — no duplicate row, existing XP untouched |
+| 3.8 | Approve a draft whose name matches the same player's roster character | Links to it — no duplicate row, existing XP untouched |
+| 3.8a | Approve a draft whose name matches another player's or an unlinked roster character | Refused with an error — draft stays submitted, that character untouched |
 
 ---
 

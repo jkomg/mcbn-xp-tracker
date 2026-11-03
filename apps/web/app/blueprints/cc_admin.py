@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
+from sqlalchemy import func
 
 import logging
 
@@ -355,17 +356,63 @@ def draft_review(draft_id):
     )
 
 
+def _find_roster_row(draft, char_name):
+    """The roster row this draft would update, or None if it needs a new one."""
+    if draft.roster_character_id:
+        row = db.session.get(DbCharacter, draft.roster_character_id)
+        if row:
+            return row
+    # Exact and case-insensitive. ilike() would read % and _ in a player-chosen
+    # name as wildcards. lower() on both sides, because the database's lower()
+    # is ASCII-only on SQLite and wouldn't agree with Python's.
+    return DbCharacter.query.filter(
+        func.lower(DbCharacter.character_name) == func.lower(char_name)
+    ).first()
+
+
+def _roster_conflict(row, draft):
+    """Why this draft may not update this roster row, or None if it may.
+
+    Approval overwrites the row's backgrounds, so only the owner's own draft
+    qualifies. A blank owner doesn't count as free: it can be a real character
+    whose player never linked, and that player can still self-link it.
+    """
+    owner = row.player_discord or ''
+    if owner and owner == draft.player_discord_id:
+        return None
+    if owner:
+        return (f'"{row.character_name}" is already on the roster and belongs to another '
+                'player. Send this draft back so the player can choose another name.')
+    return (f'"{row.character_name}" is already on the roster but not linked to a player. '
+            'If it is theirs, have them link it and approve again. Otherwise, send this '
+            'draft back so they can choose another name.')
+
+
 @bp.route('/cc-admin/drafts/<draft_id>/approve', methods=['POST'])
 @require_staff
 def draft_approve(draft_id):
-    """Approve a character draft and create the roster entry if needed."""
+    """Approve a character draft and create the roster entry if needed.
+
+    All or nothing: a draft shown as approved always has its roster row and
+    backgrounds. Anything that goes wrong leaves the draft as it was.
+    """
     draft = db.session.get(CharacterDraft, draft_id)
     if draft is None:
         abort(404)
     actor = session.get('staff_user') or session.get('discord_name') or 'unknown'
-    draft.status = 'approved'
-    draft.approved_by = actor
-    draft.approved_at = datetime.now(timezone.utc)
+
+    char_name = (draft.character_name or '').strip()
+    if not char_name:
+        flash('This draft has no character name, so it can\'t go on the roster — '
+              'approval aborted.', 'danger')
+        return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+
+    roster_row = _find_roster_row(draft, char_name)
+    if roster_row:
+        conflict = _roster_conflict(roster_row, draft)
+        if conflict:
+            flash(f'{conflict} Approval aborted.', 'danger')
+            return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
 
     # Apply any ST-edited specialty overrides (IM ancilla archaic specialties)
     char_data = _safe_char_data(draft)
@@ -387,57 +434,33 @@ def draft_approve(draft_id):
         char_data['skillSpecialties'] = specialty_overrides
         draft.character_data = json.dumps(char_data)
 
-    # Create or link roster entry (DbCharacter)
-    char_name = draft.character_name or ''
-    if char_name and not draft.roster_character_id:
-        existing_row = DbCharacter.query.filter(
-            DbCharacter.character_name.ilike(char_name)
-        ).first()
-        if existing_row:
-            draft.roster_character_id = existing_row.id
-        else:
-            char_data = _safe_char_data(draft)
-            clan = normalize_cc_clan(char_data.get('clan'))
-            age_cat = normalize_cc_age_category(char_data.get('age_category'))
-            sect = _CLAN_SECT.get(clan.lower(), '')
-            try:
-                # Unspent creation XP the character carries into play, capped
-                # at MAX_BANKED_XP. Recomputed here rather than read off the
-                # draft: character_data is authored by the browser app.
-                banked_xp = compute_banked_xp(char_data)
-                new_char = Character(
-                    character_name=char_name,
-                    player_discord=draft.player_discord_id or '',
-                    clan=clan,
-                    age_category=age_cat,
-                    sect=sect,
-                    creation_xp=banked_xp,
-                    active=True,
-                    status='active',
-                )
-                db_service.add_character(new_char)
-                if sheets_sync:
-                    try:
-                        sheets_sync.sync_add_character(new_char)
-                    except Exception as sync_exc:
-                        logger.warning('CC approval: sheets sync failed for %s: %s', char_name, sync_exc)
-                new_row = DbCharacter.query.filter(
-                    DbCharacter.character_name.ilike(char_name)
-                ).first()
-                if new_row:
-                    draft.roster_character_id = new_row.id
-                logger.info('CC approval: created roster entry for %s', char_name)
-            except Exception as exc:
-                logger.warning('CC approval: failed to create roster for %s: %s', char_name, exc)
-
-    # Sync backgrounds from char_data into DbCharacterBackground (upsert by key)
-    approval_actor = f'cc_approval:{actor}'
-    char_name_for_bg = draft.character_name or ''
-    raw_backgrounds = char_data.get('backgrounds') or []
+    new_char = None
     # Blanked dots a lowered rating discarded, for the audit entry below.
     unblanked: list[str] = []
-    if char_name_for_bg and raw_backgrounds:
-        for bg in raw_backgrounds:
+    try:
+        # Create or link roster entry (DbCharacter)
+        if roster_row is None:
+            clan = normalize_cc_clan(char_data.get('clan'))
+            # Unspent creation XP the character carries into play, capped
+            # at MAX_BANKED_XP. Recomputed here rather than read off the
+            # draft: character_data is authored by the browser app.
+            new_char = Character(
+                character_name=char_name,
+                player_discord=draft.player_discord_id or '',
+                clan=clan,
+                age_category=normalize_cc_age_category(char_data.get('age_category')),
+                sect=_CLAN_SECT.get(clan.lower(), ''),
+                creation_xp=compute_banked_xp(char_data),
+                active=True,
+                status='active',
+            )
+            roster_row = db_service.add_character(new_char, commit=False)
+        draft.roster_character_id = roster_row.id
+
+        # Sync backgrounds from char_data into DbCharacterBackground (upsert by key).
+        # Under the roster's spelling, which the draft's may differ from in case.
+        approval_actor = f'cc_approval:{actor}'
+        for bg in char_data.get('backgrounds') or []:
             name = (bg.get('name') or '').strip()
             dots = int(bg.get('level') or 0)
             if not name or dots <= 0:
@@ -447,7 +470,7 @@ def draft_approve(draft_id):
             # failed here after the roster entry was already committed.
             bg_key = background_key(name)
             existing = DbCharacterBackground.query.filter_by(
-                character_name=char_name_for_bg,
+                character_name=roster_row.character_name,
                 background_key=bg_key,
             ).first()
             if existing:
@@ -461,7 +484,7 @@ def draft_approve(draft_id):
                 existing.updated_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
             else:
                 db.session.add(DbCharacterBackground(
-                    character_name=char_name_for_bg,
+                    character_name=roster_row.character_name,
                     background_key=bg_key,
                     background_name=name,
                     dots_total=dots,
@@ -469,7 +492,27 @@ def draft_approve(draft_id):
                     updated_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
                 ))
 
-    db.session.commit()
+        draft.status = 'approved'
+        draft.approved_by = actor
+        draft.approved_at = datetime.now(timezone.utc)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('CC approval: failed for draft %s (%s)', draft_id, char_name)
+        flash(f'Could not approve "{char_name}": the roster was not changed and the draft '
+              'is still awaiting approval. Try again, or send it back if its data looks wrong.',
+              'danger')
+        return redirect(url_for('cc_admin.draft_review', draft_id=draft_id))
+
+    if new_char:
+        logger.info('CC approval: created roster entry for %s', char_name)
+        # Best-effort mirror, told only once the row really exists.
+        if sheets_sync:
+            try:
+                sheets_sync.sync_add_character(new_char)
+            except Exception as sync_exc:
+                logger.warning('CC approval: sheets sync failed for %s: %s', char_name, sync_exc)
+
     # This route committed without any audit entry. An approval can now also
     # discard blanked dots, which must leave a trace.
     details = f'Approved character creation draft {draft.id}'

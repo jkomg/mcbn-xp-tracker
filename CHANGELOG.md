@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-11-03] Character Approval Can't Overwrite Another Player's Character
+
+**A draft could overwrite someone else's backgrounds.** Approving a draft whose
+name matched a roster character linked to that character and overwrote its
+background ratings, whoever owned it. `%` and `_` in a draft's name also matched
+as wildcards, so `%` could hit any character. A draft now updates a roster
+character only if it belongs to the same player. Otherwise approval stops and
+tells staff what to do, including when the roster character has no linked player.
+
+**Approved now means on the roster.** If creating the roster character failed, the
+error was only logged and the draft still showed as approved. A failure after that
+point, such as a malformed background level, left a half-finished approval and a
+500. Approval now saves everything together or nothing: on failure the draft stays
+as it was, staff see an error, and they can retry. A draft with no name is refused.
+
 ## [2026-11-03] Character Creation: Live Suite Reaches the Roster; Two Review Bugs Fixed
 
 **Staff could not see the XP figures on most drafts.** The Creation XP budget /

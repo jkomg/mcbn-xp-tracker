@@ -241,7 +241,9 @@ class DBService:
         ).first()
         return _row_to_character(row) if row else None
 
-    def add_character(self, char: Character) -> None:
+    def add_character(self, char: Character, commit: bool = True) -> DbCharacter:
+        """Insert a roster row. With commit=False it is only flushed, so the caller
+        can make it part of a larger transaction."""
         row = DbCharacter(
             character_name=char.character_name,
             player_discord=char.player_discord or '',
@@ -256,7 +258,11 @@ class DBService:
             notes=char.notes or '',
         )
         db.session.add(row)
-        db.session.commit()
+        if commit:
+            db.session.commit()
+        else:
+            db.session.flush()
+        return row
 
     def update_character(self, name: str, updates: dict) -> None:
         row = DbCharacter.query.filter(
