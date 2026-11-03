@@ -16,6 +16,7 @@ jobs:
       character_app: ${{ steps.filter.outputs.character_app }}
       contract: ${{ steps.filter.outputs.contract }}
       docker_docs: ${{ steps.filter.outputs.docker_docs }}
+      deploy_workflows: ${{ steps.filter.outputs.deploy_workflows }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -64,6 +65,28 @@ jobs:
               - 'README.md'
               - 'docs/**'
               - '.github/workflows/ci.yml'
+            deploy_workflows:
+              # The deploy workflows only run after merge (workflow_run reads
+              # main's copy), so a broken step there surfaces as a failed deploy
+              # of main. #453 broke every dev deploy, and so blocked prod, until
+              # #456. This exercises their checkout/helper/deploy steps on the PR.
+              - '.github/workflows/deploy-web.yml'
+              - '.github/workflows/deploy-web-dev.yml'
+              - 'scripts/cloud-run-deploy-retry.sh'
+              - 'scripts/test-deploy-workflow-helper.rb'
+              - '.github/workflows/ci.yml'
+
+  deploy-workflow-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_workflows == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Deploy helper regression test
+        run: ruby scripts/test-deploy-workflow-helper.rb
 
   web-test-and-lint:
     runs-on: ubuntu-latest
@@ -273,6 +296,7 @@ jobs:
       - character-app-test-and-lint
       - contract-tests
       - docker-and-docs-hygiene
+      - deploy-workflow-tests
     if: always()
     steps:
       - name: Enforce required-check result

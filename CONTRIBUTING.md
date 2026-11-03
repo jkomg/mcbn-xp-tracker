@@ -127,6 +127,7 @@ Jobs are path-filtered, and all of them roll up into a single required
 | `bot-test-and-lint` | `apps/bot/**`, `packages/**` |
 | `contract-tests` | `packages/api-contract/**`, `packages/rules/**` |
 | `docker-and-docs-hygiene` | compose files, `scripts/bootstrap-local.sh`, `docs/**`, `README.md` |
+| `deploy-workflow-tests` | `deploy-web*.yml`, `scripts/cloud-run-deploy-retry.sh`, `scripts/test-deploy-workflow-helper.rb` |
 
 Editing anything in `packages/` triggers **both** app suites, because both apps
 load those JSON files at runtime.
