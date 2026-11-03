@@ -254,10 +254,12 @@ you were editing for.
   into production. Treat manual prod dispatch as main-only by convention; the
   workflow does not enforce it.
 - **Nothing in this repo deploys the bot.** CI on `main` publishes
-  `ghcr.io/jkomg/lasombra-bot:<sha7>`; the bot runs on k0s under Argo CD, which
-  syncs from the separate `home-automation` repo (`cluster/k0s/apps/lasombra-bot/`)
-  where images are pinned by commit SHA. Shipping it is a deliberate commit in
-  that repo.
+  `ghcr.io/jkomg/lasombra-bot:<sha7>`; the bot runs in Docker Compose on
+  miniplex (container `bots-lasombra-bot-1`), defined in the separate
+  `home-automation` repo (`compose/bots/compose.yaml`) where images are pinned by
+  commit SHA and applied by its `scripts/reconcile.sh`. Shipping it is a
+  deliberate commit in that repo. The old k0s Deployment
+  (`cluster/k0s/apps/lasombra-bot/`) is held at `replicas: 0` — never scale it up.
 - **The GitHub Actions workflows are the single source of truth** for image
   build, Cloud Run flags, env vars, and secret bindings. `apps/web/deploy.sh`
   only triggers a workflow. Never add a second `gcloud run deploy` — two
@@ -265,9 +267,10 @@ you were editing for.
 
 **Stale references in-tree**
 
-`infra/ursula/failover/` describes a failover bot whose launchd job is no
-longer installed, and `apps/*/k8s/` manifests predate the k0s migration and are
-not what the cluster runs. Don't treat either as current.
+`infra/ursula/` (including `failover/`, whose launchd job is no longer
+installed) describes the pre-2026-08 bot host, and `apps/*/k8s/` manifests are
+not what anything runs. The bot left k0s for Compose on miniplex on 2026-10-25.
+Don't treat any of these as current.
 
 ## Ask before doing these
 

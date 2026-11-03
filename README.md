@@ -12,13 +12,13 @@ XP tracking and management for **Music City by Night** (MCbN), a Vampire: the Ma
 mcbn-xp-tracker/
   apps/
     web/          # Flask app (Python 3.12) — admin UI + REST API, Cloud Run deploy target
-    bot/          # Discord bot (Node 20/TypeScript) — locally hosted on Ursula
+    bot/          # Discord bot (Node 20/TypeScript) — Docker Compose on miniplex
     character-app/# React character-creator SPA, built into the web image at deploy time
   packages/
     api-contract/ # Shared request/response schemas and enums
     rules/        # Shared XP/spend formulas and fixtures
   infra/
-    ursula/       # Bot host: agents, dashboard, failover (Cloud Run config lives in CI)
+    ursula/       # Former bot host (pre-2026-08): agents, dashboard, failover — historical
     bot-hosting/  # systemd / launchd unit templates for the bot
     web-hosting/  # launchd template for a local dev web instance
   docs/           # Runbooks, architecture, API reference
@@ -60,10 +60,10 @@ cd apps/web && ./deploy.sh dev       # trigger the dev deploy workflow
 
 The current production web app runs on Cloud Run as `mcbn-xp-tracker` and the dev web
 app runs as the separate `mcbn-xp-tracker-dev` service. Each uses its own Turso
-database and credentials. The Discord bot runs in Docker on Ursula, with a
-heartbeat-triggered failover bot on little-mac. Kubernetes manifests under
-`apps/*/k8s/` are retained for a future local-cluster migration and are not used by
-the current deployment.
+database and credentials. The Discord bot runs in Docker Compose on
+miniplex, defined in the `home-automation` repo (`compose/bots/compose.yaml`). The
+Ursula host, little-mac failover bot, and Kubernetes manifests under `apps/*/k8s/`
+are historical and not used by the current deployment.
 
 ## Key Docs
 
