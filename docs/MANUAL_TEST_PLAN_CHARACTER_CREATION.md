@@ -20,6 +20,11 @@ mid-session, someone pushed.
 Each set is independent. Sets 1–3 are the core paths; 4–7 are where the recent
 bugs lived and where new ones are most likely.
 
+`npm run e2e:live` automates much of Sets 2–7 against a real deployment; see
+[its README](../apps/character-app/e2e-live/README.md) for what it does and does
+not cover. Run it first, then spend the manual time on what it leaves out: Set 1,
+Set 5's mode, generation, disciplines and era-XP purchases, and how it feels.
+
 ---
 
 ## Set 1 — New player onboarding
@@ -90,7 +95,8 @@ The most common path. Budget is **15 XP**.
 |---|------|----------|
 | 4.1 | Staff: **Request revision** with a note | Draft becomes `revision_requested` |
 | 4.2 | As the player, open My Characters | Draft shows "Revision Requested" with the staff note |
-| 4.3 | Edit and resubmit | Back to `submitted` |
+| 4.3 | Click **Edit** on that draft, in a browser that has not opened it before | The wizard opens that draft, not a blank or different one |
+| 4.3a | Resubmit | Back to `submitted` |
 | 4.4 | Staff view | The original note is still visible (deliberate — it keeps ST context) |
 | 4.5 | Approve | Roster character created as normal |
 
@@ -156,7 +162,8 @@ approve.
 
 Use `scripts/generate-test-data.py` (dev only; refuses to run against prod,
 and fails closed on any host it cannot confirm is non-production). Everything
-it creates is prefixed `ZZTest_`, and `--cleanup` removes exactly that.
+it creates is prefixed `ZZTest_`, and `--cleanup` removes exactly that, plus the
+`ZZLive_` drafts and characters the live e2e suite leaves behind.
 
 Needs Python 3.10+ — macOS `python3` is 3.9 and fails at import:
 
@@ -182,7 +189,7 @@ characters that have claim or spend history.
 | 8.2 | Load the staff dashboard and roster | Still responsive; no timeouts |
 | 8.3 | Load CC Admin → Drafts with many drafts | Lists without a 500 |
 | 8.4 | Approve one generated character | Normal behaviour under load |
-| 8.5 | `--cleanup` | Only `ZZTest_` records removed; nothing else touched |
+| 8.5 | `--cleanup` | Only `ZZTest_` and `ZZLive_` records removed; nothing else touched |
 
 ---
 
