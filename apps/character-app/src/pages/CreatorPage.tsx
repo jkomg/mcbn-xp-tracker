@@ -6,9 +6,8 @@ import { useLocation, useNavigate } from "@tanstack/react-router"
 import RenderProfiler from "~/components/RenderProfiler"
 import { notifications } from "@mantine/notifications"
 import {
-    applyCharacterCompatibilityPatches,
-    characterSchema,
     getEmptyCharacter,
+    parseStoredDraft,
     type Character as CharacterType,
 } from "~/data/Character"
 import { createSaveQueue } from "~/utils/saveQueue"
@@ -176,15 +175,7 @@ export default function CreatorPage() {
             const draft = await cc.getDraft(draftId)
             const data = draft.character_data as Record<string, unknown> | null
             if (!data) throw new Error("Draft has no readable character data")
-            // Same upgrade path as a character restored from localStorage, so a
-            // draft saved under an older schema still opens.
-            let parsed = characterSchema.safeParse(data)
-            if (!parsed.success) {
-                applyCharacterCompatibilityPatches(data)
-                parsed = characterSchema.safeParse(data)
-            }
-            if (!parsed.success) throw parsed.error
-            setCharacter(parsed.data)
+            setCharacter(parseStoredDraft(data))
             setDraftId(draftId)
             setSelectedStep(defaultGeneratorStepId)
         } catch (e) {
