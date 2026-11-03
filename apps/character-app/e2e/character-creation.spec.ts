@@ -1,4 +1,11 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+import {
+    dismissCookieBanner,
+    pickAttributes,
+    pickSkills,
+    takeFlaw,
+    takePower,
+} from "./wizard"
 
 /**
  * End-to-end walk of the character-creation wizard, from the age-category step
@@ -93,6 +100,20 @@ async function stubCharacterCreatorApi(page: Page, capture: SubmitCapture) {
                     character_name: CHARACTER_NAME,
                     status: "draft",
                     character_data: null,
+                }),
+            })
+            return
+        }
+
+        if (new URL(request.url()).pathname.endsWith("/draft-1")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    id: "draft-1",
+                    character_name: CHARACTER_NAME,
+                    status: "revision_requested",
+                    character_data: (capture.draftBody as { character_data?: unknown })?.character_data,
                 }),
             })
             return
@@ -213,6 +234,31 @@ test("builds a neonate through every step and submits for review", async ({ page
     expect(data.cc_base_skills).toBeTruthy()
 })
 
+test("?draft= opens that draft with nothing in localStorage", async ({ page }) => {
+    // What My Characters' Edit button links to. A player returning on another
+    // device has no local character or draft id to fall back on.
+    const capture: SubmitCapture = { submitted: false, draftBody: null }
+    await stubCharacterCreatorApi(page, capture)
+
+    await page.goto("/create")
+    await dismissCookieBanner(page)
+    await page.getByTestId("age-category-neonate-card").click()
+    await page.getByTestId("clan-brujah-card").click()
+    await expect.poll(() => capture.draftBody !== null, { timeout: 15_000 }).toBe(true)
+
+    // beforeEach's init script clears storage on this navigation too.
+    await page.goto("/create?draft=draft-1")
+
+    await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("cc-draft-id")))
+        .toBe("draft-1")
+    await expect
+        .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("character") ?? "{}").clan))
+        .toBe("Brujah")
+    // Consumed once, so a reload does not throw away edits made since.
+    expect(new URL(page.url()).searchParams.get("draft")).toBeNull()
+})
+
 test("blocks the Freebies step until the flaw budget is spent", async ({ page }) => {
     // Narrower guard on the rule itself, so a regression names the cause
     // instead of failing somewhere later in the long walk above.
@@ -251,47 +297,3 @@ test("blocks the Freebies step until the flaw budget is spent", async ({ page })
     await expect(meritsConfirm).toBeEnabled()
 })
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-
-async function dismissCookieBanner(page: Page) {
-    const banner = page.getByTestId("cookie-banner-close")
-    if (await banner.isVisible().catch(() => false)) {
-        await banner.click()
-    }
-}
-
-async function pickAttributes(page: Page, names: string[]) {
-    for (const name of names) {
-        await page.getByTestId(`attribute-${slug(name)}-button`).click()
-    }
-}
-
-async function pickSkills(page: Page, names: string[]) {
-    for (const name of names) {
-        await page.getByTestId(`skill-${slug(name)}-button`).click()
-    }
-}
-
-async function takePower(page: Page, disciplineName: string, powerName: string) {
-    const card = powerCard(page, powerName)
-    if (!(await card.isVisible().catch(() => false))) {
-        await page.getByTestId(`discipline-${slug(disciplineName)}-accordion`).click()
-    }
-    await card.getByTestId(`take-power-${slug(powerName)}-button`).click()
-}
-
-async function takeFlaw(page: Page, flawName: string, level: number) {
-    // The flaw catalogue is long and lives in a scroll container, so the
-    // button is in the DOM but off-screen until scrolled to.
-    const button = page.getByTestId(`flaw-${slug(flawName)}-level-${level}-button`)
-    await button.scrollIntoViewIfNeeded()
-    await button.click()
-}
-
-function powerCard(page: Page, powerName: string): Locator {
-    return page.getByTestId(`power-card-${slug(powerName)}`)
-}
-
-function slug(name: string) {
-    return name.toLowerCase().replace(/\s+/g, "-")
-}
