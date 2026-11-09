@@ -103,7 +103,7 @@ Current deployment topology: production web runs on Cloud Run service
 and dev databases/credentials.
 
 The Discord bot runs in Docker Compose (OrbStack) on **miniplex** (macOS,
-192.168.0.42), container `bots-lasombra-bot-1`, alongside the dev bot
+10.42.0.42 since 2026-11-08), container `bots-lasombra-bot-1`, alongside the dev bot
 `bots-zapathasura-1`. It is defined in the `home-automation` repo at
 `compose/bots/compose.yaml` (non-secret env in `compose/bots/lasombra-bot.env`,
 secrets in `~/.gitops/env/bots/lasombra-bot.secret.env` on the host, from
