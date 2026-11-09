@@ -17,7 +17,7 @@
         "test:run": "vitest run",
         "test:e2e": "playwright test",
         "typecheck": "tsc --noEmit",
-        "e2e:live": "playwright test --config=playwright.live.config.ts",
+        "e2e:live": "playwright test --config=playwright.live.config.ts --project=chromium",
         "e2e:live:login": "playwright test --config=playwright.live.config.ts --project=login --headed"
     },
     "dependencies": {

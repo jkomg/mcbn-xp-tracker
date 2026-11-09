@@ -43,7 +43,7 @@
                            player can still see and delete it — only editing goes
                            away, since the save endpoint would refuse anyway. #}
                         {% if can_create_characters %}
-                        <a href="{{ url_for('character_creator.character_creator_new') }}"
+                        <a href="{{ url_for('character_creator.character_creator_new', draft=draft.id) }}"
                            class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-pencil"></i> Edit
                         </a>
