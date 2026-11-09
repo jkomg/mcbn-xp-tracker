@@ -9,17 +9,22 @@ treatment, following that file's conventions.
 """
 
 import json
+import sqlite3
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from flask import Blueprint, Flask
+import pytest
+from flask import Blueprint, Flask, get_flashed_messages
+from sqlalchemy.exc import OperationalError
 
 import app.blueprints.cc_admin as cc_admin_module
 from app.blueprints.cc_admin import bp as cc_admin_bp
 from app.blueprints.character_creator import bp as character_creator_bp
-from app.db import CharacterDraft, DbCharacter, db
+from app.db import CharacterDraft, DbCharacter, DbCharacterBackground, db
+from app.db_errors import db_unavailable_response
 from app.models import AGE_CATEGORIES, CLANS
 from app.db_service import DBService
+from app.turso_http import TursoUnavailableError
 
 # require_staff redirects unauthenticated requests to 'dashboard.login'; the
 # real dashboard blueprint applies limiter.limit(...) at import time, so a
@@ -398,7 +403,7 @@ def test_approve_links_existing_roster_row_instead_of_duplicating():
     app = _app()
     with app.app_context():
         existing = DbCharacter(character_name='Fiona Vale', age_category='Neonate',
-                               active=True)
+                               active=True, player_discord='111')
         db.session.add(existing)
         db.session.commit()
         existing_id = existing.id
@@ -410,6 +415,333 @@ def test_approve_links_existing_roster_row_instead_of_duplicating():
         ).all()
         assert len(rows) == 1
         assert rows[0].id == existing_id
+        assert db.session.get(CharacterDraft, draft_id).status == 'approved'
+
+
+# ── Approval must not touch a roster row the player doesn't own ─────────────
+
+def _roster_row(app, name='Fiona Vale', owner='222', mawla=4):
+    """A roster character with a background worth protecting."""
+    with app.app_context():
+        row = DbCharacter(character_name=name, age_category='Neonate', active=True,
+                          player_discord=owner)
+        db.session.add(row)
+        db.session.add(DbCharacterBackground(
+            character_name=name, background_key='mawla', background_name='Mawla',
+            dots_total=mawla, updated_by='test',
+        ))
+        db.session.commit()
+        return row.id
+
+
+def _draft_with_mawla(level=1):
+    return json.dumps({**_DEFAULT_DATA, 'backgrounds': [{'name': 'Mawla', 'level': level}]})
+
+
+def _approve(app, draft_id):
+    """Post an approval; return (response, flashed messages)."""
+    client = _staff_client(app)
+    with client:
+        res = client.post(f'/cc-admin/drafts/{draft_id}/approve')
+        return res, get_flashed_messages(with_categories=True)
+
+
+def _assert_refused(app, res, messages, draft_id, *, mentions=None):
+    assert res.status_code == 302
+    assert res.headers['Location'].endswith(f'/cc-admin/drafts/{draft_id}')
+    assert [category for category, _ in messages] == ['danger']
+    if mentions:
+        assert mentions in messages[0][1]
+    with app.app_context():
+        draft = db.session.get(CharacterDraft, draft_id)
+        assert draft.status == 'submitted'
+        assert draft.approved_at is None
+        assert draft.approved_by in (None, '')
+
+
+def _mawla_dots(app, name='Fiona Vale'):
+    with app.app_context():
+        return DbCharacterBackground.query.filter_by(
+            character_name=name, background_key='mawla').one().dots_total
+
+
+@pytest.mark.parametrize('draft_name', ['Fiona Vale', 'fiona vale'])
+def test_approve_refuses_a_name_belonging_to_another_player(draft_name):
+    app = _app()
+    _roster_row(app, owner='222', mawla=4)
+    draft_id = _seed_draft(app, name=draft_name, discord_id='111',
+                           character_data=_draft_with_mawla(1))
+
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id, mentions='another player')
+    assert _mawla_dots(app) == 4
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).roster_character_id is None
+
+
+def test_approve_refuses_a_name_on_an_unclaimed_roster_row():
+    """A blank owner isn't "nobody's": it can be a real character whose player
+    never linked. The player can self-link it, after which approval goes through."""
+    app = _app()
+    _roster_row(app, owner='', mawla=4)
+    draft_id = _seed_draft(app, discord_id='111', character_data=_draft_with_mawla(1))
+
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id, mentions='not linked')
+    assert _mawla_dots(app) == 4
+
+
+def test_approve_refuses_a_draft_already_pointing_at_another_players_row():
+    app = _app()
+    row_id = _roster_row(app, name='Other Name', owner='222', mawla=4)
+    draft_id = _seed_draft(app, name='Fiona Vale', discord_id='111',
+                           roster_character_id=row_id,
+                           character_data=_draft_with_mawla(1))
+
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id, mentions='another player')
+    assert _mawla_dots(app, 'Other Name') == 4
+
+
+@pytest.mark.parametrize('draft_name', ['Fiona_Vale', 'Fiona%', '%'])
+def test_approve_treats_like_wildcards_in_a_name_literally(draft_name):
+    app = _app()
+    existing_id = _roster_row(app, owner='222', mawla=4)
+    draft_id = _seed_draft(app, name=draft_name, discord_id='111',
+                           character_data=_draft_with_mawla(1))
+
+    res, _ = _approve(app, draft_id)
+
+    assert res.status_code == 302
+    assert _mawla_dots(app) == 4
+    with app.app_context():
+        draft = db.session.get(CharacterDraft, draft_id)
+        assert draft.status == 'approved'
+        assert draft.roster_character_id != existing_id
+        row = db.session.get(DbCharacter, draft.roster_character_id)
+        assert row.character_name == draft_name
+        assert row.player_discord == '111'
+
+
+def test_approve_updates_the_players_own_row_under_its_roster_spelling():
+    """Backgrounds are keyed by name, so writing them under the draft's casing
+    would strand them on a character that doesn't exist."""
+    app = _app()
+    row_id = _roster_row(app, owner='111', mawla=4)
+    draft_id = _seed_draft(app, name='fiona vale', discord_id='111',
+                           character_data=_draft_with_mawla(2))
+
+    res, _ = _approve(app, draft_id)
+
+    assert res.status_code == 302
+    assert _mawla_dots(app) == 2
+    with app.app_context():
+        draft = db.session.get(CharacterDraft, draft_id)
+        assert draft.status == 'approved'
+        assert draft.roster_character_id == row_id
+        assert DbCharacterBackground.query.count() == 1
+
+
+def test_approve_matches_non_ascii_names_the_way_the_database_compares_them():
+    """SQLite's lower() is ASCII-only, so comparing it with Python's lower()
+    would miss this row and then hit the unique constraint on insert."""
+    app = _app()
+    row_id = _roster_row(app, name='Élise', owner='111', mawla=4)
+    draft_id = _seed_draft(app, name='Élise', discord_id='111')
+
+    _approve(app, draft_id)
+
+    with app.app_context():
+        draft = db.session.get(CharacterDraft, draft_id)
+        assert draft.status == 'approved'
+        assert draft.roster_character_id == row_id
+
+
+# ── Approved means the roster has it ────────────────────────────────────────
+
+def test_approve_refuses_a_draft_with_no_name():
+    app = _app()
+    draft_id = _seed_draft(app, name='   ')
+
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id, mentions='name')
+    with app.app_context():
+        assert DbCharacter.query.count() == 0
+
+
+def test_failed_roster_creation_leaves_the_draft_unapproved(monkeypatch):
+    app = _app()
+    draft_id = _seed_draft(app, character_data=_draft_with_mawla(2))
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError('turso is having a moment')
+
+    monkeypatch.setattr(cc_admin_module.db_service, 'add_character', boom)
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id)
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).roster_character_id is None
+        assert DbCharacterBackground.query.count() == 0
+
+
+def test_failure_after_roster_creation_rolls_the_roster_row_back():
+    """add_character used to commit, saving the approval and the new character
+    before backgrounds were looked at. A bad level then left it half-approved."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=json.dumps({
+        **_DEFAULT_DATA, 'backgrounds': [{'name': 'Mawla', 'level': 'lots'}],
+    }))
+
+    res, messages = _approve(app, draft_id)
+
+    _assert_refused(app, res, messages, draft_id)
+    with app.app_context():
+        assert DbCharacter.query.count() == 0
+        assert DbCharacterBackground.query.count() == 0
+
+
+def test_a_failed_approval_can_be_retried(monkeypatch):
+    app = _app()
+    draft_id = _seed_draft(app, character_data=_draft_with_mawla(2))
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError('turso is having a moment')
+
+    with monkeypatch.context() as patched:
+        patched.setattr(cc_admin_module.db_service, 'add_character', boom)
+        _approve(app, draft_id)
+
+    res, messages = _approve(app, draft_id)
+
+    assert res.status_code == 302
+    assert [category for category, _ in messages] == ['success']
+    assert _mawla_dots(app) == 2
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).status == 'approved'
+
+
+def _app_with_outage_handling():
+    """The part of app/__init__.py's handler that decides how an outage is answered."""
+    app = _app()
+
+    def handle(exc):
+        response = db_unavailable_response(exc)
+        if response is None:
+            raise exc
+        return response
+
+    app.register_error_handler(OperationalError, handle)
+    return app
+
+
+def _commit_failing_with(monkeypatch, orig):
+    def boom():
+        raise OperationalError('COMMIT', {}, orig)
+
+    monkeypatch.setattr(db.session, 'commit', boom)
+
+
+def _turso_failure(may_have_applied):
+    orig = TursoUnavailableError('Turso connection error: x')
+    orig.may_have_applied = may_have_applied
+    return orig
+
+
+def test_turso_outage_before_anything_applied_answers_503(monkeypatch):
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=False))
+        res, messages = _approve(app, draft_id)
+
+    assert res.status_code == 503
+    assert messages == []
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).status == 'submitted'
+        assert DbCharacter.query.count() == 0
+
+
+def test_lost_commit_answer_is_not_reported_as_nothing_changed(monkeypatch):
+    """The commit may have landed, so "the roster was not changed" could be false.
+    It has to reach the generic handler, which records and alerts on it."""
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=True))
+        with pytest.raises(OperationalError):
+            _approve(app, draft_id)
+
+
+def test_operational_error_turso_refused_reaches_the_generic_handler(monkeypatch):
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, sqlite3.OperationalError('Turso: no such table: t'))
+        with pytest.raises(OperationalError):
+            _approve(app, draft_id)
+
+
+def test_outage_handling_survives_a_failing_rollback(monkeypatch):
+    """Rollback fails too during an outage, and must not replace the commit's
+    error: a rollback failure doesn't carry may_have_applied."""
+    app = _app_with_outage_handling()
+    draft_id = _seed_draft(app)
+
+    def rollback_boom():
+        raise OperationalError('ROLLBACK', {}, _turso_failure(may_have_applied=False))
+
+    with monkeypatch.context() as patched:
+        _commit_failing_with(patched, _turso_failure(may_have_applied=True))
+        patched.setattr(db.session, 'rollback', rollback_boom)
+        with pytest.raises(OperationalError) as info:
+            _approve(app, draft_id)
+
+    assert info.value.orig.may_have_applied is True
+
+
+def test_retrying_an_approval_that_already_landed_adds_nothing():
+    """What staff will do after a lost commit answer."""
+    app = _app()
+    draft_id = _seed_draft(app, character_data=_draft_with_mawla(2))
+
+    _approve(app, draft_id)
+    _, messages = _approve(app, draft_id)
+
+    assert [category for category, _ in messages] == ['success']
+    assert _mawla_dots(app) == 2
+    with app.app_context():
+        assert DbCharacter.query.count() == 1
+
+
+def test_sheets_mirror_failure_does_not_undo_an_approval(monkeypatch):
+    """Sheets is a best-effort mirror, and is only told once the row is committed."""
+    app = _app()
+    draft_id = _seed_draft(app)
+    seen = []
+
+    class BrokenSheets:
+        def sync_add_character(self, char):
+            with app.app_context():
+                seen.append(DbCharacter.query.filter_by(
+                    character_name=char.character_name).count())
+            raise RuntimeError('sheets is down')
+
+    monkeypatch.setattr(cc_admin_module, 'sheets_sync', BrokenSheets())
+    res, messages = _approve(app, draft_id)
+
+    assert res.status_code == 302
+    assert [category for category, _ in messages] == ['success']
+    assert seen == [1]
+    with app.app_context():
+        assert db.session.get(CharacterDraft, draft_id).status == 'approved'
 
 
 def test_approve_requires_staff():
