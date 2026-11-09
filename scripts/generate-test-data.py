@@ -19,7 +19,8 @@ Two modes:
 
 Every generated character/claim/spend is tagged with the PREFIX below so
 runs are trivially identifiable and reversible. `--cleanup` deletes ONLY rows
-whose character_name starts with PREFIX, and only works with --mode db —
+whose character_name starts with PREFIX or with the live e2e suite's ZZLive_
+prefix (drafts included), and only works with --mode db —
 the bot API's DELETE /api/roster/character refuses (409) to delete a
 character that already has claims/spends attached, which every character
 this script creates will have.
@@ -70,6 +71,9 @@ XP_COSTS_PATH = REPO_ROOT / "packages" / "rules" / "xp_costs.json"
 # character_name (claims/spends aren't prefixed directly, but they're keyed
 # to a prefixed character_name, so they're identifiable and cleanable too).
 PREFIX = "ZZTest_"
+# --cleanup also covers what apps/character-app/e2e-live leaves behind.
+CLEANUP_PREFIXES = (PREFIX, "ZZLive_")
+CLEANUP_TABLES = ("character_drafts", "xp_claims", "spend_requests", "characters")
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:5001"
 
@@ -252,14 +256,14 @@ def turso_insert_many(base_url: str, token: str, table: str, cols: list[str], ro
     return inserted
 
 
-def turso_delete_prefixed(base_url: str, token: str, table: str) -> int:
-    """Delete rows whose character_name starts with PREFIX.
+def turso_delete_prefixed(base_url: str, token: str, table: str, prefix: str) -> int:
+    """Delete rows whose character_name starts with prefix.
 
     Uses substr() equality rather than LIKE so the underscore in "ZZTest_"
     is matched literally instead of as a LIKE single-char wildcard.
     """
     sql = f"DELETE FROM {table} WHERE substr(character_name, 1, ?) = ?"
-    rs = turso_execute(base_url, token, sql, [len(PREFIX), PREFIX])
+    rs = turso_execute(base_url, token, sql, [len(prefix), prefix])
     return int(rs.get("affected_row_count", 0) or 0)
 
 
@@ -673,12 +677,13 @@ def cleanup_db(creds: dict[str, str]) -> None:
         sys.exit(1)
 
     base_url = libsql_to_https(database_url)
-    # Children before parent, though nothing enforces FK order here (no real
-    # foreign key from xp_claims/spend_requests to characters) — it's just
-    # tidier to remove the detail rows before the roster entry they belong to.
-    for table in ("xp_claims", "spend_requests", "characters"):
-        count = turso_delete_prefixed(base_url, token, table)
-        print(f"  {table}: deleted {count} row(s) matching prefix {PREFIX!r}")
+    # Children before parent. character_drafts.roster_character_id is a real
+    # foreign key to characters; xp_claims/spend_requests have none, and go first
+    # only because it's tidier to remove detail rows before their roster entry.
+    for prefix in CLEANUP_PREFIXES:
+        for table in CLEANUP_TABLES:
+            count = turso_delete_prefixed(base_url, token, table, prefix)
+            print(f"  {table}: deleted {count} row(s) matching prefix {prefix!r}")
     print("\nDone.")
 
 
@@ -701,7 +706,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--yes", action="store_true", help="Actually write data. Without this, only a dry-run plan is printed.")
     parser.add_argument(
         "--cleanup", action="store_true",
-        help=f"Delete ONLY rows whose character_name starts with {PREFIX!r}. Requires --mode db: "
+        help=f"Delete ONLY rows whose character_name starts with one of {CLEANUP_PREFIXES!r}. Requires --mode db: "
              "the bot API's DELETE /api/roster/character refuses (409) to delete a character that "
              "already has claims/spends attached, which every character this script creates will have.",
     )
@@ -729,8 +734,8 @@ def main() -> None:
         print(f"Prefix for all synthetic records: {PREFIX!r}")
         print(f"Mode: {args.mode}")
         if args.cleanup:
-            print(f"Would DELETE all characters/xp_claims/spend_requests rows with character_name "
-                  f"starting {PREFIX!r} from the target database.")
+            print(f"Would DELETE all {'/'.join(CLEANUP_TABLES)} rows with character_name "
+                  f"starting {' or '.join(repr(p) for p in CLEANUP_PREFIXES)} from the target database.")
         else:
             print(f"Would create {args.characters} characters, up to {args.claims} XP claims, "
                   f"and {args.spends} spend requests.")

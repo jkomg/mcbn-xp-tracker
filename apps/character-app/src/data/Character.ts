@@ -344,6 +344,18 @@ export const applyCharacterCompatibilityPatches = (
 };
 
 /**
+ * Validates character data read back from a server draft, upgrading it first.
+ *
+ * Patches run before validation, not only when it fails: fields like
+ * `backgrounds` have schema defaults, so an old draft can validate as it stands
+ * and silently lose data the patches would have moved. Throws if it is invalid.
+ */
+export const parseStoredDraft = (data: Record<string, unknown>): Character => {
+  applyCharacterCompatibilityPatches(data);
+  return characterSchema.parse(data);
+};
+
+/**
  * v8 persists the creation-XP baseline (cc_base_attributes/cc_base_skills).
  *
  * Deliberately does NOT backfill them from the character's current ratings.

@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-11-03] Character Creation: Live Suite Reaches the Roster; Two Review Bugs Fixed
+
+**Staff could not see the XP figures on most drafts.** The Creation XP budget /
+Spent / Banks into play row sat inside the In-Memoriam era-spends card, so it
+never rendered for any other draft. It now always shows. The "XP Budget" at the
+top of the page showed the draft's own `cc_xp_budget` and `inherited_xp`, which
+approval ignores; it now shows the server's figure.
+
+**Edit on My Characters did not open the draft it was on.** It linked to the bare
+creator, which resumes whatever that browser's localStorage holds. With nothing
+stored, as on a new device, the player got a blank wizard and a new untitled
+draft instead of the one sent back for revision. Edit now links to
+`/player/new?draft=<id>`. Drafts saved under an older schema are upgraded on
+open, and one that cannot be opened now says so instead of failing silently.
+
+**Live e2e (`npm run e2e:live`).** Now runs from the wizard through submit, staff
+review, approval and the roster row, plus the revision cycle, the In-Memoriam
+banked-XP ordering, and tampered drafts. It no longer finds its draft by searching
+the list for "Brujah", which could match, and rename, an older draft of yours.
+Wizard steps moved to `e2e/wizard.ts`, shared with the hermetic spec.
+
+**Cleanup.** `generate-test-data.py --cleanup` now also removes `ZZLive_` rows and
+`character_drafts`. The e2e README said it already did; it did not.
+
 ## [2026-10-28] Wiki Sync Stops OOM-Killing Prod; Bot Network Blips Stop Paging
 
 **Prod web OOM.** From at least 2026-10-22, prod Cloud Run exceeded its 512 MiB

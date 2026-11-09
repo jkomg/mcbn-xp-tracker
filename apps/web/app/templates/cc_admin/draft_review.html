@@ -67,10 +67,7 @@
         <div class="col-sm-4">
           <div class="text-muted small">XP Budget</div>
           <div class="fw-semibold">
-            {% set budget = char_data.get('cc_xp_budget', 0) %}
-            {% set inherited = char_data.get('inherited_xp', 0) %}
-            {{ budget }} XP
-            {% if inherited %}<span class="text-muted small">(+{{ inherited }} inherited)</span>{% endif %}
+            {{ cc_xp_budget }} XP
           </div>
         </div>
         <div class="col-sm-4">
@@ -294,6 +291,13 @@
         <hr class="my-0">
         {% endif %}
       {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Creation XP: the figures approval will actually use ── #}
+  <div class="card mb-3">
+    <div class="card-body p-0">
       <div class="px-3 pt-2 pb-3">
         <span class="fw-semibold small">Creation XP budget: </span>
         <span class="badge bg-secondary">{{ cc_xp_budget }}</span>
@@ -315,7 +319,6 @@
       </div>
     </div>
   </div>
-  {% endif %}
 
   {# ── Loresheets ── #}
   {% set purchases = char_data.get('loresheet_purchases', []) %}

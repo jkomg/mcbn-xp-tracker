@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react"
 import React from "react"
 import { useLocation, useNavigate } from "@tanstack/react-router"
 import RenderProfiler from "~/components/RenderProfiler"
-import { characterSchema, getEmptyCharacter, type Character as CharacterType } from "~/data/Character"
+import { notifications } from "@mantine/notifications"
+import {
+    getEmptyCharacter,
+    parseStoredDraft,
+    type Character as CharacterType,
+} from "~/data/Character"
 import { createSaveQueue } from "~/utils/saveQueue"
 import Generator from "~/generator/Generator"
 import {
@@ -66,6 +71,8 @@ export default function CreatorPage() {
     // write what is on screen now rather than what was there when they were set up.
     const characterRef = useRef(character)
     const enqueueSave = useRef(createSaveQueue<string>()).current
+    // True from mount until a ?draft= load settles. See the auto-save effect.
+    const draftLoadPendingRef = useRef(new URLSearchParams(window.location.search).has("draft"))
 
     // Ticket channel ID from ?ticket= URL param (set by Lasombra's welcome message link).
     // Captured once on mount; stored in a ref so it's available when the first draft is created.
@@ -141,6 +148,9 @@ export default function CreatorPage() {
 
     useEffect(() => {
         if (isCharacterEmpty()) return
+        // A save now would write the character being replaced. With no draft id
+        // yet it would also create a new draft and could claim the id afterwards.
+        if (draftLoadPendingRef.current) return
 
         const timer = setTimeout(() => {
             void runSave(characterRef.current).catch((e) => console.warn("Auto-save failed:", e))
@@ -163,18 +173,44 @@ export default function CreatorPage() {
     const handleLoadDraft = async (draftId: string) => {
         try {
             const draft = await cc.getDraft(draftId)
-            if (draft.character_data) {
-                const parsed = characterSchema.safeParse(draft.character_data)
-                if (parsed.success) {
-                    setCharacter(parsed.data)
-                    setDraftId(draftId)
-                    setSelectedStep(defaultGeneratorStepId)
-                }
-            }
+            const data = draft.character_data as Record<string, unknown> | null
+            if (!data) throw new Error("Draft has no readable character data")
+            setCharacter(parseStoredDraft(data))
+            setDraftId(draftId)
+            setSelectedStep(defaultGeneratorStepId)
         } catch (e) {
             console.error("Failed to load draft:", e)
+            notifications.show({
+                title: "Could not open that draft",
+                message: "It may be from an older version of the creator. Contact a storyteller for help.",
+                color: "red",
+            })
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // ?draft=<id> — open a specific draft (My Characters' Edit button)
+    // ---------------------------------------------------------------------------
+    // Consumed once and stripped from the URL, so a refresh does not replace
+    // edits made since with the last saved copy.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const requestedDraftId = params.get("draft")
+        if (!requestedDraftId) return
+
+        params.delete("draft")
+        const query = params.toString()
+        window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}${query ? `?${query}` : ""}`
+        )
+        void handleLoadDraft(requestedDraftId).finally(() => {
+            draftLoadPendingRef.current = false
+        })
+        // Mount only: re-running would discard work in progress.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // ---------------------------------------------------------------------------
     // Start a new draft (clears everything)

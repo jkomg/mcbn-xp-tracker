@@ -15,7 +15,7 @@ from flask_wtf.csrf import CSRFProtect
 from app.blueprints import character_creator as cc_module
 from app.blueprints import player as player_module
 from app.cc_access import can_create_characters
-from app.db import DbCharacter, db
+from app.db import CharacterDraft, DbCharacter, db
 from app.db_service import DBService
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates')
@@ -202,3 +202,20 @@ def test_non_pilot_player_does_not_see_it_in_staff_mode():
     _seed_character(app, discord_id='111')
     body = _player_client(app, discord_id='111').get('/player/').get_data(as_text=True)
     assert '/player/new' not in body
+
+
+def test_draft_edit_link_names_the_draft_it_opens():
+    """Edit linked to the bare creator, which resumes whatever this browser's
+    localStorage last held: another draft, or a blank one on a new device."""
+    app = _app()
+    with app.app_context():
+        draft = CharacterDraft(
+            player_discord_id='111',
+            character_name='Returned Rita',
+            status='revision_requested',
+        )
+        db.session.add(draft)
+        db.session.commit()
+        draft_id = draft.id
+    body = _player_client(app).get('/player/').get_data(as_text=True)
+    assert f'/player/new?draft={draft_id}' in body

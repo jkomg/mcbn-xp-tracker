@@ -303,7 +303,7 @@ export default function LoresheetPicker({ character, setCharacter, nextStep }: L
                                 { label: "Remaining", value: remaining, color: overBudget ? C_RED : C_GOLD },
                             ].map(({ label, value, color }) => (
                                 <div key={label} style={{ textAlign: "center" }}>
-                                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: "1rem", fontWeight: 700, color }}>
+                                    <div data-testid={`starting-xp-${label.toLowerCase()}`} style={{ fontFamily: FONT_DISPLAY, fontSize: "1rem", fontWeight: 700, color }}>
                                         {value > 0 ? `+${value}` : value === 0 ? "0" : String(value)} XP
                                     </div>
                                     <div style={{ fontFamily: FONT_UI, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C_MUTED }}>
