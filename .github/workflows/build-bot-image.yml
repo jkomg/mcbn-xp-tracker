@@ -87,7 +87,7 @@ jobs:
           echo "short=${full:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Check out the resolved SHA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.sha.outputs.full }}
           # Full history: the relevance check below diffs against the last commit
@@ -98,7 +98,7 @@ jobs:
       # commit predates .github/docker/Dockerfile.packages -- so take the wrapper
       # from the ref this workflow is running from, not from the tree being built.
       - name: Check out this workflow's own ref for the wrapper Dockerfile
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: .workflow-ref
           fetch-depth: 1
