@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-11-18] Docs: Deploy and Verification Claims Match the Workflows
+
+Documentation only; no application, workflow or schema change.
+
+- `CONTRIBUTING.md` said a pushed branch deploys to dev "with or without an open
+  PR". It does not: CI runs on a PR, on `main`, or by manual dispatch, so a bare
+  branch push runs no CI and deploys nothing. It also gains the blocking
+  `compileall` step, the character-app commands, and the current CI path
+  triggers, and no longer says the bot "redeploys".
+- `docs/REGRESSION_HYGIENE_CHECKLIST.md` told people to run a bare `pytest -q`;
+  it now lists the coverage-gated command, `ruff` and `compileall`.
+- `docs/MANUAL_TEST_PLAN_CHARACTER_CREATION.md` describes when dev redeploys
+  and how to find the deployed commit.
+- `docs/GO_LIVE_CHECKLIST.md` is marked as the historical March 2026 migration
+  record (its checkboxes are unchanged and are not open work) and now has current
+  release-verification guidance, including the Compose-on-miniplex bot path.
+- New `docs/PADDOCK.md` describes how Paddock is used in this repo.
+
 ## [2026-11-03] Character Approval Can't Overwrite Another Player's Character
 
 **A draft could overwrite someone else's backgrounds.** Approving a draft whose

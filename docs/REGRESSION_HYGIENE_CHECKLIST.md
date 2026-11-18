@@ -22,8 +22,17 @@ Concrete pre/post-change checklist for mcbn-xp-tracker, synthesized from real in
 
 ## Before calling a change done
 
-- **Web changes**: run `cd apps/web && pytest -q` (44+ files, cheap) — don't rely on ad-hoc manual test-client scripts as a substitute for the real suite, even though they're useful for exploratory verification. Add a real test under `tests/` for non-trivial logic. Also `ruff check app tests`.
+- **Web changes**: from `apps/web`, run the exact commands CI gates on, with the project virtualenv's interpreter (`python` is usually not on `PATH`, and the system `python3` on macOS may be 3.9, which will not work — web needs 3.12):
+  ```bash
+  ./venv/bin/pytest -q --cov=app --cov-report=term-missing --cov-fail-under=30
+  ./venv/bin/ruff check app tests          # ruff pinned to 0.15.20, as in CI
+  ./venv/bin/python -m compileall app tests
+  ```
+  A bare `pytest -q` is **not** the gate: it skips the 30% coverage floor, so it can pass locally while CI fails. `compileall` is blocking in CI and catches syntax errors in modules no test imports. Don't rely on ad-hoc manual test-client scripts as a substitute for the real suite, even though they're useful for exploratory verification. Add a real test under `tests/` for non-trivial logic. (`mypy` also runs in CI but is informational.) The full command list and CI path triggers are in [CONTRIBUTING.md](../CONTRIBUTING.md#testing-and-lint).
 - **Bot changes**: run `npm run check` (lint + format:check + typecheck + test + build) from `apps/bot` — this is the single command CI gates on; don't skip typecheck, TypeScript catches whole classes of mistakes for free.
+- **Character-app changes**: from `apps/character-app` (Node 22), run `npm run lint && npm run test:run && npm run typecheck && npm run build`, then `npx playwright install --with-deps chromium && npm run test:e2e`. `typecheck` and `test:e2e` are separate blocking CI steps; `npm run build` is Vite only and does not type-check.
+- **Changes under `packages/`**: validate every consumer — CI runs the web, bot, character-app, contract and docker/docs jobs for them, because both apps read the shared JSON, the character app asserts against it, and the web image bakes it in.
+- **Docs-only changes**: `docs/**`, `README.md` and `scripts/check-docs-parity.sh` trigger the docs/compose hygiene job, which runs `./scripts/check-docs-parity.sh` — run it locally before pushing.
 - **Anything mutating live Discord server state** (roles, channel structure, command registration, bulk permission changes): test on the dev/test guild first — see `docs/RUN_BOT_DEV.md` and [ARCHITECTURE_BOT.md](ARCHITECTURE_BOT.md). This is a standing rule, not a suggestion.
 - **Anything requiring a live production config/env change on a self-hosted box**: `docker restart <container>` does **not** re-read `.env` — it restarts the existing container with whatever environment was baked in at creation. You need `docker compose up -d <service>` run from the *correct* compose project directory (a host can run multiple `docker-compose.yml` files per app, not one root compose file) — verify which compose project actually owns the running container first: `docker inspect <container> --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}'`.
 - **After any schema change**: remember `db.create_all()` runs before Alembic's diff on every boot, so a `CREATE TABLE`-style migration needs a hand-written `_table_exists` guard (autogenerate will produce an empty migration body against a fresh Turso DB, since `create_all()` pre-empts the diff) — see [ARCHITECTURE_WEB.md](ARCHITECTURE_WEB.md).

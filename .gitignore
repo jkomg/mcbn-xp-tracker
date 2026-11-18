@@ -61,3 +61,7 @@ apps/character-app/playwright/.cache/
 
 # Live e2e captured Discord session (never commit a session cookie)
 apps/character-app/e2e-live/.auth/
+
+# Local Paddock evidence and machine-specific provider bindings
+.paddock/runs/
+.paddock/crew.json
