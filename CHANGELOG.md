@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-11-24] Maintenance: OpenSpec Requirements Synced and Changes Archived
+
+Specification housekeeping only; no application, workflow or schema change and no
+rule changed.
+
+- New main specs `openspec/specs/background-blanking/` and
+  `openspec/specs/skill-specialty-editing/` now hold the requirements that had
+  only existed as change deltas: the calendar/dashboard, per-blank release and
+  single-authority blank-state requirements, and the skill-specialty requirements
+  restored from their earlier archive. Requirement and scenario text is carried
+  over unchanged.
+- The completed `background-blanking-timing-and-dashboard` and
+  `per-blank-background-release` changes moved to `openspec/changes/archive/`
+  with a `2026-11-24-` prefix.
+- Migration `8a3e5c7d9b21` still has a docstring pointing at the old
+  `openspec/changes/per-blank-background-release/design.md` path; it was left
+  as is, and the design now lives under the archive path above.
+
 ## [2026-11-18] Docs: Deploy and Verification Claims Match the Workflows
 
 Documentation only; no application, workflow or schema change.
@@ -172,7 +190,7 @@ surfaced as an unhandled 500 and a recurring
   revision while the deploy is cutting over is written only to the old columns
   and **will not exist afterwards**. The player can simply blank again. This was
   accepted instead of a three-release dual-write; see
-  `openspec/changes/per-blank-background-release/design.md`. If a player reports
+  `openspec/changes/archive/2026-11-24-per-blank-background-release/design.md`. If a player reports
   a blank that vanished around deploy time, this is why.
 - Two migrations, `8a3e5c7d9b21` then `c4e1a9f27b58`. Rolling back needs
   `flask db downgrade 3f81c22ad5e7`, not only a code revert.
