@@ -375,3 +375,8 @@ throughout, and it is the reason the traps above are known.
 - [docs/RUN_LOCAL_FROM_BACKUP.md](docs/RUN_LOCAL_FROM_BACKUP.md) — run the web app
   against last night's Turso dump, e.g. during a Turso outage
 - [CLAUDE.md](CLAUDE.md) — the same ground, oriented toward Claude Code sessions
+
+
+<!-- paddock-crew -->
+Follow .paddock/RULES.md for Paddock coordination and evidence.
+<!-- paddock-crew -->

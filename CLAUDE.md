@@ -91,8 +91,10 @@ second `gcloud run deploy` invocation anywhere.
 
 Deploys are normally automatic, not run by hand. GitHub Actions chains them:
 CI passing on **any branch** deploys to dev (`deploy-web-dev.yml` has no branch
-filter — dev is shared, and a feature-branch push replaces what's deployed
-there); a dev deploy succeeding **on `main`** then gates prod. The bot does
+filter — dev is shared, and a successful CI run on a feature PR replaces what's
+deployed there). A bare non-main branch push with no PR runs no CI and deploys
+nothing; CI also accepts manual dispatch. A dev deploy succeeding **on `main`**
+then gates prod. The bot does
 **not** auto-deploy: CI passing on `main` publishes a new image
 (`build-bot-image.yml`), and shipping it is a deliberate second step. See
 [CONTRIBUTING.md](CONTRIBUTING.md#deploy-paths).
@@ -142,11 +144,17 @@ Log retention env vars: `BOT_LOG_MAX_SIZE` (default `25m`), `BOT_LOG_MAX_FILE` (
 |-----|------------|
 | `web-test-and-lint` | `apps/web/**`, `packages/**` |
 | `bot-test-and-lint` | `apps/bot/**`, `packages/**` |
+| `character-app-test-and-lint` | `apps/character-app/**`, `packages/**` |
 | `contract-tests` | `packages/api-contract/**`, `packages/rules/**` |
-| `docker-and-docs-hygiene` | compose files, `scripts/bootstrap-local.sh`, `docs/**`, `README.md` |
+| `docker-and-docs-hygiene` | character app, shared packages, web Dockerfile, compose and historical k8s files, bootstrap/parity scripts, `docs/**`, `README.md` |
 | `deploy-workflow-tests` | `deploy-web*.yml`, `scripts/cloud-run-deploy-retry.sh`, `scripts/test-deploy-workflow-helper.rb` |
 
-The `docker-and-docs-hygiene` job validates all compose files and smoke-starts the web Docker profile.
+Editing `ci.yml` triggers every job. The complete literal path filters and exact
+web, bot and character-app commands are maintained in
+[CONTRIBUTING.md](CONTRIBUTING.md#testing-and-lint); check the workflow before
+changing them. `docker-and-docs-hygiene` validates compose files, smoke-starts the
+web Docker profile and runs the docs parity script. A green aggregate check can
+include skipped jobs; read which checks actually ran.
 
 ## Architecture Principles
 
@@ -192,3 +200,8 @@ The `docker-and-docs-hygiene` job validates all compose files and smoke-starts t
 - `docs/RELEASE_2026-06-18_COTERIE_SYSTEM.md` — full coterie lifecycle: player proposal/formation, background donation, XP spend donation, domain ratings, /coterie status bot command, CC schema v7 backgrounds field
 - `docs/RELEASE_2026-07-10_SETTINGS_CONTROL_PANEL.md` — Settings page control-panel redesign: left sub-nav, cross-section search, grouped channel IDs with "used by" badges, Integrations values + why-change copy
 - `docs/RELEASE_2026-07-10_SCENE_REQUESTS.md` — **latest release notes** (`/scene request` queue: player asks for a scene with an SPC, ST Claim/Reject buttons with atomic claim + cubby-channel outcome notification)
+
+
+<!-- paddock-crew -->
+Follow .paddock/RULES.md for Paddock coordination and evidence.
+<!-- paddock-crew -->

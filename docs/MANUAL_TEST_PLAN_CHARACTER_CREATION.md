@@ -14,8 +14,18 @@ gh run list --workflow=deploy-web-dev.yml --limit 3
 curl -s -o /dev/null -w '%{http_code}\n' https://dev.mcbn.jkomg.us/api/health
 ```
 
-Dev redeploys on every CI-passing push on any branch. If behaviour changes
-mid-session, someone pushed.
+Dev has no branch filter: it redeploys whenever a CI run completes
+successfully. For a branch that is every passing CI run on an **open PR** — a
+branch pushed with no PR runs no CI and deploys nothing — plus every passing CI
+run on `main`. (A CI run whose jobs were all skipped by path filters still
+completes successfully, so it deploys too.) If behaviour changes mid-session,
+another CI run finished. `gh run list` shows that a dev deploy ran, not which
+commit it built — the run's own `headSha` can be the tip of `main` rather than
+the commit it checked out. The deployed commit is the tag of the image on the
+Cloud Run revision (`gcloud run services describe mcbn-xp-tracker-dev --region
+us-central1 --format='value(spec.template.spec.containers[0].image)'`), and is
+also in the Discord "Dev deployed" notification. See
+[CONTRIBUTING.md](../CONTRIBUTING.md#deploy-paths).
 
 Each set is independent. Sets 1–3 are the core paths; 4–7 are where the recent
 bugs lived and where new ones are most likely.
@@ -200,7 +210,7 @@ Worth noting for anything that fails:
 
 - Which set and step
 - What you expected vs. what happened
-- The commit deployed (`gh run list --workflow=deploy-web-dev.yml --limit 1`)
+- The commit deployed (the dev revision's image tag, as above — not the `gh run list` row alone)
 - Draft id, and character name if one was created
 - Browser console errors — several past bugs were silent in the UI and visible
   only there

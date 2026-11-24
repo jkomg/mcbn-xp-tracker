@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "verification_mode": "commands",
+  "checks": [
+    {"id": "docs-parity", "kind": "command", "argv": ["bash", "scripts/check-docs-parity.sh"], "timeout": 60},
+    {"id": "patch-whitespace", "kind": "command", "argv": ["git", "diff", "--check", "origin/main"], "timeout": 60},
+    {"id": "paddock-syntax", "kind": "command", "argv": ["{python}", "-c", "import ast; from pathlib import Path; files = sorted(Path('.paddock').glob('*.py')); assert files; [(ast.parse(p.read_text()), print(p)) for p in files]"], "timeout": 60},
+    {"id": "paddock-config", "kind": "command", "argv": ["{python}", ".paddock/paddock.py", "doctor"], "timeout": 60}
+  ],
+  "scope": "Documentation and Paddock onboarding only. Before any application, dependency, workflow, or shared-package change, configure the exact affected CI checks from AGENTS.md and the workflows. Command verification does not establish test counts or application correctness."
+}
